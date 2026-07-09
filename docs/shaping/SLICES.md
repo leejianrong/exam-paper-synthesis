@@ -4,14 +4,14 @@ shaping: true
 
 # Exam Paper Synthesis — Slices
 
-> **Implementation plan** for Shape A (see `docs/SHAPING.md` for R, Shape A parts,
+> **Implementation plan** for Shape A (see `docs/shaping/SHAPING.md` for R, Shape A parts,
 > fit check, and the breadboard this slices). Each slice is a **vertical
 > increment** cutting through web → api → engine → content, and **ends in
 > demo-able UI**. Order follows the ADR build directive: **prove the Ratio ladder
 > end-to-end first**, then broaden.
 >
 > **Consistency:** slices reference Shape-A parts (A1…A10) and requirements
-> (R1…R8). A change to a slice's scope must ripple up to `docs/SHAPING.md`.
+> (R1…R8). A change to a slice's scope must ripple up to `docs/shaping/SHAPING.md`.
 
 ---
 

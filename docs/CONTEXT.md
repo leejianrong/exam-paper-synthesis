@@ -1,7 +1,7 @@
 # CONTEXT — shared language & decisions
 
 Living glossary and decision register for the Exam Paper Synthesis project,
-built during grilling (see `QUESTIONS.md`). Terms here are the canonical
+built during grilling (see `docs/background/QUESTIONS.md`). Terms here are the canonical
 vocabulary; decisions link to `docs/adr/*.md`.
 
 ## Glossary

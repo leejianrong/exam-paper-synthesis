@@ -4,7 +4,7 @@
 > product-planning process (Grill → PRD → Shaping → Breadboard). It captures
 > *what* we want to build and *why*, not the detailed design.
 >
-> Source of the idea: `chatgpt-conversation-summary.md`.
+> Source of the idea: `docs/background/chatgpt-conversation-summary.md`.
 > Scope of this doc: product requirements only (no business/GTM/pricing/timeline).
 
 ## Decisions locked

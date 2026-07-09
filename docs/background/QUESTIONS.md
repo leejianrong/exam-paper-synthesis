@@ -1,7 +1,7 @@
 # QUESTIONS — grilling log
 
-Interrogation of `docs/REQS.md` to sharpen the plan before PRD/shaping.
-As answers settle they migrate into `CONTEXT.md` (shared terms) and
+Interrogation of `docs/background/REQS.md` to sharpen the plan before PRD/shaping.
+As answers settle they migrate into `docs/CONTEXT.md` (shared terms) and
 `docs/adr/*.md` (decisions). Status: 🔴 open · 🟡 partial · 🟢 answered.
 
 Priority: **[P0]** blocks everything · **[P1]** shapes core design · **[P2]** deferrable.
@@ -28,7 +28,7 @@ Priority: **[P0]** blocks everything · **[P1]** shapes core design · **[P2]** 
 
 ## C. Canonical question object
 
-- 🟡 **Q-C1 [P0]** Schema proposed (CONTEXT.md / ADR-0004, Proposed). Confirm.
+- 🟡 **Q-C1 [P0]** Schema proposed (docs/CONTEXT.md / ADR-0004, Proposed). Confirm.
   *Now must also accommodate ingested/sourced questions (see section N).*
 - 🟡 **Q-C2 [P1]** → *Proposed:* JSON-serializable; user-facing persistence
   ephemeral (Q-A3), but the ingested bank persists (section N).
