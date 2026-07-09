@@ -91,6 +91,7 @@ vocabulary; decisions link to `docs/adr/*.md`.
 | ADR-0013 | Multi-part `parts[]`; answer = discriminated union by `type` | Accepted |
 | ADR-0014 | Schema versioning/validation, param typing, diagram-consistency, uniqueness | Accepted |
 | ADR-0015 | Principled difficulty: levers + 3-rung ladder × 5 topics (15 blueprints v1) | Accepted |
+| ADR-0016 | Tech-stack specifics: Python 3.12, uv workspace, jsonschema-gated dict (Pydantic at API only), id scheme, placeholder skill codes | Accepted |
 
 Formal spec: `schemas/canonical-question.schema.json` (Draft 2020-12) + `docs/SCHEMA.md`
 — validated against worked examples and negative controls.
