@@ -4,8 +4,8 @@ shaping: true
 
 # V1 Slice Plan — Generate one Ratio question
 
-> **Slice V1 of `docs/SLICES.md`.** The thinnest full-stack path that produces a
-> question a teacher can trust. Ground truth for R and Shape A: `docs/SHAPING.md`.
+> **Slice V1 of `docs/shaping/SLICES.md`.** The thinnest full-stack path that produces a
+> question a teacher can trust. Ground truth for R and Shape A: `docs/shaping/SHAPING.md`.
 > Schema contract: `schemas/canonical-question.schema.json` (+ `docs/SCHEMA.md`).
 > Blueprint model: ADR-0003. Layout/stack: ADR-0006. Ladder: `docs/DIFFICULTY.md`.
 >

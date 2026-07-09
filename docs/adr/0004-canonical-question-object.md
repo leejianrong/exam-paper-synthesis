@@ -11,7 +11,7 @@ are views of it. We need an agreed field set and an edit/versioning model.
 
 ## Decision (proposed)
 
-Fields (see `CONTEXT.md` for the worked example):
+Fields (see `docs/CONTEXT.md` for the worked example):
 
 - `id`, `blueprint_code`, `seed`
 - `syllabus`: level, strand, topic, subtopic, skill_codes

@@ -1,0 +1,52 @@
+code: ratio_medium
+syllabus:
+  level: P5
+  strand: "Ratio"
+  topic: "Ratio"
+  subtopic: "Sharing in a ratio"
+  skill_codes: ["RATIO.SHARE.3TERM"]   # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Number type / magnitude"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [names, ratio, total]
+  properties:
+    names:
+      type: array
+      items: { type: string }
+      minItems: 3
+      maxItems: 3
+    ratio:
+      type: array
+      items: { type: integer, minimum: 1, maximum: 9 }
+      minItems: 3
+      maxItems: 3
+    total:
+      type: integer
+      minimum: 12
+      maximum: 2000
+story_templates:
+  - stem: null
+    text: >
+      {names[0]}, {names[1]} and {names[2]} share ${total} in the ratio
+      {ratio[0]} : {ratio[1]} : {ratio[2]}. How much does {names[2]} receive?
+solution_template:
+  steps:
+    - text: "Total units = {ratio[0]} + {ratio[1]} + {ratio[2]} = {units_total}."
+      expr: "{ratio[0]}+{ratio[1]}+{ratio[2]}"
+    - text: "Value of 1 unit = ${total} ÷ {units_total} = ${unit_value}."
+      expr: "{total}/{units_total}"
+    - text: "{names[2]}'s share = {ratio[2]} × ${unit_value} = ${answer_value}."
+      expr: "{ratio[2]}*{unit_value}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Sum the ratio units to find the total number of units." }
+  - { mark: 1, type: M, description: "Divide the total amount by the units to find the value of one unit." }
+  - { mark: 1, type: A, description: "Correct final share with the $ unit." }
+answer:
+  type: quantity
+  unit: "$"
+diagram: null                           # aid bar_model added in V2

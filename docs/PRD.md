@@ -4,10 +4,10 @@
 > modeling) is complete. This PRD synthesizes the accepted decisions; it does
 > **not** re-litigate them.
 >
-> **Sources of truth (read these for the "why"):** `docs/REQS.md`,
-> `CONTEXT.md` (glossary + decision register), `docs/adr/0001…0015`,
+> **Sources of truth (read these for the "why"):** `docs/background/REQS.md`,
+> `docs/CONTEXT.md` (glossary + decision register), `docs/adr/0001…0015`,
 > `docs/SCHEMA.md` + `schemas/canonical-question.schema.json`,
-> `docs/DIFFICULTY.md`, `QUESTIONS.md`.
+> `docs/DIFFICULTY.md`, `docs/background/QUESTIONS.md`.
 >
 > **Product in one line:** a deterministic, blueprint-driven engine that
 > generates syllabus-aligned Singapore P5–P6 math questions with correct
