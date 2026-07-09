@@ -1,0 +1,8 @@
+# PROVISIONAL skill codes — remap to MOE P5-P6 syllabus outcomes when the
+# official doc is available (Q-M1). Codes are carried, not queried, in v1
+# (ADR-0016), so remapping is a mechanical find/replace with no data migration.
+strand: "Ratio"
+skills:
+  RATIO.SHARE.2TERM: "Share a quantity in a 2-term ratio (direct)"
+  RATIO.SHARE.3TERM: "Share a quantity in a 3-term ratio"          # used by ratio_medium
+  RATIO.BEFORE_AFTER: "Before-after with an invariant quantity"

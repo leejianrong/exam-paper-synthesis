@@ -1,0 +1,68 @@
+"""Solver for ``ratio_medium``: three people share a sum in a 3-term ratio;
+find the third person's share (DIFFICULTY.md — medium Ratio rung).
+
+Answer type: quantity in ``$`` (a clean positive integer). Constraints are
+satisfied *by construction* (ADR-0014): total is sampled as ``sum(ratio) *
+unit_value`` so every share is a positive integer and division is exact.
+"""
+
+from __future__ import annotations
+
+import random
+
+from ..registry import register
+
+# Singapore-appropriate given names (PSLE style, R1.6).
+NAME_POOL = [
+    "Aisha", "Ben", "Chloe", "Devi", "Ethan", "Faridah",
+    "Gopal", "Hui Ling", "Ismail", "Jia En", "Kavya", "Lucas",
+]
+
+_UNIT_VALUE_MIN = 3
+_UNIT_VALUE_MAX = 60
+_TOTAL_MIN = 12
+_TOTAL_MAX = 2000
+
+
+class RatioMediumSolver:
+    def sample(self, schema: dict, rng: random.Random) -> dict:
+        names = rng.sample(NAME_POOL, 3)
+        # 3-term ratio, terms 1..9, not all equal (keeps the question meaningful).
+        while True:
+            ratio = [rng.randint(1, 9) for _ in range(3)]
+            if len(set(ratio)) > 1:
+                break
+        unit_value = rng.randint(_UNIT_VALUE_MIN, _UNIT_VALUE_MAX)
+        total = sum(ratio) * unit_value  # exact by construction; stays in [12, 2000]
+        return {"names": names, "ratio": ratio, "total": total}
+
+    def solve(self, params: dict) -> dict:
+        ratio = params["ratio"]
+        total = params["total"]
+        units_total = sum(ratio)
+        unit_value = total // units_total
+        answer_value = ratio[2] * unit_value
+        return {
+            "answer": {"type": "quantity", "value": answer_value, "unit": "$"},
+            "intermediates": {
+                "units_total": units_total,
+                "unit_value": unit_value,
+                "answer_value": answer_value,
+            },
+        }
+
+    def validate(self, params: dict, solution: dict) -> dict:
+        ratio = params["ratio"]
+        total = params["total"]
+        units_total = sum(ratio)
+        checks: dict[str, bool] = {}
+        checks["divides_evenly"] = total % units_total == 0
+        unit_value = total // units_total
+        shares = [r * unit_value for r in ratio]
+        checks["sums_to_total"] = sum(shares) == total
+        checks["answer_verified"] = solution["answer"]["value"] == shares[2]
+        checks["within_level"] = _TOTAL_MIN <= total <= _TOTAL_MAX and all(s > 0 for s in shares)
+        return {"ok": all(checks.values()), "checks": checks}
+
+
+register("ratio_medium", RatioMediumSolver())
