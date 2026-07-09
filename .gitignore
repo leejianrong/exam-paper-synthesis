@@ -1,0 +1,33 @@
+# Claude Code local (machine-specific) settings
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+
+# uv
+.uv/
+
+# Node / Vite / Svelte
+node_modules/
+web/dist/
+.svelte-kit/
+
+# Playwright / generated exports
+playwright-report/
+test-results/
+*.pdf
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
