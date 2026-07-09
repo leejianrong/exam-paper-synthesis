@@ -1,0 +1,368 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exam-paper-synthesis/schemas/canonical-question.schema.json",
+  "title": "Canonical Question Object",
+  "description": "The single source of truth for one question (generated or sourced). Rendered worksheet/answer-key/diagram are views of this object. See docs/SCHEMA.md and ADR-0004/0012/0013/0014.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "source_type", "syllabus", "cognitive", "question", "provenance"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semver of this schema; validated on load."
+    },
+    "id": { "type": "string", "minLength": 1 },
+    "source_type": {
+      "type": "string",
+      "enum": ["generated", "sourced"],
+      "description": "generated = from a blueprint+solver; sourced = ingested externally."
+    },
+    "blueprint_code": {
+      "type": ["string", "null"],
+      "description": "Required for generated questions; null for sourced."
+    },
+    "seed": { "type": ["integer", "null"] },
+    "syllabus": { "$ref": "#/$defs/syllabus" },
+    "cognitive": { "$ref": "#/$defs/cognitive" },
+    "parameters": {
+      "type": ["object", "null"],
+      "description": "Sampled inputs for generated questions; must validate against the blueprint's declared parameter schema (ADR-0014). Null for sourced."
+    },
+    "question": { "$ref": "#/$defs/question" },
+    "source": { "$ref": "#/$defs/source" },
+    "license": { "type": ["string", "null"] },
+    "validation": { "$ref": "#/$defs/validation" },
+    "provenance": { "$ref": "#/$defs/provenance" }
+  },
+  "allOf": [
+    {
+      "$comment": "Generated questions must name a blueprint and parameters.",
+      "if": { "properties": { "source_type": { "const": "generated" } } },
+      "then": { "required": ["blueprint_code", "parameters"], "properties": {
+        "blueprint_code": { "type": "string" },
+        "parameters": { "type": "object" }
+      } }
+    },
+    {
+      "$comment": "Sourced questions must carry provenance source + license.",
+      "if": { "properties": { "source_type": { "const": "sourced" } } },
+      "then": { "required": ["source", "license"], "properties": {
+        "source": { "type": "object" },
+        "license": { "type": "string" }
+      } }
+    }
+  ],
+
+  "$defs": {
+    "syllabus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "strand", "topic", "skill_codes"],
+      "properties": {
+        "level": { "type": "string", "enum": ["P5", "P6"], "$comment": "MVP scope; extend for Sec/O-Level later." },
+        "strand": { "type": "string" },
+        "topic": { "type": "string" },
+        "subtopic": { "type": ["string", "null"] },
+        "skill_codes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "cognitive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["difficulty", "cognitive_level"],
+      "properties": {
+        "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] },
+        "cognitive_level": {
+          "type": "string",
+          "enum": ["routine_procedural", "complex_familiar", "non_routine_heuristic"]
+        },
+        "heuristics": { "type": "array", "items": { "type": "string" } },
+        "representations": { "type": "array", "items": { "type": "string" } },
+        "difficulty_levers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Which difficulty levers this question employs (see docs/DIFFICULTY.md / ADR-0015)."
+        }
+      }
+    },
+
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parts", "total_marks"],
+      "properties": {
+        "stem": { "type": ["string", "null"], "description": "Optional shared lead-in for multi-part questions." },
+        "parts": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/part" } },
+        "total_marks": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "text", "marks", "answer", "marking_scheme", "solution_steps"],
+      "properties": {
+        "label": { "type": "string", "description": "e.g. 'a', 'b', 'c'. Use 'a' (or '') for single-part." },
+        "text": { "type": "string", "minLength": 1 },
+        "marks": { "type": "integer", "minimum": 0 },
+        "answer": { "$ref": "#/$defs/answer" },
+        "marking_scheme": { "type": "array", "items": { "$ref": "#/$defs/mark" } },
+        "solution_steps": { "type": "array", "items": { "$ref": "#/$defs/step" } },
+        "diagram": { "oneOf": [ { "type": "null" }, { "$ref": "#/$defs/diagram" } ] }
+      }
+    },
+
+    "mark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mark", "type", "description"],
+      "properties": {
+        "mark": { "type": "integer", "minimum": 1 },
+        "type": { "type": "string", "enum": ["M", "A", "B"], "description": "M=method, A=accuracy, B=independent." },
+        "description": { "type": "string" }
+      }
+    },
+
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text"],
+      "properties": {
+        "text": { "type": "string" },
+        "expr": { "type": ["string", "null"], "description": "Optional machine-checkable expression for verification." }
+      }
+    },
+
+    "unit": {
+      "type": "string",
+      "$comment": "Controlled vocabulary (ADR-0013/0014). Extend deliberately.",
+      "enum": ["", "cm", "m", "km", "mm", "cm^2", "m^2", "cm^3", "m^3", "ml", "l", "g", "kg", "$", "cents", "%", "degrees", "s", "min", "h", "marbles", "items", "people", "units"]
+    },
+
+    "answer": {
+      "description": "Discriminated union keyed by `type` (ADR-0013).",
+      "oneOf": [
+        { "$ref": "#/$defs/answer_integer" },
+        { "$ref": "#/$defs/answer_decimal" },
+        { "$ref": "#/$defs/answer_fraction" },
+        { "$ref": "#/$defs/answer_ratio" },
+        { "$ref": "#/$defs/answer_quantity" },
+        { "$ref": "#/$defs/answer_set" },
+        { "$ref": "#/$defs/answer_text" }
+      ]
+    },
+    "answer_integer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "value"],
+      "properties": {
+        "type": { "const": "integer" },
+        "value": { "type": "integer" },
+        "unit": { "$ref": "#/$defs/unit" }
+      }
+    },
+    "answer_decimal": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "value"],
+      "properties": {
+        "type": { "const": "decimal" },
+        "value": { "type": "number" },
+        "dp": { "type": ["integer", "null"], "minimum": 0, "description": "Required decimal places, if constrained." },
+        "unit": { "$ref": "#/$defs/unit" }
+      }
+    },
+    "answer_fraction": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "numerator", "denominator"],
+      "properties": {
+        "type": { "const": "fraction" },
+        "numerator": { "type": "integer" },
+        "denominator": { "type": "integer", "not": { "const": 0 } },
+        "mixed": { "type": "boolean", "default": false },
+        "unit": { "$ref": "#/$defs/unit" }
+      }
+    },
+    "answer_ratio": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "parts"],
+      "properties": {
+        "type": { "const": "ratio" },
+        "parts": { "type": "array", "minItems": 2, "items": { "type": "integer", "minimum": 0 } }
+      }
+    },
+    "answer_quantity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "value", "unit"],
+      "properties": {
+        "type": { "const": "quantity" },
+        "value": { "type": "number" },
+        "unit": { "$ref": "#/$defs/unit" }
+      }
+    },
+    "answer_set": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "values"],
+      "properties": {
+        "type": { "const": "set" },
+        "values": { "type": "array", "minItems": 1, "items": { "type": ["number", "string"] } },
+        "ordered": { "type": "boolean", "default": false }
+      }
+    },
+    "answer_text": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "text"],
+      "properties": {
+        "type": { "const": "text" },
+        "text": { "type": "string" }
+      }
+    },
+
+    "diagram": {
+      "description": "Discriminated union keyed by `type` (ADR-0012).",
+      "oneOf": [
+        { "$ref": "#/$defs/diagram_bar_model" },
+        { "$ref": "#/$defs/diagram_composite_geometry" },
+        { "$ref": "#/$defs/diagram_area_perimeter" },
+        { "$ref": "#/$defs/diagram_shaded_fraction" },
+        { "$ref": "#/$defs/diagram_raster" }
+      ]
+    },
+    "diagram_bar_model": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "bars"],
+      "properties": {
+        "type": { "const": "bar_model" },
+        "bars": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["label", "units"],
+            "properties": {
+              "label": { "type": "string" },
+              "units": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["label"],
+            "properties": {
+              "from_unit": { "type": "integer", "minimum": 0 },
+              "to_unit": { "type": "integer", "minimum": 0 },
+              "label": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "diagram_composite_geometry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "unit", "shapes"],
+      "properties": {
+        "type": { "const": "composite_geometry" },
+        "unit": { "$ref": "#/$defs/unit" },
+        "shapes": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["id", "kind", "x", "y", "width", "height"],
+            "properties": {
+              "id": { "type": "string" },
+              "kind": { "type": "string", "enum": ["rectangle", "square"] },
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "width": { "type": "number", "exclusiveMinimum": 0 },
+              "height": { "type": "number", "exclusiveMinimum": 0 },
+              "label": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "shaded": {
+          "type": ["object", "null"], "additionalProperties": false,
+          "required": ["op", "of"],
+          "properties": {
+            "op": { "type": "string", "enum": ["intersection", "union", "difference"] },
+            "of": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "diagram_area_perimeter": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "unit", "shape"],
+      "properties": {
+        "type": { "const": "area_perimeter" },
+        "unit": { "$ref": "#/$defs/unit" },
+        "shape": {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "dims"],
+          "properties": {
+            "kind": { "type": "string", "enum": ["rectangle", "square", "triangle", "l_shape"] },
+            "dims": { "type": "object", "description": "Named labelled dimensions, e.g. {base, height, width}." }
+          }
+        }
+      }
+    },
+    "diagram_shaded_fraction": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "total_parts", "shaded_parts", "shape"],
+      "properties": {
+        "type": { "const": "shaded_fraction" },
+        "shape": { "type": "string", "enum": ["rectangle", "circle", "bar"] },
+        "total_parts": { "type": "integer", "minimum": 1 },
+        "shaded_parts": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "diagram_raster": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "asset_ref", "alt_text"],
+      "properties": {
+        "type": { "const": "raster" },
+        "asset_ref": { "type": "string", "description": "Path/URI to the image (sourced diagrams)." },
+        "alt_text": { "type": "string" }
+      }
+    },
+
+    "source": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "description": "Citation for sourced questions.",
+      "properties": {
+        "origin": { "type": "string", "description": "e.g. school name, assessment book title." },
+        "year": { "type": ["integer", "null"] },
+        "paper": { "type": ["string", "null"] },
+        "reference": { "type": ["string", "null"] }
+      }
+    },
+
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["pass", "fail", "unverified"] },
+        "checks": {
+          "type": "object",
+          "description": "Per-check booleans/notes, e.g. answer_verified, unique, diagram_consistent, within_level.",
+          "additionalProperties": { "type": ["boolean", "string", "null"] }
+        }
+      }
+    },
+
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["created_by", "version"],
+      "properties": {
+        "created_by": { "type": "string", "enum": ["engine", "ingested"] },
+        "llm_used": { "type": "boolean", "default": false },
+        "created_at": { "type": ["string", "null"], "description": "ISO-8601 timestamp; nullable." },
+        "parent_id": { "type": ["string", "null"], "description": "Lineage: the object this was edited from." },
+        "version": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}
