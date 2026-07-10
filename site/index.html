@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Exam Paper Synthesis — PSLE-style maths you can hand out without checking</title>
+<meta name="description" content="A deterministic engine that generates fresh, syllabus-aligned Singapore P5–P6 maths questions with provably-correct answer keys and accurate bar models. No LLM — the maths comes from code." />
+<meta name="color-scheme" content="light dark" />
+<style>
+/* ============================================================
+   Exam Paper Synthesis — marketing page
+   Self-contained: no external requests. System font stacks only.
+   Voice: serif = the trusted paper · mono = the exact engine.
+   ============================================================ */
+
+:root {
+  --paper:      #f3f4ef;
+  --paper-2:    #fbfbf8;
+  --paper-sink: #ecede6;
+  --ink:        #191c21;
+  --ink-soft:   #565d66;
+  --ink-faint:  #7b828b;
+  --line:       #dcdfd5;
+  --line-soft:  #e7e9e0;
+  --grid:       rgba(25, 28, 33, 0.035);
+  --verify:     #0f7a57;
+  --verify-ink: #0b5a40;
+  --verify-soft:#e2efe9;
+  --mark:       #bd4229;
+  --mark-soft:  #f4e4df;
+  --u1:         #0f7a57;  /* Amy   */
+  --u2:         #c0872b;  /* Ben   */
+  --u3:         #3e4e77;  /* Cai   */
+  --shadow:     0 1px 2px rgba(25,28,33,.05), 0 12px 34px -18px rgba(25,28,33,.22);
+
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+  --sans:  system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono:  "SF Mono", ui-monospace, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --maxw: 1080px;
+}
+
+:root[data-theme="dark"], :root.dark-forced {
+  --paper:      #14171b;
+  --paper-2:    #1b1f25;
+  --paper-sink: #101317;
+  --ink:        #eceee9;
+  --ink-soft:   #a3aab3;
+  --ink-faint:  #767d86;
+  --line:       #2a2f37;
+  --line-soft:  #232830;
+  --grid:       rgba(255, 255, 255, 0.035);
+  --verify:     #3fb489;
+  --verify-ink: #7fd3b3;
+  --verify-soft:rgba(63,180,137,.14);
+  --mark:       #e37a60;
+  --mark-soft:  rgba(227,122,96,.16);
+  --u1:         #35a880;
+  --u2:         #d3a047;
+  --u3:         #7f8fc0;
+  --shadow:     0 1px 2px rgba(0,0,0,.4), 0 16px 40px -20px rgba(0,0,0,.7);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #14171b;
+    --paper-2:    #1b1f25;
+    --paper-sink: #101317;
+    --ink:        #eceee9;
+    --ink-soft:   #a3aab3;
+    --ink-faint:  #767d86;
+    --line:       #2a2f37;
+    --line-soft:  #232830;
+    --grid:       rgba(255, 255, 255, 0.035);
+    --verify:     #3fb489;
+    --verify-ink: #7fd3b3;
+    --verify-soft:rgba(63,180,137,.14);
+    --mark:       #e37a60;
+    --mark-soft:  rgba(227,122,96,.16);
+    --u1:         #35a880;
+    --u2:         #d3a047;
+    --u3:         #7f8fc0;
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 16px 40px -20px rgba(0,0,0,.7);
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  color: var(--ink);
+  background-color: var(--paper);
+  /* squared exercise-book grid, very faint */
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 26px 26px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+a { color: inherit; }
+
+/* focus visibility floor */
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--verify);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* ---- shared type devices ---- */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--verify-ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 18px;
+}
+.eyebrow::before {
+  content: "";
+  width: 22px; height: 1px;
+  background: var(--verify);
+  display: inline-block;
+}
+.section-index {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .12em;
+  color: var(--ink-faint);
+}
+
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.08; letter-spacing: -0.01em; }
+
+/* ============================================================
+   Top bar
+   ============================================================ */
+.topbar {
+  position: sticky; top: 0; z-index: 40;
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+  -webkit-backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--line-soft);
+}
+.topbar .wrap { display: flex; align-items: center; gap: 20px; height: 60px; }
+.brand {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  display: flex; align-items: center; gap: 10px;
+  white-space: nowrap;
+}
+.brand .glyph {
+  width: 20px; height: 20px; flex: none;
+}
+.brand .glyph rect { fill: var(--u1); }
+.brand .glyph rect:nth-child(2){ fill: var(--u2); }
+.brand .glyph rect:nth-child(3){ fill: var(--u3); }
+.topnav { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.topnav a {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  letter-spacing: .02em;
+  text-decoration: none;
+  color: var(--ink-soft);
+  padding: 8px 11px;
+  border-radius: 7px;
+}
+.topnav a:hover { color: var(--ink); background: var(--paper-sink); }
+.topnav a.ghpill {
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+.topnav a.ghpill:hover { border-color: var(--verify); }
+.theme-toggle {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  border-radius: 7px;
+  padding: 7px 9px;
+  cursor: pointer;
+  line-height: 1;
+}
+.theme-toggle:hover { color: var(--ink); border-color: var(--verify); }
+@media (max-width: 680px) { .topnav .hide-sm { display: none; } }
+
+/* ============================================================
+   Hero
+   ============================================================ */
+.hero { padding: 72px 0 40px; position: relative; }
+.hero .wrap {
+  display: grid;
+  grid-template-columns: 1.02fr 0.98fr;
+  gap: 54px;
+  align-items: center;
+}
+.status-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em;
+  color: var(--verify-ink);
+  background: var(--verify-soft);
+  border: 1px solid color-mix(in srgb, var(--verify) 30%, transparent);
+  border-radius: 999px;
+  padding: 5px 11px 5px 9px;
+  margin-bottom: 22px;
+}
+.status-chip .dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--verify);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--verify) 60%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .status-chip .dot { animation: pulse 2.6s ease-out infinite; }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--verify) 55%, transparent); }
+    70%  { box-shadow: 0 0 0 7px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+}
+.hero h1 {
+  font-size: clamp(38px, 5.4vw, 62px);
+  margin: 0 0 22px;
+}
+.hero h1 .accent { color: var(--verify); font-style: italic; }
+.hero .lede {
+  font-size: clamp(16px, 1.9vw, 19px);
+  color: var(--ink-soft);
+  max-width: 30em;
+  margin: 0 0 30px;
+}
+.hero .lede b { color: var(--ink); font-weight: 600; }
+.cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.btn {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: .02em;
+  text-decoration: none;
+  padding: 12px 18px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 9px;
+  transition: transform .12s ease, background .16s ease, border-color .16s ease;
+}
+.btn-primary { background: var(--ink); color: var(--paper); }
+.btn-primary:hover { transform: translateY(-1px); background: var(--verify-ink); }
+:root[data-theme="dark"] .btn-primary,
+:root.dark-forced .btn-primary { color: #0e1114; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .btn-primary { color: #0e1114; }
+}
+.btn-ghost { border-color: var(--line); color: var(--ink); }
+.btn-ghost:hover { border-color: var(--verify); transform: translateY(-1px); }
+.hero-note {
+  font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint);
+  margin: 20px 0 0;
+}
+
+/* the signature: worksheet card */
+.worksheet {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  position: relative;
+  margin: 0;
+}
+.worksheet::before {
+  /* the exam-paper margin rule */
+  content: "";
+  position: absolute; top: 0; bottom: 0; left: 34px;
+  width: 1px; background: color-mix(in srgb, var(--mark) 34%, transparent);
+}
+.ws-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 16px 13px 48px;
+  border-bottom: 1px solid var(--line-soft);
+  font-family: var(--mono); font-size: 11px; letter-spacing: .04em;
+  color: var(--ink-faint);
+}
+.ws-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--verify-ink); background: var(--verify-soft);
+  border-radius: 999px; padding: 3px 9px; font-weight: 600;
+  letter-spacing: .05em;
+}
+.ws-body { padding: 20px 20px 22px 48px; }
+.ws-qno { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+.q-text {
+  font-family: var(--serif); font-size: 18px; line-height: 1.5;
+  margin: 4px 0 18px;
+}
+.q-text .mark {
+  font-family: var(--mono); font-size: 12px; color: var(--mark);
+  vertical-align: 2px; margin-left: 4px;
+}
+.q-text .name { font-style: italic; }
+
+/* bar model */
+.barmodel { width: 100%; height: auto; display: block; }
+.bm-caption {
+  font-family: var(--mono); font-size: 11px; color: var(--ink-faint);
+  margin: 10px 0 0; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bar-cell { transform: scaleX(0); transform-origin: left center; animation: cellGrow .42s cubic-bezier(.22,.8,.3,1) both; }
+  .bar-cell:nth-of-type(1){ animation-delay:.15s } .bar-cell:nth-of-type(2){ animation-delay:.23s }
+  .bar-cell:nth-of-type(3){ animation-delay:.31s } .bar-cell:nth-of-type(4){ animation-delay:.39s }
+  .bar-cell:nth-of-type(5){ animation-delay:.47s } .bar-cell:nth-of-type(6){ animation-delay:.55s }
+  .bar-cell:nth-of-type(7){ animation-delay:.63s } .bar-cell:nth-of-type(8){ animation-delay:.71s }
+  .bar-cell:nth-of-type(9){ animation-delay:.79s } .bar-cell:nth-of-type(10){ animation-delay:.87s }
+  .bm-fade { opacity: 0; animation: bmFade .5s ease .95s both; }
+  @keyframes cellGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  @keyframes bmFade { to { opacity: 1; } }
+}
+.answer-key {
+  border-top: 1px solid var(--line-soft);
+  padding: 15px 20px 18px 48px;
+  background: color-mix(in srgb, var(--verify) 5%, var(--paper-2));
+}
+.ak-label {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--verify-ink); margin: 0 0 8px;
+  display: flex; align-items: center; gap: 7px;
+}
+.ak-steps { margin: 0; padding: 0; list-style: none; font-size: 14px; color: var(--ink-soft); }
+.ak-steps li { display: flex; gap: 9px; padding: 2px 0; }
+.ak-steps .op { font-family: var(--mono); color: var(--ink-faint); font-size: 12px; min-width: 66px; }
+.ak-final {
+  margin-top: 10px; font-family: var(--serif); font-size: 17px; color: var(--ink);
+}
+.ak-final b { color: var(--verify-ink); }
+
+/* ============================================================
+   Generic section frame
+   ============================================================ */
+section { padding: 68px 0; }
+.section-head { max-width: 40em; margin: 0 0 40px; }
+.section-head h2 { font-size: clamp(27px, 3.4vw, 40px); margin: 12px 0 14px; }
+.section-head p { color: var(--ink-soft); font-size: 17px; margin: 0; max-width: 34em; }
+
+/* ---- Problem section ---- */
+.problem { background: var(--paper-sink); border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
+.contrast { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-bottom: 34px; }
+.cx-card {
+  background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; padding: 24px 22px;
+}
+.cx-card h3 { font-size: 20px; margin: 0 0 10px; }
+.cx-card p { margin: 0; color: var(--ink-soft); font-size: 15px; }
+.cx-tag { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 6px; }
+.cx-card.by-ai { border-color: color-mix(in srgb, var(--mark) 35%, var(--line)); }
+.cx-card.by-ai .cx-tag { color: var(--mark); }
+.pullquote {
+  font-family: var(--serif); font-size: clamp(22px, 3vw, 30px); line-height: 1.28;
+  border-left: 3px solid var(--mark);
+  padding: 6px 0 6px 24px; margin: 0; max-width: 24em;
+}
+.pullquote span { color: var(--mark); }
+
+/* ---- How it works: pipeline sequence ---- */
+.pipeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; margin-top: 8px; }
+.pl-step {
+  border-top: 2px solid var(--line);
+  padding: 20px 18px 4px 0;
+  position: relative;
+}
+.pl-step::before {
+  content: ""; position: absolute; top: -6px; left: 0;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--paper); border: 2px solid var(--verify);
+}
+.pl-step:first-child::before { background: var(--verify); }
+.pl-num { font-family: var(--mono); font-size: 11px; color: var(--verify-ink); letter-spacing: .1em; }
+.pl-step h3 { font-size: 18px; margin: 8px 0 7px; }
+.pl-step p { font-size: 13.5px; color: var(--ink-soft); margin: 0; }
+.pipeline-foot {
+  font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft);
+  margin: 30px 0 0; padding: 14px 16px; border: 1px dashed var(--line);
+  border-radius: 10px; background: var(--paper-2);
+}
+.pipeline-foot b { color: var(--verify-ink); }
+
+/* ---- What you get: feature grid ---- */
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.feat {
+  background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 24px 22px; position: relative;
+}
+.feat-ico { width: 30px; height: 30px; margin-bottom: 16px; color: var(--verify); display: block; }
+.feat h3 { font-size: 19px; margin: 0 0 9px; }
+.feat p { font-size: 14.5px; color: var(--ink-soft); margin: 0; }
+.feat .k { font-family: var(--mono); color: var(--verify-ink); }
+
+/* ---- Showcase ---- */
+.showcase { background: var(--paper-sink); border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
+.showcase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+.pane { background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+.pane-head {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 12px 18px; border-bottom: 1px solid var(--line-soft); color: var(--ink-faint);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.pane-head .dotrow { display: flex; gap: 5px; }
+.pane-head .dotrow i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); display: block; }
+.pane-body { padding: 20px 20px 22px; }
+.pane-body .q-text { font-size: 16px; margin: 4px 0 14px; }
+.geo { width: 100%; height: auto; display: block; }
+.geo-cap { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin: 10px 0 0; }
+.showcase-note { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); text-align: center; margin: 30px auto 0; max-width: 42em; }
+.showcase-note b { color: var(--ink); }
+
+/* ---- Roadmap ---- */
+.roadmap-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.rung {
+  display: grid; grid-template-columns: 78px 1fr auto; gap: 20px; align-items: baseline;
+  padding: 22px 4px; border-bottom: 1px solid var(--line);
+}
+.rung .v { font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--ink); }
+.rung h3 { font-size: 20px; margin: 0 0 5px; }
+.rung p { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
+.rung .state {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+}
+.state.shipped { color: var(--verify-ink); background: var(--verify-soft); border: 1px solid color-mix(in srgb, var(--verify) 30%, transparent); }
+.state.building { color: var(--ink); border: 1px solid var(--line); }
+.state.planned { color: var(--ink-faint); border: 1px solid var(--line-soft); }
+.rung.done .v { color: var(--verify-ink); }
+.rung.done h3 { color: var(--ink); }
+.rung.future h3, .rung.future .v { color: var(--ink-soft); }
+
+/* ---- CTA / footer ---- */
+.closer { text-align: center; padding: 84px 0 64px; }
+.closer h2 { font-size: clamp(28px, 4vw, 46px); margin: 0 auto 18px; max-width: 16em; }
+.closer p { color: var(--ink-soft); font-size: 17px; max-width: 34em; margin: 0 auto 28px; }
+.closer .cta-row { justify-content: center; }
+.honesty {
+  font-family: var(--mono); font-size: 12px; color: var(--ink-faint);
+  max-width: 40em; margin: 34px auto 0; line-height: 1.7;
+}
+footer {
+  border-top: 1px solid var(--line-soft); padding: 26px 0;
+  font-family: var(--mono); font-size: 12px; color: var(--ink-faint);
+}
+footer .wrap { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+footer a { text-decoration: none; color: var(--ink-soft); }
+footer a:hover { color: var(--verify-ink); }
+
+/* ---- scroll reveal (opt-in; content visible by default for no-JS / reduced-motion) ---- */
+.reveal-enabled .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+.reveal-enabled .reveal.visible { opacity: 1; transform: none; }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 900px) {
+  .hero .wrap { grid-template-columns: 1fr; gap: 40px; }
+  .pipeline { grid-template-columns: 1fr 1fr; gap: 4px 22px; }
+  .features { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .hero { padding: 46px 0 20px; }
+  section { padding: 52px 0; }
+  .contrast, .showcase-grid, .features { grid-template-columns: 1fr; }
+  .pipeline { grid-template-columns: 1fr; }
+  .pl-step { border-top: none; border-left: 2px solid var(--line); padding: 4px 0 16px 20px; }
+  .pl-step::before { top: 4px; left: -6px; }
+  .rung { grid-template-columns: 56px 1fr; grid-template-areas: "v head" ". state"; row-gap: 8px; }
+  .rung .v { grid-area: v; } .rung .body { grid-area: head; } .rung .state { grid-area: state; justify-self: start; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== TOP BAR ===================== -->
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Exam Paper Synthesis — home">
+      <svg class="glyph" viewBox="0 0 20 20" aria-hidden="true">
+        <rect x="0" y="3"  width="20" height="3.4" rx="1"/>
+        <rect x="0" y="8.3" width="12" height="3.4" rx="1"/>
+        <rect x="0" y="13.6" width="16" height="3.4" rx="1"/>
+      </svg>
+      Exam&nbsp;Paper&nbsp;Synthesis
+    </a>
+    <nav class="topnav" aria-label="Primary">
+      <a class="hide-sm" href="#trust">Why trust it</a>
+      <a class="hide-sm" href="#get">What you get</a>
+      <a href="#roadmap">Roadmap</a>
+      <a class="ghpill" href="https://github.com/leejianrong/exam-paper-synthesis" target="_blank" rel="noopener">GitHub&nbsp;↗</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch colour theme" title="Switch light / dark">◐</button>
+    </nav>
+  </div>
+</header>
+
+<a id="top"></a>
+
+<!-- ===================== HERO ===================== -->
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <p class="eyebrow">Deterministic worksheet engine · Singapore P5–P6</p>
+      <div class="status-chip"><span class="dot"></span>V1 shipped — Ratio generation, engine → API → web</div>
+      <h1>PSLE-style maths you can hand out <span class="accent">without checking</span> the answer key.</h1>
+      <p class="lede">
+        Generate fresh, syllabus-aligned Primary&nbsp;5–6 questions in minutes — each with a
+        step-by-step answer key that is <b>provably the solution to the printed question</b>.
+        The maths comes from deterministic code, <b>not an LLM</b>, so a right answer isn't a hope. It's a guarantee.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/leejianrong/exam-paper-synthesis" target="_blank" rel="noopener">Follow the build on GitHub →</a>
+        <a class="btn btn-ghost" href="#trust">See why it's trustworthy</a>
+      </div>
+      <p class="hero-note">Free &amp; open source · No accounts · Coming to life one vertical slice at a time.</p>
+    </div>
+
+    <!-- SIGNATURE: a real ratio_medium worksheet card + bar model + verified answer key -->
+    <figure class="worksheet" aria-label="Sample generated question with its bar model and verified answer key">
+      <div class="ws-head">
+        <span>ratio_medium · seed 4831</span>
+        <span class="ws-badge">✓ schema-valid</span>
+      </div>
+      <div class="ws-body">
+        <span class="ws-qno">Question 1</span>
+        <p class="q-text">
+          <span class="name">Amy</span>, <span class="name">Ben</span> and <span class="name">Cai</span>
+          share <b>$120</b> in the ratio <b>2 : 3 : 5</b>. How much more money does Cai receive than Amy?
+          <span class="mark">[3]</span>
+        </p>
+
+        <svg class="barmodel" viewBox="0 0 520 132" role="img" aria-label="Bar model: a bar of ten equal units split into two units for Amy, three for Ben and five for Cai; one unit equals twelve dollars.">
+          <!-- 10 unit cells, width 46 + gap 2, starting x = 20 -->
+          <g>
+            <rect class="bar-cell" x="20"  y="20" width="46" height="40" rx="3" fill="var(--u1)"/>
+            <rect class="bar-cell" x="68"  y="20" width="46" height="40" rx="3" fill="var(--u1)"/>
+            <rect class="bar-cell" x="116" y="20" width="46" height="40" rx="3" fill="var(--u2)"/>
+            <rect class="bar-cell" x="164" y="20" width="46" height="40" rx="3" fill="var(--u2)"/>
+            <rect class="bar-cell" x="212" y="20" width="46" height="40" rx="3" fill="var(--u2)"/>
+            <rect class="bar-cell" x="260" y="20" width="46" height="40" rx="3" fill="var(--u3)"/>
+            <rect class="bar-cell" x="308" y="20" width="46" height="40" rx="3" fill="var(--u3)"/>
+            <rect class="bar-cell" x="356" y="20" width="46" height="40" rx="3" fill="var(--u3)"/>
+            <rect class="bar-cell" x="404" y="20" width="46" height="40" rx="3" fill="var(--u3)"/>
+            <rect class="bar-cell" x="452" y="20" width="46" height="40" rx="3" fill="var(--u3)"/>
+          </g>
+          <g class="bm-fade" font-size="12" fill="currentColor">
+            <!-- group braces -->
+            <path d="M20 68 L20 74 L112 74 L112 68"  fill="none" stroke="var(--u1)" stroke-width="1.5"/>
+            <path d="M116 68 L116 74 L258 74 L258 68" fill="none" stroke="var(--u2)" stroke-width="1.5"/>
+            <path d="M260 68 L260 74 L498 74 L498 68" fill="none" stroke="var(--u3)" stroke-width="1.5"/>
+            <text x="66"  y="90" text-anchor="middle" fill="var(--u1)" font-family="ui-monospace, Menlo, monospace">Amy · 2u</text>
+            <text x="187" y="90" text-anchor="middle" fill="var(--u2)" font-family="ui-monospace, Menlo, monospace">Ben · 3u</text>
+            <text x="379" y="90" text-anchor="middle" fill="var(--u3)" font-family="ui-monospace, Menlo, monospace">Cai · 5u</text>
+            <text x="20" y="116" fill="var(--ink-faint)" font-family="ui-monospace, Menlo, monospace">1 unit = $120 ÷ 10 = $12</text>
+          </g>
+        </svg>
+        <p class="bm-caption">
+          <span>bar_model · aid diagram</span>
+          <span>every label = a solved value</span>
+        </p>
+      </div>
+
+      <div class="answer-key">
+        <p class="ak-label">✓ Answer key — worked, deterministic</p>
+        <ul class="ak-steps">
+          <li><span class="op">units</span> 2 + 3 + 5 = 10 units</li>
+          <li><span class="op">1 unit</span> $120 ÷ 10 = $12</li>
+          <li><span class="op">Cai − Amy</span> 5 − 2 = 3 units → 3 × $12 = $36</li>
+        </ul>
+        <p class="ak-final">Cai receives <b>$36</b> more than Amy.</p>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== PROBLEM ===================== -->
+<section class="problem" id="problem">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="section-index">§ 01 — The problem</p>
+      <h2>Making a worksheet by hand takes hours. Making one with AI costs you trust.</h2>
+      <p>The part of a maths worksheet that matters most — the maths — is the part most likely to carry a silent mistake.</p>
+    </div>
+
+    <div class="contrast reveal">
+      <div class="cx-card by-hand">
+        <p class="cx-tag">By hand</p>
+        <h3>Slow, and still error-prone</h3>
+        <p>Write each question, draw every bar model and figure to scale, work out each answer, then lay out a matching answer key. An evening's work for one topical worksheet — and one slip in the key you won't catch until a student does.</p>
+      </div>
+      <div class="cx-card by-ai">
+        <p class="cx-tag">By LLM</p>
+        <h3>Fast, and confidently wrong</h3>
+        <p>Generic "worksheet generators" either recycle a fixed bank (questions repeat, can't be nudged) or let a model invent the maths — which produces plausible, wrong answers and diagrams that don't match the numbers.</p>
+      </div>
+    </div>
+
+    <blockquote class="pullquote reveal">
+      A single wrong answer key <span>destroys a teacher's trust</span> in the whole tool.
+    </blockquote>
+  </div>
+</section>
+
+<!-- ===================== TRUST / HOW IT WORKS ===================== -->
+<section id="trust">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="section-index">§ 02 — Why you can trust it</p>
+      <h2>The answer isn't generated. It's computed — then checked.</h2>
+      <p>No model is asked to do arithmetic. Every question runs through the same deterministic pipeline, seeded and reproducible, and nothing is shown until it passes.</p>
+    </div>
+
+    <div class="pipeline reveal">
+      <div class="pl-step">
+        <span class="pl-num">01 / sample</span>
+        <h3>Sample</h3>
+        <p>Draw parameters from the blueprint's declared schema. Seeded, so the same seed always yields the same question.</p>
+      </div>
+      <div class="pl-step">
+        <span class="pl-num">02 / solve</span>
+        <h3>Solve</h3>
+        <p>A hand-written Python solver computes the final answer and every intermediate step. This is where the maths lives.</p>
+      </div>
+      <div class="pl-step">
+        <span class="pl-num">03 / validate</span>
+        <h3>Validate</h3>
+        <p>Assert the constraints hold and that every label in the diagram equals the corresponding solved value.</p>
+      </div>
+      <div class="pl-step">
+        <span class="pl-num">04 / assemble</span>
+        <h3>Assemble</h3>
+        <p>Build one canonical object: stem, parts, typed answer with units, marks, and worked solution steps.</p>
+      </div>
+      <div class="pl-step">
+        <span class="pl-num">05 / check</span>
+        <h3>Schema-check</h3>
+        <p>Validate against a versioned JSON Schema. Any error is rejected with a path-pointed message — bad data never gets through.</p>
+      </div>
+    </div>
+
+    <p class="pipeline-foot reveal">
+      <b>Correct by construction, regression-tested by hand.</b> Each blueprint ships with golden fixtures —
+      params → expected answer &amp; marks — hand-verified by a person, never checked by a model. Corrupt the solver and a fixture fails loudly.
+    </p>
+  </div>
+</section>
+
+<!-- ===================== WHAT YOU GET ===================== -->
+<section id="get">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="section-index">§ 03 — What you get</p>
+      <h2>A worksheet you'd be happy to put in front of a class.</h2>
+      <p>Built for the way tuition teachers actually prepare P5–P6 Standard practice.</p>
+    </div>
+
+    <div class="features reveal">
+      <div class="feat">
+        <svg class="feat-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>
+        <h3>A full set in minutes</h3>
+        <p><span class="k">20–50</span> fresh questions per topic in one batch — every generation a new instance with different numbers, so worksheets never repeat.</p>
+      </div>
+      <div class="feat">
+        <svg class="feat-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/></svg>
+        <h3>Recognisably PSLE</h3>
+        <p>P5–P6 Standard, syllabus-aligned, including the multi-step, non-routine word problems the real exam demands — with multi-part questions that build.</p>
+      </div>
+      <div class="feat">
+        <svg class="feat-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="8" height="16" rx="1"/><rect x="13" y="4" width="8" height="9" rx="1"/></svg>
+        <h3>Diagrams that match</h3>
+        <p>Bar models and geometry figures drawn from the same numbers as the question — every dimension and label is checked against a solved value.</p>
+      </div>
+      <div class="feat">
+        <svg class="feat-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        <h3>You have the final say</h3>
+        <p>A human review gate sits between generation and export. Approve, regenerate, or discard each question — nothing goes out that you haven't cleared.</p>
+      </div>
+      <div class="feat">
+        <svg class="feat-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/></svg>
+        <h3>Two clean PDFs</h3>
+        <p>Export a printable worksheet — numbered questions, <span class="k">[n]</span> marks, answer spaces — and a <em>separate</em> answer-key PDF with the worked steps.</p>
+      </div>
+      <div class="feat">
+        <svg class="feat-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/></svg>
+        <h3>Nudge the difficulty</h3>
+        <p>Make a question harder or easier, swap to decimals, or toggle the bar-model aid — each edit a new version, linked back to the original.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SHOWCASE ===================== -->
+<section class="showcase" id="showcase">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="section-index">§ 04 — One object, two views</p>
+      <h2>The worksheet and the answer key are the same truth, printed twice.</h2>
+      <p>Both PDFs are rendered from one canonical question object — so the key can never drift from the question.</p>
+    </div>
+
+    <div class="showcase-grid reveal">
+      <div class="pane">
+        <div class="pane-head"><span>Worksheet.pdf — student copy</span><span class="dotrow"><i></i><i></i><i></i></span></div>
+        <div class="pane-body">
+          <span class="ws-qno">Question 4</span>
+          <p class="q-text">The figure shows a large rectangle with a smaller rectangle removed from one corner. Find the area of the shaded region. <span class="mark" style="color:var(--mark)">[2]</span></p>
+          <svg class="geo" viewBox="0 0 360 180" role="img" aria-label="A 14 cm by 9 cm rectangle with a 5 cm by 4 cm rectangle removed from the top-right corner; the remaining L-shape is shaded.">
+            <defs>
+              <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="7" stroke="var(--verify)" stroke-width="1" opacity="0.5"/>
+              </pattern>
+            </defs>
+            <!-- L-shape (14x9 minus 5x4 top-right) -->
+            <path d="M20 30 H250 V70 H180 V150 H20 Z" fill="url(#hatch)" stroke="var(--ink)" stroke-width="1.6" stroke-linejoin="round"/>
+            <g font-size="11" fill="var(--ink-soft)" font-family="ui-monospace, Menlo, monospace">
+              <text x="135" y="24" text-anchor="middle">14 cm</text>
+              <text x="8"  y="93" text-anchor="middle" transform="rotate(-90 8 93)">9 cm</text>
+              <text x="215" y="63" text-anchor="middle">5 cm</text>
+              <text x="262" y="52" text-anchor="middle">4 cm</text>
+            </g>
+          </svg>
+          <p class="geo-cap">composite_geometry · mandatory figure — the figure is the question</p>
+        </div>
+      </div>
+
+      <div class="pane">
+        <div class="pane-head" style="color:var(--verify-ink)"><span>Answer-key.pdf — teacher copy</span><span class="ws-badge">✓</span></div>
+        <div class="pane-body">
+          <span class="ws-qno">Question 4 — solution</span>
+          <ul class="ak-steps" style="margin-top:10px">
+            <li><span class="op">whole</span> 14 × 9 = 126 cm²</li>
+            <li><span class="op">cut-out</span> 5 × 4 = 20 cm²</li>
+            <li><span class="op">shaded</span> 126 − 20 = 106 cm²</li>
+          </ul>
+          <p class="ak-final" style="margin-top:14px">Area of shaded region = <b>106 cm²</b></p>
+          <p class="geo-cap" style="margin-top:16px">Typed answer · unit <span style="font-family:var(--mono);color:var(--verify-ink)">cm²</span> from a controlled vocabulary · marks stored as M/A/B, shown as [n]</p>
+        </div>
+      </div>
+    </div>
+
+    <p class="showcase-note reveal">The area worksheet above illustrates a <b>planned</b> geometry family. Today's shipped engine generates the <b>Ratio</b> questions you saw at the top of the page.</p>
+  </div>
+</section>
+
+<!-- ===================== ROADMAP ===================== -->
+<section id="roadmap">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <p class="section-index">§ 05 — Follow the build</p>
+      <h2>Coming to life one vertical slice at a time.</h2>
+      <p>Each slice cuts end-to-end through web → API → engine and ends in something you can actually click. Here's where it stands, honestly.</p>
+    </div>
+
+    <ol class="roadmap-list reveal">
+      <li class="rung done">
+        <span class="v">V1</span>
+        <div class="body">
+          <h3>Generate a Ratio question</h3>
+          <p>Click Generate → a fresh, schema-valid three-term ratio question with its typed answer and a validation badge, end-to-end through engine, API and web.</p>
+        </div>
+        <span class="state shipped">✓ Shipped</span>
+      </li>
+      <li class="rung future">
+        <span class="v">V2</span>
+        <div class="body">
+          <h3>Worked solutions, marks &amp; bar models</h3>
+          <p>The card gains step-by-step working, [n] marks per part, and an accurate inline bar-model SVG whose units match the ratio.</p>
+        </div>
+        <span class="state building">Next up</span>
+      </li>
+      <li class="rung future">
+        <span class="v">V3</span>
+        <div class="body">
+          <h3>Difficulty ladder &amp; edits</h3>
+          <p>Regenerate, make harder or easier, switch to decimals, toggle the diagram — with harder/easier hidden at the ends of the ladder.</p>
+        </div>
+        <span class="state planned">Planned</span>
+      </li>
+      <li class="rung future">
+        <span class="v">V4</span>
+        <div class="body">
+          <h3>Review gate &amp; worksheet tray</h3>
+          <p>Approve or discard each question; approved ones collect in a titled worksheet with a running total of marks.</p>
+        </div>
+        <span class="state planned">Planned</span>
+      </li>
+      <li class="rung future">
+        <span class="v">V5</span>
+        <div class="body">
+          <h3>Preview &amp; export both PDFs</h3>
+          <p>A WYSIWYG preview that matches print, then export a worksheet PDF and a separate answer-key PDF — the full Ratio flow, end to end.</p>
+        </div>
+        <span class="state planned">Planned</span>
+      </li>
+      <li class="rung future">
+        <span class="v">Later</span>
+        <div class="body">
+          <h3>Four more topics, geometry figures &amp; interchange</h3>
+          <p>Fractions, Percentage, Area/Geometry and Speed ladders with mandatory figures; a headless CLI; and sourced past-paper questions through the same schema.</p>
+        </div>
+        <span class="state planned">Planned</span>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ===================== CLOSER ===================== -->
+<section class="closer">
+  <div class="wrap">
+    <p class="eyebrow" style="justify-content:center">Open source · Built in the open</p>
+    <h2>Watch a trustworthy maths engine come together.</h2>
+    <p>Exam Paper Synthesis is early — one slice shipped, the rest on the roadmap. If a worksheet generator you don't have to double-check sounds useful, follow along and watch it grow.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/leejianrong/exam-paper-synthesis" target="_blank" rel="noopener">Star &amp; follow on GitHub →</a>
+      <a class="btn btn-ghost" href="https://github.com/leejianrong/exam-paper-synthesis/blob/main/docs/PRD.md" target="_blank" rel="noopener">Read the product spec</a>
+    </div>
+    <p class="honesty">
+      Being straight with you: this is a project coming to life, not a finished product. There's nothing to buy, no account to make, and no plan — the numbers, questions and diagrams on this page are real examples of what the engine produces (Ratio today) or genuine roadmap (everything else). No fake reviews, no invented user counts.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Exam Paper Synthesis — deterministic P5–P6 maths worksheets</span>
+    <span><a href="https://github.com/leejianrong/exam-paper-synthesis" target="_blank" rel="noopener">github.com/leejianrong/exam-paper-synthesis</a></span>
+  </div>
+</footer>
+
+<script>
+/* Theme toggle — respects OS default, remembers a manual override. */
+(function () {
+  var root = document.documentElement;
+  var KEY = "eps-theme";
+  try {
+    var saved = localStorage.getItem(KEY);
+    if (saved === "light" || saved === "dark") root.setAttribute("data-theme", saved);
+  } catch (e) {}
+  var btn = document.getElementById("themeToggle");
+  if (btn) {
+    btn.addEventListener("click", function () {
+      var isDark = root.getAttribute("data-theme") === "dark" ||
+        (!root.getAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches);
+      var next = isDark ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem(KEY, next); } catch (e) {}
+    });
+  }
+})();
+
+/* Scroll reveal — opt-in, and only when motion is welcome.
+   Content stays fully visible for no-JS and reduced-motion users. */
+(function () {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (!("IntersectionObserver" in window)) return;
+  document.documentElement.classList.add("reveal-enabled");
+  var items = document.querySelectorAll(".reveal");
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { e.target.classList.add("visible"); io.unobserve(e.target); }
+    });
+  }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+  items.forEach(function (el) { io.observe(el); });
+  // Safety net: never leave content stuck hidden if the observer misfires.
+  setTimeout(function () {
+    items.forEach(function (el) { el.classList.add("visible"); });
+  }, 1800);
+})();
+</script>
+</body>
+</html>
