@@ -255,6 +255,13 @@
               "label": { "type": "string" }
             }
           }
+        },
+        "total_bracket": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["label"],
+          "properties": { "label": { "type": "string" } },
+          "$comment": "Vertical curly brace spanning all bars, labelling the total (added in schema 1.1.0)."
         }
       }
     },
