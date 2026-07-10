@@ -38,6 +38,12 @@ def test_generate_is_schema_valid_and_tagged(seed: int):
     assert answer["unit"] == "$"
     assert isinstance(answer["value"], int) and answer["value"] > 0
 
+    # V2: the aid bar model rides on the part and matches the ratio (A5).
+    diagram = parts[0]["diagram"]
+    assert diagram is not None and diagram["type"] == "bar_model"
+    assert [b["units"] for b in diagram["bars"]] == obj["parameters"]["ratio"]
+    assert obj["validation"]["checks"]["diagram_consistent"] is True
+
     assert obj["validation"]["status"] == "pass"
     prov = obj["provenance"]
     assert prov["created_by"] == "engine"
