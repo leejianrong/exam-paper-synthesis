@@ -34,6 +34,23 @@ class InfeasibleConstraints(EngineError):
         )
 
 
+class DiagramInconsistent(EngineError):
+    """A built diagram spec disagrees with the question's numbers (R3.3).
+
+    A deterministic diagram built from correct values is always consistent, so
+    this signals an engine/blueprint bug — it surfaces loudly rather than being
+    retried as an infeasibility (mirrors a schema-invalid assembly).
+    """
+
+    def __init__(self, code: str, checks: dict):
+        self.code = code
+        self.checks = checks
+        failed = [name for name, ok in checks.items() if not ok]
+        super().__init__(
+            f"blueprint {code!r} produced an inconsistent diagram; failed checks: {failed}"
+        )
+
+
 class BlueprintMisconfigured(EngineError):
     """A blueprint that succeeds but fails > 50% of sampling attempts (flaky)."""
 
