@@ -64,5 +64,24 @@ class RatioMediumSolver:
         checks["within_level"] = _TOTAL_MIN <= total <= _TOTAL_MAX and all(s > 0 for s in shares)
         return {"ok": all(checks.values()), "checks": checks}
 
+    def diagram(self, params: dict, solution: dict) -> dict:
+        """Build the aid bar model (A5, ADR-0007): one bar per ratio term.
+
+        Deterministic — derived only from params + solved intermediates, so the
+        pipeline (and the resulting canonical object) stays reproducible.
+        """
+        names = params["names"]
+        ratio = params["ratio"]
+        total = params["total"]
+        unit_value = solution["intermediates"]["unit_value"]
+        return {
+            "type": "bar_model",
+            "bars": [{"label": name, "units": r} for name, r in zip(names, ratio)],
+            "annotations": [
+                {"from_unit": 0, "to_unit": 1, "label": f"1 unit = ${unit_value}"},
+                {"from_unit": 0, "to_unit": sum(ratio), "label": f"Total = ${total}"},
+            ],
+        }
+
 
 register("ratio_medium", RatioMediumSolver())

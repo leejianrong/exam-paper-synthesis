@@ -49,4 +49,5 @@ marking_scheme:
 answer:
   type: quantity
   unit: "$"
-diagram: null                           # aid bar_model added in V2
+diagram: bar_model                      # declares the aid family (ADR-0007); the solver's
+                                        # diagram() emits the spec. Toggle is V3, not here.

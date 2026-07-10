@@ -54,6 +54,7 @@ def assemble(
     params: dict,
     solution: dict,
     report: dict,
+    diagram: dict | None = None,
 ) -> dict:
     """Build a canonical object for a generated question, then validate it.
 
@@ -85,7 +86,7 @@ def assemble(
         "answer": solution["answer"],
         "marking_scheme": spec.marking_scheme,
         "solution_steps": steps,
-        "diagram": None,  # aid bar_model added in V2
+        "diagram": diagram,  # aid bar_model (A5); None when a blueprint has no diagram
     }
 
     obj = {

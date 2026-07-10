@@ -14,9 +14,21 @@ import random
 from .blueprints.base import BlueprintSpec, Solver, validate_params
 from .blueprints.registry import get_solver, load_blueprint
 from .canonical import assemble
-from .errors import InfeasibleConstraints
+from .diagram import check_consistency
+from .errors import DiagramInconsistent, InfeasibleConstraints
 
 MAX_ATTEMPTS = 20  # ADR-0002
+
+
+def build_part_diagram(solver: Solver, params: dict, solution: dict) -> dict | None:
+    """Build the aid diagram spec if the solver defines one (A5); else ``None``.
+
+    Keeping this optional lets V1-style solvers (no ``diagram`` method) still run.
+    """
+    diagram_fn = getattr(solver, "diagram", None)
+    if diagram_fn is None:
+        return None
+    return diagram_fn(params, solution)
 
 
 def run_pipeline(spec: BlueprintSpec, solver: Solver, seed: int) -> dict:
@@ -41,8 +53,20 @@ def run_pipeline(spec: BlueprintSpec, solver: Solver, seed: int) -> dict:
             failures += 1
             continue
 
+        # A5: build the aid diagram (if any) and gate its consistency (R3.3).
+        # A deterministic diagram from correct values is always consistent, so a
+        # failure here is an engine bug, surfaced loudly rather than retried.
+        diagram = build_part_diagram(solver, params, solution)
+        if diagram is not None:
+            dchecks = check_consistency(diagram, params, solution)
+            report.setdefault("checks", {})["diagram_consistent"] = all(dchecks.values())
+            if not all(dchecks.values()):
+                raise DiagramInconsistent(spec.code, dchecks)
+
         # Success: assemble + schema-validate (a failure here is an engine bug).
-        return assemble(spec, seed=seed, params=params, solution=solution, report=report)
+        return assemble(
+            spec, seed=seed, params=params, solution=solution, report=report, diagram=diagram
+        )
 
     raise InfeasibleConstraints(spec.code, MAX_ATTEMPTS, failures, last_checks)
 
