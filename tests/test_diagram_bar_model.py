@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -33,6 +34,21 @@ def _built(params: dict) -> tuple[dict, dict]:
 def _golden_params() -> list[dict]:
     lines = [ln for ln in GOLDEN.read_text().splitlines() if ln.strip()]
     return [json.loads(ln)["params"] for ln in lines]
+
+
+def test_svg_content_stays_within_canvas():
+    """Every drawn x-coordinate must fit inside the declared width — the 'Total'
+    bracket spans sum(units), which is wider than the longest bar, so the canvas
+    must grow to fit it (regression: bracket was clipping off the right edge)."""
+    for params in _golden_params() + [
+        {"names": ["A", "B", "C"], "ratio": [1, 2, 9], "total": 108},  # lopsided
+    ]:
+        solution, diagram = _built(params)
+        svg = render_svg(diagram)
+        width = int(re.search(r'width="(\d+)"', svg).group(1))
+        xs = [int(v) for v in re.findall(r'x[12]?="(\d+)"', svg)]
+        assert xs, "expected x coordinates in the svg"
+        assert max(xs) <= width, f"coordinate {max(xs)} exceeds canvas width {width}"
 
 
 # --- spec shape & schema validity ------------------------------------------

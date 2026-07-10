@@ -31,8 +31,14 @@ function renderBarModel(spec) {
   const bars = spec.bars ?? []
   const annotations = spec.annotations ?? []
 
-  const maxUnits = Math.max(1, ...bars.map((b) => b.units))
-  const contentW = maxUnits * UNIT_W
+  // Canvas spans the widest thing drawn — longest bar OR furthest annotation
+  // (the "Total" bracket spans sum(units), wider than any bar), else it clips.
+  const maxBarUnits = Math.max(1, ...bars.map((b) => b.units))
+  const maxAnnUnits = annotations.length
+    ? Math.max(...annotations.map((a) => a.to_unit ?? a.from_unit ?? 0))
+    : 0
+  const spanUnits = Math.max(maxBarUnits, maxAnnUnits, 1)
+  const contentW = spanUnits * UNIT_W
   const width = LABEL_W + contentW + PAD_RIGHT
 
   const barsBlockH = bars.length ? bars.length * BAR_H + (bars.length - 1) * ROW_GAP : 0
