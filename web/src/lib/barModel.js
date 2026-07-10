@@ -11,6 +11,10 @@ const PAD_TOP = 16
 const PAD_RIGHT = 24
 const ANN_ROW_H = 26
 const ANN_GAP = 14
+const BRACE_GAP = 12
+const BRACE_W = 9
+const BRACE_LABEL_GAP = 8
+const CHAR_W = 7
 
 function esc(text) {
   return String(text)
@@ -31,15 +35,22 @@ function renderBarModel(spec) {
   const bars = spec.bars ?? []
   const annotations = spec.annotations ?? []
 
-  // Canvas spans the widest thing drawn — longest bar OR furthest annotation
-  // (the "Total" bracket spans sum(units), wider than any bar), else it clips.
+  const totalBracket = spec.total_bracket ?? null
+
+  // Canvas spans the widest thing drawn: longest bar / annotation, plus the
+  // right-hand total brace and its label when present.
   const maxBarUnits = Math.max(1, ...bars.map((b) => b.units))
   const maxAnnUnits = annotations.length
     ? Math.max(...annotations.map((a) => a.to_unit ?? a.from_unit ?? 0))
     : 0
   const spanUnits = Math.max(maxBarUnits, maxAnnUnits, 1)
-  const contentW = spanUnits * UNIT_W
-  const width = LABEL_W + contentW + PAD_RIGHT
+  let right = LABEL_W + spanUnits * UNIT_W
+  if (totalBracket) {
+    const braceX = LABEL_W + maxBarUnits * UNIT_W + BRACE_GAP
+    const labelX = braceX + BRACE_W + BRACE_LABEL_GAP
+    right = Math.max(right, labelX + totalBracket.label.length * CHAR_W + 4)
+  }
+  const width = right + PAD_RIGHT
 
   const barsBlockH = bars.length ? bars.length * BAR_H + (bars.length - 1) * ROW_GAP : 0
   const annBlockH = annotations.length * ANN_ROW_H
@@ -71,6 +82,22 @@ function renderBarModel(spec) {
       )
     }
     y += BAR_H + ROW_GAP
+  }
+
+  // Total brace: a vertical curly brace across all bars → the total.
+  if (totalBracket) {
+    const yTop = PAD_TOP
+    const yBot = PAD_TOP + barsBlockH
+    const yMid = Math.floor((yTop + yBot) / 2)
+    const bx = LABEL_W + maxBarUnits * UNIT_W + BRACE_GAP
+    const cx = bx + BRACE_W
+    const d =
+      `M ${bx} ${yTop} C ${cx} ${yTop}, ${bx} ${yMid}, ${cx} ${yMid} ` +
+      `C ${bx} ${yMid}, ${cx} ${yBot}, ${bx} ${yBot}`
+    out.push(`<path d="${d}" fill="none" stroke="#66708a" stroke-width="1.25"/>`)
+    out.push(
+      `<text x="${cx + BRACE_LABEL_GAP}" y="${yMid + 4}" text-anchor="start" fill="#66708a">${esc(totalBracket.label)}</text>`,
+    )
   }
 
   if (annotations.length) {

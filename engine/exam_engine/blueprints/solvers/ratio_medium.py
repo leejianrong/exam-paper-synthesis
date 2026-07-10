@@ -79,8 +79,9 @@ class RatioMediumSolver:
             "bars": [{"label": name, "units": r} for name, r in zip(names, ratio)],
             "annotations": [
                 {"from_unit": 0, "to_unit": 1, "label": f"1 unit = ${unit_value}"},
-                {"from_unit": 0, "to_unit": sum(ratio), "label": f"Total = ${total}"},
             ],
+            # Vertical curly brace across all bars → the combined total (1.1.0).
+            "total_bracket": {"label": f"Total = ${total}"},
         }
 
 

@@ -50,7 +50,8 @@ def check_bar_model_consistency(
         bars[i].get("label") == names[i] for i in range(len(names))
     )
     checks["unit_annotation"] = f"1 unit = ${unit_value}" in ann_labels
-    checks["total_annotation"] = f"Total = ${total}" in ann_labels
+    total_bracket = spec.get("total_bracket") or {}
+    checks["total_bracket"] = total_bracket.get("label") == f"Total = ${total}"
     return checks
 
 
@@ -67,6 +68,10 @@ _PAD_TOP = 16
 _PAD_RIGHT = 24
 _ANN_ROW_H = 26  # height per annotation row (drawn under the bars)
 _ANN_GAP = 14  # gap between the bars block and the annotations block
+_BRACE_GAP = 12  # gap from the longest bar to the total brace spine
+_BRACE_W = 9  # how far the brace cusp pokes right
+_BRACE_LABEL_GAP = 8  # gap from the brace cusp to its label
+_CHAR_W = 7  # ~px per character at font-size 13 (label-width estimate)
 
 
 def render_svg(spec: dict) -> str:
@@ -92,16 +97,21 @@ def _render_bar_model(spec: dict) -> str:
     bars = spec["bars"]
     annotations = spec.get("annotations", [])
 
-    # The canvas must span the widest thing drawn — that is the longest bar OR
-    # the furthest-reaching annotation (the "Total" bracket spans sum(units),
-    # which is wider than any single bar), else the bracket clips off the edge.
+    total_bracket = spec.get("total_bracket")
+
+    # Canvas spans the widest thing drawn: the longest bar / annotation, plus the
+    # right-hand total brace and its label when present.
     max_bar_units = max((b["units"] for b in bars), default=1)
     max_ann_units = max(
         (a.get("to_unit", a.get("from_unit", 0)) for a in annotations), default=0
     )
     span_units = max(max_bar_units, max_ann_units, 1)
-    content_w = span_units * _UNIT_W
-    width = _LABEL_W + content_w + _PAD_RIGHT
+    right = _LABEL_W + span_units * _UNIT_W
+    if total_bracket:
+        brace_x = _LABEL_W + max_bar_units * _UNIT_W + _BRACE_GAP
+        label_x = brace_x + _BRACE_W + _BRACE_LABEL_GAP
+        right = max(right, label_x + len(total_bracket["label"]) * _CHAR_W + 4)
+    width = right + _PAD_RIGHT
 
     bars_block_h = len(bars) * _BAR_H + (len(bars) - 1) * _ROW_GAP if bars else 0
     ann_block_h = len(annotations) * _ANN_ROW_H
@@ -138,6 +148,24 @@ def _render_bar_model(spec: dict) -> str:
                 f'stroke="#2f5fe0" stroke-width="0.75"/>'
             )
         y += _BAR_H + _ROW_GAP
+
+    # --- total brace: a vertical curly brace across all bars → the total ---
+    if total_bracket:
+        y_top = _PAD_TOP
+        y_bot = _PAD_TOP + bars_block_h
+        y_mid = (y_top + y_bot) // 2
+        bx = _LABEL_W + max_bar_units * _UNIT_W + _BRACE_GAP  # spine, near the bars
+        cx = bx + _BRACE_W  # cusp, pointing right toward the label
+        # Two cubic Béziers meeting at the cusp form a `}` (prongs left, cusp right).
+        d = (
+            f"M {bx} {y_top} C {cx} {y_top}, {bx} {y_mid}, {cx} {y_mid} "
+            f"C {bx} {y_mid}, {cx} {y_bot}, {bx} {y_bot}"
+        )
+        lines.append(f'<path d="{d}" fill="none" stroke="#66708a" stroke-width="1.25"/>')
+        lines.append(
+            f'<text x="{cx + _BRACE_LABEL_GAP}" y="{y_mid + 4}" text-anchor="start" '
+            f'fill="#66708a">{_esc(total_bracket["label"])}</text>'
+        )
 
     # --- annotations (spanning braces + label under the bars) ---
     if annotations:

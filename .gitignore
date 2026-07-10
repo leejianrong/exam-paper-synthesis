@@ -27,6 +27,15 @@ node_modules/
 web/dist/
 .svelte-kit/
 
+# Background-subagent worktrees (temporary)
+.claude/worktrees/
+
+# Local-only reference material: the MOE syllabus is copyrighted (personal /
+# non-commercial reproduction only) and this repo is PUBLIC, so the source files
+# are kept local and never committed. Only the folder's README is tracked.
+docs/syllabus/*
+!docs/syllabus/README.md
+
 # Playwright / generated exports
 playwright-report/
 test-results/

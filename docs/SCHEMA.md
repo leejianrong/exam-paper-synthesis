@@ -21,7 +21,7 @@ Related decisions: ADR-0004 (object), ADR-0012 (diagram union), ADR-0013 (multi-
 
 | Field | Notes |
 |---|---|
-| `schema_version` | semver, e.g. `"1.0.0"` |
+| `schema_version` | semver, e.g. `"1.1.0"` |
 | `id` | unique instance id |
 | `source_type` | `generated` \| `sourced` (drives conditional requirements) |
 | `blueprint_code` | required for `generated`; `null` for `sourced` |
@@ -52,6 +52,8 @@ that variant's strict sub-schema.
 - **answer.type** ∈ `integer | decimal | fraction | ratio | quantity | set | text`
 - **diagram.type** ∈ `bar_model | composite_geometry | area_perimeter | shaded_fraction | raster`
   (`raster` = an image reference, used by sourced/scanned diagrams).
+  - `bar_model` may carry an optional `total_bracket: { label }` (schema **1.1.0**) —
+    a vertical curly brace across all bars labelling the total.
 
 Units on numeric/`quantity` answers come from a **controlled vocabulary** (see the
 `unit` enum in the schema), not free text.
@@ -68,7 +70,7 @@ shows only in the detailed answer-key mode (ADR-0005).
 
 ```json
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "id": "qi_01H8XR",
   "source_type": "generated",
   "blueprint_code": "P6_RATIO_BEFORE_AFTER_001",
@@ -105,7 +107,8 @@ shows only in the detailed answer-key mode (ADR-0005).
         "diagram": {
           "type": "bar_model",
           "bars": [ { "label": "Ali", "units": 6 }, { "label": "Bala", "units": 10 } ],
-          "annotations": [ { "from_unit": 6, "to_unit": 7, "label": "24" } ]
+          "annotations": [ { "from_unit": 6, "to_unit": 7, "label": "24" } ],
+          "total_bracket": { "label": "Total = 384" }
         }
       }
     ],
@@ -123,7 +126,7 @@ shows only in the detailed answer-key mode (ADR-0005).
 
 ```json
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "id": "qi_01H8XS",
   "source_type": "generated",
   "blueprint_code": "P6_GEOM_OVERLAP_RECT_001",
@@ -165,7 +168,7 @@ shows only in the detailed answer-key mode (ADR-0005).
 
 ```json
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "id": "qi_src_00042",
   "source_type": "sourced",
   "blueprint_code": null,

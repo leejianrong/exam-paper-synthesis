@@ -98,13 +98,13 @@ def test_consistency_rejects_corrupted_label():
     assert checks["bar_labels"] is False
 
 
-def test_consistency_rejects_corrupted_annotation():
+def test_consistency_rejects_corrupted_total_bracket():
     params = _golden_params()[0]
     solution, diagram = _built(params)
     bad = copy.deepcopy(diagram)
-    bad["annotations"][1]["label"] = "Total = $999999"
+    bad["total_bracket"]["label"] = "Total = $999999"
     checks = check_bar_model_consistency(bad, params, solution)
-    assert checks["total_annotation"] is False
+    assert checks["total_bracket"] is False
 
 
 def test_consistency_rejects_missing_bar():
@@ -130,10 +130,11 @@ def test_svg_render_smoke():
     assert "viewBox" in svg
     for name in params["names"]:
         assert name in svg
-    # annotation values present (1 unit = $20, Total = $200)
+    # unit annotation (horizontal) + total as a vertical curly-brace label
     assert "1 unit = $20" in svg
     assert "Total = $200" in svg
-    # one divider line per interior unit boundary across the three bars
+    assert "<path" in svg  # the total brace is a path, not a horizontal bracket
+    # one rect per bar
     assert svg.count("<rect") == len(params["ratio"])
 
 
