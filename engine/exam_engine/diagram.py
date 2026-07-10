@@ -92,8 +92,15 @@ def _render_bar_model(spec: dict) -> str:
     bars = spec["bars"]
     annotations = spec.get("annotations", [])
 
-    max_units = max((b["units"] for b in bars), default=1) or 1
-    content_w = max_units * _UNIT_W
+    # The canvas must span the widest thing drawn — that is the longest bar OR
+    # the furthest-reaching annotation (the "Total" bracket spans sum(units),
+    # which is wider than any single bar), else the bracket clips off the edge.
+    max_bar_units = max((b["units"] for b in bars), default=1)
+    max_ann_units = max(
+        (a.get("to_unit", a.get("from_unit", 0)) for a in annotations), default=0
+    )
+    span_units = max(max_bar_units, max_ann_units, 1)
+    content_w = span_units * _UNIT_W
     width = _LABEL_W + content_w + _PAD_RIGHT
 
     bars_block_h = len(bars) * _BAR_H + (len(bars) - 1) * _ROW_GAP if bars else 0
