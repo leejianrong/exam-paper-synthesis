@@ -21,7 +21,7 @@ Related decisions: ADR-0004 (object), ADR-0012 (diagram union), ADR-0013 (multi-
 
 | Field | Notes |
 |---|---|
-| `schema_version` | semver, e.g. `"1.1.0"` |
+| `schema_version` | semver, e.g. `"1.2.0"` |
 | `id` | unique instance id |
 | `source_type` | `generated` \| `sourced` (drives conditional requirements) |
 | `blueprint_code` | required for `generated`; `null` for `sourced` |
@@ -50,10 +50,14 @@ array of length 1.
 that variant's strict sub-schema.
 
 - **answer.type** ∈ `integer | decimal | fraction | ratio | quantity | set | text`
-- **diagram.type** ∈ `bar_model | composite_geometry | area_perimeter | shaded_fraction | raster`
+- **diagram.type** ∈ `bar_model | bar_model_before_after | composite_geometry | area_perimeter | shaded_fraction | raster`
   (`raster` = an image reference, used by sourced/scanned diagrams).
   - `bar_model` may carry an optional `total_bracket: { label }` (schema **1.1.0**) —
     a vertical curly brace across all bars labelling the total.
+  - `bar_model_before_after` (schema **1.2.0**) is the before-after ratio aid: two
+    `stages` (`Before`/`After`), each with one bar per person in a shared unit scale,
+    plus `annotations` (labelled notes, e.g. the value of one unit and the amount
+    spent) and an optional `total_bracket` labelling the invariant person's amount.
 
 Units on numeric/`quantity` answers come from a **controlled vocabulary** (see the
 `unit` enum in the schema), not free text.
@@ -70,7 +74,7 @@ shows only in the detailed answer-key mode (ADR-0005).
 
 ```json
 {
-  "schema_version": "1.1.0",
+  "schema_version": "1.2.0",
   "id": "qi_01H8XR",
   "source_type": "generated",
   "blueprint_code": "P6_RATIO_BEFORE_AFTER_001",
@@ -126,7 +130,7 @@ shows only in the detailed answer-key mode (ADR-0005).
 
 ```json
 {
-  "schema_version": "1.1.0",
+  "schema_version": "1.2.0",
   "id": "qi_01H8XS",
   "source_type": "generated",
   "blueprint_code": "P6_GEOM_OVERLAP_RECT_001",
@@ -168,7 +172,7 @@ shows only in the detailed answer-key mode (ADR-0005).
 
 ```json
 {
-  "schema_version": "1.1.0",
+  "schema_version": "1.2.0",
   "id": "qi_src_00042",
   "source_type": "sourced",
   "blueprint_code": null,

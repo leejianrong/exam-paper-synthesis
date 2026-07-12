@@ -1,0 +1,3 @@
+{"params": {"names": ["Aisha", "Ben"], "ratio": [2, 3], "total": 100}, "expected": {"answer": {"type": "quantity", "value": 60, "unit": "$"}, "total_marks": 2}}
+{"params": {"names": ["Chloe", "Devi"], "ratio": [1, 4], "total": 60}, "expected": {"answer": {"type": "quantity", "value": 48, "unit": "$"}, "total_marks": 2}}
+{"params": {"names": ["Ethan", "Faridah"], "ratio": [3, 5], "total": 160}, "expected": {"answer": {"type": "quantity", "value": 100, "unit": "$"}, "total_marks": 2}}
