@@ -1,11 +1,22 @@
 <script>
+  import { createEventDispatcher } from 'svelte'
   import { renderDiagram } from './barModel.js'
 
   export let q
+  export let busy = false
   $: part = q.question.parts[0]
   $: steps = part.solution_steps ?? []
   $: scheme = part.marking_scheme ?? []
   $: svg = renderDiagram(part.diagram)
+
+  const dispatch = createEventDispatcher()
+
+  // Edit-op availability computed client-side from q (server is the real guard).
+  $: canEasier = q.cognitive?.difficulty !== 'easy'
+  $: canHarder = q.cognitive?.difficulty !== 'hard'
+  $: canDecimals = part.answer?.unit === '$'
+  $: canToggleDiagram = q.blueprint_code?.startsWith('ratio') ?? false
+  $: diagramLabel = part.diagram ? 'Hide diagram' : 'Show diagram'
 
   let showKey = false
 
@@ -46,6 +57,32 @@
   {/if}
 
   <p class="answer"><span class="label">Answer</span> {fmtAnswer(part.answer)}</p>
+
+  <div class="edit-row" role="group" aria-label="edit question">
+    <button class="edit" on:click={() => dispatch('edit', { op: 'regenerate' })} disabled={busy}>
+      Regenerate
+    </button>
+    {#if canEasier}
+      <button class="edit" on:click={() => dispatch('edit', { op: 'make-easier' })} disabled={busy}>
+        Make easier
+      </button>
+    {/if}
+    {#if canHarder}
+      <button class="edit" on:click={() => dispatch('edit', { op: 'make-harder' })} disabled={busy}>
+        Make harder
+      </button>
+    {/if}
+    {#if canDecimals}
+      <button class="edit" on:click={() => dispatch('edit', { op: 'change-to-decimals' })} disabled={busy}>
+        Change to decimals
+      </button>
+    {/if}
+    {#if canToggleDiagram}
+      <button class="edit" on:click={() => dispatch('edit', { op: 'toggle-diagram' })} disabled={busy}>
+        {diagramLabel}
+      </button>
+    {/if}
+  </div>
 
   {#if steps.length}
     <section class="solution">
@@ -111,6 +148,23 @@
     overflow-x: auto;
   }
   .answer { margin: 0; font-size: 1.05rem; }
+  .edit-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+  }
+  .edit {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .edit:disabled { opacity: 0.55; cursor: default; }
   .answer .label {
     color: var(--muted);
     font-size: 0.72rem;

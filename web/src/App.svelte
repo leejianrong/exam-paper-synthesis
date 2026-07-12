@@ -1,10 +1,11 @@
 <script>
-  import { generate } from './lib/api.js'
+  import { generate, editQuestion } from './lib/api.js'
   import QuestionCard from './lib/QuestionCard.svelte'
 
   let questions = []
   let loading = false
   let error = ''
+  let busyId = null
 
   async function onGenerate() {
     loading = true
@@ -16,6 +17,20 @@
       error = e.message
     } finally {
       loading = false
+    }
+  }
+
+  async function onEdit(source, op) {
+    busyId = source.id
+    error = ''
+    try {
+      const child = await editQuestion(op, source)
+      // Replace the source card in place — child.parent_id links back.
+      questions = questions.map((x) => (x.id === source.id ? child : x))
+    } catch (e) {
+      error = e.message
+    } finally {
+      busyId = null
     }
   }
 </script>
@@ -43,7 +58,7 @@
 
   <div class="cards">
     {#each questions as q (q.id)}
-      <QuestionCard {q} />
+      <QuestionCard {q} busy={busyId === q.id} on:edit={(e) => onEdit(q, e.detail.op)} />
     {/each}
   </div>
 </main>
