@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+#
+# Pre-push hook: mirrors the CHEAP CI jobs locally so a red build is caught
+# before it reaches GitHub. Runs `uv run pytest -q`, then (only if that
+# passes) `npm --prefix web run build`. Either failure aborts the push.
+#
+# Installed via `make hooks` (i.e. `git config core.hooksPath .githooks`).
+# Bypass with `git push --no-verify` when you knowingly want to skip it.
+
+set -euo pipefail
+
+echo "==> pre-push: running cheap CI checks (uv run pytest -q, then web build)"
+
+if ! uv run pytest -q; then
+	echo ""
+	echo "!! pre-push aborted: pytest failed."
+	echo "!! Fix the tests, or bypass with: git push --no-verify"
+	exit 1
+fi
+
+if ! npm --prefix web run build; then
+	echo ""
+	echo "!! pre-push aborted: web build failed."
+	echo "!! Fix the build, or bypass with: git push --no-verify"
+	exit 1
+fi
+
+echo "==> pre-push: all checks passed."
