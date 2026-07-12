@@ -11,8 +11,10 @@ comes from deterministic Python solvers, so a printed answer key is provably the
 solution to the printed question. The **canonical question object** (a plain
 `dict`, gated by JSON Schema) is the single source of truth.
 
-Currently through slice **V2** (V1 = end-to-end `ratio_medium` generation;
-V2 = bar-model diagrams / worked solutions). See `docs/shaping/SLICES.md`.
+Currently through slice **V3** (V1 = end-to-end `ratio_medium` generation;
+V2 = bar-model diagrams / worked solutions; V3 = full Ratio ladder
+`ratio_easy`/`medium`/`hard` + in-place edit operations). See
+`docs/shaping/SLICES.md`.
 
 ## Repo layout
 
@@ -26,12 +28,14 @@ It's a **uv workspace**. Root `pyproject.toml` declares members `engine/` and
 | `engine/exam_engine/canonical.py` | Canonical object builder + load gate (`assemble`, load, validate). |
 | `engine/exam_engine/schema.py` | Canonical schema loading + validation. |
 | `engine/exam_engine/diagram.py` | Diagram consistency check + deterministic spec → inline SVG renderer. |
-| `engine/exam_engine/errors.py` | Structured engine errors (`UnknownBlueprint`, `InfeasibleConstraints`, `DiagramInconsistent`). |
-| `engine/exam_engine/blueprints/` | `base.py` (solver protocol + param validation), `registry.py` (content loader + solver registry), `solvers/ratio_medium.py`. |
-| `api/app/` | Thin **FastAPI** over the engine (`main.py`, `routes_generate.py` = `POST /generate`, `models.py` = Pydantic envelopes only). Package `exam-api`; ASGI entry `app.main:app`. |
-| `web/` | **Svelte + Vite** SPA: `src/App.svelte`, `src/lib/QuestionCard.svelte`, `barModel.js`, `api.js`. Reads API base from `VITE_API` (defaults to `http://localhost:8000`). |
-| `content/blueprints/*.yaml`, `content/syllabus/*.yaml` | Declarative blueprint/syllabus data (`ratio_medium.yaml`, `ratio.yaml`). |
-| `schemas/canonical-question.schema.json` | The canonical JSON Schema (currently **v1.1.0**) — single source of truth. |
+| `engine/exam_engine/errors.py` | Structured engine errors (`UnknownBlueprint`, `InfeasibleConstraints`, `DiagramInconsistent`, `EditNotApplicable`). |
+| `engine/exam_engine/edits.py` | V3 edit ops as re-validated object→object transforms (`apply`, `available_ops`): regenerate / make-harder / make-easier / change-to-decimals / toggle-diagram. |
+| `engine/exam_engine/ladder.py` | Topic difficulty ladders + `sibling(code, dir)` (drives make-harder/easier). |
+| `engine/exam_engine/blueprints/` | `base.py` (solver protocol + param validation), `registry.py` (content loader + solver registry), `solvers/ratio_{easy,medium,hard}.py`. |
+| `api/app/` | Thin **FastAPI** over the engine (`main.py`, `routes_generate.py` = `POST /generate`, `routes_edit.py` = `POST /edit/{op}`, `models.py` = Pydantic envelopes only). Package `exam-api`; ASGI entry `app.main:app`. |
+| `web/` | **Svelte + Vite** SPA: `src/App.svelte`, `src/lib/QuestionCard.svelte` (with the edit-button row), `barModel.js`, `api.js`. Reads API base from `VITE_API` (defaults to `http://localhost:8000`). |
+| `content/blueprints/*.yaml`, `content/syllabus/*.yaml` | Declarative blueprint/syllabus data (`ratio_{easy,medium,hard}.yaml`, `ratio.yaml`). |
+| `schemas/canonical-question.schema.json` | The canonical JSON Schema (currently **v1.2.0**) — single source of truth. |
 | `tests/` | pytest suite + `tests/golden/*.jsonl` hand-verified fixtures. |
 | `docs/` | `SCHEMA.md`, `DIFFICULTY.md`, `CONTEXT.md`, `PRD.md`, `shaping/`, `adr/`. |
 | `site/` | Static landing page (`index.html`). |
@@ -88,5 +92,6 @@ a request; entropy (random seed) enters only here.
 | `docs/PRD.md` | Product requirements (MVP) |
 | `docs/shaping/SHAPING.md` | Requirements, shape, fit check, breadboard |
 | `docs/shaping/SLICES.md` | Vertical slice roadmap (V1–V7) |
-| `docs/shaping/V1-plan.md`, `V2-plan.md` | Per-slice implementation plans |
+| `docs/shaping/V1-plan.md`, `V2-plan.md`, `V3-plan.md` | Per-slice implementation plans |
+| `docs/ROADMAP.md` | Milestones → epics → stories (mirrors the Simple Kanban board) |
 | `docs/adr/` | Numbered ADRs (0001–0016) |
