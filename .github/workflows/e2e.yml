@@ -1,0 +1,48 @@
+name: E2E (Playwright)
+
+# Browser acceptance check: boots the real API + Vite SPA and drives the
+# Generate flow in headless Chromium (ADR-0008). See tests/e2e/.
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e:
+    # Browser acceptance check — exercises the real Generate flow end to end.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Sync Python workspace
+        run: uv sync
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install web dependencies
+        run: npm --prefix web ci
+
+      - name: Install e2e (Playwright) dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run e2e tests (headless)
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
