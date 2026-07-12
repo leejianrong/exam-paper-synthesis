@@ -17,3 +17,12 @@ class GenerateRequest(BaseModel):
 
 class GenerateResponse(BaseModel):
     questions: list[dict]
+
+
+class EditRequest(BaseModel):
+    question: dict
+    seed: int | None = None
+
+
+class EditResponse(BaseModel):
+    question: dict

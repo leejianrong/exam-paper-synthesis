@@ -51,6 +51,18 @@ class DiagramInconsistent(EngineError):
         )
 
 
+class EditNotApplicable(EngineError):
+    """An edit operation was requested for an object it cannot apply to (ADR-0009).
+
+    e.g. ``make-harder`` on the hardest rung, or an op not in ``available_ops``.
+    """
+
+    def __init__(self, op: str, reason: str):
+        self.op = op
+        self.reason = reason
+        super().__init__(f"edit {op!r} not applicable: {reason}")
+
+
 class BlueprintMisconfigured(EngineError):
     """A blueprint that succeeds but fails > 50% of sampling attempts (flaky)."""
 

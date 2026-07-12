@@ -36,6 +36,9 @@ def _lcm(x: int, y: int) -> int:
 
 
 class RatioHardSolver:
+    # ctx keys (params + intermediates) that carry money — scaled by change-to-decimals (V3).
+    MONEY_KEYS = {"spent", "unit_value", "b_amount"}
+
     def sample(self, schema: dict, rng: random.Random) -> dict:
         while True:
             names = rng.sample(NAME_POOL, 2)

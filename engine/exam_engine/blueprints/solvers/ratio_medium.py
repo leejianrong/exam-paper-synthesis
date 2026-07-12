@@ -25,6 +25,9 @@ _TOTAL_MAX = 2000
 
 
 class RatioMediumSolver:
+    # ctx keys (params + intermediates) that carry money — scaled by change-to-decimals (V3).
+    MONEY_KEYS = {"total", "unit_value", "answer_value"}
+
     def sample(self, schema: dict, rng: random.Random) -> dict:
         names = rng.sample(NAME_POOL, 3)
         # 3-term ratio, terms 1..9, not all equal (keeps the question meaningful).
