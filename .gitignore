@@ -21,6 +21,7 @@ build/
 .env
 .env.*
 !.env.example
+.mcp.json
 
 # Node / Vite / Svelte
 node_modules/
