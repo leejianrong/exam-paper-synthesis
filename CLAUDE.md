@@ -67,8 +67,12 @@ a request; entropy (random seed) enters only here.
   is stamped only at the API boundary.
 - **Every blueprint ships hand-verified golden fixtures** (never model-verified),
   in `tests/golden/*.jsonl`.
-- **Workflow**: branch → PR → merge; merge only when green — both
-  `uv run pytest` and `npm --prefix web run build` pass.
+- **Workflow**: branch → PR → **merge once CI is green**. CI (GitHub Actions,
+  `.github/workflows/ci.yml`) runs `uv run pytest` and `npm --prefix web run build`
+  on every PR; a browser e2e check runs via `e2e.yml`. Don't merge a red or
+  pending PR, and don't merge unreviewed work — but once checks pass, merge it in
+  rather than letting PRs pile up. (You can still run the checks locally before
+  pushing.)
 - **Commit messages** end with:
   `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
 - **Multi-level doc consistency**: if a slice's scope shifts, update
