@@ -1,0 +1,3 @@
+{"params": {"names": ["Aisha", "Ben"], "ratio_before": [2, 3], "ratio_after": [1, 2], "spent": 20}, "expected": {"answer": {"type": "quantity", "value": 120, "unit": "$"}, "total_marks": 4}}
+{"params": {"names": ["Devi", "Ethan"], "ratio_before": [5, 3], "ratio_after": [1, 2], "spent": 70}, "expected": {"answer": {"type": "quantity", "value": 60, "unit": "$"}, "total_marks": 4}}
+{"params": {"names": ["Gopal", "Hui Ling"], "ratio_before": [5, 4], "ratio_after": [1, 2], "spent": 45}, "expected": {"answer": {"type": "quantity", "value": 60, "unit": "$"}, "total_marks": 4}}

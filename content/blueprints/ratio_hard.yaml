@@ -1,0 +1,63 @@
+code: ratio_hard
+syllabus:
+  level: P6
+  strand: "Ratio"
+  topic: "Ratio"
+  subtopic: "Before-after (invariant)"
+  skill_codes: ["RATIO.BEFOREAFTER.INVARIANT"]   # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Direction", "Hidden structure", "Reasoning depth"]
+marks: 4
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [names, ratio_before, ratio_after, spent]
+  properties:
+    names:
+      type: array
+      items: { type: string }
+      minItems: 2
+      maxItems: 2
+    ratio_before:
+      type: array
+      items: { type: integer, minimum: 1, maximum: 9 }
+      minItems: 2
+      maxItems: 2
+    ratio_after:
+      type: array
+      items: { type: integer, minimum: 1, maximum: 9 }
+      minItems: 2
+      maxItems: 2
+    spent:
+      type: integer
+      minimum: 1
+      maximum: 2000
+story_templates:
+  - stem: null
+    text: >
+      {names[0]} and {names[1]} had savings in the ratio {ratio_before[0]} :
+      {ratio_before[1]}. After {names[0]} spent ${spent}, the ratio of their
+      savings became {ratio_after[0]} : {ratio_after[1]}. {names[1]}'s savings
+      did not change. How much did {names[1]} have?
+solution_template:
+  steps:
+    - text: "{names[1]}'s savings do not change, so equalise {names[1]}'s units to {L} in both stages."
+      expr: "{L}"
+    - text: "{names[0]} fell from {a_before_units} units to {a_after_units} units, a loss of {delta_units} units = ${spent}."
+      expr: "{a_before_units}-{a_after_units}"
+    - text: "Value of 1 unit = ${spent} ÷ {delta_units} = ${unit_value}."
+      expr: "{spent}/{delta_units}"
+    - text: "{names[1]}'s savings = {L} × ${unit_value} = ${b_amount}."
+      expr: "{L}*{unit_value}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Equalise the invariant person's units across before and after." }
+  - { mark: 1, type: M, description: "Find how many units the other person lost." }
+  - { mark: 1, type: M, description: "Divide the amount spent by the lost units to find the value of one unit." }
+  - { mark: 1, type: A, description: "Correct final amount for the unchanged person with the $ unit." }
+answer:
+  type: quantity
+  unit: "$"
+diagram: bar_model_before_after         # declares the aid family (ADR-0007); the solver's
+                                        # diagram() emits the spec. Toggle is V3, not here.

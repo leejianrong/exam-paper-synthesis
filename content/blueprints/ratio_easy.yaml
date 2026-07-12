@@ -1,0 +1,52 @@
+code: ratio_easy
+syllabus:
+  level: P5
+  strand: "Ratio"
+  topic: "Ratio"
+  subtopic: "Sharing in a ratio"
+  skill_codes: ["RATIO.SHARE.2TERM"]   # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Reasoning depth"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [names, ratio, total]
+  properties:
+    names:
+      type: array
+      items: { type: string }
+      minItems: 2
+      maxItems: 2
+    ratio:
+      type: array
+      items: { type: integer, minimum: 1, maximum: 9 }
+      minItems: 2
+      maxItems: 2
+    total:
+      type: integer
+      minimum: 6
+      maximum: 2000
+story_templates:
+  - stem: null
+    text: >
+      {names[0]} and {names[1]} share ${total} in the ratio
+      {ratio[0]} : {ratio[1]}. How much does {names[1]} receive?
+solution_template:
+  steps:
+    - text: "Total units = {ratio[0]} + {ratio[1]} = {units_total}."
+      expr: "{ratio[0]}+{ratio[1]}"
+    - text: "Value of 1 unit = ${total} ÷ {units_total} = ${unit_value}."
+      expr: "{total}/{units_total}"
+    - text: "{names[1]}'s share = {ratio[1]} × ${unit_value} = ${answer_value}."
+      expr: "{ratio[1]}*{unit_value}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Find the value of 1 unit by dividing the total by the number of units." }
+  - { mark: 1, type: A, description: "Correct final share with the $ unit." }
+answer:
+  type: quantity
+  unit: "$"
+diagram: bar_model                      # declares the aid family (ADR-0007); the solver's
+                                        # diagram() emits the spec. Toggle is V3, not here.
