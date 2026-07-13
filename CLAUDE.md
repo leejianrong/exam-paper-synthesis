@@ -29,7 +29,7 @@ It's a **uv workspace**. Root `pyproject.toml` declares members `engine/` and
 | `engine/exam_engine/errors.py` | Structured engine errors (`UnknownBlueprint`, `InfeasibleConstraints`, `DiagramInconsistent`). |
 | `engine/exam_engine/blueprints/` | `base.py` (solver protocol + param validation), `registry.py` (content loader + solver registry), `solvers/ratio_medium.py`. |
 | `api/app/` | Thin **FastAPI** over the engine (`main.py`, `routes_generate.py` = `POST /generate`, `models.py` = Pydantic envelopes only). Package `exam-api`; ASGI entry `app.main:app`. |
-| `web/` | **Svelte + Vite** SPA: `src/App.svelte`, `src/lib/QuestionCard.svelte`, `barModel.js`, `api.js`. Reads API base from `VITE_API` (defaults to `http://localhost:8000`). |
+| `web/` | **Svelte 5 + Vite 8 + TypeScript** SPA: `src/App.svelte`, `src/lib/QuestionCard.svelte`, `barModel.ts`, `api.ts`, `types.ts`. Reads API base from `VITE_API` (defaults to `http://localhost:8000`). Quality-gated by **eslint** (flat config), **svelte-check**, and **vitest** (jsdom + Testing Library). |
 | `content/blueprints/*.yaml`, `content/syllabus/*.yaml` | Declarative blueprint/syllabus data (`ratio_medium.yaml`, `ratio.yaml`). |
 | `schemas/canonical-question.schema.json` | The canonical JSON Schema (currently **v1.1.0**) — single source of truth. |
 | `tests/` | pytest suite + `tests/golden/*.jsonl` hand-verified fixtures. |
@@ -54,6 +54,9 @@ All commands verified from repo root.
 | Web deps | `npm --prefix web install` |
 | Web dev server | `npm --prefix web run dev` (Vite, port 5173) |
 | Web build | `npm --prefix web run build` |
+| Web lint | `npm --prefix web run lint` (`make web-lint`) — eslint, 0 errors |
+| Web type-check | `npm --prefix web run check` (`make web-typecheck`) — svelte-check, 0 errors |
+| Web unit tests | `npm --prefix web run test:unit` (`make web-test`) — vitest |
 | Make: install deps | `make install` (`uv sync` + `npm --prefix web ci`) |
 | Make: boot API + web | `make dev` (both together; Ctrl-C stops both) |
 | Make: run tests | `make test` |
@@ -73,16 +76,18 @@ a request; entropy (random seed) enters only here.
 - **Every blueprint ships hand-verified golden fixtures** (never model-verified),
   in `tests/golden/*.jsonl`.
 - **Workflow**: branch → PR → **merge once CI is green**. CI (GitHub Actions,
-  `.github/workflows/ci.yml`) runs `uv run pytest` and `npm --prefix web run build`
-  on every PR; a browser e2e check runs via `e2e.yml`. Don't merge a red or
+  `.github/workflows/ci.yml`) runs `uv run pytest`, `npm --prefix web run build`,
+  and the `Web quality` job (`lint` + `check` + `test:unit`) on every PR; a
+  browser e2e check runs via `e2e.yml`. Don't merge a red or
   pending PR, and don't merge unreviewed work — but once checks pass, merge it in
   rather than letting PRs pile up. (You can still run the checks locally before
   pushing.)
 - **Pre-push hook** (install with `make hooks`, i.e.
   `git config core.hooksPath .githooks`): the `.githooks/pre-push` hook mirrors
-  the cheap CI jobs locally — `uv run pytest -q`, then `npm --prefix web run
-  build` — and blocks the push if either fails. Bypass with `git push
-  --no-verify` (escape hatch).
+  the cheap CI jobs locally — `uv run pytest -q`, then the web quality gates
+  (`npm --prefix web run lint`, `check`, `test:unit`) and the web build — and
+  blocks the push if any step fails. Bypass with `git push --no-verify` (escape
+  hatch).
 - **Commit messages** end with:
   `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
 - **Multi-level doc consistency**: if a slice's scope shifts, update

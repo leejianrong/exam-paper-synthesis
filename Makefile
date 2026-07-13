@@ -3,7 +3,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install dev api web test e2e build health hooks
+.PHONY: help install dev api web web-lint web-typecheck web-test test e2e build health hooks
 
 help: ## List available targets
 	@echo "Targets:"
@@ -11,6 +11,9 @@ help: ## List available targets
 	@echo "  dev      Boot the API and Vite dev server together (Ctrl-C stops both)"
 	@echo "  api      Run just the FastAPI dev server (port 8000)"
 	@echo "  web      Run just the Vite dev server (port 5173)"
+	@echo "  web-lint      Lint the web app (eslint)"
+	@echo "  web-typecheck Type-check the web app (svelte-check)"
+	@echo "  web-test      Run the web unit tests (vitest)"
 	@echo "  test     Run the pytest suite"
 	@echo "  e2e      Run the root Playwright end-to-end tests"
 	@echo "  build    Build the web app"
@@ -33,6 +36,15 @@ api: ## Run just the API dev server
 
 web: ## Run just the Vite dev server
 	npm --prefix web run dev
+
+web-lint: ## Lint the web app (eslint)
+	npm --prefix web run lint
+
+web-typecheck: ## Type-check the web app (svelte-check)
+	npm --prefix web run check
+
+web-test: ## Run the web unit tests (vitest)
+	npm --prefix web run test:unit
 
 test: ## Run the pytest suite
 	uv run pytest

@@ -1,15 +1,17 @@
-<script>
+<script lang="ts">
   import { createEventDispatcher } from 'svelte'
-  import { renderDiagram } from './barModel.js'
+  import { renderDiagram } from './barModel'
+  import type { EditOp } from './api'
+  import type { Answer, Question } from './types'
 
-  export let q
+  export let q: Question
   export let busy = false
   $: part = q.question.parts[0]
   $: steps = part.solution_steps ?? []
   $: scheme = part.marking_scheme ?? []
   $: svg = renderDiagram(part.diagram)
 
-  const dispatch = createEventDispatcher()
+  const dispatch = createEventDispatcher<{ edit: { op: EditOp } }>()
 
   // Edit-op availability computed client-side from q (server is the real guard).
   $: canEasier = q.cognitive?.difficulty !== 'easy'
@@ -20,7 +22,7 @@
 
   let showKey = false
 
-  function fmtAnswer(a) {
+  function fmtAnswer(a: Answer | undefined): string {
     if (!a) return ''
     switch (a.type) {
       case 'quantity':
@@ -33,11 +35,11 @@
       case 'fraction':
         return `${a.numerator}/${a.denominator}`
       case 'ratio':
-        return a.parts.join(' : ')
+        return (a.parts ?? []).join(' : ')
       case 'set':
-        return a.values.join(', ')
+        return (a.values ?? []).join(', ')
       case 'text':
-        return a.text
+        return a.text ?? ''
       default:
         return JSON.stringify(a)
     }
@@ -53,6 +55,9 @@
   <p class="text">{part.text}</p>
 
   {#if svg}
+    <!-- svg is built by renderDiagram from esc()-escaped, engine-derived spec
+         values — no untrusted HTML reaches this sink. -->
+    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
     <div class="diagram" aria-label="bar model">{@html svg}</div>
   {/if}
 
@@ -88,7 +93,7 @@
     <section class="solution">
       <h3>Worked solution <span class="marks">[{part.marks}]</span></h3>
       <ol>
-        {#each steps as s}
+        {#each steps as s, i (i)}
           <li>{s.text}</li>
         {/each}
       </ol>
@@ -101,7 +106,7 @@
     </button>
     {#if showKey}
       <ul class="scheme">
-        {#each scheme as m}
+        {#each scheme as m, i (i)}
           <li>
             <span class="mtag {m.type}">{m.type}</span>
             <span class="mmark">[{m.mark}]</span>

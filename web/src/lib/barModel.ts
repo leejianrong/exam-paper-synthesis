@@ -18,7 +18,43 @@ const CHAR_W = 7
 const STAGE_HEAD_H = 22
 const STAGE_GAP = 18
 
-function esc(text) {
+export interface BarSpec {
+  label: string
+  units: number
+}
+
+export interface AnnotationSpec {
+  label: string
+  from_unit?: number
+  to_unit?: number
+}
+
+export interface TotalBracket {
+  label: string
+}
+
+export interface StageSpec {
+  name: string
+  bars?: BarSpec[]
+}
+
+export interface BarModelSpec {
+  type: 'bar_model'
+  bars?: BarSpec[]
+  annotations?: AnnotationSpec[]
+  total_bracket?: TotalBracket | null
+}
+
+export interface BarModelBeforeAfterSpec {
+  type: 'bar_model_before_after'
+  stages?: StageSpec[]
+  annotations?: AnnotationSpec[]
+  total_bracket?: TotalBracket | null
+}
+
+export type DiagramSpec = BarModelSpec | BarModelBeforeAfterSpec
+
+function esc(text: string): string {
   return String(text)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
@@ -27,14 +63,14 @@ function esc(text) {
 }
 
 /** Render a diagram spec to an inline <svg> string. Returns '' for unknowns. */
-export function renderDiagram(spec) {
+export function renderDiagram(spec: DiagramSpec | null | undefined): string {
   if (!spec) return ''
   if (spec.type === 'bar_model') return renderBarModel(spec)
   if (spec.type === 'bar_model_before_after') return renderBarModelBeforeAfter(spec)
   return ''
 }
 
-function renderBarModel(spec) {
+function renderBarModel(spec: BarModelSpec): string {
   const bars = spec.bars ?? []
   const annotations = spec.annotations ?? []
 
@@ -59,7 +95,7 @@ function renderBarModel(spec) {
   const annBlockH = annotations.length * ANN_ROW_H
   const height = PAD_TOP + barsBlockH + (annotations.length ? ANN_GAP + annBlockH : 0) + PAD_TOP
 
-  const out = [
+  const out: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
       `width="${width}" height="${height}" role="img" ` +
       `font-family="system-ui, sans-serif" font-size="13">`,
@@ -135,7 +171,7 @@ function renderBarModel(spec) {
 // Before-after aid: two stacked stage groups (heading + bars), annotations below,
 // and a vertical brace on the invariant person's bar. Mirrors the engine renderer
 // in engine/exam_engine/diagram.py (_render_bar_model_before_after). Deterministic.
-function renderBarModelBeforeAfter(spec) {
+function renderBarModelBeforeAfter(spec: BarModelBeforeAfterSpec): string {
   const stages = spec.stages ?? []
   const annotations = spec.annotations ?? []
   const totalBracket = spec.total_bracket ?? null
@@ -147,8 +183,8 @@ function renderBarModelBeforeAfter(spec) {
   const spanUnits = Math.max(maxBarUnits, 1)
   let right = LABEL_W + spanUnits * UNIT_W
 
-  let braceX = null
-  let labelX = null
+  let braceX = 0
+  let labelX = 0
   if (totalBracket) {
     braceX = LABEL_W + bUnits * UNIT_W + BRACE_GAP
     labelX = braceX + BRACE_W + BRACE_LABEL_GAP
@@ -170,7 +206,7 @@ function renderBarModelBeforeAfter(spec) {
     PAD_TOP
   const width = right + PAD_RIGHT
 
-  const out = [
+  const out: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
       `width="${width}" height="${height}" role="img" ` +
       `font-family="system-ui, sans-serif" font-size="13">`,
