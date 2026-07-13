@@ -1,11 +1,27 @@
-const BASE = import.meta.env.VITE_API ?? 'http://localhost:8000'
+import type { Question } from './types'
+
+const BASE: string = import.meta.env.VITE_API ?? 'http://localhost:8000'
+
+/** The edit operations the API exposes at POST /edit/{op}. */
+export type EditOp =
+  | 'regenerate'
+  | 'make-harder'
+  | 'make-easier'
+  | 'change-to-decimals'
+  | 'toggle-diagram'
+
+interface GenerateResponse {
+  questions: Question[]
+}
+
+interface EditResponse {
+  question: Question
+}
 
 /**
  * Generate questions from a blueprint. Returns an array of canonical objects.
- * @param {string} blueprintCode
- * @param {number} count
  */
-export async function generate(blueprintCode, count = 1) {
+export async function generate(blueprintCode: string, count = 1): Promise<Question[]> {
   const res = await fetch(`${BASE}/generate`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -15,18 +31,19 @@ export async function generate(blueprintCode, count = 1) {
     const detail = await res.text()
     throw new Error(`API ${res.status}: ${detail}`)
   }
-  const data = await res.json()
+  const data = (await res.json()) as GenerateResponse
   return data.questions
 }
 
 /**
  * Apply one edit operation to a question. Returns the child canonical object.
- * @param {string} op  one of: regenerate, make-harder, make-easier,
- *                      change-to-decimals, toggle-diagram
- * @param {object} question  the source canonical object
- * @param {number|null} seed  optional seed for deterministic resample ops
+ * `seed` optionally pins deterministic resample ops; child.parent_id links back.
  */
-export async function editQuestion(op, question, seed = null) {
+export async function editQuestion(
+  op: EditOp,
+  question: Question,
+  seed: number | null = null,
+): Promise<Question> {
   const res = await fetch(`${BASE}/edit/${op}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -36,6 +53,6 @@ export async function editQuestion(op, question, seed = null) {
     const detail = await res.text()
     throw new Error(`API ${res.status}: ${detail}`)
   }
-  const data = await res.json()
+  const data = (await res.json()) as EditResponse
   return data.question
 }

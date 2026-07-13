@@ -1,11 +1,14 @@
-<script>
-  import { generate, editQuestion } from './lib/api.js'
+<script lang="ts">
+  import { generate, editQuestion, type EditOp } from './lib/api'
   import QuestionCard from './lib/QuestionCard.svelte'
+  import type { Question } from './lib/types'
 
-  let questions = []
+  let questions: Question[] = []
   let loading = false
   let error = ''
-  let busyId = null
+  let busyId: string | null = null
+
+  const message = (e: unknown): string => (e instanceof Error ? e.message : String(e))
 
   async function onGenerate() {
     loading = true
@@ -14,13 +17,13 @@
       const fresh = await generate('ratio_medium', 1)
       questions = [...fresh, ...questions]
     } catch (e) {
-      error = e.message
+      error = message(e)
     } finally {
       loading = false
     }
   }
 
-  async function onEdit(source, op) {
+  async function onEdit(source: Question, op: EditOp) {
     busyId = source.id
     error = ''
     try {
@@ -28,7 +31,7 @@
       // Replace the source card in place — child.parent_id links back.
       questions = questions.map((x) => (x.id === source.id ? child : x))
     } catch (e) {
-      error = e.message
+      error = message(e)
     } finally {
       busyId = null
     }
@@ -58,7 +61,11 @@
 
   <div class="cards">
     {#each questions as q (q.id)}
-      <QuestionCard {q} busy={busyId === q.id} on:edit={(e) => onEdit(q, e.detail.op)} />
+      <QuestionCard
+        {q}
+        busy={busyId === q.id}
+        on:edit={(e: CustomEvent<{ op: EditOp }>) => onEdit(q, e.detail.op)}
+      />
     {/each}
   </div>
 </main>
