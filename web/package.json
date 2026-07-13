@@ -19,7 +19,7 @@
     "@tsconfig/svelte": "^5.0.4",
     "eslint": "^9.18.0",
     "eslint-plugin-svelte": "^3.0.0",
-    "globals": "^15.14.0",
+    "globals": "^17.7.0",
     "jsdom": "^26.0.0",
     "svelte": "^5.56.4",
     "svelte-check": "^4.1.4",
