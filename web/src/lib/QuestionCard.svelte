@@ -6,12 +6,19 @@
 
   export let q: Question
   export let busy = false
+  export let added = false
   $: part = q.question.parts[0]
   $: steps = part.solution_steps ?? []
   $: scheme = part.marking_scheme ?? []
   $: svg = renderDiagram(part.diagram)
+  // Edit ops + Approve are frozen once the question is in the worksheet.
+  $: editDisabled = busy || added
 
-  const dispatch = createEventDispatcher<{ edit: { op: EditOp } }>()
+  const dispatch = createEventDispatcher<{
+    edit: { op: EditOp }
+    approve: { q: Question }
+    discard: { id: string }
+  }>()
 
   // Edit-op availability computed client-side from q (server is the real guard).
   $: canEasier = q.cognitive?.difficulty !== 'easy'
@@ -64,29 +71,62 @@
   <p class="answer"><span class="label">Answer</span> {fmtAnswer(part.answer)}</p>
 
   <div class="edit-row" role="group" aria-label="edit question">
-    <button class="edit" on:click={() => dispatch('edit', { op: 'regenerate' })} disabled={busy}>
+    <button
+      class="edit"
+      on:click={() => dispatch('edit', { op: 'regenerate' })}
+      disabled={editDisabled}
+    >
       Regenerate
     </button>
     {#if canEasier}
-      <button class="edit" on:click={() => dispatch('edit', { op: 'make-easier' })} disabled={busy}>
+      <button
+        class="edit"
+        on:click={() => dispatch('edit', { op: 'make-easier' })}
+        disabled={editDisabled}
+      >
         Make easier
       </button>
     {/if}
     {#if canHarder}
-      <button class="edit" on:click={() => dispatch('edit', { op: 'make-harder' })} disabled={busy}>
+      <button
+        class="edit"
+        on:click={() => dispatch('edit', { op: 'make-harder' })}
+        disabled={editDisabled}
+      >
         Make harder
       </button>
     {/if}
     {#if canDecimals}
-      <button class="edit" on:click={() => dispatch('edit', { op: 'change-to-decimals' })} disabled={busy}>
+      <button
+        class="edit"
+        on:click={() => dispatch('edit', { op: 'change-to-decimals' })}
+        disabled={editDisabled}
+      >
         Change to decimals
       </button>
     {/if}
     {#if canToggleDiagram}
-      <button class="edit" on:click={() => dispatch('edit', { op: 'toggle-diagram' })} disabled={busy}>
+      <button
+        class="edit"
+        on:click={() => dispatch('edit', { op: 'toggle-diagram' })}
+        disabled={editDisabled}
+      >
         {diagramLabel}
       </button>
     {/if}
+  </div>
+
+  <div class="gate-row" role="group" aria-label="review question">
+    {#if added}
+      <span class="added" role="status">✓ Added to worksheet</span>
+    {:else}
+      <button class="approve" on:click={() => dispatch('approve', { q })} disabled={busy}>
+        Approve
+      </button>
+    {/if}
+    <button class="discard" on:click={() => dispatch('discard', { id: q.id })} disabled={busy}>
+      Discard
+    </button>
   </div>
 
   {#if steps.length}
@@ -170,6 +210,40 @@
     cursor: pointer;
   }
   .edit:disabled { opacity: 0.55; cursor: default; }
+  .gate-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+  }
+  .approve {
+    background: var(--pass, #1a7f52);
+    border: 1px solid transparent;
+    color: #fff;
+    border-radius: 8px;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .approve:disabled { opacity: 0.55; cursor: default; }
+  .discard {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .discard:disabled { opacity: 0.55; cursor: default; }
+  .added {
+    color: var(--pass, #1a7f52);
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
   .answer .label {
     color: var(--muted);
     font-size: 0.72rem;
