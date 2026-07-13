@@ -26,3 +26,8 @@ class EditRequest(BaseModel):
 
 class EditResponse(BaseModel):
     question: dict
+
+
+class ExportRequest(BaseModel):
+    title: str = "worksheet"
+    questions: list[dict]
