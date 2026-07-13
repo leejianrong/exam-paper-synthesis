@@ -82,13 +82,18 @@ a request; entropy (random seed) enters only here.
   is stamped only at the API boundary.
 - **Every blueprint ships hand-verified golden fixtures** (never model-verified),
   in `tests/golden/*.jsonl`.
-- **Workflow**: branch → PR → **merge once CI is green**. CI (GitHub Actions,
-  `.github/workflows/ci.yml`) runs `uv run pytest`, `npm --prefix web run build`,
-  the `Python quality` job (ruff + mypy) and the `Web quality` job (`lint` +
-  `check` + `test:unit`) on every PR; a browser e2e check runs via `e2e.yml`. Don't merge a red or
-  pending PR, and don't merge unreviewed work — but once checks pass, merge it in
-  rather than letting PRs pile up. (You can still run the checks locally before
-  pushing.)
+- **Workflow**: branch → PR → **merge once CI is green** (never push to `main`
+  directly — it is **branch-protected**). **Standing instruction for agents: after
+  you open a PR, watch its checks and merge it as soon as CI is green and it has
+  been reviewed — do not leave a green, reviewed PR sitting or let PRs pile up.**
+  `main` requires **all 7 status checks** to pass before merge: `Python tests`,
+  `Web build`, `e2e`, `Secret scan`, `Dependency audit`, `Python quality`,
+  `Web quality` (CI lives in `ci.yml` — `uv run pytest`, `npm --prefix web run
+  build`, the `Python quality` job = ruff + mypy, the `Web quality` job = `lint` +
+  `check` + `test:unit`; the browser e2e runs via `e2e.yml`). To merge: confirm with
+  `gh pr checks <n>`, then `gh pr merge <n> --merge --delete-branch`. **Never merge a
+  red or pending PR, and never merge unreviewed work.** (Run the checks locally first
+  via the pre-push hook.)
 - **Pre-push hook** (install with `make hooks`, i.e.
   `git config core.hooksPath .githooks`): the `.githooks/pre-push` hook mirrors
   the cheap CI jobs locally — Python (`uv run ruff check`, `ruff format --check`,
