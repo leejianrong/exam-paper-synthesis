@@ -51,4 +51,50 @@ describe('QuestionCard', () => {
     expect(screen.getByText('Finds 1 unit = $18')).toBeInTheDocument()
     expect(screen.getByText('M')).toBeInTheDocument()
   })
+
+  it('dispatches an approve event carrying the question', async () => {
+    let payload: { q: Question } | undefined
+    render(QuestionCard, {
+      props: { q: question },
+      events: { approve: (e: CustomEvent<{ q: Question }>) => (payload = e.detail) },
+    })
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+
+    expect(payload?.q.id).toBe('q1')
+  })
+
+  it('dispatches a discard event carrying the question id', async () => {
+    let payload: { id: string } | undefined
+    render(QuestionCard, {
+      props: { q: question },
+      events: { discard: (e: CustomEvent<{ id: string }>) => (payload = e.detail) },
+    })
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+
+    expect(payload?.id).toBe('q1')
+  })
+
+  it('shows the Added state and disables Approve + edit buttons when added', () => {
+    render(QuestionCard, { props: { q: question, added: true } })
+
+    expect(screen.getByText('✓ Added to worksheet')).toBeInTheDocument()
+    // Approve is replaced by the Added state, so it is gone entirely.
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
+
+    // All edit buttons are disabled.
+    for (const name of [
+      'Regenerate',
+      'Make easier',
+      'Make harder',
+      'Change to decimals',
+      'Show diagram',
+    ]) {
+      expect(screen.getByRole('button', { name })).toBeDisabled()
+    }
+
+    // Discard stays available (client-only remove from the review list).
+    expect(screen.getByRole('button', { name: 'Discard' })).not.toBeDisabled()
+  })
 })
