@@ -10,6 +10,7 @@ const question: Question = {
   validation: { status: 'pass' },
   cognitive: { difficulty: 'medium' },
   question: {
+    total_marks: 3,
     parts: [
       {
         text: 'Anna and Ben share $90 in the ratio 2 : 3.',

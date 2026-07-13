@@ -46,7 +46,7 @@ export interface Question {
   seed: number
   blueprint_code: string
   parent_id?: string | null
-  question: { parts: QuestionPart[] }
+  question: { parts: QuestionPart[]; total_marks: number }
   validation: { status: ValidationStatus }
   cognitive?: { difficulty?: Difficulty }
 }
