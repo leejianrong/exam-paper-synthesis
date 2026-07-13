@@ -11,12 +11,16 @@ comes from deterministic Python solvers, so a printed answer key is provably the
 solution to the printed question. The **canonical question object** (a plain
 `dict`, gated by JSON Schema) is the single source of truth.
 
-Currently through slice **V4** (V1 = end-to-end `ratio_medium` generation;
+Currently through slice **V5** (V1 = end-to-end `ratio_medium` generation;
 V2 = bar-model diagrams / worked solutions; V3 = full Ratio ladder
 `ratio_easy`/`medium`/`hard` + in-place edit operations; V4 = review gate +
 client-side current-worksheet tray: Approve/Discard on cards, approved questions
 collect in a titled tray with total marks — the store is client-side/ephemeral,
-no server state). See `docs/shaping/SLICES.md`.
+no server state; V5 = preview + export both PDFs: pure engine HTML renderers with
+vendored self-contained KaTeX + print CSS, headless-Chromium PDF generation at the
+API boundary, `POST /export/{preview,worksheet,answer-key}`, and web
+Preview/Export buttons — completing L3 acceptance for Ratio). See
+`docs/shaping/SLICES.md`.
 
 ## Repo layout
 

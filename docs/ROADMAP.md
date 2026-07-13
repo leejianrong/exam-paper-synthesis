@@ -16,7 +16,7 @@ Status is evidence-based (git history, open PRs via `gh`, and the code on `main`
 | M2 | V2 | Worked solution + marks + bar model | done |
 | M3 | V3 | Ratio ladder + edit operations | done |
 | M4 | V4 | Review gate + current worksheet | done |
-| M5 | V5 | Preview + export both PDFs (completes L3 for Ratio) | todo |
+| M5 | V5 | Preview + export both PDFs (completes L3 for Ratio) | done |
 | M6 | V6 | Remaining ladders + mandatory geometry | todo |
 | M7 | V7 | CLI + sourced-object interchange | todo |
 
@@ -63,13 +63,18 @@ client-side (Svelte) and ephemeral — no server state.
 - **done** App.svelte wiring: approve/discard handlers + tray mount - PR #43 (KAN-189)
 - **done** vitest + e2e coverage for the worksheet flow - PR #43 (KAN-190)
 
-## M5: Preview + export both PDFs (V5, planned) - completes L3 for Ratio
+## M5: Preview + export both PDFs (V5, shipped) - completes L3 for Ratio
 
-Trustworthy WYSIWYG printable output.
+Trustworthy WYSIWYG printable output. Merged via PRs #45, #46, #48-50. PDF
+generation uses headless Chromium (Playwright) at the API boundary; KaTeX is
+vendored self-contained (no CDN), so preview and print are the same document.
 
-- **todo** A7 - `render_worksheet_html` / `render_answer_key_html` (KaTeX + inline SVG + print CSS)
-- **todo** HTML -> Chromium (Playwright) -> two PDFs; `POST /export/*`
-- **todo** Worksheet preview (`GET /worksheet/preview`) matching print
+- **done** V5 slice plan doc (`docs/shaping/V5-plan.md`) - PR #45 (KAN-204)
+- **done** Playwright dep + Chromium CI + vendored KaTeX assets - PR #46 (KAN-205)
+- **done** A7 - pure `render_worksheet_html` / `render_answer_key_html` (vendored self-contained KaTeX + inline SVG + print CSS) - PR #48 (KAN-146)
+- **done** `html_to_pdf` via headless Chromium + `POST /export/{preview,worksheet,answer-key}` - PR #49 (KAN-147)
+- **done** Web: Preview + Export-worksheet/answer-key PDF buttons in WorksheetTray - PR #50 (KAN-148, rescoped)
+- **todo** KAN-206 - package engine assets into the wheel (non-blocking follow-up, still open)
 
 ## M6: Remaining ladders + mandatory geometry (V6, planned)
 
@@ -117,4 +122,4 @@ Cross-cutting engineering foundation. Open PRs #8-10.
 
 ## Board summary
 
-10 epics, 36 cards: **done 24**, **in_progress 3**, **todo 9**.
+10 epics, 39 cards: **done 29**, **in_progress 3**, **todo 7**.
