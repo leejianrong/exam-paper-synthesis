@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routes_edit import router as edit_router
+from .routes_export import router as export_router
 from .routes_generate import router
 
 app = FastAPI(title="Exam Paper Synthesis API", version="0.1.0")
@@ -20,6 +21,7 @@ app.add_middleware(
 
 app.include_router(router)
 app.include_router(edit_router)
+app.include_router(export_router)
 
 
 @app.get("/health")
