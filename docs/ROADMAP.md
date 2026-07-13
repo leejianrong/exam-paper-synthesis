@@ -14,7 +14,7 @@ Status is evidence-based (git history, open PRs via `gh`, and the code on `main`
 |-----------|-------|------|--------|
 | M1 | V1 | Generate one Ratio question | done |
 | M2 | V2 | Worked solution + marks + bar model | done |
-| M3 | V3 | Ratio ladder + edit operations | in progress (PRs #11-14) |
+| M3 | V3 | Ratio ladder + edit operations | done |
 | M4 | V4 | Review gate + current worksheet | done |
 | M5 | V5 | Preview + export both PDFs (completes L3 for Ratio) | todo |
 | M6 | V6 | Remaining ladders + mandatory geometry | todo |
@@ -42,14 +42,14 @@ Make the answer explainable: worked steps, per-part M/A/B marks, and an accurate
 - **done** Web - render worked steps, `[n]` marks, bar-model SVG, M/A/B key toggle
 - **done** Bar-model refinements - canvas-width fit + vertical Total brace (schema 1.1.0)
 
-## M3: Ratio ladder + edit operations (V3, in progress)
+## M3: Ratio ladder + edit operations (V3, shipped)
 
-Full Ratio ladder plus edit transforms. Open PRs #11-14; **nothing V3 is merged to `main` yet**.
+Full Ratio ladder plus edit transforms. Merged via PRs #11-14.
 
-- **in_progress** V3 slice plan doc (`docs/shaping/V3-plan.md`) - PR #11
-- **in_progress** Ratio ladder: `ratio_easy` + `ratio_hard` + `bar_model_before_after` diagram (schema 1.2.0) - PR #12
-- **in_progress** Edit-ops backend: object-to-object transforms + `POST /edit/{op}` - PR #13
-- **in_progress** Web: edit buttons on QuestionCard (harder/easier hidden at ladder ends) - PR #14
+- **done** V3 slice plan doc (`docs/shaping/V3-plan.md`) - PR #11 (KAN-139)
+- **done** Ratio ladder: `ratio_easy` + `ratio_hard` + `bar_model_before_after` diagram (schema 1.2.0) - PR #12 (KAN-140)
+- **done** Edit-ops backend: object-to-object transforms + `POST /edit/{op}` - PR #13 (KAN-141)
+- **done** Web: edit buttons on QuestionCard (harder/easier hidden at ladder ends) - PR #14 (KAN-142)
 
 ## M4: Review gate + current worksheet (V4, shipped)
 
@@ -117,4 +117,4 @@ Cross-cutting engineering foundation. Open PRs #8-10.
 
 ## Board summary
 
-10 epics, 36 cards: **done 20**, **in_progress 7**, **todo 9**.
+10 epics, 36 cards: **done 24**, **in_progress 3**, **todo 9**.
