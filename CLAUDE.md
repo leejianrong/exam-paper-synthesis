@@ -57,6 +57,9 @@ All commands verified from repo root.
 | Make: install deps | `make install` (`uv sync` + `npm --prefix web ci`) |
 | Make: boot API + web | `make dev` (both together; Ctrl-C stops both) |
 | Make: run tests | `make test` |
+| Make: lint Python | `make py-lint` (`uv run ruff check .`) |
+| Make: format Python | `make py-fmt` (`uv run ruff format .`) |
+| Make: type-check Python | `make py-typecheck` (`uv run mypy`) |
 | Make: web build | `make build` |
 | Make: install hooks | `make hooks` (sets `core.hooksPath` → `.githooks`) |
 
@@ -83,6 +86,11 @@ a request; entropy (random seed) enters only here.
   the cheap CI jobs locally — `uv run pytest -q`, then `npm --prefix web run
   build` — and blocks the push if either fails. Bypass with `git push
   --no-verify` (escape hatch).
+- **Ruff + mypy gate Python** (enforced in CI's `Python quality` job and in the
+  pre-push hook). Lint/format with ruff (rules `E,F,I,UP,B,SIM`, line length 100)
+  and type-check with mypy (Python 3.12, over `exam_engine` + `app`). Run locally
+  with `make py-lint` / `make py-fmt` / `make py-typecheck`; all three must be
+  green (as must `uv run pytest`) before pushing.
 - **Commit messages** end with:
   `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
 - **Multi-level doc consistency**: if a slice's scope shifts, update

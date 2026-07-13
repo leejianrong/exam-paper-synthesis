@@ -9,7 +9,28 @@
 
 set -euo pipefail
 
-echo "==> pre-push: running cheap CI checks (uv run pytest -q, then web build)"
+echo "==> pre-push: running cheap CI checks (ruff, mypy, pytest -q, then web build)"
+
+if ! uv run ruff check .; then
+	echo ""
+	echo "!! pre-push aborted: ruff lint failed."
+	echo "!! Fix the findings (try 'make py-fmt' / 'uv run ruff check --fix .'), or bypass with: git push --no-verify"
+	exit 1
+fi
+
+if ! uv run ruff format --check .; then
+	echo ""
+	echo "!! pre-push aborted: ruff format check failed."
+	echo "!! Run 'make py-fmt' to format, or bypass with: git push --no-verify"
+	exit 1
+fi
+
+if ! uv run mypy; then
+	echo ""
+	echo "!! pre-push aborted: mypy type check failed."
+	echo "!! Fix the type errors, or bypass with: git push --no-verify"
+	exit 1
+fi
 
 if ! uv run pytest -q; then
 	echo ""

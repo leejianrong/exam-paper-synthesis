@@ -45,7 +45,7 @@ class BlueprintSpec:
     _extra: dict = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "BlueprintSpec":
+    def from_dict(cls, data: dict) -> BlueprintSpec:
         known = {
             "code",
             "syllabus",

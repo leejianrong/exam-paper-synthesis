@@ -81,11 +81,15 @@ def _regenerate(source: dict, seed: int | None) -> dict:
 
 
 def _make_harder(source: dict, seed: int | None) -> dict:
-    return _resample(source, sibling(source["blueprint_code"], +1), seed)
+    target = sibling(source["blueprint_code"], +1)
+    assert target is not None  # guarded by available_ops (make-harder)
+    return _resample(source, target, seed)
 
 
 def _make_easier(source: dict, seed: int | None) -> dict:
-    return _resample(source, sibling(source["blueprint_code"], -1), seed)
+    target = sibling(source["blueprint_code"], -1)
+    assert target is not None  # guarded by available_ops (make-easier)
+    return _resample(source, target, seed)
 
 
 # --- representation ops -----------------------------------------------------
@@ -101,14 +105,17 @@ def _change_to_decimals(source: dict, seed: int | None) -> dict:
     code = source["blueprint_code"]
     spec = load_blueprint(code)
     solver = get_solver(code)
-    money_keys = solver.MONEY_KEYS
+    money_keys: set[str] = getattr(solver, "MONEY_KEYS", set())  # guarded by available_ops
 
     params = source["parameters"]
     solution = solver.solve(params)
     inter = solution["intermediates"]
 
     def scale(key: str, value: object) -> object:
-        return value / 10 if key in money_keys else value
+        if key in money_keys:
+            assert isinstance(value, int | float)  # money keys hold numbers
+            return value / 10
+        return value
 
     scaled_params = {k: scale(k, v) for k, v in params.items()}
     scaled_inter = {k: scale(k, v) for k, v in inter.items()}
@@ -131,11 +138,12 @@ def _change_to_decimals(source: dict, seed: int | None) -> dict:
     answer = {"type": "decimal", "value": orig_value / 10, "dp": 1, "unit": "$"}
 
     diagram = None
-    if _part(source).get("diagram") is not None and getattr(solver, "diagram", None):
+    diagram_fn = getattr(solver, "diagram", None)
+    if _part(source).get("diagram") is not None and diagram_fn is not None:
         # Keep the diagram if the source had one; rebuild it with scaled $ labels.
         # Bars come from the integer ratio/unit counts (unchanged); only labels scale.
         scaled_solution = {"answer": answer, "intermediates": scaled_inter}
-        diagram = solver.diagram(scaled_params, scaled_solution)
+        diagram = diagram_fn(scaled_params, scaled_solution)
 
     version = source["provenance"]["version"] + 1
     validation = copy.deepcopy(source["validation"])
@@ -189,7 +197,9 @@ def _toggle_diagram(source: dict, seed: int | None) -> dict:
     else:
         solver = get_solver(code)
         params = child["parameters"]
-        part["diagram"] = solver.diagram(params, solver.solve(params))
+        diagram_fn = getattr(solver, "diagram", None)
+        assert diagram_fn is not None  # guarded by available_ops (toggle-diagram)
+        part["diagram"] = diagram_fn(params, solver.solve(params))
 
     version = source["provenance"]["version"] + 1
     child["id"] = f"{code}:{source['seed']}:v{version}"

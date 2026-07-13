@@ -27,9 +27,7 @@ def check_consistency(spec: dict, params: dict, solution: dict) -> dict[str, boo
     raise ValueError(f"no consistency check for diagram type {dtype!r}")
 
 
-def check_bar_model_consistency(
-    spec: dict, params: dict, solution: dict
-) -> dict[str, bool]:
+def check_bar_model_consistency(spec: dict, params: dict, solution: dict) -> dict[str, bool]:
     """Assert a ``bar_model`` spec matches the ratio question's numbers exactly.
 
     One bar per ratio term (``units`` = the term, ``label`` = the sharer's name),
@@ -159,9 +157,7 @@ def _render_bar_model(spec: dict) -> str:
     # Canvas spans the widest thing drawn: the longest bar / annotation, plus the
     # right-hand total brace and its label when present.
     max_bar_units = max((b["units"] for b in bars), default=1)
-    max_ann_units = max(
-        (a.get("to_unit", a.get("from_unit", 0)) for a in annotations), default=0
-    )
+    max_ann_units = max((a.get("to_unit", a.get("from_unit", 0)) for a in annotations), default=0)
     span_units = max(max_bar_units, max_ann_units, 1)
     right = _LABEL_W + span_units * _UNIT_W
     if total_bracket:
@@ -344,6 +340,7 @@ def _render_bar_model_before_after(spec: dict) -> str:
 
     # --- total brace on the invariant person's (B's) last bar → its amount ---
     if total_bracket:
+        assert brace_x is not None  # set together with total_bracket above
         y_top = last_b_top
         y_bot = last_b_bot
         y_mid = (y_top + y_bot) // 2
@@ -361,13 +358,7 @@ def _render_bar_model_before_after(spec: dict) -> str:
 
     # --- annotations (plain labelled lines under the stages) ---
     if annotations:
-        y = (
-            _PAD_TOP
-            + stage_group_h
-            + _STAGE_GAP
-            + stage_group_h
-            + _ANN_GAP
-        )
+        y = _PAD_TOP + stage_group_h + _STAGE_GAP + stage_group_h + _ANN_GAP
         for ann in annotations:
             lines.append(
                 f'<text x="{_LABEL_W}" y="{y + _ANN_ROW_H - 8}" text-anchor="start" '
