@@ -20,7 +20,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
       - name: Sync Python workspace
-        run: uv sync
+        run: uv sync --frozen
 
       - name: Set up Node
         uses: actions/setup-node@v4
