@@ -98,8 +98,11 @@ produces a new object linked to its parent.
 **Affordances:** approve / discard on each card; Worksheet tray with editable
 title, approved-question list (remove/reorder), total-marks display.
 
-**Build:** **A8** session-scoped current-worksheet store; `POST/GET /worksheet`;
-tray UI. Export reads the approved set only.
+**Build:** **A8** session-scoped current-worksheet store **held client-side in the
+SPA (Svelte store) — no server state**; approve/discard handlers; tray UI (editable
+title, up/down reorder, remove, total-marks = sum of `question.total_marks`, dedup by
+id). Approved cards show an "Added" state with their gate/edit actions disabled.
+Export (V5) receives the approved set from the client.
 
 **Demo / acceptance:** approve several Ratio questions across rungs → they appear
 in the tray with correct total marks; discard removes a card without persisting.
@@ -114,7 +117,8 @@ answer-key PDF.
 **Build:** **A7** `render_worksheet_html` / `render_answer_key_html` (pure fns of
 approved objects; KaTeX + inline SVG + print CSS: single column, numbered Qs,
 right-aligned `[n]`, answer spaces, header); HTML → Chromium (Playwright) → two
-PDFs; `GET /worksheet/preview`, `POST /export/*`.
+PDFs; `POST /export/{preview|worksheet|answer-key}` receiving `{title, questions}`
+from the client worksheet store.
 
 **Demo / acceptance (L3):** full Ratio ladder → generate across all 3 rungs →
 apply each edit op → approve at the gate → export a worksheet PDF **and** a
