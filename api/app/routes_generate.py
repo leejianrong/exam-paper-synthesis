@@ -4,7 +4,7 @@ stamps created_at at this boundary (ADR-0016), and dedups within the request."""
 from __future__ import annotations
 
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from exam_engine.errors import InfeasibleConstraints, UnknownBlueprint
 from exam_engine.pipeline import generate, param_hash
@@ -45,7 +45,7 @@ def post_generate(req: GenerateRequest) -> GenerateResponse:
         seen_ids.add(obj["id"])
         seen_params.add(phash)
 
-        obj["provenance"]["created_at"] = datetime.now(timezone.utc).isoformat()
+        obj["provenance"]["created_at"] = datetime.now(UTC).isoformat()
         questions.append(obj)
 
     if len(questions) < req.count:

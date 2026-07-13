@@ -7,7 +7,7 @@ the only clock boundary, mirroring routes_generate.py (ADR-0016)."""
 from __future__ import annotations
 
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from exam_engine import canonical, edits
 from exam_engine.canonical import CanonicalValidationError
@@ -45,6 +45,6 @@ def post_edit(op: str, req: EditRequest) -> EditResponse:
         raise HTTPException(status_code=422, detail=str(e)) from e
 
     # The only clock boundary (ADR-0016), mirroring routes_generate.
-    child["provenance"]["created_at"] = datetime.now(timezone.utc).isoformat()
+    child["provenance"]["created_at"] = datetime.now(UTC).isoformat()
 
     return EditResponse(question=child)

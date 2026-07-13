@@ -16,7 +16,34 @@ exam-engine = { workspace = true }
 exam-api = { workspace = true }
 
 [dependency-groups]
-dev = ["pytest>=8", "httpx>=0.27"]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "types-PyYAML>=6",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["engine/exam_engine", "api/app"]
+mypy_path = ["engine", "api"]
+warn_unused_ignores = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_configs = true
+
+# jsonschema ships no type stubs; PyYAML is covered by types-PyYAML (dev dep).
+[[tool.mypy.overrides]]
+module = ["jsonschema"]
+ignore_missing_imports = true

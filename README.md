@@ -37,6 +37,21 @@ duplication (see [ADR-0016](docs/adr/0016-tech-stack-specifics.md)).
 
 ## Quickstart
 
+### One-command dev (Makefile shortcut)
+
+If you have `make`, the [`Makefile`](Makefile) wraps the steps below:
+
+```bash
+make install   # uv sync + npm --prefix web ci
+make hooks     # install the pre-push hook (runs pytest + web build before every push)
+make dev       # boot API (:8000) and Vite (:5173) together; Ctrl-C stops both
+```
+
+Run `make` (or `make help`) to see all targets (`test`, `build`, `api`, `web`,
+`e2e`, `health`). The manual steps below do the same thing without `make`.
+
+### Manual steps
+
 ```bash
 # 1. Install the Python workspace (engine + api + dev tools)
 uv sync

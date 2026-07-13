@@ -33,7 +33,7 @@ It's a **uv workspace**. Root `pyproject.toml` declares members `engine/` and
 | `engine/exam_engine/ladder.py` | Topic difficulty ladders + `sibling(code, dir)` (drives make-harder/easier). |
 | `engine/exam_engine/blueprints/` | `base.py` (solver protocol + param validation), `registry.py` (content loader + solver registry), `solvers/ratio_{easy,medium,hard}.py`. |
 | `api/app/` | Thin **FastAPI** over the engine (`main.py`, `routes_generate.py` = `POST /generate`, `routes_edit.py` = `POST /edit/{op}`, `models.py` = Pydantic envelopes only). Package `exam-api`; ASGI entry `app.main:app`. |
-| `web/` | **Svelte + Vite** SPA: `src/App.svelte`, `src/lib/QuestionCard.svelte` (with the edit-button row), `barModel.js`, `api.js`. Reads API base from `VITE_API` (defaults to `http://localhost:8000`). |
+| `web/` | **Svelte 5 + Vite 8 + TypeScript** SPA: `src/App.svelte`, `src/lib/QuestionCard.svelte` (with the edit-button row), `barModel.ts`, `api.ts`, `types.ts`. Reads API base from `VITE_API` (defaults to `http://localhost:8000`). Quality-gated by **eslint** (flat config), **svelte-check**, and **vitest** (jsdom + Testing Library). |
 | `content/blueprints/*.yaml`, `content/syllabus/*.yaml` | Declarative blueprint/syllabus data (`ratio_{easy,medium,hard}.yaml`, `ratio.yaml`). |
 | `schemas/canonical-question.schema.json` | The canonical JSON Schema (currently **v1.2.0**) — single source of truth. |
 | `tests/` | pytest suite + `tests/golden/*.jsonl` hand-verified fixtures. |
@@ -58,6 +58,17 @@ All commands verified from repo root.
 | Web deps | `npm --prefix web install` |
 | Web dev server | `npm --prefix web run dev` (Vite, port 5173) |
 | Web build | `npm --prefix web run build` |
+| Web lint | `npm --prefix web run lint` (`make web-lint`) — eslint, 0 errors |
+| Web type-check | `npm --prefix web run check` (`make web-typecheck`) — svelte-check, 0 errors |
+| Web unit tests | `npm --prefix web run test:unit` (`make web-test`) — vitest |
+| Make: install deps | `make install` (`uv sync` + `npm --prefix web ci`) |
+| Make: boot API + web | `make dev` (both together; Ctrl-C stops both) |
+| Make: run tests | `make test` |
+| Make: lint Python | `make py-lint` (`uv run ruff check .`) |
+| Make: format Python | `make py-fmt` (`uv run ruff format .`) |
+| Make: type-check Python | `make py-typecheck` (`uv run mypy`) |
+| Make: web build | `make build` |
+| Make: install hooks | `make hooks` (sets `core.hooksPath` → `.githooks`) |
 
 OpenAPI docs at `/docs`. The API stamps `provenance.created_at` and dedups within
 a request; entropy (random seed) enters only here.
@@ -72,11 +83,23 @@ a request; entropy (random seed) enters only here.
 - **Every blueprint ships hand-verified golden fixtures** (never model-verified),
   in `tests/golden/*.jsonl`.
 - **Workflow**: branch → PR → **merge once CI is green**. CI (GitHub Actions,
-  `.github/workflows/ci.yml`) runs `uv run pytest` and `npm --prefix web run build`
-  on every PR; a browser e2e check runs via `e2e.yml`. Don't merge a red or
+  `.github/workflows/ci.yml`) runs `uv run pytest`, `npm --prefix web run build`,
+  the `Python quality` job (ruff + mypy) and the `Web quality` job (`lint` +
+  `check` + `test:unit`) on every PR; a browser e2e check runs via `e2e.yml`. Don't merge a red or
   pending PR, and don't merge unreviewed work — but once checks pass, merge it in
   rather than letting PRs pile up. (You can still run the checks locally before
   pushing.)
+- **Pre-push hook** (install with `make hooks`, i.e.
+  `git config core.hooksPath .githooks`): the `.githooks/pre-push` hook mirrors
+  the cheap CI jobs locally — Python (`uv run ruff check`, `ruff format --check`,
+  `mypy`, `pytest -q`) then the web quality gates (`npm --prefix web run lint`,
+  `check`, `test:unit`) and the web build — and blocks the push if any step
+  fails. Bypass with `git push --no-verify` (escape hatch).
+- **Ruff + mypy gate Python** (enforced in CI's `Python quality` job and in the
+  pre-push hook). Lint/format with ruff (rules `E,F,I,UP,B,SIM`, line length 100)
+  and type-check with mypy (Python 3.12, over `exam_engine` + `app`). Run locally
+  with `make py-lint` / `make py-fmt` / `make py-typecheck`; all three must be
+  green (as must `uv run pytest`) before pushing.
 - **Commit messages** end with:
   `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
 - **Multi-level doc consistency**: if a slice's scope shifts, update

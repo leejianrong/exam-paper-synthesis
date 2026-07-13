@@ -22,8 +22,18 @@ from ..registry import register
 
 # Singapore-appropriate given names (PSLE style, R1.6).
 NAME_POOL = [
-    "Aisha", "Ben", "Chloe", "Devi", "Ethan", "Faridah",
-    "Gopal", "Hui Ling", "Ismail", "Jia En", "Kavya", "Lucas",
+    "Aisha",
+    "Ben",
+    "Chloe",
+    "Devi",
+    "Ethan",
+    "Faridah",
+    "Gopal",
+    "Hui Ling",
+    "Ismail",
+    "Jia En",
+    "Kavya",
+    "Lucas",
 ]
 
 _UNIT_VALUE_MIN = 5
@@ -108,9 +118,7 @@ class RatioHardSolver:
 
         checks: dict[str, bool] = {}
         checks["spent_divisible_by_delta"] = delta_units != 0 and spent % delta_units == 0
-        checks["ratios_consistent"] = (
-            a_before_units * b == a * L and a_after_units * d == c * L
-        )
+        checks["ratios_consistent"] = a_before_units * b == a * L and a_after_units * d == c * L
         checks["answer_verified"] = (
             solution["answer"]["value"] == b_amount and b_amount == L * unit_value
         )

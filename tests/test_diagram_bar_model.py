@@ -9,7 +9,6 @@ import re
 from pathlib import Path
 
 import pytest
-
 from exam_engine import generate
 from exam_engine.blueprints.registry import get_solver
 from exam_engine.diagram import (
