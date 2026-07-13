@@ -14,8 +14,18 @@ from ..registry import register
 
 # Singapore-appropriate given names (PSLE style, R1.6).
 NAME_POOL = [
-    "Aisha", "Ben", "Chloe", "Devi", "Ethan", "Faridah",
-    "Gopal", "Hui Ling", "Ismail", "Jia En", "Kavya", "Lucas",
+    "Aisha",
+    "Ben",
+    "Chloe",
+    "Devi",
+    "Ethan",
+    "Faridah",
+    "Gopal",
+    "Hui Ling",
+    "Ismail",
+    "Jia En",
+    "Kavya",
+    "Lucas",
 ]
 
 _UNIT_VALUE_MIN = 3
@@ -79,7 +89,7 @@ class RatioMediumSolver:
         unit_value = solution["intermediates"]["unit_value"]
         return {
             "type": "bar_model",
-            "bars": [{"label": name, "units": r} for name, r in zip(names, ratio)],
+            "bars": [{"label": name, "units": r} for name, r in zip(names, ratio, strict=True)],
             "annotations": [
                 {"from_unit": 0, "to_unit": 1, "label": f"1 unit = ${unit_value}"},
             ],

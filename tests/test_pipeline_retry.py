@@ -5,7 +5,6 @@ from __future__ import annotations
 import random
 
 import pytest
-
 from exam_engine.blueprints.base import BlueprintSpec
 from exam_engine.errors import InfeasibleConstraints
 from exam_engine.pipeline import MAX_ATTEMPTS, run_pipeline

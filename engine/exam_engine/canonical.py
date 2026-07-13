@@ -48,7 +48,7 @@ def _fill(template: str, ctx: dict) -> str:
 
 
 def assemble(
-    spec: "BlueprintSpec",
+    spec: BlueprintSpec,
     *,
     seed: int,
     params: dict,
@@ -69,7 +69,7 @@ def assemble(
 
     steps = []
     for step in spec.solution_template.get("steps", []):
-        filled = {"text": _fill(step["text"], ctx)}
+        filled: dict[str, str | None] = {"text": _fill(step["text"], ctx)}
         filled["expr"] = _fill(step["expr"], ctx) if step.get("expr") else None
         steps.append(filled)
 

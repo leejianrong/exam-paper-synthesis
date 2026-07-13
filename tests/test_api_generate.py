@@ -26,7 +26,9 @@ def test_generate_returns_schema_valid_object():
 
 
 def test_generate_count_returns_unique_batch():
-    resp = client.post("/generate", json={"blueprint_code": "ratio_medium", "seed": 1000, "count": 3})
+    resp = client.post(
+        "/generate", json={"blueprint_code": "ratio_medium", "seed": 1000, "count": 3}
+    )
     assert resp.status_code == 200
     questions = resp.json()["questions"]
     assert len(questions) == 3
