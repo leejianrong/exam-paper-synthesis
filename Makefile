@@ -3,7 +3,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install dev api web web-lint web-typecheck web-test test e2e build health hooks
+.PHONY: help install dev api web web-lint web-typecheck web-test py-lint py-fmt py-typecheck test e2e build health hooks
 
 help: ## List available targets
 	@echo "Targets:"
@@ -15,6 +15,9 @@ help: ## List available targets
 	@echo "  web-typecheck Type-check the web app (svelte-check)"
 	@echo "  web-test      Run the web unit tests (vitest)"
 	@echo "  test     Run the pytest suite"
+	@echo "  py-lint      Lint Python with ruff (uv run ruff check .)"
+	@echo "  py-fmt       Format Python with ruff (uv run ruff format .)"
+	@echo "  py-typecheck Type-check Python with mypy (uv run mypy)"
 	@echo "  e2e      Run the root Playwright end-to-end tests"
 	@echo "  build    Build the web app"
 	@echo "  health   Curl the API health endpoint"
@@ -48,6 +51,15 @@ web-test: ## Run the web unit tests (vitest)
 
 test: ## Run the pytest suite
 	uv run pytest
+
+py-lint: ## Lint Python with ruff
+	uv run ruff check .
+
+py-fmt: ## Format Python with ruff
+	uv run ruff format .
+
+py-typecheck: ## Type-check Python with mypy
+	uv run mypy
 
 e2e: ## Run the root Playwright e2e tests
 	npm run e2e

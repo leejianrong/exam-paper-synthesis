@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 import yaml
@@ -40,7 +40,7 @@ def get_solver(code: str) -> Solver:
         raise UnknownBlueprint(code) from None
 
 
-@lru_cache(maxsize=None)
+@cache
 def load_blueprint(code: str) -> BlueprintSpec:
     path = content_dir() / "blueprints" / f"{code}.yaml"
     if not path.exists():

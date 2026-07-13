@@ -37,7 +37,7 @@ def run_pipeline(spec: BlueprintSpec, solver: Solver, seed: int) -> dict:
     failures = 0
     last_checks: dict = {}
 
-    for attempt in range(1, MAX_ATTEMPTS + 1):
+    for _attempt in range(1, MAX_ATTEMPTS + 1):
         params = solver.sample(spec.parameter_schema, rng)
 
         param_errors = validate_params(params, spec.parameter_schema)

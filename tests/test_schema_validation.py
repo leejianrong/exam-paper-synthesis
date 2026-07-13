@@ -3,10 +3,7 @@ with path-pointed errors (R6.2)."""
 
 from __future__ import annotations
 
-import copy
-
 import pytest
-
 from exam_engine import generate
 from exam_engine.schema import validate_object
 
