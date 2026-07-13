@@ -184,10 +184,9 @@ function renderBarModelBeforeAfter(spec: BarModelBeforeAfterSpec): string {
   let right = LABEL_W + spanUnits * UNIT_W
 
   let braceX = 0
-  let labelX = 0
   if (totalBracket) {
     braceX = LABEL_W + bUnits * UNIT_W + BRACE_GAP
-    labelX = braceX + BRACE_W + BRACE_LABEL_GAP
+    const labelX = braceX + BRACE_W + BRACE_LABEL_GAP
     right = Math.max(right, labelX + totalBracket.label.length * CHAR_W + 4)
   }
   for (const ann of annotations) {
