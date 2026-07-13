@@ -61,6 +61,8 @@ jobs:
 
       - name: Run gitleaks
         uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   deps-audit:
     name: Dependency audit
@@ -88,9 +90,5 @@ jobs:
       - name: Install web dependencies
         run: npm --prefix web ci
 
-      # NOTE: threshold is `critical`, not `high`. As of this PR the only
-      # high/moderate advisories are in dev-only tooling (vite/esbuild/svelte
-      # dev server) that never ships in the static build; see the PR body.
-      # Dependabot will propose the upstream bumps that clear them.
       - name: Audit web dependencies
-        run: npm --prefix web audit --audit-level=critical
+        run: npm --prefix web audit --audit-level=high
