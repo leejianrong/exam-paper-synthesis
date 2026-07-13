@@ -1,6 +1,8 @@
 <script lang="ts">
   import { generate, editQuestion, type EditOp } from './lib/api'
   import QuestionCard from './lib/QuestionCard.svelte'
+  import WorksheetTray from './lib/WorksheetTray.svelte'
+  import { worksheet } from './lib/worksheet'
   import type { Question } from './lib/types'
 
   let questions: Question[] = []
@@ -36,6 +38,16 @@
       busyId = null
     }
   }
+
+  // Approve → add to the client-side worksheet (deduped by id in the store).
+  function onApprove(q: Question) {
+    worksheet.add(q)
+  }
+
+  // Discard → drop from the review list only (client-side, no server state).
+  function onDiscard(id: string) {
+    questions = questions.filter((q) => q.id !== id)
+  }
 </script>
 
 <main>
@@ -64,10 +76,15 @@
       <QuestionCard
         {q}
         busy={busyId === q.id}
+        added={$worksheet.items.some((item) => item.id === q.id)}
         on:edit={(e: CustomEvent<{ op: EditOp }>) => onEdit(q, e.detail.op)}
+        on:approve={(e: CustomEvent<{ q: Question }>) => onApprove(e.detail.q)}
+        on:discard={(e: CustomEvent<{ id: string }>) => onDiscard(e.detail.id)}
       />
     {/each}
   </div>
+
+  <WorksheetTray />
 </main>
 
 <style>
