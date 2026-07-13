@@ -1,0 +1,192 @@
+/* V5 worksheet / answer-key print stylesheet (ADR-0008, ADR-0010).
+ *
+ * Shared by both renderers in engine/exam_engine/render.py. Preview and PDF are
+ * the SAME document, so this is the single layout source of truth. A4, single
+ * column; questions numbered via a CSS counter; marks right-aligned. */
+
+@page {
+  size: A4;
+  margin: 18mm 16mm;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  /* base font ~11pt */
+  font-size: 11pt;
+}
+
+body {
+  margin: 0;
+  color: #111;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.4;
+}
+
+.sheet {
+  max-width: 100%;
+}
+
+/* --- header --- */
+.sheet-header {
+  border-bottom: 2px solid #111;
+  margin-bottom: 1.2rem;
+  padding-bottom: 0.6rem;
+}
+
+.sheet-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0 0 0.4rem;
+}
+
+.sheet-meta {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: space-between;
+  margin: 0;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.field-name {
+  flex: 1 1 auto;
+}
+
+.field-marks {
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+/* --- questions (numbered via a counter) --- */
+.questions {
+  counter-reset: q;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.question {
+  counter-increment: q;
+  break-inside: avoid;
+  margin: 0 0 1.4rem;
+  padding-left: 2rem;
+  position: relative;
+}
+
+.question::before {
+  content: counter(q) ". ";
+  font-weight: 700;
+  left: 0;
+  position: absolute;
+}
+
+/* --- a part within a question --- */
+.part {
+  align-items: baseline;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.part-label {
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.part-text {
+  flex: 1 1 auto;
+}
+
+.marks {
+  flex: 0 0 auto;
+  margin-left: auto;
+  white-space: nowrap;
+  color: #333;
+}
+
+/* --- diagram --- */
+.diagram {
+  margin: 0.6rem 0;
+  padding: 0;
+}
+
+.diagram svg {
+  height: auto;
+  max-width: 100%;
+}
+
+/* --- worksheet: blank working space (marks-scaled) --- */
+.answer-space {
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  margin: 0.6rem 0 0;
+  /* min-height scales with the part's marks via an inline --marks custom prop */
+  min-height: calc(18px + 16px * var(--marks, 1));
+}
+
+/* --- answer key: worked solution --- */
+.solution {
+  background: #f7f9fc;
+  border-left: 3px solid #2f5fe0;
+  margin: 0.6rem 0 0;
+  padding: 0.6rem 0.9rem;
+}
+
+.solution-steps {
+  margin: 0 0 0.6rem;
+  padding-left: 1.4rem;
+}
+
+.step {
+  margin: 0.2rem 0;
+}
+
+.final-answer {
+  font-weight: 600;
+  margin: 0.4rem 0 0.8rem;
+}
+
+.marking-scheme {
+  border-top: 1px dashed #c3ccdd;
+  list-style: none;
+  margin: 0;
+  padding: 0.6rem 0 0;
+}
+
+.mark {
+  align-items: baseline;
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+}
+
+.mark-type {
+  border-radius: 3px;
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  font-weight: 700;
+  min-width: 2.2rem;
+  padding: 0.05rem 0.35rem;
+  text-align: center;
+}
+
+.mark-M {
+  background: #e3ecff;
+  color: #1c3f9e;
+}
+
+.mark-A {
+  background: #e2f6e6;
+  color: #1c6b34;
+}
+
+.mark-B {
+  background: #fdecdd;
+  color: #9a5210;
+}
+
+.mark-desc {
+  flex: 1 1 auto;
+}
