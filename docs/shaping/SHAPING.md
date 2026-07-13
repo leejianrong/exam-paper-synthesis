@@ -148,7 +148,7 @@ in A9 rather than being their own horizontal parts.
 | **A5** | **Diagram spec + SVG render** — `diagram(params,solution)` → structured spec (`bar_model` / `composite_geometry` / `area_perimeter` / `shaded_fraction` / `raster`); per-family diagram-consistency check; spec → inline SVG. *(R3)* | |
 | **A6** | **Answer key & marking** — typed `answer` (unit vocab), ordered **M/A/B** `marking_scheme`, per-part `solution_steps`; `[n]` on worksheet, M/A/B in detailed mode. *(R2)* | |
 | **A7** | **HTML render + PDF export** — `render_worksheet_html` / `render_answer_key_html` as pure functions of approved objects; KaTeX + inline SVG + print CSS; HTML → headless Chromium (Playwright) → **two PDFs** (worksheet + answer key). *(R5.2–R5.5)* | |
-| **A8** | **Session state + review gate** — session-scoped current-worksheet store of approved objects; per-question validation badge; approve / regenerate / discard; export from approved set only. *(R4.1–R4.2, R5.1)* | |
+| **A8** | **Session state + review gate** — session-scoped current-worksheet store of approved objects **held client-side in the SPA (Svelte store); no server state**; per-question validation badge; approve / discard (regenerate is A4); export receives the approved set from the client. *(R4.1–R4.2, R5.1)* | |
 | **A9** | **Delivery layers** — engine as importable package; thin FastAPI over it (synchronous, schema-valid JSON); Svelte + Vite SPA; `mathgen` CLI sharing the engine. *(R7.5–R7.6, R8.1–R8.3)* | |
 | **A10** | **Content & scope** — `content/syllabus/*.yaml` + `content/blueprints/*.yaml`; 15 blueprints (3×5); Ratio ladder authored end-to-end first as the L3 acceptance path. *(R8.4, R8.6)* | |
 
@@ -248,18 +248,18 @@ affordance leads. Shape-part tags (A1…A10) tie each affordance back to the par
 | **Review list** | Diagram display (inline SVG) | ← `canonical.parts[].diagram` | A5 |
 | **Review list** | Solution-steps display (per part) | ← `canonical.parts[].solution_steps` | A6 |
 | **Review list** | Detailed-key toggle (show M/A/B) | → view-only expand of `marking_scheme` | A6 |
-| **Review list** | **Approve** button | → `POST /worksheet` (add) → **Worksheet tray** | A8 |
-| **Review list** | **Discard** button | → removes card (client-only) | A8 |
+| **Review list** | **Approve** button | → adds object to **client worksheet store** → **Worksheet tray**; card then shows "Added" (its approve + edit actions disabled) | A8 |
+| **Review list** | **Discard** button | → removes card from the review list only (client-only) | A8 |
 | **Review list** | **Regenerate** button | → `POST /edit/regenerate` → replaces card | A4 |
 | **Review list** | **Make harder** button *(hidden at top rung)* | → `POST /edit/make-harder` → replaces card | A4 |
 | **Review list** | **Make easier** button *(hidden at bottom rung)* | → `POST /edit/make-easier` → replaces card | A4 |
 | **Review list** | **Change to decimals** button | → `POST /edit/change-decimals` → replaces card | A4 |
 | **Review list** | **Toggle diagram** button *(aid families only)* | → `POST /edit/toggle-diagram` → replaces card | A4, A5 |
 | **Review list** | Infeasible-error notice | ← structured error from generation pipeline | A3 |
-| **Worksheet tray** | Worksheet-title field (editable) | → *Session.title* | A8 |
-| **Worksheet tray** | Approved-question list (remove / reorder) | → *Session.items* | A8 |
-| **Worksheet tray** | Total-marks display | ← derived from *Session.items* | A6, A8 |
-| **Worksheet tray** | **Preview** button | → `GET /worksheet/preview` → **Worksheet preview** | A7 |
+| **Worksheet tray** | Worksheet-title field (editable) | → *worksheet.title* (client store) | A8 |
+| **Worksheet tray** | Approved-question list (remove / up-down reorder; dedup by id) | → *worksheet.items* (client store) | A8 |
+| **Worksheet tray** | Total-marks display | ← sum of *items[].question.total_marks* | A6, A8 |
+| **Worksheet tray** | **Preview** button *(V5)* | → `POST /export/preview` {title, questions} → **Worksheet preview** | A7 |
 | **Worksheet preview** | Rendered worksheet HTML (WYSIWYG) | ← `render_worksheet_html(Session)` | A7 |
 | **Worksheet preview** | **Export worksheet PDF** button | → `POST /export/worksheet` → file download | A7 |
 | **Worksheet preview** | **Export answer-key PDF** button | → `POST /export/answer-key` → file download | A7 |
@@ -270,9 +270,8 @@ affordance leads. Shape-part tags (A1…A10) tie each affordance back to the par
 |-------|-----------|-----------|:----:|
 | **API** (`api/`, thin FastAPI) | `POST /generate` | → `engine.generate()` × count → returns schema-valid objects | A9 |
 | **API** | `POST /edit/{op}` | → `engine.edit.<op>()` → returns new object | A9 |
-| **API** | `POST /worksheet` / `GET /worksheet` | → **Session store** | A9 |
-| **API** | `GET /worksheet/preview` | → `render_worksheet_html` | A9 |
-| **API** | `POST /export/{worksheet\|answer-key}` | → renderer → PDF exporter | A9 |
+| **API** *(V5)* | `POST /export/preview` {title, questions} | → `render_worksheet_html` → HTML | A9 |
+| **API** *(V5)* | `POST /export/{worksheet\|answer-key}` {title, questions} | → renderer → PDF exporter | A9 |
 | **Engine — pipeline** (A3) | `generate(blueprint_code, seed)` | → sample → solve → validate → fill → diagram → assemble → schema-validate | A2, A5, A6, A1 |
 | **Engine — pipeline** | Retry loop (≤ 20) | → structured "infeasible constraints" error; > 50%-fail flag | A3 |
 | **Engine — pipeline** | In-session dedup | → reject dup `(blueprint_code, seed)` / normalized-param hash | A3 |
@@ -290,7 +289,7 @@ affordance leads. Shape-part tags (A1…A10) tie each affordance back to the par
 | **Engine — answer key** (A6) | Typed-answer + M/A/B + solution-steps builder | ← solver answer + intermediates | A6 |
 | **Engine — render** (A7) | `render_worksheet_html` / `render_answer_key_html` | ← approved objects (pure fns); KaTeX + SVG + print CSS | A7 |
 | **Engine — render** | HTML → Chromium (Playwright) PDF | → worksheet PDF + answer-key PDF | A7 |
-| **Session store** (A8) | Current-worksheet state (title + approved objects) | ← ephemeral, session-scoped; feeds renderers | A8 |
+| **Worksheet store** (A8, `web/`) | Current-worksheet state (title + approved objects) | ← ephemeral, **client-side SPA store (Svelte)**; POSTed to renderers at export (V5) | A8 |
 | **Content** (A10) | `content/blueprints/*.yaml`, `content/syllabus/*.yaml`, `tests/golden/` | ← authored; read by blueprint loader + tests | A2, A10 |
 | **CLI** (`mathgen`, A9) | `generate` / `edit` / `export` subcommands | → calls `engine` directly (bypasses API) | A9 |
 
@@ -301,6 +300,7 @@ flowchart TB
   subgraph WEB["web/ SPA"]
     GEN["Generate panel<br/>level·topic·difficulty·cognitive·count·[Generate]"]
     REV["Review list<br/>card: badge·question·diagram·steps<br/>[approve][discard][regen][harder][easier][decimals][toggle]"]
+    SESS["Worksheet store (A8)<br/>client-side · title+approved objects"]
     TRAY["Worksheet tray<br/>title·approved list·total·[Preview]"]
     PREV["Worksheet preview<br/>WYSIWYG HTML·[Export worksheet][Export key]"]
   end
@@ -308,8 +308,7 @@ flowchart TB
   subgraph API["api/ (thin FastAPI)"]
     EGEN["POST /generate"]
     EEDIT["POST /edit/{op}"]
-    EWS["/worksheet (+preview)"]
-    EEXP["POST /export/{worksheet|answer-key}"]
+    EEXP["POST /export/{preview|worksheet|answer-key}<br/>{title, questions}"]
   end
 
   subgraph ENGINE["engine/ (importable package = the product)"]
@@ -322,18 +321,18 @@ flowchart TB
     RENDER["HTML render + PDF (A7)<br/>Playwright→2 PDFs"]
   end
 
-  SESS["Session store (A8)<br/>current worksheet"]
   CONTENT["content/ (A10)<br/>blueprints·syllabus·golden"]
   CLI["mathgen CLI (A9)"]
 
   GEN -->|Generate| EGEN --> PIPE
   REV -->|regen/harder/easier/decimals/toggle| EEDIT --> EDIT
-  REV -->|approve| EWS --> SESS
-  TRAY -->|Preview| EWS
-  PREV -->|Export| EEXP --> RENDER
+  REV -->|approve| SESS
+  SESS --> TRAY
+  TRAY -->|Preview / Export: title+objects| EEXP --> RENDER
+  PREV -->|Export| EEXP
   EGEN -.returns objects.-> REV
   EEDIT -.returns object.-> REV
-  EWS -.preview html.-> PREV
+  EEXP -.preview html.-> PREV
 
   PIPE --> BP
   PIPE --> DIAG
@@ -342,7 +341,6 @@ flowchart TB
   EDIT --> CANON
   EDIT --> BP
   BP --> CONTENT
-  RENDER --> SESS
   RENDER --> DIAG
   CANON -->|schema| CONTENT
   CLI --> PIPE
@@ -356,5 +354,6 @@ flowchart TB
   card identically.
 - **Renderers (A7) depend only on approved objects**, never on how they were
   produced — so sourced questions render through the same path with no new wiring.
-- **Session store (A8) is the only stateful place**; everything else is a pure
-  function, which is what makes the CLI a first-class client alongside the API.
+- **The worksheet store (A8) is client-side (`web/`) and ephemeral** — the API and
+  engine stay fully stateless/pure (they only ever receive objects and return
+  objects/renders), which is what keeps the CLI a first-class client alongside the API.
