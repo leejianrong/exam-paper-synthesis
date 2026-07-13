@@ -54,6 +54,11 @@ All commands verified from repo root.
 | Web deps | `npm --prefix web install` |
 | Web dev server | `npm --prefix web run dev` (Vite, port 5173) |
 | Web build | `npm --prefix web run build` |
+| Make: install deps | `make install` (`uv sync` + `npm --prefix web ci`) |
+| Make: boot API + web | `make dev` (both together; Ctrl-C stops both) |
+| Make: run tests | `make test` |
+| Make: web build | `make build` |
+| Make: install hooks | `make hooks` (sets `core.hooksPath` → `.githooks`) |
 
 OpenAPI docs at `/docs`. The API stamps `provenance.created_at` and dedups within
 a request; entropy (random seed) enters only here.
@@ -73,6 +78,11 @@ a request; entropy (random seed) enters only here.
   pending PR, and don't merge unreviewed work — but once checks pass, merge it in
   rather than letting PRs pile up. (You can still run the checks locally before
   pushing.)
+- **Pre-push hook** (install with `make hooks`, i.e.
+  `git config core.hooksPath .githooks`): the `.githooks/pre-push` hook mirrors
+  the cheap CI jobs locally — `uv run pytest -q`, then `npm --prefix web run
+  build` — and blocks the push if either fails. Bypass with `git push
+  --no-verify` (escape hatch).
 - **Commit messages** end with:
   `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
 - **Multi-level doc consistency**: if a slice's scope shifts, update
