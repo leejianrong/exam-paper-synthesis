@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { previewWorksheet, exportPdf, type ExportKind } from './api'
   import { worksheet, totalMarks } from './worksheet'
   import type { Question } from './types'
 
@@ -9,6 +10,67 @@
     if (!text) return q.blueprint_code
     return text.length > 70 ? `${text.slice(0, 70)}…` : text
   }
+
+  // Which export action is in flight (disables the whole row); null when idle.
+  let busy: 'preview' | ExportKind | null = null
+  let exportError = ''
+
+  const message = (e: unknown): string => (e instanceof Error ? e.message : String(e))
+
+  // Filesystem-safe slug of the title, mirroring the API's _slug (default
+  // "worksheet"); used to name the downloaded PDFs.
+  function slug(title: string): string {
+    const s = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+    return s || 'worksheet'
+  }
+
+  // Preview → fetch the print HTML and open it in a new tab via an object URL,
+  // so the document's inlined KaTeX bootstrap runs and the preview is the exact
+  // print doc.
+  async function onPreview() {
+    busy = 'preview'
+    exportError = ''
+    try {
+      const html = await previewWorksheet($worksheet.title, $worksheet.items)
+      const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
+      window.open(url, '_blank')
+      // Keep the URL alive long enough for the new tab to load, then release it.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (e) {
+      exportError = message(e)
+    } finally {
+      busy = null
+    }
+  }
+
+  // Export → fetch the PDF blob and trigger a browser download via a temporary
+  // <a download>, revoking the object URL afterwards.
+  async function onExport(kind: ExportKind) {
+    busy = kind
+    exportError = ''
+    try {
+      const blob = await exportPdf(kind, $worksheet.title, $worksheet.items)
+      const name =
+        kind === 'answer-key' ? `${slug($worksheet.title)}-answers.pdf` : `${slug($worksheet.title)}.pdf`
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = name
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      exportError = message(e)
+    } finally {
+      busy = null
+    }
+  }
+
+  $: empty = $worksheet.items.length === 0
 </script>
 
 <aside class="tray" aria-label="worksheet">
@@ -63,6 +125,26 @@
     </ol>
 
     <p class="total">Total marks <b>[{$totalMarks}]</b></p>
+  {/if}
+
+  <div class="export-actions">
+    <button class="export" on:click={onPreview} disabled={empty || busy !== null}>
+      {busy === 'preview' ? 'Opening…' : 'Preview'}
+    </button>
+    <button class="export" on:click={() => onExport('worksheet')} disabled={empty || busy !== null}>
+      {busy === 'worksheet' ? 'Exporting…' : 'Export worksheet PDF'}
+    </button>
+    <button
+      class="export"
+      on:click={() => onExport('answer-key')}
+      disabled={empty || busy !== null}
+    >
+      {busy === 'answer-key' ? 'Exporting…' : 'Export answer-key PDF'}
+    </button>
+  </div>
+
+  {#if exportError}
+    <p class="error" role="alert">{exportError}</p>
   {/if}
 </aside>
 
@@ -137,5 +219,35 @@
     padding-top: 0.6rem;
     border-top: 1px solid var(--line);
     font-size: 0.9rem;
+  }
+  .export-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--line);
+  }
+  .export {
+    background: var(--accent);
+    color: #fff;
+    border: 0;
+    border-radius: 8px;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .export:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .error {
+    margin: 0.75rem 0 0;
+    color: var(--fail);
+    background: var(--fail-bg);
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
   }
 </style>
