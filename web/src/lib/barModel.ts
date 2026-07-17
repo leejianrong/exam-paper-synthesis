@@ -18,6 +18,16 @@ const CHAR_W = 7
 const STAGE_HEAD_H = 22
 const STAGE_GAP = 18
 
+// shaded_fraction layout (mirrors engine/exam_engine/diagram.py).
+const SF_CELL = 40
+const SF_RECT_H = 80
+const SF_BAR_W = 72
+const SF_CIRCLE_R = 60
+const SF_PAD = 8
+const SF_SHADE = '#2f5fe0'
+const SF_EMPTY = '#eef2fb'
+const SF_STROKE = '#2f5fe0'
+
 export interface BarSpec {
   label: string
   units: number
@@ -52,7 +62,14 @@ export interface BarModelBeforeAfterSpec {
   total_bracket?: TotalBracket | null
 }
 
-export type DiagramSpec = BarModelSpec | BarModelBeforeAfterSpec
+export interface ShadedFractionSpec {
+  type: 'shaded_fraction'
+  shape: 'rectangle' | 'circle' | 'bar'
+  total_parts: number
+  shaded_parts: number
+}
+
+export type DiagramSpec = BarModelSpec | BarModelBeforeAfterSpec | ShadedFractionSpec
 
 function esc(text: string): string {
   return String(text)
@@ -67,6 +84,7 @@ export function renderDiagram(spec: DiagramSpec | null | undefined): string {
   if (!spec) return ''
   if (spec.type === 'bar_model') return renderBarModel(spec)
   if (spec.type === 'bar_model_before_after') return renderBarModelBeforeAfter(spec)
+  if (spec.type === 'shaded_fraction') return renderShadedFraction(spec)
   return ''
 }
 
@@ -276,6 +294,80 @@ function renderBarModelBeforeAfter(spec: BarModelBeforeAfterSpec): string {
     }
   }
 
+  out.push('</svg>')
+  return out.join('')
+}
+
+// shaded_fraction: a shape partitioned into total_parts equal cells with
+// shaded_parts filled. rectangle → vertical strips; bar → horizontal strips;
+// circle → equal pie sectors. Mirrors _render_shaded_fraction in
+// engine/exam_engine/diagram.py. Deterministic (circle rounds trig to ints).
+function sfHeader(width: number, height: number): string {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
+    `width="${width}" height="${height}" role="img" ` +
+    `font-family="system-ui, sans-serif" font-size="13">`
+  )
+}
+
+function renderShadedFraction(spec: ShadedFractionSpec): string {
+  if (spec.shape === 'rectangle') return renderSfStrips(spec.total_parts, spec.shaded_parts, false)
+  if (spec.shape === 'bar') return renderSfStrips(spec.total_parts, spec.shaded_parts, true)
+  if (spec.shape === 'circle') return renderSfCircle(spec.total_parts, spec.shaded_parts)
+  return ''
+}
+
+function renderSfStrips(totalParts: number, shadedParts: number, horizontal: boolean): string {
+  const cell = SF_CELL
+  const figW = horizontal ? SF_BAR_W : cell * totalParts
+  const figH = horizontal ? cell * totalParts : SF_RECT_H
+  const width = figW + 2 * SF_PAD
+  const height = figH + 2 * SF_PAD
+
+  const out: string[] = [sfHeader(width, height)]
+  for (let i = 0; i < totalParts; i++) {
+    const fill = i < shadedParts ? SF_SHADE : SF_EMPTY
+    const x = horizontal ? SF_PAD : SF_PAD + i * cell
+    const y = horizontal ? SF_PAD + i * cell : SF_PAD
+    const cw = horizontal ? figW : cell
+    const ch = horizontal ? cell : figH
+    out.push(
+      `<rect x="${x}" y="${y}" width="${cw}" height="${ch}" ` +
+        `fill="${fill}" stroke="${SF_STROKE}" stroke-width="1.5"/>`,
+    )
+  }
+  out.push('</svg>')
+  return out.join('')
+}
+
+function renderSfCircle(totalParts: number, shadedParts: number): string {
+  const r = SF_CIRCLE_R
+  const cx = SF_PAD + r
+  const cy = SF_PAD + r
+  const size = 2 * r + 2 * SF_PAD
+
+  const out: string[] = [sfHeader(size, size)]
+
+  if (totalParts === 1) {
+    const fill = shadedParts >= 1 ? SF_SHADE : SF_EMPTY
+    out.push(
+      `<circle cx="${cx}" cy="${cy}" r="${r}" ` +
+        `fill="${fill}" stroke="${SF_STROKE}" stroke-width="1.5"/>`,
+    )
+  } else {
+    const point = (k: number): [number, number] => {
+      // Start at the top (12 o'clock), sweep clockwise.
+      const angle = (2 * Math.PI * k) / totalParts - Math.PI / 2
+      return [Math.round(cx + r * Math.cos(angle)), Math.round(cy + r * Math.sin(angle))]
+    }
+    for (let i = 0; i < totalParts; i++) {
+      const [x1, y1] = point(i)
+      const [x2, y2] = point(i + 1)
+      const fill = i < shadedParts ? SF_SHADE : SF_EMPTY
+      const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z`
+      out.push(`<path d="${d}" fill="${fill}" stroke="${SF_STROKE}" stroke-width="1.5"/>`)
+    }
+  }
   out.push('</svg>')
   return out.join('')
 }

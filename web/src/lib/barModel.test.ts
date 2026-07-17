@@ -3,6 +3,7 @@ import {
   renderDiagram,
   type BarModelSpec,
   type BarModelBeforeAfterSpec,
+  type ShadedFractionSpec,
   type DiagramSpec,
 } from './barModel'
 
@@ -145,5 +146,50 @@ describe('bar_model_before_after geometry', () => {
     expect(count(svg, '<path')).toBe(1) // total brace on B's last bar
     expect(svg).toContain('>90</text>')
     expect(svg).toContain('>A gains 2 units</text>')
+  })
+})
+
+describe('shaded_fraction geometry', () => {
+  const SHADE = 'fill="#2f5fe0"'
+  const filled = (svg: string): number => count(svg, SHADE)
+
+  const spec = (
+    shape: ShadedFractionSpec['shape'],
+    total: number,
+    shaded: number,
+  ): ShadedFractionSpec => ({ type: 'shaded_fraction', shape, total_parts: total, shaded_parts: shaded })
+
+  it('rectangle → one rect per part, first shaded_parts filled', () => {
+    const svg = renderDiagram(spec('rectangle', 8, 3))
+    expect(svg.startsWith('<svg')).toBe(true)
+    expect(count(svg, '<rect')).toBe(8)
+    expect(filled(svg)).toBe(3)
+  })
+
+  it('bar → one horizontal strip per part', () => {
+    const svg = renderDiagram(spec('bar', 4, 1))
+    expect(count(svg, '<rect')).toBe(4)
+    expect(filled(svg)).toBe(1)
+  })
+
+  it('circle → one pie sector per part', () => {
+    const svg = renderDiagram(spec('circle', 6, 5))
+    expect(count(svg, '<path')).toBe(6)
+    expect(filled(svg)).toBe(5)
+  })
+
+  it('circle with a single part is a whole circle', () => {
+    const svg = renderDiagram(spec('circle', 1, 1))
+    expect(count(svg, '<circle')).toBe(1)
+    expect(count(svg, '<path')).toBe(0)
+    expect(filled(svg)).toBe(1)
+  })
+
+  it('none shaded → no filled cells', () => {
+    expect(filled(renderDiagram(spec('rectangle', 4, 0)))).toBe(0)
+  })
+
+  it('is deterministic', () => {
+    expect(renderDiagram(spec('circle', 7, 4))).toBe(renderDiagram(spec('circle', 7, 4)))
   })
 })
