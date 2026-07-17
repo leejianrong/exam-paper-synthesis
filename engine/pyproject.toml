@@ -13,11 +13,19 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["exam_engine"]
 
-# render.py reads the vendored KaTeX + print.css from ``exam_engine/assets/**``
-# (a package-relative ``__file__`` path) at import time, so these non-Python
-# files MUST ship inside the wheel at that same package-relative path. Hatchling's
+# Non-Python package data that MUST ship inside the wheel because the engine
+# resolves it via a package-relative ``__file__`` path at runtime:
+#   - ``assets/**``   — vendored KaTeX + print.css read by render.py (KAN-206).
+#   - ``content/**``  — blueprint + syllabus YAML read by the content loader.
+#   - ``schemas/**``  — the canonical JSON Schema read by the schema loader.
+# The content + schema files were moved under the package in KAN-258 so that
+# ``generate()`` works from a wheel install (they previously lived at the repo
+# root, outside the package, and were absent from the built wheel). Hatchling's
 # default discovery already includes them (they live inside the package and are
 # not VCS-ignored); listing them as build artifacts makes the requirement
-# explicit and guards against them ever being dropped — e.g. if ``*.woff2`` or
-# ``assets/`` were later added to ``.gitignore`` as build output.
-artifacts = ["exam_engine/assets/**/*"]
+# explicit and guards against them ever being dropped.
+artifacts = [
+    "exam_engine/assets/**/*",
+    "exam_engine/content/**/*",
+    "exam_engine/schemas/**/*",
+]

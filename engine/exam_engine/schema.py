@@ -1,8 +1,10 @@
 """A1 — canonical schema loading + validation.
 
-The hand-written JSON Schema at ``schemas/canonical-question.schema.json`` is the
-authoritative contract (ADR-0014/0016). This module is the only place objects are
-gated. Errors are path-pointed so bad data never enters silently (R6.2).
+The hand-written JSON Schema at ``exam_engine/schemas/canonical-question.schema.json``
+is the authoritative contract (ADR-0014/0016). It ships as package data inside the
+wheel (KAN-258) and is resolved package-relative so ``generate()`` works from a
+wheel install. This module is the only place objects are gated. Errors are
+path-pointed so bad data never enters silently (R6.2).
 """
 
 from __future__ import annotations
@@ -14,24 +16,21 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-
-def repo_root() -> Path:
-    """Resolve the monorepo root.
-
-    Override with ``EXAM_REPO_ROOT`` if the engine is ever used outside the repo.
-    Layout: ``engine/exam_engine/schema.py`` → ``parents[2]`` is the repo root.
-    """
-    env = os.environ.get("EXAM_REPO_ROOT")
-    if env:
-        return Path(env)
-    return Path(__file__).resolve().parents[2]
+# Package root (``engine/exam_engine/``). Data files (``schemas/``, ``content/``)
+# live under here so they ship inside the wheel and resolve via ``__file__``,
+# not a repo-relative path (KAN-258).
+_PACKAGE_DIR = Path(__file__).resolve().parent
 
 
 def schema_path() -> Path:
+    """Path to the canonical JSON Schema (package data).
+
+    Override with ``EXAM_SCHEMA_PATH`` for out-of-tree schemas (tests/dev).
+    """
     env = os.environ.get("EXAM_SCHEMA_PATH")
     if env:
         return Path(env)
-    return repo_root() / "schemas" / "canonical-question.schema.json"
+    return _PACKAGE_DIR / "schemas" / "canonical-question.schema.json"
 
 
 @lru_cache(maxsize=1)
