@@ -1,0 +1,3 @@
+{"params": {"context": "printer", "percent": 10, "direction": "increase", "new_value": 220}, "expected": {"answer": {"type": "quantity", "value": 200, "unit": "$"}, "total_marks": 4}}
+{"params": {"context": "camera", "percent": 20, "direction": "decrease", "new_value": 400}, "expected": {"answer": {"type": "quantity", "value": 500, "unit": "$"}, "total_marks": 4}}
+{"params": {"context": "desk", "percent": 25, "direction": "increase", "new_value": 100}, "expected": {"answer": {"type": "quantity", "value": 80, "unit": "$"}, "total_marks": 4}}

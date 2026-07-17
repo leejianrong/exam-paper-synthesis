@@ -21,7 +21,7 @@ Related decisions: ADR-0004 (object), ADR-0012 (diagram union), ADR-0013 (multi-
 
 | Field | Notes |
 |---|---|
-| `schema_version` | semver, e.g. `"1.2.0"` |
+| `schema_version` | semver, e.g. `"1.3.0"` |
 | `id` | unique instance id |
 | `source_type` | `generated` \| `sourced` (drives conditional requirements) |
 | `blueprint_code` | required for `generated`; `null` for `sourced` |
@@ -50,7 +50,7 @@ array of length 1.
 that variant's strict sub-schema.
 
 - **answer.type** ∈ `integer | decimal | fraction | ratio | quantity | set | text`
-- **diagram.type** ∈ `bar_model | bar_model_before_after | composite_geometry | area_perimeter | shaded_fraction | raster`
+- **diagram.type** ∈ `bar_model | bar_model_before_after | geometry_figure | shaded_fraction | raster`
   (`raster` = an image reference, used by sourced/scanned diagrams).
   - `bar_model` may carry an optional `total_bracket: { label }` (schema **1.1.0**) —
     a vertical curly brace across all bars labelling the total.
@@ -58,9 +58,37 @@ that variant's strict sub-schema.
     `stages` (`Before`/`After`), each with one bar per person in a shared unit scale,
     plus `annotations` (labelled notes, e.g. the value of one unit and the amount
     spent) and an optional `total_bracket` labelling the invariant person's amount.
+  - `geometry_figure` (schema **1.3.0**) is a general 2D figure — see the dedicated
+    section below.
+
+> **Removed in 1.3.0:** the never-built `composite_geometry` and `area_perimeter`
+> diagram types were removed from the union (superseded by `geometry_figure`). No
+> shipped or golden object used them, so no real object is affected.
 
 Units on numeric/`quantity` answers come from a **controlled vocabulary** (see the
-`unit` enum in the schema), not free text.
+`unit` enum in the schema), not free text. Schema **1.3.0** adds the speed units
+`km/h`, `m/s`, and `m/min` (for the Speed ladder).
+
+## The `geometry_figure` diagram (schema 1.3.0)
+
+`geometry_figure` is one general 2D figure type covering both PSLE geometry
+families — angle figures (unknown angles) and area/perimeter figures (including
+circles). It replaces the two sketched-but-never-built axis-aligned types
+(`composite_geometry`, `area_perimeter`). A figure is a set of named `points` plus
+the marks drawn on them; every labelled value is exact (it comes from the solved
+parameters, never from measuring the drawing), so a deterministic figure built from
+correct values is always consistent.
+
+| Field | Req? | Notes |
+|---|---|---|
+| `type` | yes | const `"geometry_figure"` |
+| `unit` | yes | controlled-vocabulary unit for length/area labels; angles are unitless degrees |
+| `points` | yes | `≥2` named vertices `{ id, x, y }` in figure coordinates |
+| `segments` | no | straight edges `{ from, to, label?, ticks? }` (`ticks` = equal-side marks) |
+| `arcs` | no | circular arcs `{ center, radius>0, start_deg, end_deg, label? }` (whole/semi/quarter circles) |
+| `angles` | no | angle marks `{ at, from, to, value_deg?, unknown?, right? }`; exactly one may set `unknown: true` (the value to solve) |
+| `shaded` | no | region(s) to fill, each `{ boundary: [ids…], arcs? }` |
+| `labels` | no | free text labels `{ at, text }` anchored at a named point |
 
 ## Marking
 
@@ -74,7 +102,7 @@ shows only in the detailed answer-key mode (ADR-0005).
 
 ```json
 {
-  "schema_version": "1.2.0",
+  "schema_version": "1.3.0",
   "id": "qi_01H8XR",
   "source_type": "generated",
   "blueprint_code": "P6_RATIO_BEFORE_AFTER_001",
@@ -126,38 +154,54 @@ shows only in the detailed answer-key mode (ADR-0005).
 }
 ```
 
-## Example 2 — generated geometry (mandatory figure)
+## Example 2 — generated geometry (mandatory `geometry_figure`)
+
+An unknown-angle figure: two angles of a triangle are given, the third is the
+answer. The `angles[]` entry with `"unknown": true` equals the solved answer, and
+every given `value_deg` equals its sampled parameter — that is what the diagram
+consistency check asserts.
 
 ```json
 {
-  "schema_version": "1.2.0",
+  "schema_version": "1.3.0",
   "id": "qi_01H8XS",
   "source_type": "generated",
-  "blueprint_code": "P6_GEOM_OVERLAP_RECT_001",
+  "blueprint_code": "geometry_angle_easy",
   "seed": 5521,
-  "syllabus": { "level": "P6", "strand": "Geometry and Measurement", "topic": "Area", "subtopic": null, "skill_codes": ["P6_STD_GM_AREA_004"] },
-  "cognitive": { "difficulty": "medium", "cognitive_level": "complex_familiar", "representations": ["diagram"] },
-  "parameters": { "a": [8, 5], "b": [7, 4], "offset": [3, 2] },
+  "syllabus": { "level": "P5", "strand": "Geometry and Measurement", "topic": "Geometry (Angles)", "subtopic": null, "skill_codes": ["P5_STD_GM_ANGLE_002"] },
+  "cognitive": { "difficulty": "easy", "cognitive_level": "routine_procedural", "representations": ["diagram"] },
+  "parameters": { "angle_a": 50, "angle_b": 60 },
   "question": {
     "parts": [
       {
         "label": "a",
-        "text": "The figure shows two overlapping rectangles. Find the area of the shaded region.",
+        "text": "In the triangle below, find the unknown angle x.",
         "marks": 2,
-        "answer": { "type": "quantity", "value": 15, "unit": "cm^2" },
+        "answer": { "type": "integer", "value": 70, "unit": "degrees" },
         "marking_scheme": [
-          { "mark": 1, "type": "M", "description": "Identifies the overlap dimensions." },
-          { "mark": 1, "type": "A", "description": "Correct shaded area 15 cm²." }
+          { "mark": 1, "type": "M", "description": "Uses angle sum of a triangle = 180°." },
+          { "mark": 1, "type": "A", "description": "Correct answer 70°." }
         ],
-        "solution_steps": [ { "text": "Overlap = 5 × 3 = 15 cm².", "expr": "5*3" } ],
+        "solution_steps": [ { "text": "x = 180° − 50° − 60° = 70°.", "expr": "180-50-60" } ],
         "diagram": {
-          "type": "composite_geometry",
-          "unit": "cm",
-          "shapes": [
-            { "id": "A", "kind": "rectangle", "x": 0, "y": 0, "width": 8, "height": 5, "label": "A" },
-            { "id": "B", "kind": "rectangle", "x": 3, "y": 2, "width": 7, "height": 4, "label": "B" }
+          "type": "geometry_figure",
+          "unit": "degrees",
+          "points": [
+            { "id": "A", "x": 0, "y": 0 },
+            { "id": "B", "x": 8, "y": 0 },
+            { "id": "C", "x": 3, "y": 5 }
           ],
-          "shaded": { "op": "intersection", "of": ["A", "B"] }
+          "segments": [
+            { "from": "A", "to": "B" },
+            { "from": "B", "to": "C" },
+            { "from": "C", "to": "A" }
+          ],
+          "angles": [
+            { "at": "A", "from": "B", "to": "C", "value_deg": 50 },
+            { "at": "B", "from": "C", "to": "A", "value_deg": 60 },
+            { "at": "C", "from": "A", "to": "B", "unknown": true }
+          ],
+          "labels": [ { "at": "C", "text": "x" } ]
         }
       }
     ],
@@ -172,7 +216,7 @@ shows only in the detailed answer-key mode (ADR-0005).
 
 ```json
 {
-  "schema_version": "1.2.0",
+  "schema_version": "1.3.0",
   "id": "qi_src_00042",
   "source_type": "sourced",
   "blueprint_code": null,

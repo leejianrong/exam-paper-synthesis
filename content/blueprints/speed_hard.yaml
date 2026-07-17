@@ -1,0 +1,54 @@
+code: speed_hard
+syllabus:
+  level: P6
+  strand: "Speed"
+  topic: "Speed"
+  subtopic: "Two objects meeting; combined speed closes the gap"
+  skill_codes: ["SPEED.MEET"]           # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Hidden structure", "Reasoning depth", "Heuristic demand"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name1, name2, s1, s2, gap]
+  properties:
+    name1:
+      type: string
+    name2:
+      type: string
+    s1:
+      type: integer
+      minimum: 10
+      maximum: 90
+    s2:
+      type: integer
+      minimum: 10
+      maximum: 90
+    gap:
+      type: integer
+      minimum: 1
+      maximum: 5000
+story_templates:
+  - stem: null
+    text: >
+      {name1} and {name2} started at the same time from two towns {gap} km
+      apart and cycled towards each other. {name1} cycled at {s1} km/h and
+      {name2} cycled at {s2} km/h. How long did they take to meet?
+solution_template:
+  steps:
+    - text: "They close the gap together, so use their combined speed = {s1} km/h + {s2} km/h = {combined_speed} km/h."
+      expr: "{s1}+{s2}"
+    - text: "Time to meet = distance apart / combined speed = {gap} km / {combined_speed} km/h."
+      expr: "{gap}/{combined_speed}"
+    - text: "Time to meet = {t_meet} h."
+      expr: "{t_meet}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Add the two speeds to get the combined closing speed." }
+  - { mark: 1, type: M, description: "Divide the distance apart by the combined speed." }
+  - { mark: 1, type: A, description: "Correct time to meet with the h unit." }
+answer:
+  type: quantity
+  unit: "h"

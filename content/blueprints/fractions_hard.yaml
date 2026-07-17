@@ -1,0 +1,59 @@
+code: fractions_hard
+syllabus:
+  level: P6
+  strand: "Fractions"
+  topic: "Fractions"
+  subtopic: "Unknown whole from successive fractions (inverse)"
+  skill_codes: ["FRAC.REVERSE"]         # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Direction", "Hidden structure", "Reasoning depth"]
+marks: 4
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, n1, d1, n2, d2, left]
+  properties:
+    name:
+      type: string
+    n1:
+      type: integer
+      minimum: 1
+      maximum: 5
+    d1:
+      type: integer
+      minimum: 2
+      maximum: 6
+    n2:
+      type: integer
+      minimum: 1
+      maximum: 5
+    d2:
+      type: integer
+      minimum: 2
+      maximum: 6
+    left:
+      type: integer
+      minimum: 1
+      maximum: 5000
+story_templates:
+  - stem: null
+    text: >
+      {name} had some money. {name} spent {n1}/{d1} of it on a bag, then spent
+      {n2}/{d2} of the remaining money on shoes. {name} had ${left} left. How
+      much money did {name} have at first?
+solution_template:
+  steps:
+    - text: "${left} is {kept2_num}/{d2} of the money left after the bag: money after the bag = ${left} × {d2} ÷ {kept2_num} = ${remainder}."
+      expr: "{left}*{d2}/{kept2_num}"
+    - text: "${remainder} is {kept1_num}/{d1} of the money at first: money at first = ${remainder} × {d1} ÷ {kept1_num} = ${answer_value}."
+      expr: "{remainder}*{d1}/{kept1_num}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Recognise that the amount left is the kept fraction (1 − second fraction) of the money after the first purchase." }
+  - { mark: 1, type: M, description: "Work backwards to the money remaining after the first purchase." }
+  - { mark: 1, type: M, description: "Work backwards again to the money at first (dividing by the first kept fraction)." }
+  - { mark: 1, type: A, description: "Correct original amount with the $ unit." }
+answer:
+  type: quantity
+  unit: "$"

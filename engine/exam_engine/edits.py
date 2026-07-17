@@ -29,6 +29,12 @@ KNOWN_OPS = frozenset(
     {"regenerate", "make-harder", "make-easier", "change-to-decimals", "toggle-diagram"}
 )
 
+# toggle-diagram only applies to *aid* figures — bar models that scaffold the
+# reasoning and can be shown or hidden. Mandatory figures (shaded_fraction and
+# future geometry) carry information the question depends on, so they must never
+# be toggled off (ADR-0007/0009).
+AID_DIAGRAM_TYPES = frozenset({"bar_model", "bar_model_before_after"})
+
 
 def _part(obj: dict) -> dict:
     return obj["question"]["parts"][0]
@@ -49,7 +55,11 @@ def available_ops(obj: dict) -> set[str]:
     if answer.get("unit") == "$" and getattr(solver, "MONEY_KEYS", None):
         ops.add("change-to-decimals")
 
-    if load_blueprint(code).diagram is not None:
+    # Offer toggle-diagram only for aid figures — the blueprint's declared
+    # diagram family must be an aid type. Keying on the blueprint (not the
+    # object's current diagram, which is None while toggled off) keeps the toggle
+    # available in both directions.
+    if load_blueprint(code).diagram in AID_DIAGRAM_TYPES:
         ops.add("toggle-diagram")
 
     return ops

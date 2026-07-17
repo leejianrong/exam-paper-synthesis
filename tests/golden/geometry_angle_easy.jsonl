@@ -1,0 +1,1 @@
+{"params": {"template": "triangle_sum", "givens": {"a": 50, "b": 60}, "angles": {"B-A-C": 50, "A-B-C": 60}}, "expected": {"answer": {"type": "integer", "value": 70, "unit": "degrees"}, "total_marks": 2}}

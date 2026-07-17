@@ -1,0 +1,1 @@
+{"params": {"template": "parallelogram", "givens": {"a": 70, "e": 60}, "angles": {"D-A-B": 70, "B-E-C": 60}}, "expected": {"answer": {"type": "integer", "value": 50, "unit": "degrees"}, "total_marks": 3}}
