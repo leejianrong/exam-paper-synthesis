@@ -9,17 +9,25 @@ from pathlib import Path
 import yaml
 
 from ..errors import UnknownBlueprint
-from ..schema import repo_root
 from .base import BlueprintSpec, Solver
 
 _SOLVERS: dict[str, Solver] = {}
 
+# Blueprint/syllabus YAML lives under the package (``exam_engine/content/``) so it
+# ships inside the wheel and resolves package-relative (KAN-258). ``registry.py``
+# is at ``exam_engine/blueprints/``, so ``parents[1]`` is the package root.
+_PACKAGE_DIR = Path(__file__).resolve().parents[1]
+
 
 def content_dir() -> Path:
+    """Directory holding ``blueprints/`` + ``syllabus/`` YAML (package data).
+
+    Override with ``EXAM_CONTENT_DIR`` for out-of-tree content (tests/dev).
+    """
     env = os.environ.get("EXAM_CONTENT_DIR")
     if env:
         return Path(env)
-    return repo_root() / "content"
+    return _PACKAGE_DIR / "content"
 
 
 def register(code: str, solver: Solver) -> None:
