@@ -223,9 +223,18 @@ def check_geometry_figure_consistency(spec: dict, params: dict, solution: dict) 
         if isinstance(v, (int, float)):
             numeric_angle_vals.append(float(v))
     checks["angle_values_in_range"] = all(0 < v < 180 for v in numeric_angle_vals)
-    checks["shaded_boundary_valid"] = all(
-        all(pid in idset for pid in (region.get("boundary") or [])) for region in shaded
-    )
+
+    def _region_ids_valid(region: dict) -> bool:
+        if not all(pid in idset for pid in (region.get("boundary") or [])):
+            return False
+        # Arc-closed edges may reference from/to/center points; they must exist.
+        for arc in region.get("arcs") or []:
+            for ref in (arc.get("from"), arc.get("to"), arc.get("center")):
+                if ref is not None and ref not in idset:
+                    return False
+        return True
+
+    checks["shaded_boundary_valid"] = all(_region_ids_valid(region) for region in shaded)
 
     # --- labelled value ↔ param cross-checks --------------------------------
     def _segment_for(key: str) -> dict | None:
@@ -723,6 +732,23 @@ def _gf_unit(dx: float, dy: float) -> tuple[float, float]:
     return (dx / length, dy / length)
 
 
+def _gf_shaded_edge(arc: dict | None, pt: tuple[int, int], scale: float) -> str:
+    """One boundary edge of a shaded region → an SVG path command.
+
+    A straight ``L`` by default; an ``A`` (arc) command when the region names this
+    edge (by its ``from``/``to`` endpoints) in its ``arcs`` list — so a region
+    bounded by straight segments *and* a circular arc (e.g. a square with a
+    quarter circle removed) fills as a single traced ``<path>``. ``radius`` is a
+    figure length scaled to canvas px (``rr``); ``large``/``sweep`` are the SVG
+    arc flags (default 0)."""
+    if arc is None:
+        return f"L {pt[0]} {pt[1]}"
+    rr = _r(float(arc["radius"]) * scale)
+    large = int(arc.get("large", 0))
+    sweep = int(arc.get("sweep", 0))
+    return f"A {rr} {rr} 0 {large} {sweep} {pt[0]} {pt[1]}"
+
+
 def _render_geometry_figure(spec: dict) -> str:
     """Render a ``geometry_figure`` spec to a self-contained inline ``<svg>``."""
     points = spec.get("points") or []
@@ -766,12 +792,24 @@ def _render_geometry_figure(spec: dict) -> str:
     lines: list[str] = [_gf_header(width, height)]
 
     # --- shaded regions (drawn first, behind the strokes) -------------------
+    # Trace each region's boundary as a single closed <path>. Edges are straight
+    # by default; an entry in the region's ``arcs`` (keyed by its from→to point
+    # pair) turns that edge into a circular arc, so a polygon-minus-circle region
+    # (square minus quarter circle, crescent, annulus) is visually filled.
     for region in shaded:
         boundary = region.get("boundary") or []
         pts = [(tx(pmap[pid][0]), ty(pmap[pid][1])) for pid in boundary]
         if len(pts) < 2:
             continue
-        d = f"M {pts[0][0]} {pts[0][1]} " + " ".join(f"L {x} {y}" for x, y in pts[1:]) + " Z"
+        arc_edges = {(a["from"], a["to"]): a for a in (region.get("arcs") or [])}
+        parts = [f"M {pts[0][0]} {pts[0][1]}"]
+        for i in range(1, len(pts)):
+            edge = arc_edges.get((boundary[i - 1], boundary[i]))
+            parts.append(_gf_shaded_edge(edge, pts[i], scale))
+        closing = arc_edges.get((boundary[-1], boundary[0]))
+        if closing is not None:
+            parts.append(_gf_shaded_edge(closing, pts[0], scale))
+        d = " ".join(parts) + " Z"
         lines.append(f'<path d="{d}" fill="{_GF_FILL}" stroke="none"/>')
 
     # --- segments (edges + tick marks + length labels) ----------------------

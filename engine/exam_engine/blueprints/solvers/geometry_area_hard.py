@@ -50,6 +50,15 @@ def _build_square_minus_quarter(g: dict) -> dict:
         {"from": "C", "to": "D"},
     ]
     arcs = [{"center": "A", "radius": s, "start_deg": 0, "end_deg": 90, "label": None}]
+    # Shaded region = square minus the quarter disc at corner A: trace B→C→D along
+    # the square edges, then close D→B along the quarter-circle arc (centre A). The
+    # arc-closed boundary makes the polygon-minus-circle region fill visually.
+    shaded = [
+        {
+            "boundary": ["B", "C", "D"],
+            "arcs": [{"from": "D", "to": "B", "center": "A", "radius": s, "large": 0, "sweep": 0}],
+        }
+    ]
     text = (
         f"The figure (not drawn to scale) shows a square of side {s} cm. A quarter "
         f"circle of radius {s} cm is drawn inside it, with its centre at one corner. "
@@ -66,7 +75,7 @@ def _build_square_minus_quarter(g: dict) -> dict:
         "segments": segments,
         "arcs": arcs,
         "angles": [],
-        "shaded": [],
+        "shaded": shaded,
         "labels": _labels(["A", "B", "C", "D"]),
         "lengths": {"A-B": s, "A-D": s},
         "radii": {"A": s},

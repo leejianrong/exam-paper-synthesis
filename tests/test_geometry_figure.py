@@ -76,6 +76,40 @@ AREA_PARAMS = {"lengths": {"A-B": 8, "B-C": 6}, "radii": {"A": 4}}
 AREA_SOLUTION = {"answer": {"type": "decimal", "value": 35.44, "dp": 2, "unit": "cm^2"}}
 
 
+# ---------------------------------------------------------------------------
+# (c) Shaded polygon-minus-arc: a square (side 8) with a quarter circle (r = 8,
+#     centred at A) removed. The shaded region is bounded by two square edges
+#     (B->C->D) then closed D->B along the quarter-circle arc — the classic
+#     "square minus quarter circle" shaded figure (KAN-242).
+# ---------------------------------------------------------------------------
+
+SHADED_ARC_SPEC = {
+    "type": "geometry_figure",
+    "unit": "cm",
+    "points": [
+        {"id": "A", "x": 0.0, "y": 0.0},
+        {"id": "B", "x": 8.0, "y": 0.0},
+        {"id": "C", "x": 8.0, "y": 8.0},
+        {"id": "D", "x": 0.0, "y": 8.0},
+    ],
+    "segments": [
+        {"from": "A", "to": "B", "label": "8 cm"},
+        {"from": "A", "to": "D", "label": "8 cm"},
+        {"from": "B", "to": "C"},
+        {"from": "C", "to": "D"},
+    ],
+    "arcs": [{"center": "A", "radius": 8, "start_deg": 0, "end_deg": 90, "label": None}],
+    "angles": [],
+    "shaded": [
+        {
+            "boundary": ["B", "C", "D"],
+            "arcs": [{"from": "D", "to": "B", "center": "A", "radius": 8, "large": 0, "sweep": 0}],
+        }
+    ],
+    "labels": [],
+}
+
+
 # --- consistency: valid specs pass -----------------------------------------
 
 
@@ -154,6 +188,18 @@ def test_shaded_boundary_unknown_point_flips_check():
     assert checks["shaded_boundary_valid"] is False
 
 
+def test_shaded_arc_consistency_passes():
+    checks = check_geometry_figure_consistency(SHADED_ARC_SPEC, {}, {"answer": {}})
+    assert all(checks.values()), checks
+
+
+def test_shaded_arc_bad_center_ref_flips_check():
+    bad = copy.deepcopy(SHADED_ARC_SPEC)
+    bad["shaded"][0]["arcs"][0]["center"] = "Z"  # Z is not a point
+    checks = check_geometry_figure_consistency(bad, {}, {"answer": {}})
+    assert checks["shaded_boundary_valid"] is False
+
+
 # --- SVG render -------------------------------------------------------------
 
 
@@ -177,6 +223,20 @@ def test_area_render_has_arc_shaded_and_right_angle():
     assert "<polyline" in svg  # right-angle square
     assert " A " in svg  # an SVG arc path command (the quarter circle)
     assert ">8 cm</text>" in svg and ">6 cm</text>" in svg
+
+
+def test_shaded_polygon_minus_arc_fills_with_arc_path():
+    """A square-minus-quarter-circle region fills as one <path> whose boundary is
+    closed by an SVG arc command (not just an unfilled outline)."""
+    import re
+
+    svg = render_svg(SHADED_ARC_SPEC)
+    fills = re.findall(r'<path d="([^"]*)" fill="#dbe4fb" stroke="none"/>', svg)
+    assert len(fills) == 1, svg
+    d = fills[0]
+    assert d.startswith("M ")
+    assert " A " in d  # the boundary edge closed by the quarter-circle arc
+    assert d.rstrip().endswith("Z")
 
 
 def test_render_dispatches_via_render_svg():
