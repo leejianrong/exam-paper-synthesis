@@ -1,0 +1,8 @@
+# PROVISIONAL skill codes — remap to MOE P5-P6 syllabus outcomes when the
+# official doc is available (Q-M1). Codes are carried, not queried, in v1
+# (ADR-0016), so remapping is a mechanical find/replace with no data migration.
+strand: "Percentage"
+skills:
+  PCT.OF.NUMBER: "Find a percentage of a quantity"                 # used by percentage_easy
+  PCT.CHANGE: "Percentage increase / decrease of a quantity"        # used by percentage_medium
+  PCT.REVERSE: "Reverse percentage (original amount before a change)"  # used by percentage_hard

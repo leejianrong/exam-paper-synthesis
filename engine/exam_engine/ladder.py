@@ -8,9 +8,10 @@ Extend :data:`LADDERS` when a topic gains more rungs (V6 adds more topics).
 from __future__ import annotations
 
 RATIO = ["ratio_easy", "ratio_medium", "ratio_hard"]
+PERCENTAGE = ["percentage_easy", "percentage_medium", "percentage_hard"]
 
 # Keyed by topic; each value is the ordered list of rungs, easiest first.
-LADDERS: dict[str, list[str]] = {"Ratio": RATIO}
+LADDERS: dict[str, list[str]] = {"Ratio": RATIO, "Percentage": PERCENTAGE}
 
 
 def ladder_for(code: str) -> list[str] | None:
