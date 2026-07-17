@@ -58,7 +58,7 @@ It's a **uv workspace**. Root `pyproject.toml` declares members `engine/`,
 | `web/` | **Svelte 5 + Vite 8 + TypeScript** SPA: `src/App.svelte`, `src/lib/QuestionCard.svelte` (with the edit-button row), `barModel.ts`, `api.ts`, `types.ts`. Reads API base from `VITE_API` (defaults to `http://localhost:8000`). Quality-gated by **eslint** (flat config), **svelte-check**, and **vitest** (jsdom + Testing Library). |
 | `content/blueprints/*.yaml`, `content/syllabus/*.yaml` | Declarative blueprint/syllabus data (`ratio_{easy,medium,hard}.yaml`, `ratio.yaml`). |
 | `schemas/canonical-question.schema.json` | The canonical JSON Schema (currently **v1.3.0**) — single source of truth. |
-| `tests/` | pytest suite + `tests/golden/*.jsonl` hand-verified fixtures. |
+| `tests/` | pytest suite: per-blueprint `test_invariants_*.py` seed-sweeps (correctness authority) + shared `tests/invariants.py` helper + `tests/golden/*.jsonl` hand-verified regression anchors. |
 | `docs/` | `SCHEMA.md`, `DIFFICULTY.md`, `CONTEXT.md`, `PRD.md`, `shaping/`, `adr/`. |
 | `site/` | Static landing page (`index.html`). |
 
@@ -105,8 +105,14 @@ a request; entropy (random seed) enters only here.
 - **Engine stays UI/HTTP-agnostic** — no FastAPI/Pydantic in `engine/`.
   `generate()` is pure and deterministic (no clock/RNG leaking in); `created_at`
   is stamped only at the API boundary.
-- **Every blueprint ships hand-verified golden fixtures** (never model-verified),
-  in `tests/golden/*.jsonl`.
+- **Correctness is proved by an independent invariant test per blueprint; goldens
+  are regression anchors.** Every blueprint ships an independently-authored
+  seed-sweep **invariant test** (`tests/test_invariants_*.py`, reviewed once) that
+  re-derives the answer's *defining relationship* a different way from `solve()` —
+  the correctness authority. Each blueprint also ships **hand-verified golden
+  fixtures** (`tests/golden/*.jsonl`, never model-verified) as stability/regression
+  anchors. Shared sweep boilerplate lives in `tests/invariants.py` (not a test
+  module — an importable helper).
 - **Workflow**: branch → PR → **merge once CI is green** (never push to `main`
   directly — it is **branch-protected**). **Standing instruction for agents: after
   you open a PR, watch its checks and merge it as soon as CI is green and it has

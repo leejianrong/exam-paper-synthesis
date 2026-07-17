@@ -19,9 +19,15 @@ vocabulary; decisions link to `docs/adr/*.md`.
 - **Solver** — the Python plugin a blueprint references. Interface:
   `sample(schema, rng) -> params`, `solve(params) -> {answer, intermediates}`,
   `validate(params, solution) -> report`, optional `diagram(params, solution) -> spec`.
+- **Invariant test** — the per-blueprint *correctness authority*: an
+  independently-authored seed-sweep (`tests/test_invariants_*.py`) that re-derives
+  the answer's defining relationship a different way from `solve()` and asserts it
+  holds across a wide seed range, catching a self-consistent-but-wrong solver.
+  Reviewed once; shared sweep boilerplate lives in `tests/invariants.py`.
 - **Golden fixture** — a hand-written, human-verified `params → expected answer/
-  marks` record per blueprint; the trust anchor for correctness. Never
-  LLM-verified. Lives in `tests/golden/`.
+  marks` record per blueprint; a *regression anchor* (pins `solve()` output stable
+  against accidental change). Never LLM-verified. Lives in `tests/golden/`.
+  Correctness itself is proved by the invariant test, not the golden.
 - **Parameters** — the sampled numeric/enum inputs that make one instance unique.
 - **Difficulty** — enum `easy | medium | hard`.
 - **Cognitive level** — enum `routine_procedural | complex_familiar |
