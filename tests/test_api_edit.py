@@ -18,12 +18,22 @@ def _generate(blueprint_code: str, seed: int) -> dict:
     return resp.json()["questions"][0]
 
 
+def _canonical(obj: dict) -> dict:
+    """Drop the UI-only available_ops hint so the strict schema gate accepts it."""
+    return {k: v for k, v in obj.items() if k != "available_ops"}
+
+
 def test_edit_regenerate_stamps_lineage_and_created_at():
+    # source carries the available_ops UI hint; the API strips it on entry so the
+    # object still round-trips the strict schema gate (KAN-243).
     source = _generate("ratio_medium", 42)
+    assert "available_ops" in source
     resp = client.post("/edit/regenerate", json={"question": source, "seed": 7})
     assert resp.status_code == 200
     child = resp.json()["question"]
-    assert validate_object(child) == []
+    assert validate_object(_canonical(child)) == []
+    # The child response also carries the freshly-computed available_ops hint.
+    assert isinstance(child["available_ops"], list)
     assert child["provenance"]["parent_id"] == source["id"]
     assert child["provenance"]["version"] == source["provenance"]["version"] + 1
     assert child["provenance"]["created_at"] is not None

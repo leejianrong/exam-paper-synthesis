@@ -28,11 +28,16 @@
     discard: { id: string }
   }>()
 
-  // Edit-op availability computed client-side from q (server is the real guard).
-  $: canEasier = q.cognitive?.difficulty !== 'easy'
-  $: canHarder = q.cognitive?.difficulty !== 'hard'
-  $: canDecimals = part.answer?.unit === '$'
-  $: canToggleDiagram = q.blueprint_code?.startsWith('ratio') ?? false
+  // Edit-op availability is driven by the engine's authoritative available_ops
+  // (KAN-243): the API attaches it per question, so the UI no longer re-derives
+  // op applicability (e.g. the old blueprint_code.startsWith('ratio') heuristic
+  // for toggle-diagram). The server is still the real guard.
+  $: ops = q.available_ops ?? []
+  $: canRegenerate = ops.includes('regenerate')
+  $: canEasier = ops.includes('make-easier')
+  $: canHarder = ops.includes('make-harder')
+  $: canDecimals = ops.includes('change-to-decimals')
+  $: canToggleDiagram = ops.includes('toggle-diagram')
   $: diagramLabel = part.diagram ? 'Hide diagram' : 'Show diagram'
 
   let showKey = false
@@ -79,13 +84,15 @@
   <p class="answer"><span class="label">Answer</span> {fmtAnswer(part.answer)}</p>
 
   <div class="edit-row" role="group" aria-label="edit question">
-    <button
-      class="edit"
-      on:click={() => dispatch('edit', { op: 'regenerate' })}
-      disabled={editDisabled}
-    >
-      Regenerate
-    </button>
+    {#if canRegenerate}
+      <button
+        class="edit"
+        on:click={() => dispatch('edit', { op: 'regenerate' })}
+        disabled={editDisabled}
+      >
+        Regenerate
+      </button>
+    {/if}
     {#if canEasier}
       <button
         class="edit"

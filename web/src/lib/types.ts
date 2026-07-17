@@ -3,6 +3,7 @@
 // schemas/canonical-question.schema.json; this mirror is deliberately loose
 // (optional fields, a broad Answer) so the UI stays resilient to schema growth.
 
+import type { EditOp } from './api'
 import type { DiagramSpec } from './barModel'
 
 export type ValidationStatus = 'pass' | 'fail'
@@ -49,4 +50,10 @@ export interface Question {
   question: { parts: QuestionPart[]; total_marks: number }
   validation: { status: ValidationStatus }
   cognitive?: { difficulty?: Difficulty }
+  /**
+   * Engine-computed set of applicable edit ops (KAN-243), attached by the API as
+   * a UI hint (not part of the canonical schema). Drives edit-button visibility;
+   * the server is still the authoritative guard.
+   */
+  available_ops?: EditOp[]
 }

@@ -15,6 +15,7 @@ from exam_engine.errors import EditNotApplicable, InfeasibleConstraints, Unknown
 from fastapi import APIRouter, HTTPException
 
 from .models import EditRequest, EditResponse
+from .ops import strip_ui_hints, with_available_ops
 
 router = APIRouter()
 
@@ -27,8 +28,10 @@ def post_edit(op: str, req: EditRequest) -> EditResponse:
         raise HTTPException(status_code=404, detail=f"unknown edit op: {op!r}")
 
     # Validate the source on entry — reject tampered/invalid objects (R6.1).
+    # Strip the UI-only available_ops hint first so the round-tripped object
+    # passes the strict schema gate (KAN-243).
     try:
-        source = canonical.load(req.question)
+        source = canonical.load(strip_ui_hints(req.question))
     except CanonicalValidationError as e:
         raise HTTPException(status_code=422, detail=f"invalid question: {e}") from e
 
@@ -47,4 +50,4 @@ def post_edit(op: str, req: EditRequest) -> EditResponse:
     # The only clock boundary (ADR-0016), mirroring routes_generate.
     child["provenance"]["created_at"] = datetime.now(UTC).isoformat()
 
-    return EditResponse(question=child)
+    return EditResponse(question=with_available_ops(child))

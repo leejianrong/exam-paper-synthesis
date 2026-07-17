@@ -11,6 +11,7 @@ from exam_engine.pipeline import generate, param_hash
 from fastapi import APIRouter, HTTPException
 
 from .models import GenerateRequest, GenerateResponse
+from .ops import with_available_ops
 
 router = APIRouter()
 
@@ -46,7 +47,8 @@ def post_generate(req: GenerateRequest) -> GenerateResponse:
         seen_params.add(phash)
 
         obj["provenance"]["created_at"] = datetime.now(UTC).isoformat()
-        questions.append(obj)
+        # Attach the engine-computed available_ops UI hint (KAN-243).
+        questions.append(with_available_ops(obj))
 
     if len(questions) < req.count:
         raise HTTPException(
