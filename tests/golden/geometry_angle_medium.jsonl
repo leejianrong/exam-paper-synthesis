@@ -1,0 +1,1 @@
+{"params": {"template": "exterior", "givens": {"b": 40, "ext": 110}, "angles": {"A-B-C": 40, "A-C-D": 110}}, "expected": {"answer": {"type": "integer", "value": 70, "unit": "degrees"}, "total_marks": 3}}

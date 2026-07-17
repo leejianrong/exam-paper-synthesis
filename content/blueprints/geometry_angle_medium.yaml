@@ -1,0 +1,43 @@
+code: geometry_angle_medium
+syllabus:
+  level: P5
+  strand: "Geometry"
+  topic: "Geometry (Angles)"
+  subtopic: "Isosceles triangle / exterior angle (two-step)"
+  skill_codes: ["GEO.ANG.PROP"]         # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Hidden structure"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [template, givens, angles]
+  properties:
+    template:
+      type: string
+      enum: ["isosceles_apex", "isosceles_base", "exterior"]
+    givens:
+      type: object
+      additionalProperties:
+        type: integer
+    angles:                             # given-angle contract map (see check docstring)
+      type: object
+      additionalProperties:
+        type: integer
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Apply the first property (isosceles base angles / angle on a straight line)." }
+  - { mark: 1, type: M, description: "Apply angle sum to reach the unknown angle." }
+  - { mark: 1, type: A, description: "Correct unknown angle in degrees." }
+answer:
+  type: integer
+  unit: "degrees"
+diagram: geometry_figure
