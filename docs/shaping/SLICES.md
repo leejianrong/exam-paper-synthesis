@@ -149,19 +149,32 @@ carry an accurate figure and offer no diagram toggle; aid families still toggle.
 
 ## V7 — CLI + sourced-object interchange
 
+> **Shipped (2026-07-17):** the final MVP slice. `mathgen` CLI (KAN-152, PR #69)
+> and sourced-object interchange (KAN-153, PR #70). See
+> **`docs/shaping/V7-plan.md`** for the full blueprint.
+
 **Goal:** headless engine access and interchange-grade schema proof.
 
 **Affordances:** `mathgen generate/edit/export` subcommands; sourced-object load
 path (no blueprint/params, `source`+`license`, raster diagram,
 `created_by="ingested"`).
 
-**Build:** **A9** `mathgen` CLI calling the engine directly; **A1** sourced load
-path exercised end-to-end; renderers confirmed to handle a raster diagram +
-sourced object with no new wiring.
+**Build:** **A9** `mathgen` CLI calling the engine directly (its own `_pdf.py`
+Chromium boundary; depends only on `exam-engine`, never FastAPI — the
+engine-agnostic proof); **A1** sourced load path exercised end-to-end. The
+canonical *load/validate/worksheet-join* path was genuinely unchanged (the export
+route already load-gates every object), but **raster *rendering* needed a small
+new branch** — `render_svg`/`renderDiagram` raised/returned-empty on
+`type:"raster"` — so V7 wired a `raster` `<img>` renderer (Python + TS mirror).
+(Corrects this plan's earlier "no new wiring" assumption.) V7 also surfaced that
+`question.stem` was silently dropped by the worksheet renderer — needed for
+multi-part sourced questions — and fixed it (inert for single-part generated
+questions).
 
 **Demo / acceptance:** `mathgen` generates and exports both PDFs with no web app;
 a hand-authored sourced past-paper object validates, joins a worksheet, and
-renders alongside generated questions.
+renders (raster figure included) alongside generated questions in both the
+worksheet and answer-key.
 
 ---
 
