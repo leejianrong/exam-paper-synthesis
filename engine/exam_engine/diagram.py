@@ -11,6 +11,8 @@ Nothing here imports FastAPI/Pydantic: the engine stays UI/HTTP-agnostic (ADR-00
 
 from __future__ import annotations
 
+import math
+
 # ---------------------------------------------------------------------------
 # Consistency check (R3.3): every label/dimension in the diagram must equal the
 # corresponding parameter or solved value. A deliberately corrupted spec fails.
@@ -24,6 +26,8 @@ def check_consistency(spec: dict, params: dict, solution: dict) -> dict[str, boo
         return check_bar_model_consistency(spec, params, solution)
     if dtype == "bar_model_before_after":
         return check_bar_model_before_after_consistency(spec, params, solution)
+    if dtype == "shaded_fraction":
+        return check_shaded_fraction_consistency(spec, params, solution)
     raise ValueError(f"no consistency check for diagram type {dtype!r}")
 
 
@@ -106,6 +110,38 @@ def check_bar_model_before_after_consistency(
     return checks
 
 
+_SHADED_FRACTION_SHAPES = frozenset({"rectangle", "circle", "bar"})
+
+
+def check_shaded_fraction_consistency(spec: dict, params: dict, solution: dict) -> dict[str, bool]:
+    """Assert a ``shaded_fraction`` figure matches the answer fraction exactly.
+
+    The figure partitions a shape into ``total_parts`` equal cells with
+    ``shaded_parts`` filled — these must equal the answer's denominator and
+    numerator respectively (the printed figure is *provably* the printed
+    answer). ``shape`` must be a known shape and the shaded count must lie in
+    ``[0, total_parts]``.
+    """
+    answer = solution.get("answer", {})
+    numerator = answer.get("numerator")
+    denominator = answer.get("denominator")
+
+    total_parts = spec.get("total_parts")
+    shaded_parts = spec.get("shaded_parts")
+    shape = spec.get("shape")
+
+    checks: dict[str, bool] = {}
+    checks["shape_valid"] = shape in _SHADED_FRACTION_SHAPES
+    checks["total_matches_denominator"] = total_parts == denominator
+    checks["shaded_matches_numerator"] = shaded_parts == numerator
+    checks["shaded_in_range"] = (
+        isinstance(total_parts, int)
+        and isinstance(shaded_parts, int)
+        and 0 <= shaded_parts <= total_parts
+    )
+    return checks
+
+
 # ---------------------------------------------------------------------------
 # Spec → inline SVG (R3.4): crisp, inspectable, no external libs.
 # ---------------------------------------------------------------------------
@@ -134,6 +170,8 @@ def render_svg(spec: dict) -> str:
         return _render_bar_model(spec)
     if dtype == "bar_model_before_after":
         return _render_bar_model_before_after(spec)
+    if dtype == "shaded_fraction":
+        return _render_shaded_fraction(spec)
     raise ValueError(f"no SVG renderer for diagram type {dtype!r}")
 
 
@@ -365,6 +403,107 @@ def _render_bar_model_before_after(spec: dict) -> str:
                 f'fill="#66708a">{_esc(ann["label"])}</text>'
             )
             y += _ANN_ROW_H
+
+    lines.append("</svg>")
+    return "".join(lines)
+
+
+# --- shaded_fraction (Fractions mandatory figure, plan D1) ------------------
+# A shape partitioned into ``total_parts`` equal cells with ``shaded_parts``
+# filled. rectangle → vertical strips; bar → horizontal strips; circle → equal
+# pie sectors. Integer coordinates (circle sectors round trig to ints) → pure +
+# deterministic. Palette matches the bar-model aid.
+
+_SF_CELL = 40  # px per cell (rectangle strip width / bar row height)
+_SF_RECT_H = 80  # rectangle total height
+_SF_BAR_W = 72  # bar total width
+_SF_CIRCLE_R = 60  # circle radius
+_SF_PAD = 8  # padding around the figure
+_SF_SHADE = "#2f5fe0"  # filled cell
+_SF_EMPTY = "#eef2fb"  # empty cell
+_SF_STROKE = "#2f5fe0"  # cell border
+
+
+def _render_shaded_fraction(spec: dict) -> str:
+    """Render a ``shaded_fraction`` figure to a self-contained inline ``<svg>``."""
+    shape = spec["shape"]
+    total_parts = spec["total_parts"]
+    shaded_parts = spec["shaded_parts"]
+    if shape == "rectangle":
+        return _render_sf_strips(total_parts, shaded_parts, horizontal=False)
+    if shape == "bar":
+        return _render_sf_strips(total_parts, shaded_parts, horizontal=True)
+    if shape == "circle":
+        return _render_sf_circle(total_parts, shaded_parts)
+    raise ValueError(f"unknown shaded_fraction shape {shape!r}")
+
+
+def _sf_header(width: int, height: int) -> str:
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
+        f'width="{width}" height="{height}" role="img" '
+        f'font-family="system-ui, sans-serif" font-size="13">'
+    )
+
+
+def _render_sf_strips(total_parts: int, shaded_parts: int, *, horizontal: bool) -> str:
+    """Rectangle (vertical strips) / bar (horizontal strips): equal cells, first
+    ``shaded_parts`` filled."""
+    cell = _SF_CELL
+    if horizontal:
+        fig_w, fig_h = _SF_BAR_W, cell * total_parts
+    else:
+        fig_w, fig_h = cell * total_parts, _SF_RECT_H
+    width = fig_w + 2 * _SF_PAD
+    height = fig_h + 2 * _SF_PAD
+
+    lines: list[str] = [_sf_header(width, height)]
+    for i in range(total_parts):
+        fill = _SF_SHADE if i < shaded_parts else _SF_EMPTY
+        if horizontal:
+            x, y, cw, ch = _SF_PAD, _SF_PAD + i * cell, fig_w, cell
+        else:
+            x, y, cw, ch = _SF_PAD + i * cell, _SF_PAD, cell, fig_h
+        lines.append(
+            f'<rect x="{x}" y="{y}" width="{cw}" height="{ch}" '
+            f'fill="{fill}" stroke="{_SF_STROKE}" stroke-width="1.5"/>'
+        )
+    lines.append("</svg>")
+    return "".join(lines)
+
+
+def _render_sf_circle(total_parts: int, shaded_parts: int) -> str:
+    """Circle partitioned into ``total_parts`` equal pie sectors, first
+    ``shaded_parts`` filled. Sector vertices round trig to integers so the SVG is
+    byte-stable for a given spec."""
+    r = _SF_CIRCLE_R
+    cx = cy = _SF_PAD + r
+    size = 2 * r + 2 * _SF_PAD
+
+    lines: list[str] = [_sf_header(size, size)]
+
+    if total_parts == 1:
+        # A single "sector" is the whole circle — no partition lines to draw.
+        fill = _SF_SHADE if shaded_parts >= 1 else _SF_EMPTY
+        lines.append(
+            f'<circle cx="{cx}" cy="{cy}" r="{r}" '
+            f'fill="{fill}" stroke="{_SF_STROKE}" stroke-width="1.5"/>'
+        )
+    else:
+
+        def point(k: int) -> tuple[int, int]:
+            # Start at the top (12 o'clock), sweep clockwise.
+            angle = 2 * math.pi * k / total_parts - math.pi / 2
+            return round(cx + r * math.cos(angle)), round(cy + r * math.sin(angle))
+
+        for i in range(total_parts):
+            x1, y1 = point(i)
+            x2, y2 = point(i + 1)
+            fill = _SF_SHADE if i < shaded_parts else _SF_EMPTY
+            # Sector angle is 360/total_parts <= 180 for total_parts >= 2, so the
+            # large-arc flag is always 0; sweep flag 1 draws the arc clockwise.
+            d = f"M {cx} {cy} L {x1} {y1} A {r} {r} 0 0 1 {x2} {y2} Z"
+            lines.append(f'<path d="{d}" fill="{fill}" stroke="{_SF_STROKE}" stroke-width="1.5"/>')
 
     lines.append("</svg>")
     return "".join(lines)
