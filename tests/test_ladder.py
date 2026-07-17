@@ -33,3 +33,16 @@ def test_hard_has_no_harder_sibling():
 def test_unknown_code_has_no_sibling():
     assert sibling("does_not_exist", +1) is None
     assert sibling("does_not_exist", -1) is None
+
+
+def test_fractions_ladder_is_wired():
+    assert ladder_for("fractions_medium") == [
+        "fractions_easy",
+        "fractions_medium",
+        "fractions_hard",
+    ]
+    assert sibling("fractions_easy", -1) is None
+    assert sibling("fractions_easy", +1) == "fractions_medium"
+    assert sibling("fractions_medium", +1) == "fractions_hard"
+    assert sibling("fractions_medium", -1) == "fractions_easy"
+    assert sibling("fractions_hard", +1) is None

@@ -1,0 +1,48 @@
+code: percentage_medium
+syllabus:
+  level: P5
+  strand: "Percentage"
+  topic: "Percentage"
+  subtopic: "Percentage increase / decrease"
+  skill_codes: ["PCT.CHANGE"]           # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Direction"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [context, original, percent, direction]
+  properties:
+    context:
+      type: string
+    original:
+      type: integer
+      minimum: 20
+      maximum: 2000
+    percent:
+      type: integer
+      minimum: 5
+      maximum: 90
+    direction:
+      type: string
+      enum: ["increase", "decrease"]
+story_templates:
+  - stem: null
+    text: >
+      The price of a {context} was ${original}. It {verb} by {percent}%.
+      What is the new price?
+solution_template:
+  steps:
+    - text: "Change = {percent}% of ${original} = {percent} ÷ 100 × ${original} = ${change_amount}."
+      expr: "{percent}*{original}/100"
+    - text: "New price = ${original} {op} ${change_amount} = ${new_value}."
+      expr: "{original}{op}{change_amount}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Find the amount of the change (the percentage of the original)." }
+  - { mark: 1, type: M, description: "Add the change to (or subtract it from) the original amount." }
+  - { mark: 1, type: A, description: "Correct new price with the $ unit." }
+answer:
+  type: quantity
+  unit: "$"

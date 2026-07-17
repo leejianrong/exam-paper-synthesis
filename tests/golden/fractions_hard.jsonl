@@ -1,0 +1,3 @@
+{"params": {"name": "Devi", "n1": 1, "d1": 4, "n2": 2, "d2": 5, "left": 90}, "expected": {"answer": {"type": "quantity", "value": 200, "unit": "$"}, "total_marks": 4}}
+{"params": {"name": "Ethan", "n1": 1, "d1": 3, "n2": 1, "d2": 4, "left": 120}, "expected": {"answer": {"type": "quantity", "value": 240, "unit": "$"}, "total_marks": 4}}
+{"params": {"name": "Faridah", "n1": 2, "d1": 5, "n2": 1, "d2": 3, "left": 60}, "expected": {"answer": {"type": "quantity", "value": 150, "unit": "$"}, "total_marks": 4}}

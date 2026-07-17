@@ -1,0 +1,1 @@
+{"params": {"template": "square_minus_quarter", "givens": {"s": 14}, "lengths": {"A-B": 14, "A-D": 14}, "radii": {"A": 14}}, "expected": {"answer": {"type": "integer", "value": 42, "unit": "cm^2"}, "total_marks": 4}}

@@ -1,0 +1,42 @@
+code: geometry_angle_easy
+syllabus:
+  level: P5
+  strand: "Geometry"
+  topic: "Geometry (Angles)"
+  subtopic: "Angles on a line / at a point / angle sum of a triangle"
+  skill_codes: ["GEO.ANG.BASIC"]        # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Reasoning depth"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [template, givens, angles]
+  properties:
+    template:
+      type: string
+      enum: ["straight_line", "at_point", "triangle_sum"]
+    givens:
+      type: object
+      additionalProperties:
+        type: integer
+    angles:                             # given-angle contract map (see check docstring)
+      type: object
+      additionalProperties:
+        type: integer
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Apply the correct angle rule (angles on a line / at a point / angle sum of a triangle)." }
+  - { mark: 1, type: A, description: "Correct unknown angle in degrees." }
+answer:
+  type: integer
+  unit: "degrees"
+diagram: geometry_figure

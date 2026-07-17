@@ -1,0 +1,49 @@
+code: geometry_area_hard
+syllabus:
+  level: P6
+  strand: "Measurement"
+  topic: "Geometry (Area & Perimeter)"
+  subtopic: "Shaded area (polygon − quarter circle); inverse length from area"
+  skill_codes: ["GEO.AREA.SHADED"]      # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Inverse direction", "Hidden structure", "Reasoning depth"]
+marks: 4
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [template, givens, lengths]
+  properties:
+    template:
+      type: string
+      enum: ["square_minus_quarter", "inverse_rectangle"]
+    givens:
+      type: object
+      additionalProperties:
+        type: integer
+    lengths:                            # labelled-length contract map (see check docstring)
+      type: object
+      additionalProperties:
+        type: number
+    radii:                              # arc-radius contract map (see check docstring)
+      type: object
+      additionalProperties:
+        type: number
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+    - text: "{step3}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Set up the relationship (whole − part, or area = length × width rearranged)." }
+  - { mark: 1, type: M, description: "Compute the circle part (with π) / the division." }
+  - { mark: 1, type: M, description: "Combine to the shaded area / recovered length." }
+  - { mark: 1, type: A, description: "Correct final area (cm²) or length (cm)." }
+answer:
+  type: integer
+  unit: "cm^2"
+diagram: geometry_figure
