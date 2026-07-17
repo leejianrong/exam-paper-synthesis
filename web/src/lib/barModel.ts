@@ -69,7 +69,62 @@ export interface ShadedFractionSpec {
   shaded_parts: number
 }
 
-export type DiagramSpec = BarModelSpec | BarModelBeforeAfterSpec | ShadedFractionSpec
+export interface GeometryPoint {
+  id: string
+  x: number
+  y: number
+}
+
+export interface GeometrySegment {
+  from: string
+  to: string
+  label?: string | null
+  ticks?: number
+}
+
+export interface GeometryArc {
+  center: string
+  radius: number
+  start_deg: number
+  end_deg: number
+  label?: string | null
+}
+
+export interface GeometryAngle {
+  at: string
+  from: string
+  to: string
+  value_deg?: number | null
+  unknown?: boolean
+  right?: boolean
+}
+
+export interface GeometryShaded {
+  boundary: string[]
+  arcs?: unknown[]
+}
+
+export interface GeometryLabel {
+  at: string
+  text: string
+}
+
+export interface GeometryFigureSpec {
+  type: 'geometry_figure'
+  unit?: string
+  points: GeometryPoint[]
+  segments?: GeometrySegment[]
+  arcs?: GeometryArc[]
+  angles?: GeometryAngle[]
+  shaded?: GeometryShaded[] | null
+  labels?: GeometryLabel[]
+}
+
+export type DiagramSpec =
+  | BarModelSpec
+  | BarModelBeforeAfterSpec
+  | ShadedFractionSpec
+  | GeometryFigureSpec
 
 function esc(text: string): string {
   return String(text)
@@ -85,6 +140,7 @@ export function renderDiagram(spec: DiagramSpec | null | undefined): string {
   if (spec.type === 'bar_model') return renderBarModel(spec)
   if (spec.type === 'bar_model_before_after') return renderBarModelBeforeAfter(spec)
   if (spec.type === 'shaded_fraction') return renderShadedFraction(spec)
+  if (spec.type === 'geometry_figure') return renderGeometryFigure(spec)
   return ''
 }
 
@@ -368,6 +424,236 @@ function renderSfCircle(totalParts: number, shadedParts: number): string {
       out.push(`<path d="${d}" fill="${fill}" stroke="${SF_STROKE}" stroke-width="1.5"/>`)
     }
   }
+  out.push('</svg>')
+  return out.join('')
+}
+
+// geometry_figure: a general 2D figure — named points (figure coords) + segments
+// (tick marks + length labels) + arcs + angle marks (right-angle square when
+// marked) + shaded regions + free labels. Mirrors _render_geometry_figure in
+// engine/exam_engine/diagram.py: figure coords are floats scaled uniformly into a
+// fixed canvas, every output coordinate rounded via gfRound (Math.floor(v+0.5))
+// so this and the Python renderer agree byte-for-byte. Convention: figure coords
+// are screen-like (x right, y DOWN); degrees share that y-down frame (positive =
+// clockwise on screen). Labelled values stay exact (from the label strings).
+const GF_SIZE = 240
+const GF_PAD = 28
+const GF_ANGLE_R = 18
+const GF_RIGHT = 14
+const GF_TICK = 6
+const GF_TICK_SP = 4
+const GF_LABEL_OFF = 13
+const GF_STROKE = '#2f5fe0'
+const GF_FILL = '#dbe4fb'
+const GF_TEXT = '#334155'
+
+// Round half-up — matches Python's math.floor(v + 0.5).
+function gfRound(v: number): number {
+  return Math.floor(v + 0.5)
+}
+
+function gfUnit(dx: number, dy: number): [number, number] {
+  const length = Math.hypot(dx, dy)
+  if (length === 0) return [0, 0]
+  return [dx / length, dy / length]
+}
+
+// Points bounding an arc: its endpoints + any cardinal the sweep passes through.
+function gfArcExtent(
+  cx: number,
+  cy: number,
+  r: number,
+  start: number,
+  end: number,
+): Array<[number, number]> {
+  const lo = Math.min(start, end)
+  const hi = Math.max(start, end)
+  const pts: Array<[number, number]> = []
+  for (const deg of [start, end, 0, 90, 180, 270, 360]) {
+    if ((lo <= deg && deg <= hi) || deg === start || deg === end) {
+      const rad = (deg * Math.PI) / 180
+      pts.push([cx + r * Math.cos(rad), cy + r * Math.sin(rad)])
+    }
+  }
+  return pts
+}
+
+function gfHeader(width: number, height: number): string {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
+    `width="${width}" height="${height}" role="img" ` +
+    `font-family="system-ui, sans-serif" font-size="13">`
+  )
+}
+
+function renderGeometryFigure(spec: GeometryFigureSpec): string {
+  const points = spec.points ?? []
+  const pmap = new Map<string, [number, number]>(points.map((p) => [p.id, [p.x, p.y]]))
+  const segments = spec.segments ?? []
+  const arcs = spec.arcs ?? []
+  const angles = spec.angles ?? []
+  const shaded = spec.shaded ?? []
+  const labels = spec.labels ?? []
+
+  const at = (id: string): [number, number] => pmap.get(id) ?? [0, 0]
+
+  // Bounding box over points + arc extents.
+  const xs: number[] = points.map((p) => p.x)
+  const ys: number[] = points.map((p) => p.y)
+  for (const arc of arcs) {
+    const [cx, cy] = at(arc.center)
+    xs.push(cx)
+    ys.push(cy)
+    for (const [ax, ay] of gfArcExtent(cx, cy, arc.radius, arc.start_deg, arc.end_deg)) {
+      xs.push(ax)
+      ys.push(ay)
+    }
+  }
+
+  const minx = Math.min(...xs)
+  const maxx = Math.max(...xs)
+  const miny = Math.min(...ys)
+  const maxy = Math.max(...ys)
+  const w = maxx - minx
+  const h = maxy - miny
+  let denom = Math.max(w, h)
+  if (denom <= 0) denom = 1
+  const scale = GF_SIZE / denom
+
+  const tx = (x: number): number => gfRound(GF_PAD + (x - minx) * scale)
+  const ty = (y: number): number => gfRound(GF_PAD + (y - miny) * scale)
+
+  const width = gfRound(w * scale) + 2 * GF_PAD
+  const height = gfRound(h * scale) + 2 * GF_PAD
+
+  const out: string[] = [gfHeader(width, height)]
+
+  // Shaded regions (behind the strokes).
+  for (const region of shaded) {
+    const boundary = region.boundary ?? []
+    const pts = boundary.map((id) => [tx(at(id)[0]), ty(at(id)[1])] as [number, number])
+    if (pts.length < 2) continue
+    const d =
+      `M ${pts[0][0]} ${pts[0][1]} ` + pts.slice(1).map(([x, y]) => `L ${x} ${y}`).join(' ') + ' Z'
+    out.push(`<path d="${d}" fill="${GF_FILL}" stroke="none"/>`)
+  }
+
+  // Segments (edges + tick marks + length labels).
+  for (const seg of segments) {
+    const [ax, ay] = at(seg.from)
+    const [bx, by] = at(seg.to)
+    const x1 = tx(ax)
+    const y1 = ty(ay)
+    const x2 = tx(bx)
+    const y2 = ty(by)
+    out.push(
+      `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${GF_STROKE}" stroke-width="2"/>`,
+    )
+    const mx = (x1 + x2) / 2
+    const my = (y1 + y2) / 2
+    const [ux, uy] = gfUnit(x2 - x1, y2 - y1)
+    const nx = -uy
+    const ny = ux
+    const ticks = seg.ticks ?? 0
+    for (let i = 0; i < ticks; i++) {
+      const off = (i - (ticks - 1) / 2) * GF_TICK_SP
+      const cxp = mx + ux * off
+      const cyp = my + uy * off
+      out.push(
+        `<line x1="${gfRound(cxp - nx * GF_TICK)}" y1="${gfRound(cyp - ny * GF_TICK)}" ` +
+          `x2="${gfRound(cxp + nx * GF_TICK)}" y2="${gfRound(cyp + ny * GF_TICK)}" ` +
+          `stroke="${GF_STROKE}" stroke-width="1.5"/>`,
+      )
+    }
+    if (seg.label != null) {
+      const lx = gfRound(mx + nx * GF_LABEL_OFF)
+      const ly = gfRound(my + ny * GF_LABEL_OFF + 4)
+      out.push(
+        `<text x="${lx}" y="${ly}" text-anchor="middle" fill="${GF_TEXT}">${esc(seg.label)}</text>`,
+      )
+    }
+  }
+
+  // Arcs (whole/semi/quarter circles).
+  for (const arc of arcs) {
+    const [cx, cy] = at(arc.center)
+    const r = arc.radius
+    const start = arc.start_deg
+    const end = arc.end_deg
+    const p1x = tx(cx + r * Math.cos((start * Math.PI) / 180))
+    const p1y = ty(cy + r * Math.sin((start * Math.PI) / 180))
+    const p2x = tx(cx + r * Math.cos((end * Math.PI) / 180))
+    const p2y = ty(cy + r * Math.sin((end * Math.PI) / 180))
+    const rr = gfRound(r * scale)
+    const large = Math.abs(end - start) > 180 ? 1 : 0
+    const sweep = end >= start ? 1 : 0
+    out.push(
+      `<path d="M ${p1x} ${p1y} A ${rr} ${rr} 0 ${large} ${sweep} ${p2x} ${p2y}" ` +
+        `fill="none" stroke="${GF_STROKE}" stroke-width="2"/>`,
+    )
+    if (arc.label != null) {
+      const mid = (((start + end) / 2) * Math.PI) / 180
+      const lx = gfRound(tx(cx + r * Math.cos(mid)) + Math.cos(mid) * 12)
+      const ly = gfRound(ty(cy + r * Math.sin(mid)) + Math.sin(mid) * 12 + 4)
+      out.push(
+        `<text x="${lx}" y="${ly}" text-anchor="middle" fill="${GF_TEXT}">${esc(arc.label)}</text>`,
+      )
+    }
+  }
+
+  // Angle marks (small arc, or a square for right angles).
+  for (const ang of angles) {
+    const [vx, vy] = at(ang.at)
+    const [ax, ay] = at(ang.from)
+    const [bx, by] = at(ang.to)
+    const vX = tx(vx)
+    const vY = ty(vy)
+    const [dax, day] = gfUnit(tx(ax) - vX, ty(ay) - vY)
+    const [dbx, dby] = gfUnit(tx(bx) - vX, ty(by) - vY)
+    if (ang.right) {
+      const s = GF_RIGHT
+      const p1 = [gfRound(vX + dax * s), gfRound(vY + day * s)]
+      const p2 = [gfRound(vX + (dax + dbx) * s), gfRound(vY + (day + dby) * s)]
+      const p3 = [gfRound(vX + dbx * s), gfRound(vY + dby * s)]
+      out.push(
+        `<polyline points="${p1[0]},${p1[1]} ${p2[0]},${p2[1]} ${p3[0]},${p3[1]}" ` +
+          `fill="none" stroke="${GF_STROKE}" stroke-width="1.5"/>`,
+      )
+    } else {
+      const rr = GF_ANGLE_R
+      const p1x = gfRound(vX + dax * rr)
+      const p1y = gfRound(vY + day * rr)
+      const p2x = gfRound(vX + dbx * rr)
+      const p2y = gfRound(vY + dby * rr)
+      const a1 = (Math.atan2(day, dax) * 180) / Math.PI
+      const a2 = (Math.atan2(dby, dbx) * 180) / Math.PI
+      const diff = (((a2 - a1 + 180) % 360) + 360) % 360 - 180
+      const sweep = diff > 0 ? 1 : 0
+      out.push(
+        `<path d="M ${p1x} ${p1y} A ${rr} ${rr} 0 0 ${sweep} ${p2x} ${p2y}" ` +
+          `fill="none" stroke="${GF_STROKE}" stroke-width="1.5"/>`,
+      )
+      if (ang.value_deg != null && !ang.unknown) {
+        let [bisx, bisy] = gfUnit(dax + dbx, day + dby)
+        if (bisx === 0 && bisy === 0) {
+          bisx = -day
+          bisy = dax
+        }
+        const lx = gfRound(vX + bisx * (rr + 12))
+        const ly = gfRound(vY + bisy * (rr + 12) + 4)
+        out.push(
+          `<text x="${lx}" y="${ly}" text-anchor="middle" fill="${GF_TEXT}">${esc(String(ang.value_deg))}°</text>`,
+        )
+      }
+    }
+  }
+
+  // Free text labels.
+  for (const lab of labels) {
+    const [px, py] = at(lab.at)
+    out.push(`<text x="${tx(px) + 6}" y="${ty(py) - 6}" fill="${GF_TEXT}">${esc(lab.text)}</text>`)
+  }
+
   out.push('</svg>')
   return out.join('')
 }
