@@ -9,6 +9,9 @@ const question: Question = {
   blueprint_code: 'ratio_medium',
   validation: { status: 'pass' },
   cognitive: { difficulty: 'medium' },
+  // ratio_medium supports every edit op (the API computes this via
+  // exam_engine.edits.available_ops); the card renders buttons from it.
+  available_ops: ['change-to-decimals', 'make-easier', 'make-harder', 'regenerate', 'toggle-diagram'],
   question: {
     total_marks: 3,
     parts: [
@@ -98,6 +101,22 @@ describe('QuestionCard', () => {
     expect(screen.getByRole('button', { name: 'Discard' })).not.toBeDisabled()
   })
 
+  it('shows the toggle-diagram button when available_ops includes it', () => {
+    render(QuestionCard, { props: { q: question } })
+    expect(screen.getByRole('button', { name: /diagram/i })).toBeInTheDocument()
+  })
+
+  it('hides toggle-diagram for a ratio card when available_ops omits it (no blueprint heuristic)', () => {
+    // Same ratio blueprint_code, but the engine did not offer toggle-diagram:
+    // proves visibility is driven by available_ops, not blueprint_code.startsWith.
+    const q: Question = {
+      ...question,
+      available_ops: ['regenerate', 'make-easier', 'make-harder', 'change-to-decimals'],
+    }
+    render(QuestionCard, { props: { q } })
+    expect(screen.queryByRole('button', { name: /diagram/i })).not.toBeInTheDocument()
+  })
+
   // A geometry card carries a mandatory figure: the API's available_ops omits
   // toggle-diagram, and the card correspondingly renders no Show/Hide button.
   const geometryQuestion: Question = {
@@ -106,6 +125,8 @@ describe('QuestionCard', () => {
     blueprint_code: 'geometry_area_hard',
     validation: { status: 'pass' },
     cognitive: { difficulty: 'hard' },
+    // Mandatory figure → available_ops omits toggle-diagram (and change-to-decimals).
+    available_ops: ['make-easier', 'regenerate'],
     question: {
       total_marks: 3,
       parts: [
@@ -152,6 +173,8 @@ describe('QuestionCard', () => {
       blueprint_code: 'fractions_easy',
       validation: { status: 'pass' },
       cognitive: { difficulty: 'easy' },
+      // Mandatory shaded figure → available_ops omits toggle-diagram.
+      available_ops: ['make-harder', 'regenerate'],
       question: {
         total_marks: 1,
         parts: [

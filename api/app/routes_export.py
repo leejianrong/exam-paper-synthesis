@@ -23,6 +23,7 @@ from fastapi.responses import HTMLResponse, Response
 
 from . import export
 from .models import ExportRequest
+from .ops import strip_ui_hints
 
 router = APIRouter(prefix="/export")
 
@@ -39,8 +40,9 @@ def _validated_questions(req: ExportRequest) -> list[dict]:
     """Load-gate every question (reject tampered/invalid); reject an empty set."""
     if not req.questions:
         raise HTTPException(status_code=422, detail="no questions to export")
+    # Strip the UI-only available_ops hint before the strict schema gate (KAN-243).
     try:
-        return [canonical.load(q) for q in req.questions]
+        return [canonical.load(strip_ui_hints(q)) for q in req.questions]
     except CanonicalValidationError as e:
         raise HTTPException(status_code=422, detail=f"invalid question: {e}") from e
 
