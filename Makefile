@@ -27,11 +27,21 @@ install: ## Sync Python deps and install web deps
 	uv sync
 	npm --prefix web ci
 
-dev: ## Boot API + Vite together; Ctrl-C stops both
+dev: ## Boot API + Vite together; Ctrl-C stops both cleanly
 	@echo "Starting API (8000) and web (5173). Press Ctrl-C to stop both."
-	@trap 'kill 0' INT TERM; \
-	uv run uvicorn app.main:app --app-dir api --reload --port 8000 & \
-	npm --prefix web run dev & \
+	@# Signal the uvicorn *parent* by PID (its --reload child dies with it); a
+	@# whole-group `kill 0` would double-signal uvicorn's reloader → RecursionError
+	@# + segfault on Ctrl-C. npm is put in its own group (setsid) so the vite child
+	@# goes down with it. `exit 0` = clean shutdown, no `*** Error 130` from make.
+	@api=""; web=""; \
+	if command -v setsid >/dev/null 2>&1; then SG=setsid; else SG=""; fi; \
+	stop() { trap '' INT TERM; echo; echo "Shutting down..."; \
+	  kill -TERM "$$api" 2>/dev/null || true; \
+	  { kill -TERM "-$$web" 2>/dev/null || kill -TERM "$$web" 2>/dev/null; } || true; \
+	  wait; exit 0; }; \
+	trap stop INT TERM; \
+	uv run uvicorn app.main:app --app-dir api --reload --port 8000 & api=$$!; \
+	$$SG npm --prefix web run dev & web=$$!; \
 	wait
 
 api: ## Run just the API dev server
