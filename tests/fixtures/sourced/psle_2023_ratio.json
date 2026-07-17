@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.3.0",
+  "id": "sourced:rosyth-2023-prelim-p2-q12",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Number and Algebra",
+    "topic": "Ratio",
+    "subtopic": "Ratio and proportion",
+    "skill_codes": ["P6.RATIO.PROPORTION"]
+  },
+  "cognitive": {
+    "difficulty": "medium",
+    "cognitive_level": "complex_familiar",
+    "heuristics": ["draw_a_model"],
+    "representations": ["bar_model"],
+    "difficulty_levers": ["multi_step"]
+  },
+  "question": {
+    "stem": "Aiden and Bala shared some stickers in the ratio 5 : 3. Aiden received 24 more stickers than Bala.",
+    "parts": [
+      {
+        "label": "a",
+        "text": "The bar model below represents the stickers shared between Aiden and Bala. How many stickers did they share altogether?",
+        "marks": 2,
+        "answer": { "type": "integer", "value": 96, "unit": "" },
+        "marking_scheme": [
+          { "mark": 1, "type": "M", "description": "5 - 3 = 2 units represent the difference, so 1 unit = 24 / 2 = 12." },
+          { "mark": 1, "type": "A", "description": "Total = 8 units x 12 = 96 stickers." }
+        ],
+        "solution_steps": [
+          { "text": "The difference in units is 5 - 3 = 2 units, which represents 24 stickers.", "expr": "5 - 3 = 2" },
+          { "text": "1 unit = 24 / 2 = 12 stickers.", "expr": "24 / 2 = 12" },
+          { "text": "Altogether there are 5 + 3 = 8 units, so the total = 8 x 12 = 96 stickers.", "expr": "8 * 12 = 96" }
+        ],
+        "diagram": {
+          "type": "raster",
+          "asset_ref": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEElEQVR4nGP4z8AARAwQCgAf7gP9i18U1AAAAABJRU5ErkJggg==",
+          "alt_text": "Bar model: Aiden's bar is 5 equal units long and Bala's bar is 3 equal units long, with a brace marking a difference of 24 stickers."
+        }
+      },
+      {
+        "label": "b",
+        "text": "What fraction of the stickers did Bala receive?",
+        "marks": 1,
+        "answer": { "type": "fraction", "numerator": 3, "denominator": 8 },
+        "marking_scheme": [
+          { "mark": 1, "type": "B", "description": "Bala received 3 out of 8 units = 3/8 of the stickers." }
+        ],
+        "solution_steps": [
+          { "text": "Bala received 3 units out of the total 8 units, so his share is 3/8.", "expr": "3 / 8" }
+        ],
+        "diagram": null
+      }
+    ],
+    "total_marks": 3
+  },
+  "source": {
+    "origin": "Rosyth School P6 Preliminary Examination",
+    "year": 2023,
+    "paper": "Paper 2",
+    "reference": "Question 12"
+  },
+  "license": "Reproduced from a past preliminary paper for internal practice use only; not for redistribution.",
+  "validation": {
+    "status": "unverified",
+    "checks": { "answer_verified": "hand-checked on ingest" }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}

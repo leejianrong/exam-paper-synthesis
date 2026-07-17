@@ -120,11 +120,18 @@ export interface GeometryFigureSpec {
   labels?: GeometryLabel[]
 }
 
+export interface RasterSpec {
+  type: 'raster'
+  asset_ref: string
+  alt_text: string
+}
+
 export type DiagramSpec =
   | BarModelSpec
   | BarModelBeforeAfterSpec
   | ShadedFractionSpec
   | GeometryFigureSpec
+  | RasterSpec
 
 function esc(text: string): string {
   return String(text)
@@ -141,7 +148,15 @@ export function renderDiagram(spec: DiagramSpec | null | undefined): string {
   if (spec.type === 'bar_model_before_after') return renderBarModelBeforeAfter(spec)
   if (spec.type === 'shaded_fraction') return renderShadedFraction(spec)
   if (spec.type === 'geometry_figure') return renderGeometryFigure(spec)
+  if (spec.type === 'raster') return renderRaster(spec)
   return ''
+}
+
+// raster: a sourced/ingested figure carried verbatim as an image (asset_ref,
+// typically a self-contained data: URI). Not an <svg>; mirrors _render_raster in
+// engine/exam_engine/diagram.py — the caller wraps it in <figure class="diagram">.
+function renderRaster(spec: RasterSpec): string {
+  return `<img src="${esc(spec.asset_ref)}" alt="${esc(spec.alt_text ?? '')}"/>`
 }
 
 function renderBarModel(spec: BarModelSpec): string {

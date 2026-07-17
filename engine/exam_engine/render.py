@@ -204,6 +204,9 @@ def _render_questions(questions: list[dict], *, answer_key: bool) -> str:
         parts = obj["question"]["parts"]
         multipart = len(parts) > 1
         out.append('<li class="question">')
+        stem = obj["question"].get("stem")
+        if stem:
+            out.append(f'<p class="question-stem">{_mathify(stem)}</p>')
         for part in parts:
             out.extend(_render_part_head(part, multipart=multipart))
             if answer_key:
