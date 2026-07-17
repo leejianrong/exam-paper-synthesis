@@ -1,0 +1,3 @@
+{"params": {"context": "bicycle", "original": 200, "percent": 10, "direction": "increase"}, "expected": {"answer": {"type": "quantity", "value": 220, "unit": "$"}, "total_marks": 3}}
+{"params": {"context": "watch", "original": 500, "percent": 20, "direction": "decrease"}, "expected": {"answer": {"type": "quantity", "value": 400, "unit": "$"}, "total_marks": 3}}
+{"params": {"context": "guitar", "original": 80, "percent": 25, "direction": "increase"}, "expected": {"answer": {"type": "quantity", "value": 100, "unit": "$"}, "total_marks": 3}}
