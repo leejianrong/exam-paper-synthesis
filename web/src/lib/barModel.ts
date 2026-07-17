@@ -99,9 +99,21 @@ export interface GeometryAngle {
   right?: boolean
 }
 
+// One boundary edge of a shaded region that is a circular arc rather than a
+// straight segment, keyed by its from→to endpoints (mirrors _gf_shaded_edge in
+// engine/exam_engine/diagram.py).
+export interface GeometryShadedArc {
+  from: string
+  to: string
+  center?: string
+  radius: number
+  large?: number
+  sweep?: number
+}
+
 export interface GeometryShaded {
   boundary: string[]
-  arcs?: unknown[]
+  arcs?: GeometryShadedArc[]
 }
 
 export interface GeometryLabel {
@@ -543,13 +555,31 @@ function renderGeometryFigure(spec: GeometryFigureSpec): string {
 
   const out: string[] = [gfHeader(width, height)]
 
-  // Shaded regions (behind the strokes).
+  // Shaded regions (behind the strokes). Trace each boundary as one closed
+  // <path>: edges are straight by default, but an entry in the region's arcs
+  // (keyed by its from→to point pair) turns that edge into a circular arc, so a
+  // polygon-minus-circle region (square minus quarter circle, crescent, annulus)
+  // fills visually. Mirrors the shaded loop in engine/exam_engine/diagram.py.
   for (const region of shaded) {
     const boundary = region.boundary ?? []
     const pts = boundary.map((id) => [tx(at(id)[0]), ty(at(id)[1])] as [number, number])
     if (pts.length < 2) continue
-    const d =
-      `M ${pts[0][0]} ${pts[0][1]} ` + pts.slice(1).map(([x, y]) => `L ${x} ${y}`).join(' ') + ' Z'
+    const arcEdges = new Map<string, GeometryShadedArc>()
+    for (const a of region.arcs ?? []) arcEdges.set(`${a.from}->${a.to}`, a)
+    const edge = (arc: GeometryShadedArc | undefined, pt: [number, number]): string => {
+      if (!arc) return `L ${pt[0]} ${pt[1]}`
+      const rr = gfRound(arc.radius * scale)
+      const large = arc.large ?? 0
+      const sweep = arc.sweep ?? 0
+      return `A ${rr} ${rr} 0 ${large} ${sweep} ${pt[0]} ${pt[1]}`
+    }
+    const parts = [`M ${pts[0][0]} ${pts[0][1]}`]
+    for (let i = 1; i < pts.length; i++) {
+      parts.push(edge(arcEdges.get(`${boundary[i - 1]}->${boundary[i]}`), pts[i]))
+    }
+    const closing = `${boundary[boundary.length - 1]}->${boundary[0]}`
+    if (arcEdges.has(closing)) parts.push(edge(arcEdges.get(closing), pts[0]))
+    const d = parts.join(' ') + ' Z'
     out.push(`<path d="${d}" fill="${GF_FILL}" stroke="none"/>`)
   }
 

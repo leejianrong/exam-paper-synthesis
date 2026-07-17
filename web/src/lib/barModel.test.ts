@@ -262,6 +262,45 @@ describe('geometry_figure geometry', () => {
     expect(svg).toContain('>6 cm</text>')
   })
 
+  // (c) Shaded polygon-minus-arc: a square (side 8) with a quarter circle
+  // (r = 8, centred at A) removed — the classic "square minus quarter circle"
+  // shaded figure (KAN-242).
+  const shadedArcSpec: GeometryFigureSpec = {
+    type: 'geometry_figure',
+    unit: 'cm',
+    points: [
+      { id: 'A', x: 0, y: 0 },
+      { id: 'B', x: 8, y: 0 },
+      { id: 'C', x: 8, y: 8 },
+      { id: 'D', x: 0, y: 8 },
+    ],
+    segments: [
+      { from: 'A', to: 'B', label: '8 cm' },
+      { from: 'A', to: 'D', label: '8 cm' },
+      { from: 'B', to: 'C' },
+      { from: 'C', to: 'D' },
+    ],
+    arcs: [{ center: 'A', radius: 8, start_deg: 0, end_deg: 90, label: null }],
+    angles: [],
+    shaded: [
+      {
+        boundary: ['B', 'C', 'D'],
+        arcs: [{ from: 'D', to: 'B', center: 'A', radius: 8, large: 0, sweep: 0 }],
+      },
+    ],
+    labels: [],
+  }
+
+  it('polygon-minus-arc shaded region → a filled path closed by an arc', () => {
+    const svg = renderDiagram(shadedArcSpec)
+    const m = svg.match(/<path d="([^"]*)" fill="#dbe4fb" stroke="none"\/>/)
+    expect(m).not.toBeNull()
+    const d = m![1]
+    expect(d.startsWith('M ')).toBe(true)
+    expect(d).toContain(' A ') // boundary edge closed by the quarter-circle arc
+    expect(d.trim().endsWith('Z')).toBe(true)
+  })
+
   it('escapes special characters in labels', () => {
     const svg = renderDiagram({
       type: 'geometry_figure',
