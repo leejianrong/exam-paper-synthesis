@@ -17,7 +17,7 @@ parameter_schema:                       # ADR-0014: sampled params validate agai
   properties:
     template:
       type: string
-      enum: ["L_shape", "semicircle_area", "semicircle_perimeter"]
+      enum: ["L_shape", "rectangle_plus_triangle", "semicircle_area", "semicircle_perimeter"]
     givens:
       type: object
       additionalProperties:

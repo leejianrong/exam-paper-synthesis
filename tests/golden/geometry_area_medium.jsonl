@@ -1,1 +1,2 @@
 {"params": {"template": "semicircle_area", "givens": {"r": 7}, "lengths": {"O-T": 7}, "radii": {"O": 7}}, "expected": {"answer": {"type": "integer", "value": 77, "unit": "cm^2"}, "total_marks": 3}}
+{"params": {"template": "rectangle_plus_triangle", "givens": {"W": 10, "H": 6, "h": 4}, "lengths": {"C-D": 10, "B-C": 6, "A-M": 4}}, "expected": {"answer": {"type": "integer", "value": 80, "unit": "cm^2"}, "total_marks": 3}}

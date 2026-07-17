@@ -112,6 +112,13 @@ def test_medium_invariant_composite_and_circle():
             assert expected > 0
             assert answer["type"] == "integer" and answer["unit"] == "cm^2"
             assert ans == expected
+        elif template == "rectangle_plus_triangle":
+            # house = rectangle + triangle; base×height must stay even (whole ½·b·h).
+            assert (g["W"] * g["h"]) % 2 == 0
+            expected = g["W"] * g["H"] + g["W"] * g["h"] // 2
+            assert expected > 0
+            assert answer["type"] == "integer" and answer["unit"] == "cm^2"
+            assert ans == expected
         elif template == "semicircle_area":
             r = g["r"]
             assert answer["unit"] == "cm^2"
@@ -133,7 +140,7 @@ def test_medium_invariant_composite_and_circle():
         else:
             raise AssertionError(f"unexpected template {template!r}")
         assert ans > 0
-    assert seen == {"L_shape", "semicircle_area", "semicircle_perimeter"}
+    assert seen == {"L_shape", "rectangle_plus_triangle", "semicircle_area", "semicircle_perimeter"}
 
 
 def test_hard_invariant_shaded_and_inverse():
@@ -160,6 +167,29 @@ def test_hard_invariant_shaded_and_inverse():
                 assert shaded > 0
                 assert abs(ans - shaded) < _TOL
                 assert _dp_ok(answer)
+        elif template == "rectangle_with_semicircle_ends":
+            # running track: perimeter = 2·L + 2·π·r (two ends form one full circle).
+            L, r = g["L"], g["r"]
+            assert answer["unit"] == "cm"
+            if r % 7 == 0:  # 22/7 path -> exact whole answer by construction
+                assert answer["type"] == "integer"
+                assert ans == 2 * L + 2 * 22 * r // 7
+            else:  # 3.14 path -> 2-dp value (whole values collapse to integer)
+                assert abs(ans - round(2 * L + 2 * 3.14 * r, 2)) < _TOL
+                assert _dp_ok(answer)
+        elif template == "triangle_with_semicircle":
+            # total area = triangle (½·b·H) + semicircle (½·π·r²), r = b/2.
+            b, height = g["b"], g["H"]
+            assert b % 2 == 0
+            r = b // 2
+            triangle = b * height // 2
+            assert answer["unit"] == "cm^2"
+            if r % 7 == 0:  # 22/7 path -> exact whole answer by construction
+                assert answer["type"] == "integer"
+                assert ans == triangle + 22 * r * r // (7 * 2)
+            else:  # 3.14 path -> 2-dp value (whole values collapse to integer)
+                assert abs(ans - round(triangle + 3.14 * r * r / 2, 2)) < _TOL
+                assert _dp_ok(answer)
         elif template == "inverse_rectangle":
             length, width = g["length"], g["width"]
             area = length * width  # the area stated in the stem
@@ -170,4 +200,9 @@ def test_hard_invariant_shaded_and_inverse():
         else:
             raise AssertionError(f"unexpected template {template!r}")
         assert ans > 0
-    assert seen == {"square_minus_quarter", "inverse_rectangle"}
+    assert seen == {
+        "square_minus_quarter",
+        "rectangle_with_semicircle_ends",
+        "triangle_with_semicircle",
+        "inverse_rectangle",
+    }

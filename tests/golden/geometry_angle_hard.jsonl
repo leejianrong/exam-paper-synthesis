@@ -1,1 +1,2 @@
 {"params": {"template": "parallelogram", "givens": {"a": 70, "e": 60}, "angles": {"D-A-B": 70, "B-E-C": 60}}, "expected": {"answer": {"type": "integer", "value": 50, "unit": "degrees"}, "total_marks": 3}}
+{"params": {"template": "trapezium", "givens": {"a": 120, "e": 45}, "angles": {"D-A-B": 120, "A-E-D": 45}}, "expected": {"answer": {"type": "integer", "value": 75, "unit": "degrees"}, "total_marks": 3}}
