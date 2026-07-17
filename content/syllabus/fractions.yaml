@@ -1,0 +1,8 @@
+# PROVISIONAL skill codes — remap to MOE P5-P6 syllabus outcomes when the
+# official doc is available (Q-M1). Codes are carried, not queried, in v1
+# (ADR-0016), so remapping is a mechanical find/replace with no data migration.
+strand: "Fractions"
+skills:
+  FRAC.SHADED: "Read a fraction of a figure that is shaded"              # used by fractions_easy
+  FRAC.OF.REMAINDER: "Fraction of a remainder (two-step)"                # used by fractions_medium
+  FRAC.REVERSE: "Successive fractions of a remainder; unknown whole (inverse)"  # used by fractions_hard

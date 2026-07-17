@@ -9,9 +9,14 @@ from __future__ import annotations
 
 RATIO = ["ratio_easy", "ratio_medium", "ratio_hard"]
 PERCENTAGE = ["percentage_easy", "percentage_medium", "percentage_hard"]
+FRACTIONS = ["fractions_easy", "fractions_medium", "fractions_hard"]
 
 # Keyed by topic; each value is the ordered list of rungs, easiest first.
-LADDERS: dict[str, list[str]] = {"Ratio": RATIO, "Percentage": PERCENTAGE}
+LADDERS: dict[str, list[str]] = {
+    "Ratio": RATIO,
+    "Percentage": PERCENTAGE,
+    "Fractions": FRACTIONS,
+}
 
 
 def ladder_for(code: str) -> list[str] | None:

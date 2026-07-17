@@ -1,0 +1,58 @@
+code: fractions_medium
+syllabus:
+  level: P5
+  strand: "Fractions"
+  topic: "Fractions"
+  subtopic: "Fraction of a remainder"
+  skill_codes: ["FRAC.OF.REMAINDER"]    # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Sub-parts"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, whole, n1, d1, n2, d2]
+  properties:
+    name:
+      type: string
+    whole:
+      type: integer
+      minimum: 4
+      maximum: 5000
+    n1:
+      type: integer
+      minimum: 1
+      maximum: 5
+    d1:
+      type: integer
+      minimum: 2
+      maximum: 6
+    n2:
+      type: integer
+      minimum: 1
+      maximum: 5
+    d2:
+      type: integer
+      minimum: 2
+      maximum: 6
+story_templates:
+  - stem: null
+    text: >
+      {name} had ${whole}. {name} spent {n1}/{d1} of it on rent, then spent
+      {n2}/{d2} of the remaining money on food. How much did {name} spend on
+      food?
+solution_template:
+  steps:
+    - text: "Money left after rent = (1 − {n1}/{d1}) × ${whole} = {kept1_num}/{d1} × ${whole} = ${remainder}."
+      expr: "{kept1_num}*{whole}/{d1}"
+    - text: "Spent on food = {n2}/{d2} of ${remainder} = {n2}/{d2} × ${remainder} = ${answer_value}."
+      expr: "{n2}*{remainder}/{d2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Find the amount of money remaining after the first fraction is spent." }
+  - { mark: 1, type: M, description: "Take the second fraction of that remainder." }
+  - { mark: 1, type: A, description: "Correct amount spent on food with the $ unit." }
+answer:
+  type: quantity
+  unit: "$"

@@ -1,0 +1,44 @@
+code: fractions_easy
+syllabus:
+  level: P5
+  strand: "Fractions"
+  topic: "Fractions"
+  subtopic: "Fraction of a figure (shaded)"
+  skill_codes: ["FRAC.SHADED"]          # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Representation translation"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [shape, numerator, denominator]
+  properties:
+    shape:
+      type: string
+      enum: ["rectangle", "circle", "bar"]
+    numerator:
+      type: integer
+      minimum: 1
+      maximum: 11
+    denominator:
+      type: integer
+      minimum: 2
+      maximum: 12
+story_templates:
+  - stem: null
+    text: >
+      The figure below is divided into equal parts. What fraction of the
+      figure is shaded? Give your answer in its simplest form.
+solution_template:
+  steps:
+    - text: "The figure has {denominator} equal parts, of which {numerator} are shaded."
+      expr: null
+    - text: "Fraction shaded = {numerator}/{denominator} (already in simplest form)."
+      expr: "{numerator}/{denominator}"
+marking_scheme:
+  - { mark: 1, type: B, description: "Correct fraction shaded, written in its simplest form." }
+answer:
+  type: fraction
+diagram: shaded_fraction

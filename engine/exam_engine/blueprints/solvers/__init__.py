@@ -1,6 +1,9 @@
 """Solver plugins. Importing this package registers every solver."""
 
 from . import (
+    fractions_easy,  # noqa: F401
+    fractions_hard,  # noqa: F401
+    fractions_medium,  # noqa: F401
     percentage_easy,  # noqa: F401
     percentage_hard,  # noqa: F401
     percentage_medium,  # noqa: F401
@@ -10,6 +13,9 @@ from . import (
 )
 
 __all__ = [
+    "fractions_easy",
+    "fractions_hard",
+    "fractions_medium",
     "percentage_easy",
     "percentage_hard",
     "percentage_medium",
