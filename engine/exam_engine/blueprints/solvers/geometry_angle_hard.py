@@ -1,14 +1,18 @@
-"""Solver for ``geometry_angle_hard`` (KAN-229): P6 composite figures.
+"""Solver for ``geometry_angle_hard`` (KAN-229, KAN-233): P6 composite figures.
 
 A triangle sharing an edge with a special quadrilateral; a multi-step chain that
 combines two shape properties (strictly PSLE, no additional construction — V6b
-geometry plan). Two structurally-distinct templates:
+geometry plan). Structurally-distinct templates:
 
 * ``parallelogram`` — parallelogram ABCD with side AB extended to E and triangle
   BCE. AD ∥ BC with transversal ABE gives ∠CBE = ∠DAB (corresponding angles);
   then triangle-BCE angle sum gives ∠BCE.
 * ``rhombus`` — rhombus ABCD with diagonal AC. Equal sides make triangle ABC
   isosceles (AB = BC), so the base angles equal (180 − ∠ABC) ÷ 2.
+* ``trapezium`` (KAN-233, ``triangle_on_trapezium``) — trapezium ABCD (AB ∥ DC)
+  with leg BA extended past A to E and triangle ADE. ``BAE`` a straight line gives
+  ∠DAE = 180 − ∠DAB (angles on a straight line); then triangle-ADE angle sum gives
+  ∠ADE = ∠DAB − ∠AED. No auxiliary construction — the extension is a marked edge.
 
 Answer: integer ``degrees``; mandatory ``geometry_figure`` aid, verified by the
 consistency check. Exact integer arithmetic (rhombus apex sampled even) — the
@@ -116,9 +120,57 @@ def _build_rhombus(g: dict) -> dict:
     }
 
 
+def _build_trapezium(g: dict) -> dict:
+    a, e = g["a"], g["e"]
+    ans = a - e
+    # Trapezium ABCD (AB ∥ DC); leg BA extended past A to E (B-A-E straight);
+    # triangle ADE. Coordinates are illustrative only ("not to scale").
+    points = [
+        _pt("A", 3, 0),
+        _pt("B", 9, 0),
+        _pt("C", 12, 6),
+        _pt("D", 0, 6),
+        _pt("E", -1, 0),
+    ]
+    segments = [
+        {"from": "A", "to": "B"},
+        {"from": "B", "to": "C"},
+        {"from": "C", "to": "D"},
+        {"from": "D", "to": "A"},
+        {"from": "A", "to": "E"},
+        {"from": "D", "to": "E"},
+    ]
+    angles = [
+        {"at": "A", "from": "D", "to": "B", "value_deg": a, "unknown": False},
+        {"at": "E", "from": "A", "to": "D", "value_deg": e, "unknown": False},
+        {"at": "D", "from": "A", "to": "E", "value_deg": ans, "unknown": True},
+    ]
+    given_map = {"D-A-B": a, "A-E-D": e}
+    text = (
+        f"In the figure, ABCD is a trapezium with AB parallel to DC, and BAE is a "
+        f"straight line. ∠DAB = {a}° and ∠AED = {e}°. "
+        f"Find ∠ADE. (The figure is not drawn to scale.)"
+    )
+    steps = [
+        f"BAE is a straight line, so ∠DAE = 180° − {a}° = {180 - a}° (angles on a straight line).",
+        f"In triangle ADE, ∠ADE = 180° − {180 - a}° − {e}° = {ans}°.",
+    ]
+    return {
+        "points": points,
+        "segments": segments,
+        "angles": angles,
+        "labels": _labels(["A", "B", "C", "D", "E"]),
+        "given_map": given_map,
+        "answer": ans,
+        "text": text,
+        "steps": steps,
+    }
+
+
 _BUILDERS = {
     "parallelogram": _build_parallelogram,
     "rhombus": _build_rhombus,
+    "trapezium": _build_trapezium,
 }
 
 
@@ -136,9 +188,13 @@ class GeometryAngleHardSolver:
                 if 180 - a - e >= 20:
                     break
             givens = {"a": a, "e": e}
-        else:  # rhombus
+        elif template == "rhombus":
             b = rng.randrange(40, 141, 2)  # even -> whole base angle
             givens = {"b": b}
+        else:  # trapezium: obtuse ∠DAB, smaller ∠AED -> whole ∠ADE = a - e > 0
+            a = rng.randint(100, 140)
+            e = rng.randint(30, 60)
+            givens = {"a": a, "e": e}
         built = _BUILDERS[template](givens)
         return {"template": template, "givens": givens, "angles": built["given_map"]}
 
@@ -163,8 +219,10 @@ class GeometryAngleHardSolver:
         if template == "parallelogram":
             # ∠CBE = ∠DAB = a (corresponding), then triangle BCE sum: a + e + ans = 180.
             checks["rule"] = g["a"] + g["e"] + ans == 180
-        else:  # rhombus: isosceles triangle ABC, apex b -> base angles.
+        elif template == "rhombus":  # isosceles triangle ABC, apex b -> base angles.
             checks["rule"] = g["b"] + 2 * ans == 180
+        else:  # trapezium: ∠DAE = 180 - a (straight line), triangle ADE sum -> ans = a - e.
+            checks["rule"] = (180 - g["a"]) + g["e"] + ans == 180 and ans == g["a"] - g["e"]
         checks["answer_verified"] = solution["answer"]["value"] == ans
         checks["unit_degrees"] = solution["answer"]["unit"] == _UNIT
         checks["in_range"] = 0 < ans < 180

@@ -17,7 +17,7 @@ parameter_schema:                       # ADR-0014: sampled params validate agai
   properties:
     template:
       type: string
-      enum: ["square_minus_quarter", "inverse_rectangle"]
+      enum: ["square_minus_quarter", "rectangle_with_semicircle_ends", "triangle_with_semicircle", "inverse_rectangle"]
     givens:
       type: object
       additionalProperties:

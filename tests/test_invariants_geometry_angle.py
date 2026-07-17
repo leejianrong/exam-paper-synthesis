@@ -117,6 +117,12 @@ def test_hard_invariant_composite_two_properties():
         elif template == "rhombus":
             # equal sides -> isosceles triangle ABC; base angles equal.
             assert g["b"] + 2 * ans == 180
+        elif template == "trapezium":
+            # BAE straight line -> angle DAE = 180 - a; then triangle ADE angle sum.
+            angle_dae = 180 - g["a"]
+            assert 0 < angle_dae < 180
+            assert angle_dae + g["e"] + ans == 180
+            assert ans == g["a"] - g["e"]
         else:
             raise AssertionError(f"unexpected template {template!r}")
-    assert seen == {"parallelogram", "rhombus"}
+    assert seen == {"parallelogram", "rhombus", "trapezium"}

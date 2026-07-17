@@ -17,7 +17,7 @@ parameter_schema:                       # ADR-0014: sampled params validate agai
   properties:
     template:
       type: string
-      enum: ["parallelogram", "rhombus"]
+      enum: ["parallelogram", "rhombus", "trapezium"]
     givens:
       type: object
       additionalProperties:

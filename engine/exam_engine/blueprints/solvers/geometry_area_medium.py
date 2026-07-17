@@ -5,6 +5,8 @@ templates:
 
 * ``L_shape``             — an L-shaped polygon (a rectangle with a rectangular
   corner removed); area = big rectangle − removed corner.
+* ``rectangle_plus_triangle`` (KAN-233) — a "house" pentagon: a rectangle with a
+  triangle sitting on its top edge; area = rectangle + ``½ × base × height``.
 * ``semicircle_area``     — area of a semicircle, ``π × r × r ÷ 2``.
 * ``semicircle_perimeter``— perimeter of a semicircle, ``π × r + 2 × r``.
 
@@ -81,6 +83,55 @@ def _build_l_shape(g: dict) -> dict:
     }
 
 
+def _build_rectangle_plus_triangle(g: dict) -> dict:
+    W, H, h = g["W"], g["H"], g["h"]
+    rect = W * H
+    tri = W * h // 2
+    ans = rect + tri
+    # "House" pentagon: apex A on top; rectangle B(top-right)-C-D-E(top-left) below;
+    # M is the foot of the apex height on the shared base EB.
+    points = [
+        _pt("A", W / 2, 0),
+        _pt("B", W, h),
+        _pt("C", W, h + H),
+        _pt("D", 0, h + H),
+        _pt("E", 0, h),
+        _pt("M", W / 2, h),
+    ]
+    segments = [
+        {"from": "A", "to": "B"},
+        {"from": "B", "to": "C", "label": f"{H} cm"},
+        {"from": "C", "to": "D", "label": f"{W} cm"},
+        {"from": "D", "to": "E"},
+        {"from": "E", "to": "A"},
+        {"from": "E", "to": "B"},
+        {"from": "A", "to": "M", "label": f"{h} cm"},
+    ]
+    angles = [{"at": "M", "from": "A", "to": "B", "right": True}]
+    text = (
+        "The figure (not drawn to scale) shows a rectangle with a triangle on top "
+        "(a house shape). Find the total area of the figure."
+    )
+    steps = [
+        f"Area of the rectangle = {W} cm × {H} cm = {rect} cm².",
+        f"Area of the triangle = ½ × {W} cm × {h} cm = {tri} cm².",
+        f"Total area = {rect} cm² + {tri} cm² = {ans} cm².",
+    ]
+    return {
+        "points": points,
+        "segments": segments,
+        "angles": angles,
+        "arcs": [],
+        "shaded": [{"boundary": ["A", "B", "C", "D", "E"]}],
+        "labels": _labels(["A", "B", "C", "D", "E"]),
+        "lengths": {"C-D": W, "B-C": H, "A-M": h},
+        "radii": {},
+        "answer": {"type": "integer", "value": ans, "unit": AREA_UNIT},
+        "text": text,
+        "steps": steps,
+    }
+
+
 def _semicircle_figure(r: int) -> dict:
     points = [_pt("O", r, r), _pt("P", 0, r), _pt("Q", 2 * r, r), _pt("T", r, 0)]
     segments = [
@@ -136,6 +187,7 @@ def _build_semicircle_perimeter(g: dict) -> dict:
 
 _BUILDERS = {
     "L_shape": _build_l_shape,
+    "rectangle_plus_triangle": _build_rectangle_plus_triangle,
     "semicircle_area": _build_semicircle_area,
     "semicircle_perimeter": _build_semicircle_perimeter,
 }
@@ -161,6 +213,11 @@ class GeometryAreaMediumSolver:
             notch_w = rng.randint(3, big_w - 5)
             notch_h = rng.randint(3, big_h - 4)
             givens = {"W": big_w, "H": big_h, "w": notch_w, "h": notch_h}
+        elif template == "rectangle_plus_triangle":
+            width = rng.randint(6, 14)
+            rect_h = rng.randint(4, 10)
+            tri_h = rng.randrange(4, 12, 2)  # even -> ½·W·h stays a whole number
+            givens = {"W": width, "H": rect_h, "h": tri_h}
         else:  # semicircle_area / semicircle_perimeter
             givens = {"r": _sample_radius(rng)}
         built = _BUILDERS[template](givens)
@@ -194,6 +251,14 @@ class GeometryAreaMediumSolver:
                 "unit": AREA_UNIT,
             }
             checks["geometry_ok"] = 0 < g["w"] < g["W"] and 0 < g["h"] < g["H"]
+        elif template == "rectangle_plus_triangle":
+            expected = {
+                "type": "integer",
+                "value": g["W"] * g["H"] + g["W"] * g["h"] // 2,
+                "unit": AREA_UNIT,
+            }
+            checks["geometry_ok"] = g["W"] > 0 and g["H"] > 0 and g["h"] > 0
+            checks["triangle_whole"] = (g["W"] * g["h"]) % 2 == 0
         elif template == "semicircle_area":
             expected = format_measure(pi_value(pi_str_for(g["r"])) * g["r"] * g["r"] / 2, AREA_UNIT)
             checks["geometry_ok"] = g["r"] > 0

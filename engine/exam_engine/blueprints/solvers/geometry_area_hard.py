@@ -1,12 +1,18 @@
 """Solver for ``geometry_area_hard`` (KAN-230): shaded area / inverse length.
 
-Strictly-PSLE composite figures (V6b geometry plan). Two structurally-distinct
+Strictly-PSLE composite figures (V6b geometry plan). Structurally-distinct
 templates:
 
 * ``square_minus_quarter`` — a square with a quarter circle (radius = side,
   centred on a corner) removed; shaded area = square − quarter circle. π
   auto-select (G4): ``22/7`` when the side is a multiple of 7 (whole answer),
   else ``3.14`` (2-dp decimal).
+* ``rectangle_with_semicircle_ends`` (KAN-233) — a running track / stadium: a
+  rectangle with a semicircle on each end; perimeter = ``2 × L + 2 × π × r`` (the
+  two ends form one full circle). π auto-select on the radius (G4).
+* ``triangle_with_semicircle`` (KAN-233) — a triangle joined to a semicircle on
+  its base (the base is the diameter); total area = ``½ × b × H + ½ × π × r²``
+  with ``r = b ÷ 2``. π auto-select on the radius (G4).
 * ``inverse_rectangle``    — the inverse direction: a rectangle's area and length
   are given, find the (unknown) width by ``width = area ÷ length``.
 
@@ -85,6 +91,118 @@ def _build_square_minus_quarter(g: dict) -> dict:
     }
 
 
+def _build_rectangle_with_semicircle_ends(g: dict) -> dict:
+    L, r = g["L"], g["r"]
+    pi_str = pi_str_for(r)
+    exact = 2 * L + pi_value(pi_str) * 2 * r
+    answer = format_measure(exact, LEN_UNIT)
+    # Stadium: rectangle x∈[0,L], y∈[0,2r]; a semicircle (radius r) at each end.
+    points = [
+        _pt("TL", 0, 0),
+        _pt("TR", L, 0),
+        _pt("BR", L, 2 * r),
+        _pt("BL", 0, 2 * r),
+        _pt("OL", 0, r),
+        _pt("OR", L, r),
+    ]
+    segments = [
+        {"from": "TL", "to": "TR", "label": f"{L} cm"},
+        {"from": "BL", "to": "BR"},
+        {"from": "OL", "to": "TL", "label": f"{r} cm"},
+    ]
+    arcs = [
+        {"center": "OL", "radius": r, "start_deg": 90, "end_deg": 270, "label": None},
+        {"center": "OR", "radius": r, "start_deg": -90, "end_deg": 90, "label": None},
+    ]
+    shaded = [
+        {
+            "boundary": ["TL", "TR", "BR", "BL"],
+            "arcs": [
+                {"from": "TR", "to": "BR", "center": "OR", "radius": r, "large": 0, "sweep": 1},
+                {"from": "BL", "to": "TL", "center": "OL", "radius": r, "large": 0, "sweep": 1},
+            ],
+        }
+    ]
+    text = (
+        "The figure (not drawn to scale) shows a running track made of a rectangle "
+        f"with a semicircle at each end. Each straight side is {L} cm long and each "
+        f"semicircular end has radius {r} cm. Take π = {pi_str}. Find the perimeter "
+        "of the track."
+    )
+    steps = [
+        f"Take π = {pi_str}. The two semicircular ends form one full circle, so the "
+        f"curved part = 2 × π × {r} cm.",
+        f"The two straight sides total 2 × {L} cm = {2 * L} cm.",
+        f"Perimeter = 2 × {L} + 2 × {pi_str} × {r} = {answer['value']} cm.",
+    ]
+    return {
+        "points": points,
+        "segments": segments,
+        "arcs": arcs,
+        "angles": [],
+        "shaded": shaded,
+        "labels": _labels(["TL", "TR", "BR", "BL"]),
+        "lengths": {"TL-TR": L, "OL-TL": r},
+        "radii": {"OL": r, "OR": r},
+        "answer": answer,
+        "text": text,
+        "steps": steps,
+    }
+
+
+def _build_triangle_with_semicircle(g: dict) -> dict:
+    b, H = g["b"], g["H"]  # b = diameter of the semicircle (even), H = triangle height
+    r = b // 2
+    pi_str = pi_str_for(r)
+    tri_exact = Fraction(b * H, 2)  # = r × H, a whole number since b is even
+    semi_exact = pi_value(pi_str) * r * r / 2
+    total_exact = tri_exact + semi_exact
+    tri = format_measure(tri_exact, AREA_UNIT)
+    semi = format_measure(semi_exact, AREA_UNIT)
+    answer = format_measure(total_exact, AREA_UNIT)
+    # Diameter A(0,0)–B(b,0); centre O(r,0); semicircle bulges DOWN; apex T above.
+    points = [_pt("A", 0, 0), _pt("B", b, 0), _pt("T", r, -H), _pt("O", r, 0)]
+    segments = [
+        {"from": "A", "to": "T"},
+        {"from": "B", "to": "T"},
+        {"from": "A", "to": "B", "label": f"{b} cm"},
+        {"from": "T", "to": "O", "label": f"{H} cm"},
+    ]
+    angles = [{"at": "O", "from": "T", "to": "A", "right": True}]
+    arcs = [{"center": "O", "radius": r, "start_deg": 0, "end_deg": 180, "label": None}]
+    shaded = [
+        {
+            "boundary": ["A", "T", "B"],
+            "arcs": [{"from": "B", "to": "A", "center": "O", "radius": r, "large": 0, "sweep": 1}],
+        }
+    ]
+    text = (
+        "The figure (not drawn to scale) shows a triangle joined to a semicircle. "
+        f"AB is the diameter of the semicircle, AB = {b} cm, and the triangle has "
+        f"perpendicular height {H} cm. Take π = {pi_str}. Find the total area of the "
+        "figure."
+    )
+    steps = [
+        f"Take π = {pi_str}. Area of the triangle = ½ × {b} cm × {H} cm = {tri['value']} cm².",
+        f"Radius = {b} ÷ 2 = {r} cm. Area of the semicircle = ½ × π × {r} × {r} = "
+        f"{semi['value']} cm².",
+        f"Total area = {tri['value']} cm² + {semi['value']} cm² = {answer['value']} cm².",
+    ]
+    return {
+        "points": points,
+        "segments": segments,
+        "arcs": arcs,
+        "angles": angles,
+        "shaded": shaded,
+        "labels": _labels(["A", "B", "T"]),
+        "lengths": {"A-B": b, "T-O": H},
+        "radii": {"O": r},
+        "answer": answer,
+        "text": text,
+        "steps": steps,
+    }
+
+
 def _build_inverse_rectangle(g: dict) -> dict:
     length, width = g["length"], g["width"]
     area = length * width
@@ -123,6 +241,8 @@ def _build_inverse_rectangle(g: dict) -> dict:
 
 _BUILDERS = {
     "square_minus_quarter": _build_square_minus_quarter,
+    "rectangle_with_semicircle_ends": _build_rectangle_with_semicircle_ends,
+    "triangle_with_semicircle": _build_triangle_with_semicircle,
     "inverse_rectangle": _build_inverse_rectangle,
 }
 
@@ -140,6 +260,14 @@ class GeometryAreaHardSolver:
             else:
                 s = rng.choice([8, 10, 12, 16, 18, 20])  # even, not mult of 7 -> 3.14
             givens = {"s": s}
+        elif template == "rectangle_with_semicircle_ends":
+            # r a multiple of 7 -> 22/7 path (whole answer); else the 3.14 path.
+            r = 7 * rng.randint(1, 2) if rng.random() < 0.5 else rng.choice([4, 5, 6, 8, 9, 10])
+            givens = {"L": rng.randint(10, 25), "r": r}
+        elif template == "triangle_with_semicircle":
+            # diameter a multiple of 14 -> radius a multiple of 7 -> 22/7 path; else 3.14.
+            b = 14 * rng.randint(1, 2) if rng.random() < 0.5 else rng.choice([6, 8, 10, 12, 16])
+            givens = {"b": b, "H": rng.randint(5, 14)}
         else:  # inverse_rectangle
             givens = {"length": rng.randint(4, 15), "width": rng.randint(3, 14)}
         built = _BUILDERS[template](givens)
@@ -170,6 +298,18 @@ class GeometryAreaHardSolver:
             shaded_exact = s * s - pi_value(pi_str_for(s)) * s * s / 4
             expected = format_measure(shaded_exact, AREA_UNIT)
             checks["shaded_nonneg"] = shaded_exact > 0
+        elif template == "rectangle_with_semicircle_ends":
+            L, r = g["L"], g["r"]
+            perim_exact = 2 * L + pi_value(pi_str_for(r)) * 2 * r
+            expected = format_measure(perim_exact, LEN_UNIT)
+            checks["perimeter_pos"] = perim_exact > 0
+        elif template == "triangle_with_semicircle":
+            b, H = g["b"], g["H"]
+            r = b // 2
+            total_exact = Fraction(b * H, 2) + pi_value(pi_str_for(r)) * r * r / 2
+            expected = format_measure(total_exact, AREA_UNIT)
+            checks["even_diameter"] = b % 2 == 0
+            checks["area_pos"] = total_exact > 0
         else:  # inverse_rectangle: width recovered from area ÷ length is exact.
             area = g["length"] * g["width"]
             expected = {"type": "integer", "value": area // g["length"], "unit": LEN_UNIT}
