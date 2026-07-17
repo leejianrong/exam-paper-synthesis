@@ -5,6 +5,7 @@ import {
   type BarModelBeforeAfterSpec,
   type ShadedFractionSpec,
   type GeometryFigureSpec,
+  type RasterSpec,
   type DiagramSpec,
 } from './barModel'
 
@@ -283,5 +284,25 @@ describe('geometry_figure geometry', () => {
     for (const m of svg.matchAll(/(?:x1|y1|x2|y2)="([^"]+)"/g)) {
       expect(m[1]).toMatch(/^-?\d+$/)
     }
+  })
+})
+
+describe('raster (sourced/ingested figure)', () => {
+  const spec: RasterSpec = {
+    type: 'raster',
+    asset_ref: 'data:image/png;base64,iVBORw0KGgo=',
+    alt_text: 'A bar model figure',
+  }
+
+  it('emits an <img> with the asset_ref as src and the alt text', () => {
+    const html = renderDiagram(spec)
+    expect(html).toBe(
+      '<img src="data:image/png;base64,iVBORw0KGgo=" alt="A bar model figure"/>',
+    )
+  })
+
+  it('escapes the alt text', () => {
+    const html = renderDiagram({ ...spec, alt_text: 'A & <B>' })
+    expect(html).toContain('alt="A &amp; &lt;B&gt;"')
   })
 })

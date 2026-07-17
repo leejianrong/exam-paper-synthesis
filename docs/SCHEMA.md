@@ -51,7 +51,9 @@ that variant's strict sub-schema.
 
 - **answer.type** ∈ `integer | decimal | fraction | ratio | quantity | set | text`
 - **diagram.type** ∈ `bar_model | bar_model_before_after | geometry_figure | shaded_fraction | raster`
-  (`raster` = an image reference, used by sourced/scanned diagrams).
+  (`raster` = an image reference, used by sourced/scanned diagrams). The generated
+  families render to inline `<svg>`; `raster` renders to an `<img src="{asset_ref}"
+  alt="{alt_text}">` — see the sourced-object note under Example 3.
   - `bar_model` may carry an optional `total_bracket: { label }` (schema **1.1.0**) —
     a vertical curly brace across all bars labelling the total.
   - `bar_model_before_after` (schema **1.2.0**) is the before-after ratio aid: two
@@ -247,3 +249,14 @@ consistency check asserts.
   "provenance": { "created_by": "ingested", "llm_used": false, "created_at": null, "parent_id": null, "version": 1 }
 }
 ```
+
+A **sourced** object is interchange-grade: it validates on the same gate as
+generated questions (`source_type: "sourced"` requires `source` + `license`;
+`blueprint_code`/`seed`/`parameters` are `null`; `provenance.created_by:
+"ingested"`), joins a worksheet next to generated questions, and renders through
+the same HTML/PDF path. Its `raster` diagram renders as an
+`<img src="{asset_ref}" alt="{alt_text}">` (wrapped in `<figure class="diagram">`,
+the same wrapper the generated `<svg>` figures use). Point `asset_ref` at a
+self-contained `data:` URI (base64) to keep the exported PDF host-free, mirroring
+the vendored-KaTeX precedent. A hand-authored example lives at
+`tests/fixtures/sourced/psle_2023_ratio.json`.

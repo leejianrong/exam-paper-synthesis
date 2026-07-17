@@ -315,6 +315,8 @@ def render_svg(spec: dict) -> str:
         return _render_shaded_fraction(spec)
     if dtype == "geometry_figure":
         return _render_geometry_figure(spec)
+    if dtype == "raster":
+        return _render_raster(spec)
     raise ValueError(f"no SVG renderer for diagram type {dtype!r}")
 
 
@@ -327,6 +329,20 @@ def _esc(text: object) -> str:
         .replace(">", "&gt;")
         .replace('"', "&quot;")
     )
+
+
+def _render_raster(spec: dict) -> str:
+    """Render a ``raster`` diagram (a sourced/ingested image) as an ``<img>``.
+
+    Unlike the generated diagram families this is not an ``<svg>``: a sourced
+    question carries its figure verbatim as an image reference (``asset_ref``,
+    typically a self-contained ``data:`` URI so the PDF stays host-free, mirroring
+    the V5 vendored-KaTeX precedent). The caller wraps the returned markup in
+    ``<figure class="diagram">``, so we emit only the ``<img>`` element.
+    """
+    src = _esc(spec["asset_ref"])
+    alt = _esc(spec.get("alt_text", ""))
+    return f'<img src="{src}" alt="{alt}"/>'
 
 
 def _render_bar_model(spec: dict) -> str:
