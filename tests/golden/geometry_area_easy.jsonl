@@ -1,0 +1,1 @@
+{"params": {"template": "triangle", "givens": {"base": 6, "height": 8}, "lengths": {"A-B": 6, "A-C": 8}}, "expected": {"answer": {"type": "integer", "value": 24, "unit": "cm^2"}, "total_marks": 2}}

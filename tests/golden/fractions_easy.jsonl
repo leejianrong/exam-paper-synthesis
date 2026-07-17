@@ -1,0 +1,3 @@
+{"params": {"shape": "rectangle", "numerator": 3, "denominator": 8}, "expected": {"answer": {"type": "fraction", "numerator": 3, "denominator": 8}, "total_marks": 1}}
+{"params": {"shape": "circle", "numerator": 2, "denominator": 5}, "expected": {"answer": {"type": "fraction", "numerator": 2, "denominator": 5}, "total_marks": 1}}
+{"params": {"shape": "bar", "numerator": 5, "denominator": 6}, "expected": {"answer": {"type": "fraction", "numerator": 5, "denominator": 6}, "total_marks": 1}}

@@ -33,14 +33,15 @@ Related: ADR-0009 (edit semantics), ADR-0015 (this model), ADR-0003 (blueprints)
 
 Each blueprint tags which levers it uses in `cognitive.difficulty_levers[]`.
 
-## Per-topic ladders (5 MVP topics)
+## Per-topic ladders (5 MVP topics; Geometry splits into two ladders in V6b)
 
 | Topic | Easy | Medium | Hard |
 |---|---|---|---|
 | Ratio | Share a total in a 2-term ratio (direct) | 3-term ratio, or ratio given the difference | Before-after with an invariant quantity (hidden structure) |
 | Fractions | Fraction of a quantity (1 step) | Fraction of a remainder (2 step) | Successive fractions of a remainder; unknown whole (inverse) |
 | Percentage | Find X% of a number | Percentage increase/decrease | Reverse % (original before change); successive % changes |
-| Area/Geometry | Area of a rectangle | Composite figure (add/subtract rectangles) | Overlapping figures; missing dimension given the area (inverse) |
+| Geometry (Angles) | One rule, one step: angles on a line / at a point / triangle angle-sum | Two-step chain; isosceles or exterior-angle | Composite triangle + special quadrilateral (multi-step, two properties) |
+| Geometry (Area) | Area of a rectangle / square / triangle | Composite (add/subtract polygons) or a single circle / semicircle / quarter-circle | Polygon + semicircle/quarter-circle shaded area or perimeter; or inverse (missing length given area/perimeter) |
 | Speed (P6) | d = s × t (direct) | Average speed over two legs | Meeting/overtaking; before-after speed change |
 
 Each "hard" cell deliberately pulls multiple levers (inverse + hidden structure +

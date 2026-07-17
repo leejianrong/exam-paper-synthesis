@@ -1,9 +1,43 @@
 """Solver plugins. Importing this package registers every solver."""
 
 from . import (
+    fractions_easy,  # noqa: F401
+    fractions_hard,  # noqa: F401
+    fractions_medium,  # noqa: F401
+    geometry_angle_easy,  # noqa: F401
+    geometry_angle_hard,  # noqa: F401
+    geometry_angle_medium,  # noqa: F401
+    geometry_area_easy,  # noqa: F401
+    geometry_area_hard,  # noqa: F401
+    geometry_area_medium,  # noqa: F401
+    percentage_easy,  # noqa: F401
+    percentage_hard,  # noqa: F401
+    percentage_medium,  # noqa: F401
     ratio_easy,  # noqa: F401
     ratio_hard,  # noqa: F401
     ratio_medium,  # noqa: F401
+    speed_easy,  # noqa: F401
+    speed_hard,  # noqa: F401
+    speed_medium,  # noqa: F401
 )
 
-__all__ = ["ratio_easy", "ratio_hard", "ratio_medium"]
+__all__ = [
+    "fractions_easy",
+    "fractions_hard",
+    "fractions_medium",
+    "geometry_angle_easy",
+    "geometry_angle_hard",
+    "geometry_angle_medium",
+    "geometry_area_easy",
+    "geometry_area_hard",
+    "geometry_area_medium",
+    "percentage_easy",
+    "percentage_hard",
+    "percentage_medium",
+    "ratio_easy",
+    "ratio_hard",
+    "ratio_medium",
+    "speed_easy",
+    "speed_hard",
+    "speed_medium",
+]

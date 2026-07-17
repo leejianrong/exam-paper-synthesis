@@ -1,0 +1,1 @@
+{"params": {"template": "semicircle_area", "givens": {"r": 7}, "lengths": {"O-T": 7}, "radii": {"O": 7}}, "expected": {"answer": {"type": "integer", "value": 77, "unit": "cm^2"}, "total_marks": 3}}

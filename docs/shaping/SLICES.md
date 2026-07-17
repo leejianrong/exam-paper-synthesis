@@ -127,6 +127,13 @@ separate answer-key PDF; preview matches print. PDF export smoke-tested
 
 ## V6 — Remaining ladders + mandatory geometry
 
+> **Shipped (2026-07-17), split into V6 + V6b:** the geometry half of V6 grew into its own richer,
+> syllabus-grounded track — **V6b** — after shaping with the product owner. V6
+> now = Fractions / Percentage / Speed + the `shaded_fraction` figure; **V6b** =
+> the `geometry_angle` + `geometry_area` ladders on a general `geometry_figure`
+> system (superseding the sketched `composite_geometry` / `area_perimeter`
+> families). See **`docs/shaping/V6b-geometry-plan.md`**.
+
 **Goal:** the other four topics, including the figure-is-the-question families.
 
 **Affordances:** topic selector fully live (all 5 topics × 3 rungs); geometry

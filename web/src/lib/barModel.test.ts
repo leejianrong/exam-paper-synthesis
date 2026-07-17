@@ -3,6 +3,8 @@ import {
   renderDiagram,
   type BarModelSpec,
   type BarModelBeforeAfterSpec,
+  type ShadedFractionSpec,
+  type GeometryFigureSpec,
   type DiagramSpec,
 } from './barModel'
 
@@ -145,5 +147,141 @@ describe('bar_model_before_after geometry', () => {
     expect(count(svg, '<path')).toBe(1) // total brace on B's last bar
     expect(svg).toContain('>90</text>')
     expect(svg).toContain('>A gains 2 units</text>')
+  })
+})
+
+describe('shaded_fraction geometry', () => {
+  const SHADE = 'fill="#2f5fe0"'
+  const filled = (svg: string): number => count(svg, SHADE)
+
+  const spec = (
+    shape: ShadedFractionSpec['shape'],
+    total: number,
+    shaded: number,
+  ): ShadedFractionSpec => ({ type: 'shaded_fraction', shape, total_parts: total, shaded_parts: shaded })
+
+  it('rectangle → one rect per part, first shaded_parts filled', () => {
+    const svg = renderDiagram(spec('rectangle', 8, 3))
+    expect(svg.startsWith('<svg')).toBe(true)
+    expect(count(svg, '<rect')).toBe(8)
+    expect(filled(svg)).toBe(3)
+  })
+
+  it('bar → one horizontal strip per part', () => {
+    const svg = renderDiagram(spec('bar', 4, 1))
+    expect(count(svg, '<rect')).toBe(4)
+    expect(filled(svg)).toBe(1)
+  })
+
+  it('circle → one pie sector per part', () => {
+    const svg = renderDiagram(spec('circle', 6, 5))
+    expect(count(svg, '<path')).toBe(6)
+    expect(filled(svg)).toBe(5)
+  })
+
+  it('circle with a single part is a whole circle', () => {
+    const svg = renderDiagram(spec('circle', 1, 1))
+    expect(count(svg, '<circle')).toBe(1)
+    expect(count(svg, '<path')).toBe(0)
+    expect(filled(svg)).toBe(1)
+  })
+
+  it('none shaded → no filled cells', () => {
+    expect(filled(renderDiagram(spec('rectangle', 4, 0)))).toBe(0)
+  })
+
+  it('is deterministic', () => {
+    expect(renderDiagram(spec('circle', 7, 4))).toBe(renderDiagram(spec('circle', 7, 4)))
+  })
+})
+
+describe('geometry_figure geometry', () => {
+  // (a) Angle figure: a triangle with two given angles + one unknown.
+  const angleSpec: GeometryFigureSpec = {
+    type: 'geometry_figure',
+    unit: 'cm',
+    points: [
+      { id: 'A', x: 0, y: 0 },
+      { id: 'B', x: 4, y: 0 },
+      { id: 'C', x: 2, y: 3 },
+    ],
+    segments: [
+      { from: 'A', to: 'B' },
+      { from: 'B', to: 'C' },
+      { from: 'C', to: 'A' },
+    ],
+    angles: [
+      { at: 'A', from: 'B', to: 'C', value_deg: 50, unknown: false },
+      { at: 'B', from: 'A', to: 'C', value_deg: 60, unknown: false },
+      { at: 'C', from: 'A', to: 'B', value_deg: 70, unknown: true },
+    ],
+  }
+
+  // (b) Area figure: a rectangle with a quarter-circle, a right angle, shading.
+  const areaSpec: GeometryFigureSpec = {
+    type: 'geometry_figure',
+    unit: 'cm',
+    points: [
+      { id: 'A', x: 0, y: 0 },
+      { id: 'B', x: 8, y: 0 },
+      { id: 'C', x: 8, y: 6 },
+      { id: 'D', x: 0, y: 6 },
+    ],
+    segments: [
+      { from: 'A', to: 'B', label: '8 cm', ticks: 1 },
+      { from: 'B', to: 'C', label: '6 cm' },
+      { from: 'C', to: 'D' },
+      { from: 'D', to: 'A' },
+    ],
+    arcs: [{ center: 'A', radius: 4, start_deg: 0, end_deg: 90, label: '4 cm' }],
+    angles: [{ at: 'B', from: 'A', to: 'C', right: true }],
+    shaded: [{ boundary: ['A', 'B', 'C', 'D'], arcs: [] }],
+    labels: [{ at: 'A', text: 'A' }],
+  }
+
+  it('angle figure → non-empty SVG with edges and angle-mark arcs', () => {
+    const svg = renderDiagram(angleSpec)
+    expect(svg.startsWith('<svg')).toBe(true)
+    expect(svg).toContain('viewBox')
+    expect(count(svg, '<line')).toBe(3) // three triangle edges
+    expect(count(svg, '<path')).toBe(3) // three angle-mark arcs
+    expect(svg).toContain('>50°</text>')
+    expect(svg).toContain('>60°</text>')
+    expect(svg).not.toContain('>70°</text>') // the unknown angle is not labelled
+  })
+
+  it('area figure → arc, shaded fill, right-angle square, length labels', () => {
+    const svg = renderDiagram(areaSpec)
+    expect(svg.startsWith('<svg')).toBe(true)
+    expect(count(svg, '<line')).toBeGreaterThanOrEqual(4) // four rectangle edges (+ tick)
+    expect(svg).toContain('fill="#dbe4fb"') // shaded region
+    expect(svg).toContain('<polyline') // right-angle square
+    expect(svg).toContain(' A ') // an SVG arc command (the quarter circle)
+    expect(svg).toContain('>8 cm</text>')
+    expect(svg).toContain('>6 cm</text>')
+  })
+
+  it('escapes special characters in labels', () => {
+    const svg = renderDiagram({
+      type: 'geometry_figure',
+      points: [
+        { id: 'P', x: 0, y: 0 },
+        { id: 'Q', x: 2, y: 0 },
+      ],
+      labels: [{ at: 'P', text: 'A & <B>' }],
+    })
+    expect(svg).toContain('A &amp; &lt;B&gt;')
+  })
+
+  it('is deterministic (same spec → identical SVG)', () => {
+    expect(renderDiagram(areaSpec)).toBe(renderDiagram(areaSpec))
+    expect(renderDiagram(angleSpec)).toBe(renderDiagram(angleSpec))
+  })
+
+  it('emits only integer coordinates on line endpoints', () => {
+    const svg = renderDiagram(areaSpec)
+    for (const m of svg.matchAll(/(?:x1|y1|x2|y2)="([^"]+)"/g)) {
+      expect(m[1]).toMatch(/^-?\d+$/)
+    }
   })
 })

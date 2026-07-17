@@ -1,0 +1,43 @@
+code: geometry_angle_hard
+syllabus:
+  level: P6
+  strand: "Geometry"
+  topic: "Geometry (Angles)"
+  subtopic: "Composite figure: triangle with a special quadrilateral"
+  skill_codes: ["GEO.ANG.COMPOSITE"]    # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Hidden structure", "Reasoning depth"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [template, givens, angles]
+  properties:
+    template:
+      type: string
+      enum: ["parallelogram", "rhombus"]
+    givens:
+      type: object
+      additionalProperties:
+        type: integer
+    angles:                             # given-angle contract map (see check docstring)
+      type: object
+      additionalProperties:
+        type: integer
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Use the quadrilateral property to transfer an angle (parallel lines / equal sides)." }
+  - { mark: 1, type: M, description: "Combine with the triangle property (angle sum / isosceles base angles)." }
+  - { mark: 1, type: A, description: "Correct unknown angle in degrees." }
+answer:
+  type: integer
+  unit: "degrees"
+diagram: geometry_figure

@@ -1,0 +1,3 @@
+{"params": {"name": "Aisha", "whole": 200, "n1": 1, "d1": 4, "n2": 2, "d2": 5}, "expected": {"answer": {"type": "quantity", "value": 60, "unit": "$"}, "total_marks": 3}}
+{"params": {"name": "Ben", "whole": 360, "n1": 1, "d1": 3, "n2": 3, "d2": 4}, "expected": {"answer": {"type": "quantity", "value": 180, "unit": "$"}, "total_marks": 3}}
+{"params": {"name": "Chloe", "whole": 500, "n1": 1, "d1": 2, "n2": 2, "d2": 5}, "expected": {"answer": {"type": "quantity", "value": 100, "unit": "$"}, "total_marks": 3}}
