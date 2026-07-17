@@ -98,6 +98,28 @@ def test_change_to_decimals(code):
     assert child["validation"]["checks"]["representation"] == "decimals"
 
 
+@pytest.mark.parametrize("code", ["ratio_easy", "ratio_medium", "ratio_hard"])
+def test_available_ops_offers_toggle_for_aid_diagrams(code):
+    # The ratio blueprints declare aid diagram families (bar_model /
+    # bar_model_before_after), so toggle-diagram must be offered.
+    obj = generate(code, 3)
+    assert "toggle-diagram" in edits.available_ops(obj)
+
+
+def test_available_ops_hides_toggle_for_mandatory_shaded_fraction(monkeypatch):
+    # A shaded_fraction figure is *mandatory* (carries the answer), not an aid, so
+    # toggle-diagram must NOT be offered. Simulate a blueprint that declares it.
+    obj = generate("ratio_medium", 3)
+
+    class _Stub:
+        diagram = "shaded_fraction"
+
+    monkeypatch.setattr(edits, "load_blueprint", lambda code: _Stub())
+    ops = edits.available_ops(obj)
+    assert "toggle-diagram" not in ops
+    assert "regenerate" in ops  # other ops unaffected
+
+
 @pytest.mark.parametrize(
     "code,dtype",
     [
