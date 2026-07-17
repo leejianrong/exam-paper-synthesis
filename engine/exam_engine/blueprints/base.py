@@ -30,7 +30,7 @@ class Solver(Protocol):
 
 @dataclass
 class BlueprintSpec:
-    """Parsed ``content/blueprints/<code>.yaml`` (declarative data only)."""
+    """Parsed ``exam_engine/content/blueprints/<code>.yaml`` (declarative data only)."""
 
     code: str
     syllabus: dict
