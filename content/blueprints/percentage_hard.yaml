@@ -1,0 +1,49 @@
+code: percentage_hard
+syllabus:
+  level: P6
+  strand: "Percentage"
+  topic: "Percentage"
+  subtopic: "Reverse percentage"
+  skill_codes: ["PCT.REVERSE"]          # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Direction", "Hidden structure", "Reasoning depth"]
+marks: 4
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [context, percent, direction, new_value]
+  properties:
+    context:
+      type: string
+    percent:
+      type: integer
+      minimum: 5
+      maximum: 80
+    direction:
+      type: string
+      enum: ["increase", "decrease"]
+    new_value:
+      type: integer
+      minimum: 1
+      maximum: 5000
+story_templates:
+  - stem: null
+    text: >
+      After a {percent}% {direction}, the price of a {context} is now
+      ${new_value}. What was the original price?
+solution_template:
+  steps:
+    - text: "${new_value} is {factor}% of the original price (100% {op} {percent}%)."
+      expr: "100{op}{percent}"
+    - text: "Original price = ${new_value} × 100 ÷ {factor} = ${original}."
+      expr: "{new_value}*100/{factor}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Recognise that the new amount represents (100 plus/minus the percentage) of the original." }
+  - { mark: 1, type: M, description: "Express the original as new amount × 100 ÷ that percentage." }
+  - { mark: 1, type: M, description: "Carry out the division correctly." }
+  - { mark: 1, type: A, description: "Correct original price with the $ unit." }
+answer:
+  type: quantity
+  unit: "$"

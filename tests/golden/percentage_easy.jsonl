@@ -1,0 +1,3 @@
+{"params": {"name": "Aisha", "percent": 20, "whole": 300}, "expected": {"answer": {"type": "quantity", "value": 60, "unit": "$"}, "total_marks": 2}}
+{"params": {"name": "Ben", "percent": 15, "whole": 240}, "expected": {"answer": {"type": "quantity", "value": 36, "unit": "$"}, "total_marks": 2}}
+{"params": {"name": "Chloe", "percent": 75, "whole": 160}, "expected": {"answer": {"type": "quantity", "value": 120, "unit": "$"}, "total_marks": 2}}

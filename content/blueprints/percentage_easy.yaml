@@ -1,0 +1,44 @@
+code: percentage_easy
+syllabus:
+  level: P5
+  strand: "Percentage"
+  topic: "Percentage"
+  subtopic: "Percentage of a quantity"
+  skill_codes: ["PCT.OF.NUMBER"]        # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Reasoning depth"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, percent, whole]
+  properties:
+    name:
+      type: string
+    percent:
+      type: integer
+      minimum: 5
+      maximum: 95
+    whole:
+      type: integer
+      minimum: 20
+      maximum: 2000
+story_templates:
+  - stem: null
+    text: >
+      {name} had ${whole} in savings. {name} donated {percent}% of it to
+      charity. How much did {name} donate?
+solution_template:
+  steps:
+    - text: "{percent}% = {percent} ÷ 100."
+      expr: "{percent}/100"
+    - text: "{percent}% of ${whole} = {percent} ÷ 100 × ${whole} = ${answer_value}."
+      expr: "{percent}*{whole}/100"
+marking_scheme:
+  - { mark: 1, type: M, description: "Convert the percentage to a fraction (or decimal) and multiply by the amount." }
+  - { mark: 1, type: A, description: "Correct amount with the $ unit." }
+answer:
+  type: quantity
+  unit: "$"
