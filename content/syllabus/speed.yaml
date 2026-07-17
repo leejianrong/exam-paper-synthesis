@@ -1,0 +1,8 @@
+# PROVISIONAL skill codes — remap to MOE P5-P6 syllabus outcomes when the
+# official doc is available (Q-M1). Codes are carried, not queried, in v1
+# (ADR-0016), so remapping is a mechanical find/replace with no data migration.
+strand: "Speed"
+skills:
+  SPEED.DST: "Distance = speed x time (direct)"                 # used by speed_easy
+  SPEED.AVG: "Average speed over two legs (total distance / total time)"  # used by speed_medium
+  SPEED.MEET: "Two objects meeting; combined speed closes the gap"        # used by speed_hard

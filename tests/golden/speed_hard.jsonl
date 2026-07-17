@@ -1,0 +1,3 @@
+{"params": {"name1": "Aisha", "name2": "Ben", "s1": 40, "s2": 60, "gap": 300}, "expected": {"answer": {"type": "quantity", "value": 3, "unit": "h"}, "total_marks": 3}}
+{"params": {"name1": "Chloe", "name2": "Devi", "s1": 30, "s2": 50, "gap": 320}, "expected": {"answer": {"type": "quantity", "value": 4, "unit": "h"}, "total_marks": 3}}
+{"params": {"name1": "Ethan", "name2": "Faridah", "s1": 45, "s2": 35, "gap": 160}, "expected": {"answer": {"type": "quantity", "value": 2, "unit": "h"}, "total_marks": 3}}

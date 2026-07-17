@@ -1,0 +1,55 @@
+code: speed_medium
+syllabus:
+  level: P6
+  strand: "Speed"
+  topic: "Speed"
+  subtopic: "Average speed over two legs"
+  skill_codes: ["SPEED.AVG"]            # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Hidden structure"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, d1, t1, d2, t2]
+  properties:
+    name:
+      type: string
+    d1:
+      type: integer
+      minimum: 1
+      maximum: 2000
+    t1:
+      type: integer
+      minimum: 1
+      maximum: 4
+    d2:
+      type: integer
+      minimum: 1
+      maximum: 2000
+    t2:
+      type: integer
+      minimum: 1
+      maximum: 4
+story_templates:
+  - stem: null
+    text: >
+      {name} travelled {d1} km in {t1} h, then {d2} km in {t2} h. What was
+      {name}'s average speed for the whole journey?
+solution_template:
+  steps:
+    - text: "Total distance = {d1} km + {d2} km = {total_distance} km."
+      expr: "{d1}+{d2}"
+    - text: "Total time = {t1} h + {t2} h = {total_time} h."
+      expr: "{t1}+{t2}"
+    - text: "Average speed = total distance / total time = {total_distance} km / {total_time} h = {avg} km/h."
+      expr: "{total_distance}/{total_time}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Add the two distances and the two times (whole-journey totals)." }
+  - { mark: 1, type: M, description: "Divide total distance by total time (NOT the mean of the two speeds)." }
+  - { mark: 1, type: A, description: "Correct average speed with the km/h unit." }
+answer:
+  type: quantity
+  unit: "km/h"
