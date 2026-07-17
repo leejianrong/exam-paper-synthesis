@@ -1,0 +1,44 @@
+code: speed_easy
+syllabus:
+  level: P6
+  strand: "Speed"
+  topic: "Speed"
+  subtopic: "Distance = speed x time (direct)"
+  skill_codes: ["SPEED.DST"]            # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Reasoning depth"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, speed, time]
+  properties:
+    name:
+      type: string
+    speed:
+      type: integer
+      minimum: 10
+      maximum: 120
+    time:
+      type: integer
+      minimum: 1
+      maximum: 12
+story_templates:
+  - stem: null
+    text: >
+      {name} drove at a constant speed of {speed} km/h for {time} h. How far
+      did {name} travel?
+solution_template:
+  steps:
+    - text: "Distance = speed x time = {speed} km/h x {time} h."
+      expr: "{speed}*{time}"
+    - text: "Distance = {distance} km."
+      expr: "{distance}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Multiply the speed by the time (distance = speed x time)." }
+  - { mark: 1, type: A, description: "Correct distance with the km unit." }
+answer:
+  type: quantity
+  unit: "km"
