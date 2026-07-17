@@ -1,0 +1,48 @@
+code: geometry_area_medium
+syllabus:
+  level: P6
+  strand: "Measurement"
+  topic: "Geometry (Area & Perimeter)"
+  subtopic: "Composite polygon area; area/perimeter of a semicircle"
+  skill_codes: ["GEO.AREA.COMPOSITE"]   # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Representation translation"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [template, givens, lengths]
+  properties:
+    template:
+      type: string
+      enum: ["L_shape", "semicircle_area", "semicircle_perimeter"]
+    givens:
+      type: object
+      additionalProperties:
+        type: integer
+    lengths:                            # labelled-length contract map (see check docstring)
+      type: object
+      additionalProperties:
+        type: number
+    radii:                              # arc-radius contract map (see check docstring)
+      type: object
+      additionalProperties:
+        type: number
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+    - text: "{step3}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Decompose the figure / select the correct circle formula (with π)." }
+  - { mark: 1, type: M, description: "Compute the component areas / lengths." }
+  - { mark: 1, type: A, description: "Correct area (cm²) or perimeter (cm)." }
+answer:
+  type: integer
+  unit: "cm^2"
+diagram: geometry_figure

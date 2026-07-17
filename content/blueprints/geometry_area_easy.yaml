@@ -1,0 +1,46 @@
+code: geometry_area_easy
+syllabus:
+  level: P5
+  strand: "Measurement"
+  topic: "Geometry (Area & Perimeter)"
+  subtopic: "Area of a rectangle / square / triangle"
+  skill_codes: ["GEO.AREA.SINGLE"]      # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Reasoning depth"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [template, givens, lengths]
+  properties:
+    template:
+      type: string
+      enum: ["rectangle", "square", "triangle"]
+    givens:
+      type: object
+      additionalProperties:
+        type: integer
+    lengths:                            # labelled-length contract map (see check docstring)
+      type: object
+      additionalProperties:
+        type: number
+    radii:
+      type: object
+      additionalProperties:
+        type: number
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Apply the correct area formula (rectangle / square / triangle)." }
+  - { mark: 1, type: A, description: "Correct area in cm²." }
+answer:
+  type: integer
+  unit: "cm^2"
+diagram: geometry_figure
