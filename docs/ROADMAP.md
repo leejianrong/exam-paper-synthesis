@@ -19,7 +19,7 @@ Status is evidence-based (git history, open PRs via `gh`, and the code on `main`
 | M5 | V5 | Preview + export both PDFs (completes L3 for Ratio) | done |
 | M6 | V6 | Remaining ladders (Fractions/Percentage/Speed) + `shaded_fraction` | done |
 | M6b | V6b | PSLE geometry figures — angle + area ladders (`geometry_figure`) | done |
-| M7 | V7 | CLI + sourced-object interchange | todo |
+| M7 | V7 | CLI + sourced-object interchange | done |
 
 Ongoing (un-prefixed) epics: **Foundation & CI/CD**, **Product shaping & docs**, **Marketing site**.
 
@@ -115,12 +115,20 @@ Decisions G1-G7 + Q1 (2-template floor) + Q2 (schema v1.3.0).
 - **todo** KAN-242 - `geometry_figure` renderer: fill crescent/annular shaded regions
 - **todo** KAN-243 - Web: drive edit-button visibility from engine `available_ops` (replace `startsWith('ratio')` heuristic)
 
-## M7: CLI + sourced-object interchange (V7, planned)
+## M7: CLI + sourced-object interchange (V7, shipped)
 
-Headless engine access plus interchange-grade schema proof.
+Headless engine access plus interchange-grade schema proof. The final MVP slice,
+shipped 2026-07-17. Plan: [`docs/shaping/V7-plan.md`](shaping/V7-plan.md). Both
+cards built in parallel in treehouse worktrees, landed serially on green CI.
 
-- **todo** A9 - `mathgen generate/edit/export` CLI over the engine
-- **todo** A1 - sourced-object load path (`source`+`license`, raster diagram, `created_by="ingested"`)
+- **done** KAN-152 - A9 `mathgen generate/edit/export` CLI over the engine (new `cli/`
+  workspace package; own `_pdf.py` Chromium boundary; depends only on `exam-engine`,
+  no FastAPI — proven by an import-guard test) - PR #69
+- **done** KAN-153 - A1 sourced-object load path (`source`+`license`, `raster`
+  data-URI diagram, `created_by="ingested"`): validates against the same schema and
+  renders in a mixed worksheet/answer-key. Wired the `raster` `<img>` renderer branch
+  (Python + TS mirror) — the load/validate/join path was unchanged but raster
+  *rendering* was not; also fixed a silently-dropped `question.stem` - PR #70
 
 ---
 

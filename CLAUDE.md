@@ -11,7 +11,7 @@ comes from deterministic Python solvers, so a printed answer key is provably the
 solution to the printed question. The **canonical question object** (a plain
 `dict`, gated by JSON Schema) is the single source of truth.
 
-Currently through slice **V6b** (V1 = end-to-end `ratio_medium` generation;
+Currently through slice **V7** (V1 = end-to-end `ratio_medium` generation;
 V2 = bar-model diagrams / worked solutions; V3 = full Ratio ladder
 `ratio_easy`/`medium`/`hard` + in-place edit operations; V4 = review gate +
 client-side current-worksheet tray: Approve/Discard on cards, approved questions
@@ -24,15 +24,23 @@ topic ladders — Fractions, Percentage, Speed — plus the `shaded_fraction`
 mandatory figure and a fully live topic×difficulty selector; V6b = PSLE figure
 geometry: two ladders `geometry_angle`/`geometry_area` on a general
 `geometry_figure` diagram system, strictly-PSLE curated parametric templates with
-auto-selected π, schema **v1.3.0**. Every blueprint now ships an independent
+auto-selected π, schema **v1.3.0**; V7 = the final MVP slice: a headless
+`mathgen` CLI (`generate`/`edit`/`export`) driving the pure engine with no
+web/API — proving the engine is UI/HTTP-agnostic — plus sourced-object
+interchange (a hand-authored past-paper object, `source_type:"sourced"` +
+`source`/`license` + `created_by:"ingested"` + a `raster` data-URI figure,
+validates against the same schema and renders in a mixed worksheet/answer-key
+alongside generated questions; V7 wired the `raster` renderer branch — Python +
+TS mirror — that this exercises). Every blueprint now ships an independent
 seed-sweep **invariant test** (the correctness authority; goldens are regression
 anchors). All six topics × three rungs generate schema-valid end-to-end). See
 `docs/shaping/SLICES.md`.
 
 ## Repo layout
 
-It's a **uv workspace**. Root `pyproject.toml` declares members `engine/` and
-`api/`; dev deps are `pytest` + `httpx`; `testpaths = ["tests"]`.
+It's a **uv workspace**. Root `pyproject.toml` declares members `engine/`,
+`api/`, and `cli/`; dev deps are `pytest` + `httpx`; `testpaths = ["tests",
+"cli/tests"]`.
 
 | Path | What |
 |------|------|
@@ -45,7 +53,8 @@ It's a **uv workspace**. Root `pyproject.toml` declares members `engine/` and
 | `engine/exam_engine/edits.py` | V3 edit ops as re-validated object→object transforms (`apply`, `available_ops`): regenerate / make-harder / make-easier / change-to-decimals / toggle-diagram. |
 | `engine/exam_engine/ladder.py` | Topic difficulty ladders + `sibling(code, dir)` (drives make-harder/easier). |
 | `engine/exam_engine/blueprints/` | `base.py` (solver protocol + param validation), `registry.py` (content loader + solver registry), `solvers/ratio_{easy,medium,hard}.py`. |
-| `api/app/` | Thin **FastAPI** over the engine (`main.py`, `routes_generate.py` = `POST /generate`, `routes_edit.py` = `POST /edit/{op}`, `models.py` = Pydantic envelopes only). Package `exam-api`; ASGI entry `app.main:app`. |
+| `api/app/` | Thin **FastAPI** over the engine (`main.py`, `routes_generate.py` = `POST /generate`, `routes_edit.py` = `POST /edit/{op}`, `routes_export.py` = `POST /export/{preview,worksheet,answer-key}`, `export.py` = the impure Chromium `html_to_pdf`, `models.py` = Pydantic envelopes only). Package `exam-api`; ASGI entry `app.main:app`. |
+| `cli/mathgen/` | **V7 headless CLI** (`mathgen`) driving the engine directly — no web/API, no FastAPI import (proves engine is UI/HTTP-agnostic). `__main__.py` (argparse), `commands.py` (`generate`/`edit`/`export`, each object load-gated), `_pdf.py` (own ~15-line Chromium `html_to_pdf` mirror; Playwright lazy-imported so non-PDF cmds need no browser). Package `mathgen`; console-script `mathgen`. Deps: `exam-engine` + `playwright` only. |
 | `web/` | **Svelte 5 + Vite 8 + TypeScript** SPA: `src/App.svelte`, `src/lib/QuestionCard.svelte` (with the edit-button row), `barModel.ts`, `api.ts`, `types.ts`. Reads API base from `VITE_API` (defaults to `http://localhost:8000`). Quality-gated by **eslint** (flat config), **svelte-check**, and **vitest** (jsdom + Testing Library). |
 | `content/blueprints/*.yaml`, `content/syllabus/*.yaml` | Declarative blueprint/syllabus data (`ratio_{easy,medium,hard}.yaml`, `ratio.yaml`). |
 | `schemas/canonical-question.schema.json` | The canonical JSON Schema (currently **v1.3.0**) — single source of truth. |
@@ -64,10 +73,13 @@ All commands verified from repo root.
 | Task | Command |
 |------|---------|
 | Install / sync deps | `uv sync` |
-| Run tests (~456) | `uv run pytest` |
+| Run tests (~478) | `uv run pytest` (root `tests/` + `cli/tests/`) |
 | API dev server | `uv run uvicorn app.main:app --app-dir api --reload --port 8000` |
 | Health check | `curl -s http://localhost:8000/health` → `{"status":"ok"}` |
 | Generate (no web) | `curl -X POST http://localhost:8000/generate -H 'content-type: application/json' -d '{"blueprint_code":"ratio_medium","count":3}'` |
+| CLI: generate (no web/API) | `uv run mathgen generate ratio_medium --seed 7 --out q.json` |
+| CLI: edit | `uv run mathgen edit make-harder q.json --out q2.json` |
+| CLI: export PDFs | `uv run mathgen export worksheet q.json --title "Review" --out ws.pdf` (also `answer-key`; `preview` → HTML) |
 | Web deps | `npm --prefix web install` |
 | Web dev server | `npm --prefix web run dev` (Vite, port 5173) |
 | Web build | `npm --prefix web run build` |

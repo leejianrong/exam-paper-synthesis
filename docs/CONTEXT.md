@@ -38,11 +38,20 @@ vocabulary; decisions link to `docs/adr/*.md`.
 - **Edit operation** — a fixed, named transform of a question (regenerate, make
   harder/easier, change to decimals, add diagram) that yields a **new** canonical
   object linked to its parent via `provenance.parent_id`. See ADR-0004, ADR-0006.
-- **Engine / API / Web** — the Python generation package / the thin FastAPI HTTP
-  layer over it / the Svelte + Vite SPA. See ADR-0006.
+- **Engine / API / Web / CLI** — the Python generation package / the thin FastAPI
+  HTTP layer over it / the Svelte + Vite SPA / the **`mathgen`** headless CLI. See
+  ADR-0006.
+- **`mathgen` (CLI)** — the V7 headless command-line tool (`generate` / `edit` /
+  `export`) that drives the pure engine directly with no web or API server. Its own
+  `cli/` workspace package, depending only on `exam-engine` (+ Playwright for the
+  PDF step) — never FastAPI — which is the concrete proof that the engine is
+  UI/HTTP-agnostic.
 - **Generated vs sourced question** — a **generated** question comes from a
   blueprint + solver; a **sourced** question is **ingested** from external
-  material and has no blueprint/parameters/solver. Both are canonical objects.
+  material and has no blueprint/parameters/solver (it carries a `source` +
+  `license` and `created_by:"ingested"`, and may carry a `raster` image figure).
+  Both are canonical objects validated by the same schema; V7 exercises a sourced
+  object end-to-end (load → mixed worksheet → render).
 - **M / A / B marks** — mark-scheme mark types (Cambridge/SEAB): **M** = method
   (correct approach, even if the number is wrong); **A** = accuracy (correct
   result, usually dependent on the method); **B** = independent (a standalone
