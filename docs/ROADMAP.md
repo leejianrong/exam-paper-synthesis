@@ -17,7 +17,8 @@ Status is evidence-based (git history, open PRs via `gh`, and the code on `main`
 | M3 | V3 | Ratio ladder + edit operations | done |
 | M4 | V4 | Review gate + current worksheet | done |
 | M5 | V5 | Preview + export both PDFs (completes L3 for Ratio) | done |
-| M6 | V6 | Remaining ladders + mandatory geometry | todo |
+| M6 | V6 | Remaining ladders (Fractions/Percentage/Speed) + `shaded_fraction` | todo |
+| M6b | V6b | PSLE geometry figures — angle + area ladders (`geometry_figure`) | todo |
 | M7 | V7 | CLI + sourced-object interchange | todo |
 
 Ongoing (un-prefixed) epics: **Foundation & CI/CD**, **Product shaping & docs**, **Marketing site**.
@@ -78,11 +79,32 @@ vendored self-contained (no CDN), so preview and print are the same document.
 
 ## M6: Remaining ladders + mandatory geometry (V6, planned)
 
-The other four topics (all 5 topics x 3 rungs) plus mandatory, non-toggleable geometry figures.
+The remaining non-geometry topics (Fractions, Percentage, Speed) plus the
+`shaded_fraction` mandatory figure. **Rescoped 2026-07-17:** Area/Geometry moved out
+to **M6b** (rich figure geometry); the A10 blueprint work split per-topic.
 
-- **todo** A10 - 12 more blueprints (Fractions, Percentage, Area/Geometry, Speed) + solvers + goldens
-- **todo** A5 - `composite_geometry` / `area_perimeter` / `shaded_fraction` spec builders + consistency checks
-- **todo** Topic selector fully live (5x3) + mandatory non-toggleable geometry figures
+- **todo** KAN-149 - A10 Percentage ladder (e/m/h) + solver + goldens (bar_model aid)
+- **todo** KAN-232 - A10 Fractions ladder (e/m/h): `shaded_fraction` easy figure (D1) + bar_model
+- **todo** KAN-234 - A10 Speed ladder (e/m/h) + goldens (no diagram; needs the v1.3.0 speed units from KAN-227)
+- **todo** KAN-150 - A5 `shaded_fraction` diagram (Python + TS) + `edits.available_ops` aid-gating fix
+- **todo** KAN-151 - Web: topic selector fully live (all topics x 3 rungs) + wire new topics + e2e
+
+## M6b: PSLE geometry figures — angle + area ladders (V6b, planned)
+
+Syllabus-aligned P5-P6 figure geometry via curated parametric templates. Two ladders
+(`geometry_angle_{e,m,h}`, `geometry_area_{e,m,h}`) on one coherent `geometry_figure`
+diagram system that **supersedes** `composite_geometry` + `area_perimeter`. Strictly
+PSLE (no O-Level angle-chasing / tangents / Pythagoras). Shaped with the product owner
+2026-07-17; blueprint: [`docs/shaping/V6b-geometry-plan.md`](shaping/V6b-geometry-plan.md).
+Decisions G1-G7 + Q1 (2-template floor) + Q2 (schema v1.3.0).
+
+- **todo** KAN-226 - M6b geometry blueprint doc
+- **todo** KAN-227 - Schema v1.3.0: +`geometry_figure`, -`composite_geometry`/-`area_perimeter`, +speed units
+- **todo** KAN-228 - Geometry diagram system: `geometry_figure` spec + consistency check + `render_svg` (Py) + `renderGeometryFigure` (TS mirror)
+- **todo** KAN-229 - `geometry_angle` ladder (e/m/h) + solvers + goldens
+- **todo** KAN-230 - `geometry_area` ladder (e/m/h) + solvers + goldens (circles, auto-pi, inverse length)
+- **todo** KAN-231 - Web: geometry figures on the live card (mandatory, no toggle) + e2e
+- **todo** KAN-233 - Geometry template catalogue expansion (fast-follow beyond the 2/rung floor)
 
 ## M7: CLI + sourced-object interchange (V7, planned)
 
@@ -122,4 +144,7 @@ Cross-cutting engineering foundation. Open PRs #8-10.
 
 ## Board summary
 
-10 epics, 39 cards: **done 29**, **in_progress 3**, **todo 7**.
+11 epics (added **M6b** / EPIC-39). V6/V6b carving (2026-07-17) split A10 into
+per-topic cards (KAN-149/232/234), rescoped KAN-150/151, and added the M6b epic's
+7 cards (KAN-226–231, 233). Counts drift as work lands — the board is the source of
+truth; run `kan list --board 8` for live status.
