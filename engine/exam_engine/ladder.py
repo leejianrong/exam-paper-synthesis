@@ -12,6 +12,7 @@ PERCENTAGE = ["percentage_easy", "percentage_medium", "percentage_hard"]
 FRACTIONS = ["fractions_easy", "fractions_medium", "fractions_hard"]
 SPEED = ["speed_easy", "speed_medium", "speed_hard"]
 GEOMETRY_ANGLE = ["geometry_angle_easy", "geometry_angle_medium", "geometry_angle_hard"]
+GEOMETRY_AREA = ["geometry_area_easy", "geometry_area_medium", "geometry_area_hard"]
 
 # Keyed by topic; each value is the ordered list of rungs, easiest first.
 LADDERS: dict[str, list[str]] = {
@@ -20,6 +21,7 @@ LADDERS: dict[str, list[str]] = {
     "Fractions": FRACTIONS,
     "Speed": SPEED,
     "Geometry (Angles)": GEOMETRY_ANGLE,
+    "Geometry (Area & Perimeter)": GEOMETRY_AREA,
 }
 
 
