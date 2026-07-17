@@ -11,7 +11,7 @@ comes from deterministic Python solvers, so a printed answer key is provably the
 solution to the printed question. The **canonical question object** (a plain
 `dict`, gated by JSON Schema) is the single source of truth.
 
-Currently through slice **V5** (V1 = end-to-end `ratio_medium` generation;
+Currently through slice **V6b** (V1 = end-to-end `ratio_medium` generation;
 V2 = bar-model diagrams / worked solutions; V3 = full Ratio ladder
 `ratio_easy`/`medium`/`hard` + in-place edit operations; V4 = review gate +
 client-side current-worksheet tray: Approve/Discard on cards, approved questions
@@ -19,7 +19,14 @@ collect in a titled tray with total marks — the store is client-side/ephemeral
 no server state; V5 = preview + export both PDFs: pure engine HTML renderers with
 vendored self-contained KaTeX + print CSS, headless-Chromium PDF generation at the
 API boundary, `POST /export/{preview,worksheet,answer-key}`, and web
-Preview/Export buttons — completing L3 acceptance for Ratio). See
+Preview/Export buttons — completing L3 acceptance for Ratio; V6 = the remaining
+topic ladders — Fractions, Percentage, Speed — plus the `shaded_fraction`
+mandatory figure and a fully live topic×difficulty selector; V6b = PSLE figure
+geometry: two ladders `geometry_angle`/`geometry_area` on a general
+`geometry_figure` diagram system, strictly-PSLE curated parametric templates with
+auto-selected π, schema **v1.3.0**. Every blueprint now ships an independent
+seed-sweep **invariant test** (the correctness authority; goldens are regression
+anchors). All six topics × three rungs generate schema-valid end-to-end). See
 `docs/shaping/SLICES.md`.
 
 ## Repo layout
@@ -41,7 +48,7 @@ It's a **uv workspace**. Root `pyproject.toml` declares members `engine/` and
 | `api/app/` | Thin **FastAPI** over the engine (`main.py`, `routes_generate.py` = `POST /generate`, `routes_edit.py` = `POST /edit/{op}`, `models.py` = Pydantic envelopes only). Package `exam-api`; ASGI entry `app.main:app`. |
 | `web/` | **Svelte 5 + Vite 8 + TypeScript** SPA: `src/App.svelte`, `src/lib/QuestionCard.svelte` (with the edit-button row), `barModel.ts`, `api.ts`, `types.ts`. Reads API base from `VITE_API` (defaults to `http://localhost:8000`). Quality-gated by **eslint** (flat config), **svelte-check**, and **vitest** (jsdom + Testing Library). |
 | `content/blueprints/*.yaml`, `content/syllabus/*.yaml` | Declarative blueprint/syllabus data (`ratio_{easy,medium,hard}.yaml`, `ratio.yaml`). |
-| `schemas/canonical-question.schema.json` | The canonical JSON Schema (currently **v1.2.0**) — single source of truth. |
+| `schemas/canonical-question.schema.json` | The canonical JSON Schema (currently **v1.3.0**) — single source of truth. |
 | `tests/` | pytest suite + `tests/golden/*.jsonl` hand-verified fixtures. |
 | `docs/` | `SCHEMA.md`, `DIFFICULTY.md`, `CONTEXT.md`, `PRD.md`, `shaping/`, `adr/`. |
 | `site/` | Static landing page (`index.html`). |
@@ -57,7 +64,7 @@ All commands verified from repo root.
 | Task | Command |
 |------|---------|
 | Install / sync deps | `uv sync` |
-| Run tests (~118) | `uv run pytest` |
+| Run tests (~456) | `uv run pytest` |
 | API dev server | `uv run uvicorn app.main:app --app-dir api --reload --port 8000` |
 | Health check | `curl -s http://localhost:8000/health` → `{"status":"ok"}` |
 | Generate (no web) | `curl -X POST http://localhost:8000/generate -H 'content-type: application/json' -d '{"blueprint_code":"ratio_medium","count":3}'` |

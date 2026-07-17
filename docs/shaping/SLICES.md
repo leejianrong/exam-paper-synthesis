@@ -127,7 +127,7 @@ separate answer-key PDF; preview matches print. PDF export smoke-tested
 
 ## V6 — Remaining ladders + mandatory geometry
 
-> **Split (2026-07-17):** the geometry half of V6 grew into its own richer,
+> **Shipped (2026-07-17), split into V6 + V6b:** the geometry half of V6 grew into its own richer,
 > syllabus-grounded track — **V6b** — after shaping with the product owner. V6
 > now = Fractions / Percentage / Speed + the `shaded_fraction` figure; **V6b** =
 > the `geometry_angle` + `geometry_area` ladders on a general `geometry_figure`
