@@ -97,4 +97,78 @@ describe('QuestionCard', () => {
     // Discard stays available (client-only remove from the review list).
     expect(screen.getByRole('button', { name: 'Discard' })).not.toBeDisabled()
   })
+
+  // A geometry card carries a mandatory figure: the API's available_ops omits
+  // toggle-diagram, and the card correspondingly renders no Show/Hide button.
+  const geometryQuestion: Question = {
+    id: 'g1',
+    seed: 7,
+    blueprint_code: 'geometry_area_hard',
+    validation: { status: 'pass' },
+    cognitive: { difficulty: 'hard' },
+    question: {
+      total_marks: 3,
+      parts: [
+        {
+          text: 'Find the area of the shaded region.',
+          marks: 3,
+          answer: { type: 'quantity', value: 24, unit: 'cm²' },
+          diagram: {
+            type: 'geometry_figure',
+            points: [
+              { id: 'A', x: 0, y: 0 },
+              { id: 'B', x: 6, y: 0 },
+              { id: 'C', x: 6, y: 4 },
+              { id: 'D', x: 0, y: 4 },
+            ],
+            segments: [
+              { from: 'A', to: 'B', label: '6 cm' },
+              { from: 'B', to: 'C' },
+              { from: 'C', to: 'D' },
+              { from: 'D', to: 'A', label: '4 cm' },
+            ],
+            shaded: [{ boundary: ['A', 'B', 'C', 'D'] }],
+          },
+        },
+      ],
+    },
+  }
+
+  it('renders a geometry_figure SVG and shows no toggle-diagram button', () => {
+    render(QuestionCard, { props: { q: geometryQuestion } })
+
+    // The figure renders as an inline SVG, labelled as a geometry figure.
+    const fig = screen.getByLabelText('geometry figure')
+    expect(fig.querySelector('svg')).not.toBeNull()
+
+    // Mandatory figure → no Show/Hide diagram control at all.
+    expect(screen.queryByRole('button', { name: /diagram/i })).not.toBeInTheDocument()
+  })
+
+  it('renders a shaded_fraction SVG and shows no toggle-diagram button', () => {
+    const shadedQuestion: Question = {
+      id: 'f1',
+      seed: 3,
+      blueprint_code: 'fractions_easy',
+      validation: { status: 'pass' },
+      cognitive: { difficulty: 'easy' },
+      question: {
+        total_marks: 1,
+        parts: [
+          {
+            text: 'What fraction of the shape is shaded?',
+            marks: 1,
+            answer: { type: 'fraction', numerator: 1, denominator: 4 },
+            diagram: { type: 'shaded_fraction', shape: 'rectangle', total_parts: 4, shaded_parts: 1 },
+          },
+        ],
+      },
+    }
+    render(QuestionCard, { props: { q: shadedQuestion } })
+
+    const fig = screen.getByLabelText('fraction diagram')
+    expect(fig.querySelector('svg')).not.toBeNull()
+
+    expect(screen.queryByRole('button', { name: /diagram/i })).not.toBeInTheDocument()
+  })
 })

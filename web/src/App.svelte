@@ -3,20 +3,27 @@
   import QuestionCard from './lib/QuestionCard.svelte'
   import WorksheetTray from './lib/WorksheetTray.svelte'
   import { worksheet } from './lib/worksheet'
-  import type { Question } from './lib/types'
+  import type { Difficulty, Question } from './lib/types'
+  import { TOPICS, DIFFICULTIES, blueprintCode } from './lib/topics'
 
   let questions: Question[] = []
   let loading = false
   let error = ''
   let busyId: string | null = null
 
+  // Live selector state — default to Ratio / Medium (the old pinned V1 pair).
+  let selectedPrefix = 'ratio'
+  let selectedDifficulty: Difficulty = 'medium'
+  $: selectedCode = blueprintCode(selectedPrefix, selectedDifficulty)
+
   const message = (e: unknown): string => (e instanceof Error ? e.message : String(e))
+  const titleCase = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 
   async function onGenerate() {
     loading = true
     error = ''
     try {
-      const fresh = await generate('ratio_medium', 1)
+      const fresh = await generate(selectedCode, 1)
       questions = [...fresh, ...questions]
     } catch (e) {
       error = message(e)
@@ -54,10 +61,24 @@
   <h1>Exam Paper Synthesis</h1>
 
   <div class="panel">
-    <p class="pinned">
-      Topic <b>Ratio</b> · Difficulty <b>Medium</b>
-      <span class="note">(pinned for V1 — selectors arrive in later slices)</span>
-    </p>
+    <div class="selectors">
+      <label class="field">
+        <span>Topic</span>
+        <select bind:value={selectedPrefix} aria-label="Topic">
+          {#each TOPICS as topic (topic.prefix)}
+            <option value={topic.prefix}>{topic.label}</option>
+          {/each}
+        </select>
+      </label>
+      <label class="field">
+        <span>Difficulty</span>
+        <select bind:value={selectedDifficulty} aria-label="Difficulty">
+          {#each DIFFICULTIES as d (d)}
+            <option value={d}>{titleCase(d)}</option>
+          {/each}
+        </select>
+      </label>
+    </div>
     <button on:click={onGenerate} disabled={loading}>
       {loading ? 'Generating…' : 'Generate'}
     </button>
@@ -109,8 +130,32 @@
     padding: 1rem 1.15rem;
     margin-bottom: 1.25rem;
   }
-  .pinned { margin: 0; color: var(--ink); }
-  .note { color: var(--muted); font-size: 0.82rem; margin-left: 0.35rem; }
+  .selectors {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .field > span {
+    color: var(--muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .field select {
+    background: var(--card);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+  }
   button {
     background: var(--accent);
     color: #fff;
