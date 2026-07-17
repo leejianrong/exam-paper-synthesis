@@ -11,6 +11,14 @@
   $: steps = part.solution_steps ?? []
   $: scheme = part.marking_scheme ?? []
   $: svg = renderDiagram(part.diagram)
+  // Accessible label reflects the diagram kind (a geometry figure is not a bar
+  // model). Older ratio cards keep the "bar model" label.
+  $: diagramAria =
+    part.diagram?.type === 'geometry_figure'
+      ? 'geometry figure'
+      : part.diagram?.type === 'shaded_fraction'
+        ? 'fraction diagram'
+        : 'bar model'
   // Edit ops + Approve are frozen once the question is in the worksheet.
   $: editDisabled = busy || added
 
@@ -65,7 +73,7 @@
     <!-- svg is built by renderDiagram from esc()-escaped, engine-derived spec
          values — no untrusted HTML reaches this sink. -->
     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-    <div class="diagram" aria-label="bar model">{@html svg}</div>
+    <div class="diagram" aria-label={diagramAria}>{@html svg}</div>
   {/if}
 
   <p class="answer"><span class="label">Answer</span> {fmtAnswer(part.answer)}</p>
