@@ -4,6 +4,9 @@ from . import (
     fractions_easy,  # noqa: F401
     fractions_hard,  # noqa: F401
     fractions_medium,  # noqa: F401
+    geometry_angle_easy,  # noqa: F401
+    geometry_angle_hard,  # noqa: F401
+    geometry_angle_medium,  # noqa: F401
     percentage_easy,  # noqa: F401
     percentage_hard,  # noqa: F401
     percentage_medium,  # noqa: F401
@@ -19,6 +22,9 @@ __all__ = [
     "fractions_easy",
     "fractions_hard",
     "fractions_medium",
+    "geometry_angle_easy",
+    "geometry_angle_hard",
+    "geometry_angle_medium",
     "percentage_easy",
     "percentage_hard",
     "percentage_medium",
