@@ -12,3 +12,12 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["exam_engine"]
+
+# render.py reads the vendored KaTeX + print.css from ``exam_engine/assets/**``
+# (a package-relative ``__file__`` path) at import time, so these non-Python
+# files MUST ship inside the wheel at that same package-relative path. Hatchling's
+# default discovery already includes them (they live inside the package and are
+# not VCS-ignored); listing them as build artifacts makes the requirement
+# explicit and guards against them ever being dropped — e.g. if ``*.woff2`` or
+# ``assets/`` were later added to ``.gitignore`` as build output.
+artifacts = ["exam_engine/assets/**/*"]
