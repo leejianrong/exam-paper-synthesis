@@ -5,7 +5,7 @@ description = "Thin FastAPI HTTP layer over the engine (ADR-0006)."
 requires-python = ">=3.12"
 dependencies = [
     "exam-engine",
-    "fastapi>=0.110",
+    "fastapi>=0.139.2",
     "uvicorn>=0.29",
     "pydantic>=2",
     "playwright>=1.44",
