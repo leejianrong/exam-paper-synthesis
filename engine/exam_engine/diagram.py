@@ -587,9 +587,13 @@ _SF_RECT_H = 80  # rectangle total height
 _SF_BAR_W = 72  # bar total width
 _SF_CIRCLE_R = 60  # circle radius
 _SF_PAD = 8  # padding around the figure
-_SF_SHADE = "#2f5fe0"  # filled cell
-_SF_EMPTY = "#eef2fb"  # empty cell
-_SF_STROKE = "#2f5fe0"  # cell border
+# Distinct fill vs stroke so every segment border stays visible (KAN-311):
+# a light-blue shaded fill under a darker-blue outline; the pale empty fill
+# carries the same outline. All three differ, so shaded and unshaded segment
+# borders are countable on screen and in print.
+_SF_SHADE = "#93b8f2"  # filled cell (light-blue fill)
+_SF_EMPTY = "#eef2fb"  # empty cell (pale neutral fill)
+_SF_STROKE = "#2f5fe0"  # cell border (darker-blue outline)
 
 
 def _render_shaded_fraction(spec: dict) -> str:
