@@ -3,12 +3,12 @@ syllabus:
   level: P6
   strand: "Measurement"
   topic: "Geometry (Area & Perimeter)"
-  subtopic: "Composite polygon area; area/perimeter of a semicircle"
+  subtopic: "Composite polygon area; area/perimeter of a semicircle; inverse width from area"
   skill_codes: ["GEO.AREA.COMPOSITE"]   # PROVISIONAL — remap to MOE outcomes (Q-M1)
 cognitive:
   difficulty: medium
   cognitive_level: complex_familiar
-  difficulty_levers: ["Reasoning depth", "Representation translation"]
+  difficulty_levers: ["Reasoning depth", "Representation translation", "Inverse direction"]
 marks: 3
 parameter_schema:                       # ADR-0014: sampled params validate against this
   type: object
@@ -17,7 +17,7 @@ parameter_schema:                       # ADR-0014: sampled params validate agai
   properties:
     template:
       type: string
-      enum: ["L_shape", "rectangle_plus_triangle", "semicircle_area", "semicircle_perimeter"]
+      enum: ["L_shape", "rectangle_plus_triangle", "semicircle_area", "semicircle_perimeter", "inverse_rectangle"]
     givens:
       type: object
       additionalProperties:
@@ -39,9 +39,9 @@ solution_template:
     - text: "{step2}"
     - text: "{step3}"
 marking_scheme:
-  - { mark: 1, type: M, description: "Decompose the figure / select the correct circle formula (with π)." }
-  - { mark: 1, type: M, description: "Compute the component areas / lengths." }
-  - { mark: 1, type: A, description: "Correct area (cm²) or perimeter (cm)." }
+  - { mark: 1, type: M, description: "Decompose the figure / select the circle formula (with π) / rearrange area = length × width." }
+  - { mark: 1, type: M, description: "Compute the component areas / lengths / the division." }
+  - { mark: 1, type: A, description: "Correct area (cm²), perimeter (cm), or width (cm)." }
 answer:
   type: integer
   unit: "cm^2"

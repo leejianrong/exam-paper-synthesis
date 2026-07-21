@@ -140,6 +140,14 @@ def test_medium_invariant_composite_and_circle(template: str, data: st.DataObjec
         else:  # 3.14 path -> 2-dp value (whole values collapse to integer)
             assert abs(ans - round(3.14 * r + 2 * r, 2)) < _TOL
             assert _dp_ok(answer)
+    elif template == "inverse_rectangle":
+        # inverse direction (rebalanced from hard, KAN-312): width = area ÷ length.
+        length, width = g["length"], g["width"]
+        area = length * width  # the area stated in the stem
+        assert answer["type"] == "integer" and answer["unit"] == "cm"
+        # Forward-apply: the recovered width times the length is exactly the area.
+        assert ans * length == area
+        assert ans == width
     else:
         raise AssertionError(f"unexpected template {template!r}")
     assert ans > 0
@@ -191,13 +199,6 @@ def test_hard_invariant_shaded_and_inverse(template: str, data: st.DataObject):
         else:  # 3.14 path -> 2-dp value (whole values collapse to integer)
             assert abs(ans - round(triangle + 3.14 * r * r / 2, 2)) < _TOL
             assert _dp_ok(answer)
-    elif template == "inverse_rectangle":
-        length, width = g["length"], g["width"]
-        area = length * width  # the area stated in the stem
-        assert answer["type"] == "integer" and answer["unit"] == "cm"
-        # Forward-apply: the recovered width times the length is exactly the area.
-        assert ans * length == area
-        assert ans == width
     else:
         raise AssertionError(f"unexpected template {template!r}")
     assert ans > 0
