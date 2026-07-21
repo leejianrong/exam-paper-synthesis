@@ -259,3 +259,74 @@ def test_render_coordinates_are_integers():
     svg = render_svg(AREA_SPEC)
     for attr in re.findall(r'(?:x1|y1|x2|y2)="([^"]+)"', svg):
         assert re.fullmatch(r"-?\d+", attr), attr
+
+
+# ---------------------------------------------------------------------------
+# (d) Running-track figure: rectangle with a semicircle at each end (positional
+#     vertex keys TL/TR/BR/BL) + a dashed radius dimension line (OL->TL).
+#     Exercises KAN-313 (lettered vertices) and KAN-314 (dotted radius).
+# ---------------------------------------------------------------------------
+
+TRACK_SPEC = {
+    "type": "geometry_figure",
+    "unit": "cm",
+    "points": [
+        {"id": "TL", "x": 0.0, "y": 0.0},
+        {"id": "TR", "x": 20.0, "y": 0.0},
+        {"id": "BR", "x": 20.0, "y": 14.0},
+        {"id": "BL", "x": 0.0, "y": 14.0},
+        {"id": "OL", "x": 0.0, "y": 7.0},
+        {"id": "OR", "x": 20.0, "y": 7.0},
+    ],
+    "segments": [
+        {"from": "TL", "to": "TR", "label": "20 cm"},
+        {"from": "BL", "to": "BR"},
+        {"from": "OL", "to": "TL", "label": "7 cm", "dashed": True},
+    ],
+    "arcs": [
+        {"center": "OL", "radius": 7, "start_deg": 90, "end_deg": 270, "label": None},
+        {"center": "OR", "radius": 7, "start_deg": -90, "end_deg": 90, "label": None},
+    ],
+    "shaded": [{"boundary": ["TL", "TR", "BR", "BL"], "arcs": []}],
+    "labels": [
+        {"at": "TL", "text": "TL"},
+        {"at": "TR", "text": "TR"},
+        {"at": "BR", "text": "BR"},
+        {"at": "BL", "text": "BL"},
+    ],
+}
+
+
+def test_positional_vertices_relabelled_to_letters():
+    """KAN-313: positional corner keys (TL/TR/BR/BL) render as lettered vertices
+    A/B/C/D in boundary order; the raw positional text never appears."""
+    svg = render_svg(TRACK_SPEC)
+    for letter in ("A", "B", "C", "D"):
+        assert f">{letter}</text>" in svg
+    for pos in ("TL", "TR", "BR", "BL"):
+        assert f">{pos}</text>" not in svg
+
+
+def test_meaningful_vertex_labels_are_untouched():
+    """KAN-313 is display-only for positional keys: a figure whose vertices are
+    already meaningfully lettered (A, …) keeps its labels unchanged."""
+    svg = render_svg(AREA_SPEC)
+    assert ">A</text>" in svg  # AREA_SPEC labels point A
+
+
+def test_dashed_radius_is_a_dotted_dimension_line():
+    """KAN-314: the radius segment is drawn dotted (stroke-dasharray) with a
+    perpendicular end cap at each end — three dashed segments — while the solid
+    track edges carry no dash."""
+    import re
+
+    svg = render_svg(TRACK_SPEC)
+    dashed = re.findall(r"<line[^>]*stroke-dasharray", svg)
+    assert len(dashed) == 3  # main radius line + two end caps
+    # The solid track edges (stroke-width 2) must not be dashed.
+    solid = re.findall(r'<line[^>]*stroke-width="2"[^>]*/>', svg)
+    assert solid and all("dasharray" not in s for s in solid)
+
+
+def test_dashed_render_is_deterministic():
+    assert render_svg(TRACK_SPEC) == render_svg(TRACK_SPEC)

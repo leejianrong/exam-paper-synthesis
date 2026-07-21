@@ -110,7 +110,9 @@ def _build_rectangle_with_semicircle_ends(g: dict) -> dict:
     segments = [
         {"from": "TL", "to": "TR", "label": f"{L} cm"},
         {"from": "BL", "to": "BR"},
-        {"from": "OL", "to": "TL", "label": f"{r} cm"},
+        # The semicircle radius is a dimension line, not a track edge: rendered
+        # as a dotted line clearly demarcated from the outline (KAN-314).
+        {"from": "OL", "to": "TL", "label": f"{r} cm", "dashed": True},
     ]
     arcs = [
         {"center": "OL", "radius": r, "start_deg": 90, "end_deg": 270, "label": None},

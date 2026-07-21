@@ -335,6 +335,64 @@ describe('geometry_figure geometry', () => {
       expect(m[1]).toMatch(/^-?\d+$/)
     }
   })
+
+  // (d) Running-track figure: positional vertex keys (TL/TR/BR/BL) + a dashed
+  // radius dimension line (OL->TL). Exercises KAN-313 and KAN-314. Mirrors
+  // TRACK_SPEC in tests/test_geometry_figure.py.
+  const trackSpec: GeometryFigureSpec = {
+    type: 'geometry_figure',
+    unit: 'cm',
+    points: [
+      { id: 'TL', x: 0, y: 0 },
+      { id: 'TR', x: 20, y: 0 },
+      { id: 'BR', x: 20, y: 14 },
+      { id: 'BL', x: 0, y: 14 },
+      { id: 'OL', x: 0, y: 7 },
+      { id: 'OR', x: 20, y: 7 },
+    ],
+    segments: [
+      { from: 'TL', to: 'TR', label: '20 cm' },
+      { from: 'BL', to: 'BR' },
+      { from: 'OL', to: 'TL', label: '7 cm', dashed: true },
+    ],
+    arcs: [
+      { center: 'OL', radius: 7, start_deg: 90, end_deg: 270, label: null },
+      { center: 'OR', radius: 7, start_deg: -90, end_deg: 90, label: null },
+    ],
+    shaded: [{ boundary: ['TL', 'TR', 'BR', 'BL'], arcs: [] }],
+    labels: [
+      { at: 'TL', text: 'TL' },
+      { at: 'TR', text: 'TR' },
+      { at: 'BR', text: 'BR' },
+      { at: 'BL', text: 'BL' },
+    ],
+  }
+
+  it('KAN-313: positional vertices render as lettered vertices A/B/C/D', () => {
+    const svg = renderDiagram(trackSpec)
+    for (const letter of ['A', 'B', 'C', 'D']) {
+      expect(svg).toContain(`>${letter}</text>`)
+    }
+    for (const pos of ['TL', 'TR', 'BR', 'BL']) {
+      expect(svg).not.toContain(`>${pos}</text>`)
+    }
+  })
+
+  it('KAN-313: meaningfully-named vertices are left untouched', () => {
+    expect(renderDiagram(areaSpec)).toContain('>A</text>')
+  })
+
+  it('KAN-314: dashed radius is a dotted dimension line (three segments)', () => {
+    const svg = renderDiagram(trackSpec)
+    expect(count(svg, 'stroke-dasharray')).toBe(3) // main line + two end caps
+    const solid = svg.match(/<line[^>]*stroke-width="2"[^>]*\/>/g) ?? []
+    expect(solid.length).toBeGreaterThan(0)
+    expect(solid.every((s) => !s.includes('dasharray'))).toBe(true)
+  })
+
+  it('KAN-314: dashed render is deterministic', () => {
+    expect(renderDiagram(trackSpec)).toBe(renderDiagram(trackSpec))
+  })
 })
 
 describe('raster (sourced/ingested figure)', () => {
