@@ -3,12 +3,16 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install dev api web web-lint web-typecheck web-test py-lint py-fmt py-typecheck test e2e build health hooks
+# Ports the dev servers bind to (API, Vite). `make stop` frees these.
+DEV_PORTS := 8000 5173
+
+.PHONY: help install dev stop api web web-lint web-typecheck web-test py-lint py-fmt py-typecheck test e2e build health hooks
 
 help: ## List available targets
 	@echo "Targets:"
 	@echo "  install  Sync Python deps (uv) and install web deps (npm ci)"
 	@echo "  dev      Boot the API and Vite dev server together (Ctrl-C stops both)"
+	@echo "  stop     Gracefully stop the API + web dev servers (from any shell)"
 	@echo "  api      Run just the FastAPI dev server (port 8000)"
 	@echo "  web      Run just the Vite dev server (port 5173)"
 	@echo "  web-lint      Lint the web app (eslint)"
@@ -28,7 +32,7 @@ install: ## Sync Python deps and install web deps
 	npm --prefix web ci
 
 dev: ## Boot API + Vite together; Ctrl-C stops both cleanly
-	@echo "Starting API (8000) and web (5173). Press Ctrl-C to stop both."
+	@echo "Starting API (8000) and web (5173). Press Ctrl-C to stop both (or 'make stop' from another shell)."
 	@# Signal the uvicorn *parent* by PID (its --reload child dies with it); a
 	@# whole-group `kill 0` would double-signal uvicorn's reloader → RecursionError
 	@# + segfault on Ctrl-C. npm is put in its own group (setsid) so the vite child
@@ -43,6 +47,44 @@ dev: ## Boot API + Vite together; Ctrl-C stops both cleanly
 	uv run uvicorn app.main:app --app-dir api --reload --port 8000 & api=$$!; \
 	$$SG npm --prefix web run dev & web=$$!; \
 	wait
+
+stop: ## Gracefully stop the dev servers on $(DEV_PORTS) (works from any shell)
+	@echo "Stopping dev servers (ports $(DEV_PORTS))..."
+	@# List PIDs LISTENing on a port. lsof (Linux+macOS) first; ss / fuser as
+	@# Linux fallbacks. Only listeners, so a browser client on the port is spared.
+	@# Killing the socket holder cascades up cleanly: uvicorn's --reload child dies
+	@# with its parent, `uv run` / `npm` exit when their child does, and `make dev`'s
+	@# `wait` then returns — no orphaned wrappers left behind.
+	@listeners() { \
+	  p=$$1; \
+	  if command -v lsof >/dev/null 2>&1; then \
+	    lsof -ti tcp:$$p -sTCP:LISTEN 2>/dev/null; \
+	  elif command -v ss >/dev/null 2>&1; then \
+	    ss -tlnp 2>/dev/null | grep -E "[:.]$$p " | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u; \
+	  elif command -v fuser >/dev/null 2>&1; then \
+	    fuser $$p/tcp 2>/dev/null | tr -s ' ' '\n' | grep -E '^[0-9]+$$'; \
+	  fi; \
+	}; \
+	any=0; \
+	for p in $(DEV_PORTS); do \
+	  pids=$$(listeners $$p); \
+	  if [ -n "$$pids" ]; then \
+	    echo "  :$$p  -> TERM"$$(printf ' %s' $$pids); kill -TERM $$pids 2>/dev/null || true; any=1; \
+	  else \
+	    echo "  :$$p  -> not running"; \
+	  fi; \
+	done; \
+	if [ $$any -eq 0 ]; then echo "Nothing to stop."; exit 0; fi; \
+	n=0; \
+	while [ $$n -lt 5 ]; do \
+	  busy=0; for p in $(DEV_PORTS); do [ -n "$$(listeners $$p)" ] && busy=1; done; \
+	  [ $$busy -eq 0 ] && break; sleep 1; n=$$((n+1)); \
+	done; \
+	for p in $(DEV_PORTS); do \
+	  pids=$$(listeners $$p); \
+	  if [ -n "$$pids" ]; then echo "  :$$p  still up -> KILL"$$(printf ' %s' $$pids); kill -KILL $$pids 2>/dev/null || true; fi; \
+	done; \
+	echo "Stopped."
 
 api: ## Run just the API dev server
 	uv run uvicorn app.main:app --app-dir api --reload --port 8000

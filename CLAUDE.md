@@ -88,6 +88,7 @@ All commands verified from repo root.
 | Web unit tests | `npm --prefix web run test:unit` (`make web-test`) — vitest |
 | Make: install deps | `make install` (`uv sync` + `npm --prefix web ci`) |
 | Make: boot API + web | `make dev` (both together; Ctrl-C stops both) |
+| Make: stop dev servers | `make stop` (graceful TERM→KILL on ports 8000/5173; works from any shell, e.g. when `make dev` was backgrounded or orphaned) |
 | Make: run tests | `make test` |
 | Make: lint Python | `make py-lint` (`uv run ruff check .`) |
 | Make: format Python | `make py-fmt` (`uv run ruff format .`) |
