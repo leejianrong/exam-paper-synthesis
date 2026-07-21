@@ -13,6 +13,8 @@ export type Difficulty = 'easy' | 'medium' | 'hard'
 export interface Answer {
   type: string
   value?: number | string
+  /** Required decimal places, when constrained (e.g. money renders at 2 dp). */
+  dp?: number | null
   unit?: string
   numerator?: number
   denominator?: number

@@ -130,7 +130,10 @@ def _fmt_answer(answer: dict) -> str:
         unit = answer.get("unit") or ""
         value = answer.get("value")
         if unit == "$":
-            return rf"\(\${value}\)"
+            # Money renders at exactly 2 dp when it is a decimal amount
+            # (change-to-decimals, KAN-309); integer money keeps its whole form.
+            shown = f"{value:.2f}" if atype == "decimal" else value
+            return rf"\(\${shown}\)"
         if unit:
             return rf"\({value}\ \text{{{_esc(unit)}}}\)"
         return rf"\({value}\)"

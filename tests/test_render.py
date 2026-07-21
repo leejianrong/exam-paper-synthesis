@@ -146,6 +146,23 @@ def test_answer_key_shows_typed_final_answer():
     assert rf"Answer: \(\${answer['value']}\)" in html
 
 
+def test_answer_key_renders_decimal_money_at_2dp():
+    # A change-to-decimals object carries a decimal $ answer; the answer key must
+    # print it at exactly 2 dp (KAN-309), not the value's bare 1-dp form.
+    from exam_engine import edits
+
+    obj = edits.apply("change-to-decimals", generate("ratio_medium", 11))
+    ans = obj["question"]["parts"][0]["answer"]
+    assert ans["type"] == "decimal" and ans["unit"] == "$"
+
+    html = render_answer_key_html(TITLE, [obj])
+    assert rf"Answer: \(\${ans['value']:.2f}\)" in html
+    # No 1-dp money slips through the rendered questions body (the KaTeX JS/CSS in
+    # the document shell is excluded — it is not question content).
+    body = html[html.index('<ol class="questions">') : html.index("</main>")]
+    assert not re.search(r"\$\d+\.\d(?!\d)", body)
+
+
 def test_answer_key_has_all_mark_types():
     # HARD has M and A rows; assert the styled type spans are emitted.
     html = render_answer_key_html(TITLE, ALL)
