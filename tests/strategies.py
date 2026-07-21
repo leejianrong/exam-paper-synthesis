@@ -327,12 +327,12 @@ GEOMETRY_AREA_MEDIUM_TEMPLATES = (
     "rectangle_plus_triangle",
     "semicircle_area",
     "semicircle_perimeter",
+    "inverse_rectangle",
 )
 GEOMETRY_AREA_HARD_TEMPLATES = (
     "square_minus_quarter",
     "rectangle_with_semicircle_ends",
     "triangle_with_semicircle",
-    "inverse_rectangle",
 )
 
 # Radii mixing the 22/7 (multiple-of-7) and 3.14 paths, mirroring the samplers.
@@ -378,6 +378,11 @@ def geometry_area_medium_params(draw: st.DrawFn, template: str) -> dict:
             "H": draw(st.integers(min_value=4, max_value=10)),
             "h": 2 * draw(st.integers(min_value=2, max_value=5)),  # even -> 1/2 W*h whole
         }
+    elif template == "inverse_rectangle":
+        givens = {
+            "length": draw(st.integers(min_value=4, max_value=15)),
+            "width": draw(st.integers(min_value=3, max_value=14)),
+        }
     else:  # semicircle_area / semicircle_perimeter
         givens = {"r": draw(_SEMICIRCLE_RADII)}
     return _area_params(_ar_medium, template, givens)
@@ -392,14 +397,9 @@ def geometry_area_hard_params(draw: st.DrawFn, template: str) -> dict:
             "L": draw(st.integers(min_value=10, max_value=25)),
             "r": draw(st.sampled_from([7, 14, 4, 5, 6, 8, 9, 10])),
         }
-    elif template == "triangle_with_semicircle":
+    else:  # triangle_with_semicircle
         givens = {
             "b": draw(st.sampled_from([14, 28, 6, 8, 10, 12, 16])),  # even diameter
             "H": draw(st.integers(min_value=5, max_value=14)),
-        }
-    else:  # inverse_rectangle
-        givens = {
-            "length": draw(st.integers(min_value=4, max_value=15)),
-            "width": draw(st.integers(min_value=3, max_value=14)),
         }
     return _area_params(_ar_hard, template, givens)

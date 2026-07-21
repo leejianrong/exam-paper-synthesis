@@ -9,13 +9,17 @@ templates:
   triangle sitting on its top edge; area = rectangle + ``½ × base × height``.
 * ``semicircle_area``     — area of a semicircle, ``π × r × r ÷ 2``.
 * ``semicircle_perimeter``— perimeter of a semicircle, ``π × r + 2 × r``.
+* ``inverse_rectangle`` (KAN-312) — the inverse direction: a rectangle's area and
+  length are given, find the (unknown) width by ``width = area ÷ length`` (one
+  inverse step; rebalanced here from the hard rung).
 
 The two semicircle templates auto-select π (G4): ``22/7`` when the radius is a
 multiple of 7 (whole answer), else ``3.14`` (2-dp decimal). Answers are ``cm^2``
-for area, ``cm`` for perimeter; the mandatory ``geometry_figure`` aid carries the
-labelled dimensions/radius, cross-verified by ``check_geometry_figure_consistency``
-against ``params["lengths"]`` / ``params["radii"]``. Exact rational arithmetic —
-the printed key is provably the figure's solution (no LLM).
+for area, ``cm`` for perimeter / the recovered width; the mandatory
+``geometry_figure`` aid carries the labelled dimensions/radius, cross-verified by
+``check_geometry_figure_consistency`` against ``params["lengths"]`` /
+``params["radii"]``. Exact rational arithmetic — the printed key is provably the
+figure's solution (no LLM).
 """
 
 from __future__ import annotations
@@ -185,11 +189,48 @@ def _build_semicircle_perimeter(g: dict) -> dict:
     return {**fig, "angles": [], "shaded": [], "answer": answer, "text": text, "steps": steps}
 
 
+def _build_inverse_rectangle(g: dict) -> dict:
+    length, width = g["length"], g["width"]
+    area = length * width
+    answer = {"type": "integer", "value": width, "unit": LEN_UNIT}
+    points = [_pt("A", 0, 0), _pt("B", length, 0), _pt("C", length, width), _pt("D", 0, width)]
+    segments = [
+        {"from": "A", "to": "B", "label": f"{length} cm"},
+        {"from": "B", "to": "C", "label": "? cm"},
+        {"from": "C", "to": "D"},
+        {"from": "D", "to": "A"},
+    ]
+    angles = [{"at": "A", "from": "B", "to": "D", "right": True}]
+    text = (
+        f"A rectangle has an area of {area} cm² and a length of {length} cm. "
+        f"Find its width. (The figure is not drawn to scale.)"
+    )
+    steps = [
+        "Area of a rectangle = length × width.",
+        f"Width = Area ÷ length = {area} cm² ÷ {length} cm",
+        f"Width = {width} cm.",
+    ]
+    return {
+        "points": points,
+        "segments": segments,
+        "arcs": [],
+        "angles": angles,
+        "shaded": [{"boundary": ["A", "B", "C", "D"]}],
+        "labels": _labels(["A", "B", "C", "D"]),
+        "lengths": {"A-B": length},
+        "radii": {},
+        "answer": answer,
+        "text": text,
+        "steps": steps,
+    }
+
+
 _BUILDERS = {
     "L_shape": _build_l_shape,
     "rectangle_plus_triangle": _build_rectangle_plus_triangle,
     "semicircle_area": _build_semicircle_area,
     "semicircle_perimeter": _build_semicircle_perimeter,
+    "inverse_rectangle": _build_inverse_rectangle,
 }
 
 
@@ -218,6 +259,8 @@ class GeometryAreaMediumSolver:
             rect_h = rng.randint(4, 10)
             tri_h = rng.randrange(4, 12, 2)  # even -> ½·W·h stays a whole number
             givens = {"W": width, "H": rect_h, "h": tri_h}
+        elif template == "inverse_rectangle":
+            givens = {"length": rng.randint(4, 15), "width": rng.randint(3, 14)}
         else:  # semicircle_area / semicircle_perimeter
             givens = {"r": _sample_radius(rng)}
         built = _BUILDERS[template](givens)
@@ -262,9 +305,13 @@ class GeometryAreaMediumSolver:
         elif template == "semicircle_area":
             expected = format_measure(pi_value(pi_str_for(g["r"])) * g["r"] * g["r"] / 2, AREA_UNIT)
             checks["geometry_ok"] = g["r"] > 0
-        else:  # semicircle_perimeter
+        elif template == "semicircle_perimeter":
             expected = format_measure(pi_value(pi_str_for(g["r"])) * g["r"] + 2 * g["r"], LEN_UNIT)
             checks["geometry_ok"] = g["r"] > 0
+        else:  # inverse_rectangle: width recovered from area ÷ length is exact.
+            area = g["length"] * g["width"]
+            expected = {"type": "integer", "value": area // g["length"], "unit": LEN_UNIT}
+            checks["inverse_exact"] = area % g["length"] == 0 and area // g["length"] == g["width"]
         checks["answer_verified"] = solution["answer"] == expected == built["answer"]
         checks["positive"] = Fraction(str(solution["answer"]["value"])) > 0
         return {"ok": all(checks.values()), "checks": checks}

@@ -1,4 +1,4 @@
-"""Solver for ``geometry_area_hard`` (KAN-230): shaded area / inverse length.
+"""Solver for ``geometry_area_hard`` (KAN-230): shaded area / composite figures.
 
 Strictly-PSLE composite figures (V6b geometry plan). Structurally-distinct
 templates:
@@ -13,12 +13,14 @@ templates:
 * ``triangle_with_semicircle`` (KAN-233) — a triangle joined to a semicircle on
   its base (the base is the diameter); total area = ``½ × b × H + ½ × π × r²``
   with ``r = b ÷ 2``. π auto-select on the radius (G4).
-* ``inverse_rectangle``    — the inverse direction: a rectangle's area and length
-  are given, find the (unknown) width by ``width = area ÷ length``.
 
-Answers are ``cm^2`` for the shaded area, ``cm`` for the recovered length; the
-mandatory ``geometry_figure`` aid carries the labelled dimensions, cross-verified
-by ``check_geometry_figure_consistency``. Exact rational arithmetic — the printed
+(The single-step ``inverse_rectangle`` template — area ÷ length → width — was
+rebalanced down to the MEDIUM rung in KAN-312: one inverse division reads as
+medium, not a hard non-routine composite.)
+
+Answers are ``cm^2`` for the shaded area, ``cm`` for the perimeter; the mandatory
+``geometry_figure`` aid carries the labelled dimensions, cross-verified by
+``check_geometry_figure_consistency``. Exact rational arithmetic — the printed
 key is provably the figure's solution (no LLM).
 """
 
@@ -203,47 +205,10 @@ def _build_triangle_with_semicircle(g: dict) -> dict:
     }
 
 
-def _build_inverse_rectangle(g: dict) -> dict:
-    length, width = g["length"], g["width"]
-    area = length * width
-    answer = {"type": "integer", "value": width, "unit": LEN_UNIT}
-    points = [_pt("A", 0, 0), _pt("B", length, 0), _pt("C", length, width), _pt("D", 0, width)]
-    segments = [
-        {"from": "A", "to": "B", "label": f"{length} cm"},
-        {"from": "B", "to": "C", "label": "? cm"},
-        {"from": "C", "to": "D"},
-        {"from": "D", "to": "A"},
-    ]
-    angles = [{"at": "A", "from": "B", "to": "D", "right": True}]
-    text = (
-        f"A rectangle has an area of {area} cm² and a length of {length} cm. "
-        f"Find its width. (The figure is not drawn to scale.)"
-    )
-    steps = [
-        "Area of a rectangle = length × width.",
-        f"Width = Area ÷ length = {area} cm² ÷ {length} cm",
-        f"Width = {width} cm.",
-    ]
-    return {
-        "points": points,
-        "segments": segments,
-        "arcs": [],
-        "angles": angles,
-        "shaded": [{"boundary": ["A", "B", "C", "D"]}],
-        "labels": _labels(["A", "B", "C", "D"]),
-        "lengths": {"A-B": length},
-        "radii": {},
-        "answer": answer,
-        "text": text,
-        "steps": steps,
-    }
-
-
 _BUILDERS = {
     "square_minus_quarter": _build_square_minus_quarter,
     "rectangle_with_semicircle_ends": _build_rectangle_with_semicircle_ends,
     "triangle_with_semicircle": _build_triangle_with_semicircle,
-    "inverse_rectangle": _build_inverse_rectangle,
 }
 
 
@@ -264,12 +229,10 @@ class GeometryAreaHardSolver:
             # r a multiple of 7 -> 22/7 path (whole answer); else the 3.14 path.
             r = 7 * rng.randint(1, 2) if rng.random() < 0.5 else rng.choice([4, 5, 6, 8, 9, 10])
             givens = {"L": rng.randint(10, 25), "r": r}
-        elif template == "triangle_with_semicircle":
+        else:  # triangle_with_semicircle
             # diameter a multiple of 14 -> radius a multiple of 7 -> 22/7 path; else 3.14.
             b = 14 * rng.randint(1, 2) if rng.random() < 0.5 else rng.choice([6, 8, 10, 12, 16])
             givens = {"b": b, "H": rng.randint(5, 14)}
-        else:  # inverse_rectangle
-            givens = {"length": rng.randint(4, 15), "width": rng.randint(3, 14)}
         built = _BUILDERS[template](givens)
         out = {"template": template, "givens": givens, "lengths": built["lengths"]}
         if built["radii"]:
@@ -303,17 +266,13 @@ class GeometryAreaHardSolver:
             perim_exact = 2 * L + pi_value(pi_str_for(r)) * 2 * r
             expected = format_measure(perim_exact, LEN_UNIT)
             checks["perimeter_pos"] = perim_exact > 0
-        elif template == "triangle_with_semicircle":
+        else:  # triangle_with_semicircle
             b, H = g["b"], g["H"]
             r = b // 2
             total_exact = Fraction(b * H, 2) + pi_value(pi_str_for(r)) * r * r / 2
             expected = format_measure(total_exact, AREA_UNIT)
             checks["even_diameter"] = b % 2 == 0
             checks["area_pos"] = total_exact > 0
-        else:  # inverse_rectangle: width recovered from area ÷ length is exact.
-            area = g["length"] * g["width"]
-            expected = {"type": "integer", "value": area // g["length"], "unit": LEN_UNIT}
-            checks["inverse_exact"] = area % g["length"] == 0 and area // g["length"] == g["width"]
         checks["answer_verified"] = solution["answer"] == expected == built["answer"]
         checks["positive"] = Fraction(str(solution["answer"]["value"])) > 0
         return {"ok": all(checks.values()), "checks": checks}
