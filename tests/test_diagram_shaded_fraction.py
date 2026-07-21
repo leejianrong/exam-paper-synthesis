@@ -69,7 +69,9 @@ def test_consistency_rejects_shaded_out_of_range():
 
 # --- SVG render -------------------------------------------------------------
 
-_SHADE = 'fill="#2f5fe0"'
+_SHADE = 'fill="#93b8f2"'  # light-blue shaded fill (distinct from the outline)
+_STROKE = 'stroke="#2f5fe0"'  # darker-blue segment outline
+_EMPTY = 'fill="#eef2fb"'  # pale empty fill
 
 
 def _filled_cells(svg: str) -> int:
@@ -113,6 +115,19 @@ def test_render_circle_single_part_is_a_whole_circle():
 def test_render_none_shaded_has_no_filled_cells():
     svg = render_svg(_spec(shape="rectangle", total=4, shaded=0))
     assert _filled_cells(svg) == 0
+
+
+@pytest.mark.parametrize("shape", ["rectangle", "bar", "circle"])
+def test_render_outline_distinct_from_fills(shape: str):
+    # KAN-311: the segment outline must be a different colour from both the
+    # shaded and the empty fill, so every segment border (shaded and unshaded)
+    # stays visible in the card, preview, and PDF.
+    assert _SHADE != _STROKE
+    assert _EMPTY != _STROKE
+    svg = render_svg(_spec(shape=shape, total=4, shaded=2))
+    assert _SHADE in svg  # a shaded segment
+    assert _EMPTY in svg  # an unshaded segment
+    assert svg.count(_STROKE) == 4  # a visible outline on every one of them
 
 
 def test_render_circle_sector_vertices_within_canvas():

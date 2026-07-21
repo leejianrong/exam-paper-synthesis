@@ -24,9 +24,13 @@ const SF_RECT_H = 80
 const SF_BAR_W = 72
 const SF_CIRCLE_R = 60
 const SF_PAD = 8
-const SF_SHADE = '#2f5fe0'
-const SF_EMPTY = '#eef2fb'
-const SF_STROKE = '#2f5fe0'
+// Distinct fill vs stroke so every segment border stays visible (KAN-311):
+// light-blue shaded fill under a darker-blue outline; pale empty fill, same
+// outline. All three differ, so segment borders stay countable. Mirrors the
+// _SF_* constants in engine/exam_engine/diagram.py.
+const SF_SHADE = '#93b8f2' // filled cell (light-blue fill)
+const SF_EMPTY = '#eef2fb' // empty cell (pale neutral fill)
+const SF_STROKE = '#2f5fe0' // cell border (darker-blue outline)
 
 export interface BarSpec {
   label: string
