@@ -73,7 +73,7 @@ All commands verified from repo root.
 | Task | Command |
 |------|---------|
 | Install / sync deps | `uv sync` |
-| Run tests (~478) | `uv run pytest` (root `tests/` + `cli/tests/`) |
+| Run tests (~504) | `uv run pytest` (root `tests/` + `cli/tests/`) |
 | API dev server | `uv run uvicorn app.main:app --app-dir api --reload --port 8000` |
 | Health check | `curl -s http://localhost:8000/health` → `{"status":"ok"}` |
 | Generate (no web) | `curl -X POST http://localhost:8000/generate -H 'content-type: application/json' -d '{"blueprint_code":"ratio_medium","count":3}'` |
