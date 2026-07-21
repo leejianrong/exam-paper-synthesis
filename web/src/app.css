@@ -1,21 +1,126 @@
+/* ============================================================
+   Crafting UI — the ONE token layer (KAN-315).
+
+   Tokens, type roles and dark theme are lifted verbatim from
+   site/index.html so the crafting UI and the landing page share a
+   single design system. The marketing hero / big serif / full grid are
+   NOT adopted — a tool used to build 30 questions stays calm and dense.
+
+   Voice: serif = the trusted paper · mono = the exact engine · sans = quiet controls.
+   ============================================================ */
+
 :root {
-  --bg: #f6f7f9;
-  --card: #ffffff;
-  --ink: #1c2333;
-  --muted: #66708a;
-  --line: #e3e7ee;
-  --accent: #2f5fe0;
-  --pass: #1a7f52;
-  --pass-bg: #e6f5ee;
-  --fail: #b23b3b;
-  --fail-bg: #fbeaea;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --paper: #f3f4ef;
+  --paper-2: #fbfbf8;
+  --paper-sink: #ecede6;
+  --ink: #191c21;
+  --ink-soft: #565d66;
+  --ink-faint: #7b828b;
+  --line: #dcdfd5;
+  --line-soft: #e7e9e0;
+  --grid: rgba(25, 28, 33, 0.03);
+  --verify: #0f7a57;
+  --verify-ink: #0b5a40;
+  --verify-soft: #e2efe9;
+  --mark: #bd4229;
+  --mark-soft: #f4e4df;
+  --u1: #0f7a57;
+  --u2: #c0872b;
+  --u3: #3e4e77;
+  --shadow: 0 1px 2px rgba(25, 28, 33, 0.05), 0 12px 34px -18px rgba(25, 28, 33, 0.22);
+
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia,
+    "Times New Roman", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: "SF Mono", ui-monospace, "Cascadia Code", "JetBrains Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  color-scheme: light dark;
+  font-family: var(--sans);
 }
 
-* { box-sizing: border-box; }
+/* Dark theme — auto (OS preference), unless a manual light override is set. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #14171b;
+    --paper-2: #1b1f25;
+    --paper-sink: #101317;
+    --ink: #eceee9;
+    --ink-soft: #a3aab3;
+    --ink-faint: #767d86;
+    --line: #2a2f37;
+    --line-soft: #232830;
+    --grid: rgba(255, 255, 255, 0.03);
+    --verify: #3fb489;
+    --verify-ink: #7fd3b3;
+    --verify-soft: rgba(63, 180, 137, 0.14);
+    --mark: #e37a60;
+    --mark-soft: rgba(227, 122, 96, 0.16);
+    --u1: #35a880;
+    --u2: #d3a047;
+    --u3: #7f8fc0;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 40px -20px rgba(0, 0, 0, 0.7);
+    color-scheme: dark;
+  }
+}
+
+/* Dark theme — forced via [data-theme="dark"] regardless of OS preference. */
+:root[data-theme="dark"] {
+  --paper: #14171b;
+  --paper-2: #1b1f25;
+  --paper-sink: #101317;
+  --ink: #eceee9;
+  --ink-soft: #a3aab3;
+  --ink-faint: #767d86;
+  --line: #2a2f37;
+  --line-soft: #232830;
+  --grid: rgba(255, 255, 255, 0.03);
+  --verify: #3fb489;
+  --verify-ink: #7fd3b3;
+  --verify-soft: rgba(63, 180, 137, 0.14);
+  --mark: #e37a60;
+  --mark-soft: rgba(227, 122, 96, 0.16);
+  --u1: #35a880;
+  --u2: #d3a047;
+  --u3: #7f8fc0;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 40px -20px rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}
+
+/* Light theme — forced via [data-theme="light"] regardless of OS preference
+   (tokens already default to light on :root; this pins color-scheme). */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
-  background: var(--bg);
   color: var(--ink);
+  background-color: var(--paper);
+  /* faint exercise-book grid — the landing-page signature, dialled right down
+     so the working tool stays calm. */
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 26px 26px;
+  line-height: 1.55;
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Focus visibility floor — shared with the landing page. */
+:focus-visible {
+  outline: 2px solid var(--verify);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
 }
