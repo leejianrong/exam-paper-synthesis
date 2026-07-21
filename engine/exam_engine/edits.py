@@ -105,12 +105,24 @@ def _make_easier(source: dict, seed: int | None) -> dict:
 # --- representation ops -----------------------------------------------------
 
 
+def _fmt_money(value: float) -> str:
+    """Render a monetary amount at exactly 2 dp (KAN-309).
+
+    Money always shows two decimal places — ``20.4 -> "20.40"``, ``3 -> "3.00"`` —
+    so the decimals *view* reads like real currency everywhere it appears (story
+    text, worked steps, bar-model labels).
+    """
+    return f"{value:.2f}"
+
+
 def _change_to_decimals(source: dict, seed: int | None) -> dict:
-    """Money ÷10 -> 1 dp: a derived decimals *view* of the same integer params.
+    """Money ÷10 -> a 2-dp decimals *view* of the same integer params.
 
     ``parameters`` stays the original integer sample (the param schema requires
     integers; the decimals form is a derived rendering, plan D2). Only ``$`` values
     scale — ratio terms and unit counts stay integer, so the bars are unchanged.
+    Scaled money is formatted to 2 dp (KAN-309) for every text/label surface; the
+    typed answer keeps the numeric value and declares ``dp: 2``.
     """
     code = source["blueprint_code"]
     spec = load_blueprint(code)
@@ -124,7 +136,7 @@ def _change_to_decimals(source: dict, seed: int | None) -> dict:
     def scale(key: str, value: object) -> object:
         if key in money_keys:
             assert isinstance(value, int | float)  # money keys hold numbers
-            return value / 10
+            return _fmt_money(value / 10)  # 2-dp string for text/step/diagram labels
         return value
 
     scaled_params = {k: scale(k, v) for k, v in params.items()}
@@ -145,7 +157,7 @@ def _change_to_decimals(source: dict, seed: int | None) -> dict:
         )
 
     orig_value = solution["answer"]["value"]
-    answer = {"type": "decimal", "value": orig_value / 10, "dp": 1, "unit": "$"}
+    answer = {"type": "decimal", "value": orig_value / 10, "dp": 2, "unit": "$"}
 
     diagram = None
     diagram_fn = getattr(solver, "diagram", None)

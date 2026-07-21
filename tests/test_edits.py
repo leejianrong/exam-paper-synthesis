@@ -81,7 +81,8 @@ def test_change_to_decimals(code):
 
     ans = child["question"]["parts"][0]["answer"]
     assert ans["type"] == "decimal"
-    assert ans["dp"] == 1
+    # Money declares 2 dp so every surface renders it as currency (KAN-309).
+    assert ans["dp"] == 2
     assert ans["unit"] == "$"
     src_value = source["question"]["parts"][0]["answer"]["value"]
     assert ans["value"] == src_value / 10
@@ -91,11 +92,52 @@ def test_change_to_decimals(code):
     ratio_key = "ratio" if "ratio" in child["parameters"] else "ratio_before"
     assert all(isinstance(v, int) for v in child["parameters"][ratio_key])
 
-    # The story text carries a decimal $ amount (e.g. "$20.0").
+    # The story text carries $ amounts at exactly 2 dp (e.g. "$20.00", not "$20.0").
     text = child["question"]["parts"][0]["text"]
-    assert re.search(r"\$\d+\.\d", text)
+    assert re.search(r"\$\d+\.\d{2}\b", text)
+    assert not re.search(r"\$\d+\.\d(?!\d)", text)  # never a bare 1-dp money amount
 
     assert child["validation"]["checks"]["representation"] == "decimals"
+
+
+@pytest.mark.parametrize(
+    "code", ["ratio_easy", "ratio_medium", "ratio_hard", "percentage_easy", "percentage_hard"]
+)
+def test_change_to_decimals_money_is_2dp_everywhere(code):
+    # Every $ surface the decimals view produces — story text, worked steps, and
+    # bar-model labels — must show exactly 2 dp (KAN-309), never a bare 1 dp.
+    source = generate(code, 11)
+    child = edits.apply("change-to-decimals", source)
+    part = child["question"]["parts"][0]
+
+    bare_1dp = re.compile(r"\$\d+\.\d(?!\d)")
+    two_dp = re.compile(r"\$\d+\.\d{2}\b")
+
+    surfaces = [part["text"]]
+    surfaces += [s["text"] for s in part["solution_steps"]]
+    surfaces += [s["expr"] for s in part["solution_steps"] if s.get("expr")]
+
+    diagram = part["diagram"]
+    if diagram is not None:
+        labels = _diagram_money_labels(diagram)
+        assert labels  # the ratio ladder's aid bars carry $ labels
+        surfaces += labels
+
+    joined = " ".join(surfaces)
+    assert two_dp.search(joined)  # at least one $ amount is shown
+    for surface in surfaces:
+        assert not bare_1dp.search(surface), f"1-dp money leaked: {surface!r}"
+
+
+def _diagram_money_labels(diagram: dict) -> list[str]:
+    """Collect every ``$``-bearing label from a bar-model diagram spec."""
+    labels: list[str] = []
+    for ann in diagram.get("annotations", []):
+        labels.append(ann.get("label", ""))
+    bracket = diagram.get("total_bracket")
+    if bracket:
+        labels.append(bracket.get("label", ""))
+    return [ell for ell in labels if "$" in ell]
 
 
 @pytest.mark.parametrize("code", ["ratio_easy", "ratio_medium", "ratio_hard"])

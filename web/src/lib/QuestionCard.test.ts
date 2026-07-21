@@ -40,6 +40,24 @@ describe('QuestionCard', () => {
     ).toBeInTheDocument()
   })
 
+  it('renders a decimal $ answer at exactly 2 dp (change-to-decimals, KAN-309)', () => {
+    // 20.4 is a 1-dp number but money must always show 2 dp: "$20.40".
+    const decimalMoney: Question = {
+      ...question,
+      question: {
+        total_marks: 3,
+        parts: [
+          {
+            ...question.question.parts[0],
+            answer: { type: 'decimal', value: 20.4, dp: 2, unit: '$' },
+          },
+        ],
+      },
+    }
+    render(QuestionCard, { props: { q: decimalMoney } })
+    expect(screen.getByText(/\$20\.40/)).toBeInTheDocument()
+  })
+
   it('reveals the M/A/B marking scheme only after the toggle is clicked', async () => {
     render(QuestionCard, { props: { q: question } })
 

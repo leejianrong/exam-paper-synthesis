@@ -49,8 +49,11 @@
       case 'decimal':
       case 'integer': {
         const u = a.unit ?? ''
-        if (u === '$') return `$${a.value}`
-        return u ? `${a.value} ${u}` : `${a.value}`
+        // Money renders at exactly 2 dp when it is a decimal amount
+        // (change-to-decimals, KAN-309); integer money keeps its whole form.
+        const shown = u === '$' && a.type === 'decimal' ? Number(a.value).toFixed(2) : `${a.value}`
+        if (u === '$') return `$${shown}`
+        return u ? `${shown} ${u}` : `${shown}`
       }
       case 'fraction':
         return `${a.numerator}/${a.denominator}`

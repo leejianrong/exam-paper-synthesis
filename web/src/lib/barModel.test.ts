@@ -152,7 +152,8 @@ describe('bar_model_before_after geometry', () => {
 })
 
 describe('shaded_fraction geometry', () => {
-  const SHADE = 'fill="#2f5fe0"'
+  const SHADE = 'fill="#93b8f2"'
+  const STROKE = 'stroke="#2f5fe0"'
   const filled = (svg: string): number => count(svg, SHADE)
 
   const spec = (
@@ -189,6 +190,16 @@ describe('shaded_fraction geometry', () => {
 
   it('none shaded → no filled cells', () => {
     expect(filled(renderDiagram(spec('rectangle', 4, 0)))).toBe(0)
+  })
+
+  it('outline colour differs from fills so every segment border stays visible (KAN-311)', () => {
+    // Both a shaded and an unshaded segment present; the stroke must be a
+    // distinct colour from either fill, else the borders vanish.
+    const svg = renderDiagram(spec('rectangle', 4, 2))
+    expect(SHADE).not.toBe(STROKE)
+    expect(svg).toContain(SHADE) // light-blue shaded fill
+    expect(svg).toContain('fill="#eef2fb"') // pale empty fill
+    expect(count(svg, STROKE)).toBe(4) // darker-blue outline on every segment
   })
 
   it('is deterministic', () => {
