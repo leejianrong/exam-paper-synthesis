@@ -75,7 +75,8 @@ vendored self-contained (no CDN), so preview and print are the same document.
 - **done** A7 - pure `render_worksheet_html` / `render_answer_key_html` (vendored self-contained KaTeX + inline SVG + print CSS) - PR #48 (KAN-146)
 - **done** `html_to_pdf` via headless Chromium + `POST /export/{preview,worksheet,answer-key}` - PR #49 (KAN-147)
 - **done** Web: Preview + Export-worksheet/answer-key PDF buttons in WorksheetTray - PR #50 (KAN-148, rescoped)
-- **todo** KAN-206 - package engine assets into the wheel (non-blocking follow-up, still open)
+- **done** KAN-206 - package engine assets (KaTeX + print.css) into the wheel - PR #74
+- **done** KAN-258 - ship content/** + schemas/** as package data so `generate()` works from a wheel - PR #77
 
 ## M6: Remaining ladders + mandatory geometry (V6, shipped)
 
@@ -105,15 +106,15 @@ Decisions G1-G7 + Q1 (2-template floor) + Q2 (schema v1.3.0).
 - **done** KAN-229 - `geometry_angle` ladder (e/m/h) + solvers + goldens
 - **done** KAN-230 - `geometry_area` ladder (e/m/h) + solvers + goldens (circles, auto-pi, inverse length)
 - **done** KAN-231 - Web: geometry figures on the live card (mandatory, no toggle) + e2e
-- **todo** KAN-233 - Geometry template catalogue expansion (fast-follow beyond the 2/rung floor)
+- **done** KAN-233 - Geometry template catalogue expansion (fast-follow beyond the 2/rung floor) - PR #79
 
 ### Follow-ups surfaced during V6/V6b (backlog)
 
-- **todo** KAN-236 - Independent verification harness (formalize per-blueprint invariants; retire manual golden gate)
-- **todo** KAN-237 - Graduate verification to full Hypothesis (generative strategies + shrinking)
+- **done** KAN-236 - Independent verification harness (formalize per-blueprint invariants; retire manual golden gate) - PR #76
+- **in_progress** KAN-237 - Graduate verification to full Hypothesis (generative strategies + shrinking)
 - **done** KAN-241 - stamp `schema_version` 1.3.0 to match the schema
-- **todo** KAN-242 - `geometry_figure` renderer: fill crescent/annular shaded regions
-- **todo** KAN-243 - Web: drive edit-button visibility from engine `available_ops` (replace `startsWith('ratio')` heuristic)
+- **done** KAN-242 - `geometry_figure` renderer: fill polygon-minus-arc shaded regions (square minus circle) - PR #78
+- **done** KAN-243 - Web: drive edit-button visibility from engine `available_ops` (replace `startsWith('ratio')` heuristic) - PR #75
 
 ## M7: CLI + sourced-object interchange (V7, shipped)
 
