@@ -478,6 +478,24 @@ const GF_STROKE = '#2f5fe0'
 const GF_FILL = '#dbe4fb'
 const GF_TEXT = '#334155'
 
+// A positional vertex key (T/B/M × L/R/C, e.g. TL/TR/BR/BL) vs a meaningful
+// letter the wording might name (A, B, O, P, T, …). Mirrors _GF_POSITIONAL_KEY
+// in engine/exam_engine/diagram.py.
+const GF_POSITIONAL_KEY = /^[TBM][LRCM]$/
+
+// Map positionally-keyed boundary vertices to display letters A, B, C, … in
+// figure order — display-only relabelling (KAN-313). Meaningfully-named vertices
+// are left untouched. Mirrors _gf_vertex_display in diagram.py.
+function gfVertexDisplay(labels: GeometryLabel[]): Map<string, string> {
+  const mapping = new Map<string, string>()
+  for (const lab of labels) {
+    if (GF_POSITIONAL_KEY.test(lab.at)) {
+      mapping.set(lab.at, String.fromCharCode(65 + mapping.size))
+    }
+  }
+  return mapping
+}
+
 // Round half-up — matches Python's math.floor(v + 0.5).
 function gfRound(v: number): number {
   return Math.floor(v + 0.5)
@@ -697,10 +715,13 @@ function renderGeometryFigure(spec: GeometryFigureSpec): string {
     }
   }
 
-  // Free text labels.
+  // Free text labels. Positional vertex keys (TL/TR/…) show as display letters
+  // (KAN-313); meaningfully-named vertices keep their text.
+  const vmap = gfVertexDisplay(labels)
   for (const lab of labels) {
     const [px, py] = at(lab.at)
-    out.push(`<text x="${tx(px) + 6}" y="${ty(py) - 6}" fill="${GF_TEXT}">${esc(lab.text)}</text>`)
+    const text = vmap.get(lab.at) ?? lab.text
+    out.push(`<text x="${tx(px) + 6}" y="${ty(py) - 6}" fill="${GF_TEXT}">${esc(text)}</text>`)
   }
 
   out.push('</svg>')

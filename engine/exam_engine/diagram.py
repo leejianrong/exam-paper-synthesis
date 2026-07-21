@@ -703,6 +703,33 @@ _GF_STROKE = "#2f5fe0"  # figure edges / arcs
 _GF_FILL = "#dbe4fb"  # shaded region fill
 _GF_TEXT = "#334155"  # text labels
 
+# A vertex key is *positional* (top/bottom/middle × left/right/centre/middle,
+# e.g. TL/TR/BR/BL, and the family an L-shape/trapezium would use) rather than a
+# meaningful letter a question might name (A, B, O, P, T, …). KAN-313 relabels
+# only these to display letters, so vertices the wording references stay put.
+_GF_POSITIONAL_KEY = re.compile(r"^[TBM][LRCM]$")
+
+
+def _gf_vertex_display(labels: list[dict]) -> dict[str, str]:
+    """Map positionally-keyed boundary vertices to display letters (KAN-313).
+
+    Product feedback: corners labelled by position (TL/BL/TR/BR) read as unclear
+    to students; show lettered vertices (A, B, C, …) per PSLE convention. This is
+    a **display-only** concern — the structural point keys in the spec/solvers/
+    goldens are unchanged; only the drawn text is remapped.
+
+    Positional keys are assigned ``A, B, C, …`` in the order the figure lists them
+    (the solver authors ``labels`` in boundary order). Meaningfully-named vertices
+    (already letters, possibly named by the question text) are left untouched, and
+    arc centres are never labelled so never receive a letter. Deterministic.
+    """
+    mapping: dict[str, str] = {}
+    for lab in labels:
+        pid = lab.get("at")
+        if isinstance(pid, str) and _GF_POSITIONAL_KEY.match(pid):
+            mapping[pid] = chr(ord("A") + len(mapping))
+    return mapping
+
 
 def _r(v: float) -> int:
     """Round half-up to an int — identical in Python and JS (``Math.floor(v+0.5)``)."""
@@ -914,10 +941,14 @@ def _render_geometry_figure(spec: dict) -> str:
                 )
 
     # --- free text labels ---------------------------------------------------
+    # Positional vertex keys (TL/TR/…) are shown as display letters (KAN-313);
+    # meaningfully-named vertices keep their text.
+    vmap = _gf_vertex_display(labels)
     for lab in labels:
         px, py = pmap[lab["at"]]
+        text = vmap.get(lab["at"], lab["text"])
         lines.append(
-            f'<text x="{tx(px) + 6}" y="{ty(py) - 6}" fill="{_GF_TEXT}">{_esc(lab["text"])}</text>'
+            f'<text x="{tx(px) + 6}" y="{ty(py) - 6}" fill="{_GF_TEXT}">{_esc(text)}</text>'
         )
 
     lines.append("</svg>")
