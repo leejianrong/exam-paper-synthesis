@@ -281,7 +281,7 @@ TRACK_SPEC = {
     "segments": [
         {"from": "TL", "to": "TR", "label": "20 cm"},
         {"from": "BL", "to": "BR"},
-        {"from": "OL", "to": "TL", "label": "7 cm"},
+        {"from": "OL", "to": "TL", "label": "7 cm", "dashed": True},
     ],
     "arcs": [
         {"center": "OL", "radius": 7, "start_deg": 90, "end_deg": 270, "label": None},
@@ -312,3 +312,21 @@ def test_meaningful_vertex_labels_are_untouched():
     already meaningfully lettered (A, …) keeps its labels unchanged."""
     svg = render_svg(AREA_SPEC)
     assert ">A</text>" in svg  # AREA_SPEC labels point A
+
+
+def test_dashed_radius_is_a_dotted_dimension_line():
+    """KAN-314: the radius segment is drawn dotted (stroke-dasharray) with a
+    perpendicular end cap at each end — three dashed segments — while the solid
+    track edges carry no dash."""
+    import re
+
+    svg = render_svg(TRACK_SPEC)
+    dashed = re.findall(r"<line[^>]*stroke-dasharray", svg)
+    assert len(dashed) == 3  # main radius line + two end caps
+    # The solid track edges (stroke-width 2) must not be dashed.
+    solid = re.findall(r'<line[^>]*stroke-width="2"[^>]*/>', svg)
+    assert solid and all("dasharray" not in s for s in solid)
+
+
+def test_dashed_render_is_deterministic():
+    assert render_svg(TRACK_SPEC) == render_svg(TRACK_SPEC)

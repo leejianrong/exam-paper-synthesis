@@ -353,7 +353,7 @@ describe('geometry_figure geometry', () => {
     segments: [
       { from: 'TL', to: 'TR', label: '20 cm' },
       { from: 'BL', to: 'BR' },
-      { from: 'OL', to: 'TL', label: '7 cm' },
+      { from: 'OL', to: 'TL', label: '7 cm', dashed: true },
     ],
     arcs: [
       { center: 'OL', radius: 7, start_deg: 90, end_deg: 270, label: null },
@@ -380,6 +380,18 @@ describe('geometry_figure geometry', () => {
 
   it('KAN-313: meaningfully-named vertices are left untouched', () => {
     expect(renderDiagram(areaSpec)).toContain('>A</text>')
+  })
+
+  it('KAN-314: dashed radius is a dotted dimension line (three segments)', () => {
+    const svg = renderDiagram(trackSpec)
+    expect(count(svg, 'stroke-dasharray')).toBe(3) // main line + two end caps
+    const solid = svg.match(/<line[^>]*stroke-width="2"[^>]*\/>/g) ?? []
+    expect(solid.length).toBeGreaterThan(0)
+    expect(solid.every((s) => !s.includes('dasharray'))).toBe(true)
+  })
+
+  it('KAN-314: dashed render is deterministic', () => {
+    expect(renderDiagram(trackSpec)).toBe(renderDiagram(trackSpec))
   })
 })
 

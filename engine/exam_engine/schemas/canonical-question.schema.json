@@ -343,7 +343,8 @@
               "from": { "type": "string" },
               "to": { "type": "string" },
               "label": { "type": ["string", "null"] },
-              "ticks": { "type": "integer", "minimum": 0 }
+              "ticks": { "type": "integer", "minimum": 0 },
+              "dashed": { "type": "boolean", "default": false }
             }
           }
         },

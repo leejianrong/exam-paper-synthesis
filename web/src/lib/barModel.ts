@@ -84,6 +84,8 @@ export interface GeometrySegment {
   to: string
   label?: string | null
   ticks?: number
+  // A dashed segment is a dimension line (e.g. a radius), not a figure edge (KAN-314).
+  dashed?: boolean
 }
 
 export interface GeometryArc {
@@ -477,6 +479,8 @@ const GF_LABEL_OFF = 13
 const GF_STROKE = '#2f5fe0'
 const GF_FILL = '#dbe4fb'
 const GF_TEXT = '#334155'
+const GF_DASH = '4 3' // stroke-dasharray for dashed dimension lines (KAN-314)
+const GF_DIM_CAP = 5 // dimension-line end-cap half-length (canvas px, KAN-314)
 
 // A positional vertex key (T/B/M × L/R/C, e.g. TL/TR/BR/BL) vs a meaningful
 // letter the wording might name (A, B, O, P, T, …). Mirrors _GF_POSITIONAL_KEY
@@ -613,14 +617,34 @@ function renderGeometryFigure(spec: GeometryFigureSpec): string {
     const y1 = ty(ay)
     const x2 = tx(bx)
     const y2 = ty(by)
-    out.push(
-      `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${GF_STROKE}" stroke-width="2"/>`,
-    )
     const mx = (x1 + x2) / 2
     const my = (y1 + y2) / 2
     const [ux, uy] = gfUnit(x2 - x1, y2 - y1)
     const nx = -uy
     const ny = ux
+    // A dashed segment is a dimension line, not a figure edge (KAN-314): a dashed
+    // main line plus a short perpendicular end cap at each endpoint (three dashed
+    // segments) so the radius reads as a measurement, distinct from the outline.
+    if (seg.dashed) {
+      for (const [ex, ey] of [
+        [x1, y1],
+        [x2, y2],
+      ] as Array<[number, number]>) {
+        out.push(
+          `<line x1="${gfRound(ex - nx * GF_DIM_CAP)}" y1="${gfRound(ey - ny * GF_DIM_CAP)}" ` +
+            `x2="${gfRound(ex + nx * GF_DIM_CAP)}" y2="${gfRound(ey + ny * GF_DIM_CAP)}" ` +
+            `stroke="${GF_STROKE}" stroke-width="1.5" stroke-dasharray="${GF_DASH}"/>`,
+        )
+      }
+      out.push(
+        `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" ` +
+          `stroke="${GF_STROKE}" stroke-width="1.5" stroke-dasharray="${GF_DASH}"/>`,
+      )
+    } else {
+      out.push(
+        `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${GF_STROKE}" stroke-width="2"/>`,
+      )
+    }
     const ticks = seg.ticks ?? 0
     for (let i = 0; i < ticks; i++) {
       const off = (i - (ticks - 1) / 2) * GF_TICK_SP

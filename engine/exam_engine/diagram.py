@@ -702,6 +702,8 @@ _GF_LABEL_OFF = 13  # perpendicular offset of a segment length label
 _GF_STROKE = "#2f5fe0"  # figure edges / arcs
 _GF_FILL = "#dbe4fb"  # shaded region fill
 _GF_TEXT = "#334155"  # text labels
+_GF_DASH = "4 3"  # stroke-dasharray for dashed dimension lines (KAN-314)
+_GF_DIM_CAP = 5  # dimension-line end-cap half-length (canvas px, KAN-314)
 
 # A vertex key is *positional* (top/bottom/middle × left/right/centre/middle,
 # e.g. TL/TR/BR/BL, and the family an L-shape/trapezium would use) rather than a
@@ -848,13 +850,30 @@ def _render_geometry_figure(spec: dict) -> str:
         ax, ay = pmap[seg["from"]]
         bx, by = pmap[seg["to"]]
         x1, y1, x2, y2 = tx(ax), ty(ay), tx(bx), ty(by)
-        lines.append(
-            f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-            f'stroke="{_GF_STROKE}" stroke-width="2"/>'
-        )
         mx, my = (x1 + x2) / 2, (y1 + y2) / 2
         ux, uy = _gf_unit(x2 - x1, y2 - y1)
         nx, ny = -uy, ux  # perpendicular
+        # A ``dashed`` segment is a dimension line, not a figure edge (KAN-314):
+        # the radius of the running-track semicircle is drawn dotted and clearly
+        # demarcated — a dashed main line plus a short perpendicular end cap at
+        # each endpoint (three dashed segments) — so it reads as a measurement,
+        # visually distinct from the solid track outline.
+        if seg.get("dashed"):
+            for ex, ey in ((x1, y1), (x2, y2)):
+                lines.append(
+                    f'<line x1="{_r(ex - nx * _GF_DIM_CAP)}" y1="{_r(ey - ny * _GF_DIM_CAP)}" '
+                    f'x2="{_r(ex + nx * _GF_DIM_CAP)}" y2="{_r(ey + ny * _GF_DIM_CAP)}" '
+                    f'stroke="{_GF_STROKE}" stroke-width="1.5" stroke-dasharray="{_GF_DASH}"/>'
+                )
+            lines.append(
+                f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
+                f'stroke="{_GF_STROKE}" stroke-width="1.5" stroke-dasharray="{_GF_DASH}"/>'
+            )
+        else:
+            lines.append(
+                f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
+                f'stroke="{_GF_STROKE}" stroke-width="2"/>'
+            )
         ticks = seg.get("ticks") or 0
         for i in range(ticks):
             off = (i - (ticks - 1) / 2) * _GF_TICK_SP
