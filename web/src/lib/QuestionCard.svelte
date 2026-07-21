@@ -71,8 +71,12 @@
 
 <article class="card">
   <header>
-    <span class="badge {q.validation.status}">{q.validation.status}</span>
-    <span class="meta">{q.blueprint_code} · seed {q.seed} · [{part.marks}]</span>
+    <span class="badge {q.validation.status}"><span class="dot" aria-hidden="true"></span
+      >{q.validation.status}</span
+    >
+    <span class="meta"
+      >{q.blueprint_code} · seed {q.seed} · <span class="marks">[{part.marks}]</span></span
+    >
   </header>
 
   <p class="text">{part.text}</p>
@@ -84,7 +88,9 @@
     <div class="diagram" aria-label={diagramAria}>{@html svg}</div>
   {/if}
 
-  <p class="answer"><span class="label">Answer</span> {fmtAnswer(part.answer)}</p>
+  <p class="answer">
+    <span class="label">Answer</span> <span class="val">{fmtAnswer(part.answer)}</span>
+  </p>
 
   <div class="edit-row" role="group" aria-label="edit question">
     {#if canRegenerate}
@@ -178,146 +184,252 @@
 
 <style>
   .card {
-    background: var(--card);
+    background: var(--paper-2);
     border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 1rem 1.15rem;
-    box-shadow: 0 1px 2px rgba(20, 30, 60, 0.04);
+    border-radius: 12px;
+    padding: 1.25rem 1.4rem;
+    box-shadow: var(--shadow);
   }
   header {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    margin-bottom: 0.6rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--line-soft);
+    margin-bottom: 0.95rem;
   }
+  /* validation badge = verify (mono, engine voice) */
   .badge {
-    font-size: 0.72rem;
-    font-weight: 700;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
-    padding: 0.15rem 0.5rem;
-    border-radius: 999px;
+    letter-spacing: 0.1em;
+    padding: 0.2rem 0.55rem;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
-  .badge.pass { color: var(--pass); background: var(--pass-bg); }
-  .badge.fail { color: var(--fail); background: var(--fail-bg); }
-  .meta { color: var(--muted); font-size: 0.82rem; }
-  .text { margin: 0 0 0.7rem; line-height: 1.5; }
+  .badge .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex: none;
+  }
+  .badge.pass {
+    color: var(--verify-ink);
+    background: var(--verify-soft);
+    border: 1px solid color-mix(in srgb, var(--verify) 30%, transparent);
+  }
+  .badge.fail {
+    color: var(--mark);
+    background: var(--mark-soft);
+    border: 1px solid color-mix(in srgb, var(--mark) 30%, transparent);
+  }
+  /* engine data meta line = mono */
+  .meta {
+    font-family: var(--mono);
+    color: var(--ink-faint);
+    font-size: 12px;
+    letter-spacing: -0.01em;
+    margin-left: auto;
+  }
+  .meta .marks {
+    color: var(--mark);
+    font-weight: 600;
+  }
+  /* question stem = serif (the trusted paper) */
+  .text {
+    font-family: var(--serif);
+    font-size: 1.24rem;
+    line-height: 1.4;
+    color: var(--ink);
+    margin: 0 0 1rem;
+    text-wrap: pretty;
+  }
   .diagram {
-    margin: 0 0 0.8rem;
-    padding: 0.5rem;
-    background: #fbfcfe;
-    border: 1px solid var(--line);
-    border-radius: 8px;
+    margin: 0 0 1rem;
+    padding: 0.85rem 0.75rem 0.5rem;
+    background: var(--paper);
+    border: 1px solid var(--line-soft);
+    border-radius: 9px;
     overflow-x: auto;
   }
-  .answer { margin: 0; font-size: 1.05rem; }
+  /* answer value = serif, in a verify-tinted box */
+  .answer {
+    display: flex;
+    align-items: baseline;
+    gap: 0.65rem;
+    margin: 0;
+    padding: 0.65rem 0.85rem;
+    background: var(--verify-soft);
+    border: 1px solid color-mix(in srgb, var(--verify) 22%, transparent);
+    border-radius: 9px;
+  }
+  .answer .label {
+    font-family: var(--mono);
+    color: var(--verify-ink);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .answer .val {
+    font-family: var(--serif);
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
   .edit-row {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-    margin-top: 0.9rem;
+    margin-top: 1rem;
   }
+  /* controls = sans, quiet ghost buttons */
   .edit {
     background: transparent;
     border: 1px solid var(--line);
-    color: var(--accent);
+    color: var(--ink);
     border-radius: 8px;
     padding: 0.4rem 0.75rem;
     font-size: 0.82rem;
-    font-weight: 600;
+    font-weight: 500;
+    font-family: var(--sans);
     cursor: pointer;
   }
-  .edit:disabled { opacity: 0.55; cursor: default; }
+  .edit:hover:not(:disabled) {
+    background: var(--paper-sink);
+  }
+  .edit:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
   .gate-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem;
-    margin-top: 0.6rem;
+    margin-top: 0.65rem;
   }
+  /* Approve = solid verify */
   .approve {
-    background: var(--pass, #1a7f52);
-    border: 1px solid transparent;
+    background: var(--verify);
+    border: 1px solid var(--verify);
     color: #fff;
     border-radius: 8px;
-    padding: 0.4rem 0.9rem;
+    padding: 0.4rem 0.95rem;
     font-size: 0.82rem;
-    font-weight: 700;
+    font-weight: 600;
+    font-family: var(--sans);
     cursor: pointer;
   }
-  .approve:disabled { opacity: 0.55; cursor: default; }
+  .approve:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
   .discard {
     background: transparent;
     border: 1px solid var(--line);
-    color: var(--muted);
+    color: var(--ink-faint);
     border-radius: 8px;
     padding: 0.4rem 0.75rem;
     font-size: 0.82rem;
-    font-weight: 600;
+    font-weight: 500;
+    font-family: var(--sans);
     cursor: pointer;
   }
-  .discard:disabled { opacity: 0.55; cursor: default; }
+  .discard:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
   .added {
-    color: var(--pass, #1a7f52);
+    color: var(--verify-ink);
     font-size: 0.82rem;
-    font-weight: 700;
+    font-weight: 600;
   }
-  .answer .label {
-    color: var(--muted);
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-right: 0.4rem;
+  .solution {
+    margin: 1.15rem 0 0;
   }
-  .solution { margin: 0.9rem 0 0; }
+  /* micro-label heading = mono uppercase */
   .solution h3 {
-    font-size: 0.8rem;
+    font-family: var(--mono);
+    font-size: 10.5px;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--muted);
-    margin: 0 0 0.4rem;
+    letter-spacing: 0.1em;
+    color: var(--ink-faint);
+    font-weight: 600;
+    margin: 0 0 0.5rem;
   }
-  .solution .marks { color: var(--ink); font-weight: 600; }
-  .solution ol { margin: 0; padding-left: 1.2rem; line-height: 1.55; }
-  .solution li { margin-bottom: 0.15rem; }
+  .solution h3 .marks {
+    color: var(--mark);
+    font-weight: 600;
+  }
+  .solution ol {
+    margin: 0;
+    padding-left: 1.3rem;
+    line-height: 1.5;
+  }
+  .solution li {
+    margin-bottom: 0.25rem;
+    font-size: 0.94rem;
+  }
   .key-toggle {
-    margin-top: 0.9rem;
+    margin-top: 0.95rem;
     background: transparent;
     border: 1px solid var(--line);
-    color: var(--accent);
+    color: var(--ink);
     border-radius: 8px;
     padding: 0.4rem 0.75rem;
     font-size: 0.82rem;
-    font-weight: 600;
+    font-weight: 500;
+    font-family: var(--sans);
     cursor: pointer;
+  }
+  .key-toggle:hover {
+    background: var(--paper-sink);
   }
   .scheme {
     list-style: none;
-    margin: 0.6rem 0 0;
+    margin: 0.75rem 0 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.45rem;
   }
   .scheme li {
     display: flex;
     align-items: baseline;
-    gap: 0.5rem;
+    gap: 0.65rem;
     font-size: 0.9rem;
     line-height: 1.4;
   }
+  /* M/A/B tags = mono, outlined, semantic tokens (M=ink-soft, A=verify, B=u2) */
   .mtag {
     flex: 0 0 auto;
-    font-weight: 700;
-    font-size: 0.72rem;
-    width: 1.3rem;
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 11px;
+    width: 1.5rem;
     text-align: center;
-    border-radius: 4px;
-    padding: 0.05rem 0;
-    color: #fff;
+    border-radius: 5px;
+    padding: 2px 0;
+    border: 1px solid currentColor;
   }
-  .mtag.M { background: #2f5fe0; }
-  .mtag.A { background: #1a7f52; }
-  .mtag.B { background: #8a5cc7; }
-  .mmark { color: var(--muted); font-size: 0.82rem; }
+  .mtag.M {
+    color: var(--ink-soft);
+  }
+  .mtag.A {
+    color: var(--verify-ink);
+  }
+  .mtag.B {
+    color: var(--u2);
+  }
+  .mmark {
+    font-family: var(--mono);
+    color: var(--mark);
+    font-size: 12px;
+    font-weight: 600;
+  }
 </style>

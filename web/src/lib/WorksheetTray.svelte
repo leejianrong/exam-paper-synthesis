@@ -150,41 +150,48 @@
 
 <style>
   .tray {
-    background: var(--card);
+    background: var(--paper-2);
     border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 1rem 1.15rem;
-    box-shadow: 0 1px 2px rgba(20, 30, 60, 0.04);
+    border-radius: 12px;
+    padding: 1.25rem 1.4rem;
+    margin-top: 1.4rem;
+    box-shadow: var(--shadow);
   }
   .title {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
-    margin-bottom: 0.9rem;
+    gap: 0.35rem;
+    margin-bottom: 0.95rem;
   }
+  /* uppercase micro-label = mono (engine voice) */
   .title-label {
-    color: var(--muted);
-    font-size: 0.72rem;
+    font-family: var(--mono);
+    color: var(--ink-faint);
+    font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.1em;
   }
   .title input {
     border: 1px solid var(--line);
     border-radius: 8px;
-    padding: 0.45rem 0.6rem;
+    padding: 0.5rem 0.65rem;
     font-size: 1rem;
     font-weight: 600;
+    font-family: var(--sans);
     color: var(--ink);
-    background: var(--bg, #fff);
+    background: var(--paper);
   }
-  .empty { color: var(--muted); margin: 0; }
+  .empty {
+    color: var(--ink-soft);
+    margin: 0;
+  }
   .items {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.45rem;
   }
   .item {
     display: flex;
@@ -193,9 +200,22 @@
     font-size: 0.9rem;
     line-height: 1.4;
   }
-  .index { color: var(--muted); flex: 0 0 auto; }
-  .label { flex: 1 1 auto; }
-  .marks { color: var(--muted); flex: 0 0 auto; font-size: 0.82rem; }
+  .index {
+    font-family: var(--mono);
+    color: var(--ink-faint);
+    flex: 0 0 auto;
+  }
+  .label {
+    flex: 1 1 auto;
+    color: var(--ink);
+  }
+  .marks {
+    font-family: var(--mono);
+    color: var(--mark);
+    font-weight: 600;
+    flex: 0 0 auto;
+    font-size: 0.82rem;
+  }
   .actions {
     display: flex;
     gap: 0.25rem;
@@ -210,32 +230,51 @@
     font-size: 0.8rem;
     line-height: 1.2;
     cursor: pointer;
-    color: var(--accent);
+    color: var(--ink-soft);
   }
-  .remove { color: var(--muted); }
-  .reorder:disabled { opacity: 0.4; cursor: default; }
+  .reorder:hover:not(:disabled),
+  .remove:hover {
+    background: var(--paper-sink);
+    color: var(--ink);
+  }
+  .remove {
+    color: var(--ink-faint);
+  }
+  .reorder:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
   .total {
-    margin: 0.9rem 0 0;
-    padding-top: 0.6rem;
-    border-top: 1px solid var(--line);
+    margin: 0.95rem 0 0;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--line-soft);
     font-size: 0.9rem;
+    color: var(--ink-soft);
+  }
+  /* total marks = mark colour */
+  .total :global(b) {
+    font-family: var(--mono);
+    color: var(--mark);
+    font-weight: 600;
   }
   .export-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
-    margin-top: 0.9rem;
-    padding-top: 0.9rem;
-    border-top: 1px solid var(--line);
+    margin-top: 0.95rem;
+    padding-top: 0.95rem;
+    border-top: 1px solid var(--line-soft);
   }
+  /* export = solid ink primary (the deliverables) */
   .export {
-    background: var(--accent);
-    color: #fff;
-    border: 0;
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
     border-radius: 8px;
-    padding: 0.45rem 0.85rem;
+    padding: 0.45rem 0.9rem;
     font-size: 0.85rem;
     font-weight: 600;
+    font-family: var(--sans);
     cursor: pointer;
   }
   .export:disabled {
@@ -244,8 +283,9 @@
   }
   .error {
     margin: 0.75rem 0 0;
-    color: var(--fail);
-    background: var(--fail-bg);
+    color: var(--mark);
+    background: var(--mark-soft);
+    border: 1px solid color-mix(in srgb, var(--mark) 30%, transparent);
     padding: 0.6rem 0.75rem;
     border-radius: 8px;
     font-size: 0.85rem;

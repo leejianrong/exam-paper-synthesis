@@ -58,7 +58,20 @@
 </script>
 
 <main>
-  <h1>Exam Paper Synthesis</h1>
+  <div class="masthead">
+    <svg class="glyph" viewBox="0 0 20 20" aria-hidden="true">
+      <rect x="0" y="3" width="20" height="4" rx="1" />
+      <rect x="0" y="8" width="13" height="4" rx="1" />
+      <rect x="0" y="13" width="8" height="4" rx="1" />
+    </svg>
+    <span class="wordmark">exam-paper-synthesis</span>
+  </div>
+
+  <h1 class="title">Craft a question</h1>
+  <p class="standfirst">
+    Generate a fresh, validated P5&ndash;P6 question, nudge its difficulty, then approve it into a
+    worksheet.
+  </p>
 
   <div class="panel">
     <div class="selectors">
@@ -79,7 +92,7 @@
         </select>
       </label>
     </div>
-    <button on:click={onGenerate} disabled={loading}>
+    <button class="generate" on:click={onGenerate} disabled={loading}>
       {loading ? 'Generating…' : 'Generate'}
     </button>
   </div>
@@ -110,25 +123,70 @@
 
 <style>
   main {
-    max-width: 720px;
+    max-width: 760px;
     margin: 0 auto;
-    padding: 2rem 1.25rem 4rem;
+    padding: 2.5rem 1.35rem 4.5rem;
   }
-  h1 {
-    font-size: 1.4rem;
-    margin: 0 0 1.25rem;
-  }
-  .panel {
+
+  /* --- masthead (mono wordmark + unit-coloured glyph) --- */
+  .masthead {
     display: flex;
     align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 1.75rem;
+  }
+  .glyph {
+    width: 22px;
+    height: 22px;
+    flex: none;
+  }
+  .glyph rect:nth-child(1) {
+    fill: var(--u1);
+  }
+  .glyph rect:nth-child(2) {
+    fill: var(--u2);
+  }
+  .glyph rect:nth-child(3) {
+    fill: var(--u3);
+  }
+  .wordmark {
+    font-family: var(--mono);
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+
+  /* --- page title: serif = the trusted paper --- */
+  .title {
+    font-family: var(--serif);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    font-size: clamp(1.7rem, 4vw, 2.3rem);
+    line-height: 1.05;
+    margin: 0 0 0.4rem;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+  .standfirst {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    margin: 0 0 1.6rem;
+    max-width: 54ch;
+  }
+
+  .panel {
+    display: flex;
+    align-items: flex-end;
     justify-content: space-between;
     gap: 1rem;
     flex-wrap: wrap;
-    background: var(--card);
+    background: var(--paper-2);
     border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 1rem 1.15rem;
-    margin-bottom: 1.25rem;
+    border-radius: 12px;
+    padding: 0.95rem 1.1rem;
+    margin-bottom: 1.4rem;
+    box-shadow: var(--shadow);
   }
   .selectors {
     display: flex;
@@ -138,41 +196,61 @@
   .field {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.3rem;
   }
+  /* uppercase micro-label = mono (engine data voice) */
   .field > span {
-    color: var(--muted);
-    font-size: 0.72rem;
+    font-family: var(--mono);
+    color: var(--ink-faint);
+    font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.1em;
   }
   .field select {
-    background: var(--card);
+    background: var(--paper);
     color: var(--ink);
     border: 1px solid var(--line);
     border-radius: 8px;
-    padding: 0.45rem 0.6rem;
+    padding: 0.5rem 0.65rem;
     font-size: 0.9rem;
-    font-family: inherit;
+    font-family: var(--sans);
     cursor: pointer;
+    min-width: 150px;
   }
-  button {
-    background: var(--accent);
-    color: #fff;
-    border: 0;
+  /* Generate = solid ink primary */
+  .generate {
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
     border-radius: 8px;
-    padding: 0.6rem 1.25rem;
-    font-size: 0.95rem;
+    padding: 0.62rem 1.35rem;
+    font-size: 0.93rem;
     font-weight: 600;
+    font-family: var(--sans);
+    letter-spacing: -0.005em;
     cursor: pointer;
   }
-  button:disabled { opacity: 0.6; cursor: default; }
+  .generate:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
   .error {
-    color: var(--fail);
-    background: var(--fail-bg);
+    color: var(--mark);
+    background: var(--mark-soft);
+    border: 1px solid color-mix(in srgb, var(--mark) 30%, transparent);
     padding: 0.75rem 1rem;
     border-radius: 8px;
   }
-  .empty { color: var(--muted); }
-  .cards { display: flex; flex-direction: column; gap: 0.9rem; }
+  .empty {
+    color: var(--ink-soft);
+  }
+  .empty :global(b) {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
 </style>
