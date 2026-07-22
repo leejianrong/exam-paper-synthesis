@@ -9,8 +9,8 @@ stamped only at the API boundary (ADR-0016).
 Two flavours of transform:
   * resample ops (regenerate / make-harder / make-easier) re-run the pipeline on
     a target blueprint + fresh seed;
-  * representation ops (change-to-decimals / toggle-diagram) rebuild the object
-    in place from the same integer parameters.
+  * representation ops (change-to-decimals / toggle-diagram / toggle-bar-view)
+    rebuild the object in place from the same integer parameters.
 """
 
 from __future__ import annotations
@@ -24,9 +24,16 @@ from .errors import EditNotApplicable
 from .ladder import sibling
 from .pipeline import generate
 
-# The five known ops (the API rejects anything else with a 404).
+# The known ops (the API rejects anything else with a 404).
 KNOWN_OPS = frozenset(
-    {"regenerate", "make-harder", "make-easier", "change-to-decimals", "toggle-diagram"}
+    {
+        "regenerate",
+        "make-harder",
+        "make-easier",
+        "change-to-decimals",
+        "toggle-diagram",
+        "toggle-bar-view",
+    }
 )
 
 # toggle-diagram only applies to *aid* figures — bar models that scaffold the
@@ -61,6 +68,13 @@ def available_ops(obj: dict) -> set[str]:
     # available in both directions.
     if load_blueprint(code).diagram in AID_DIAGRAM_TYPES:
         ops.add("toggle-diagram")
+
+    # Offer toggle-bar-view only when a before-after bar model is currently present
+    # (KAN-310): it flips that figure's view_mode (grouped<->sliced). Keyed on the
+    # object's live diagram — if the diagram is toggled off there is no view to flip.
+    diagram = _part(obj).get("diagram")
+    if isinstance(diagram, dict) and diagram.get("type") == "bar_model_before_after":
+        ops.add("toggle-bar-view")
 
     return ops
 
@@ -229,12 +243,34 @@ def _toggle_diagram(source: dict, seed: int | None) -> dict:
     return canonical.load(child)
 
 
+def _toggle_bar_view(source: dict, seed: int | None) -> dict:
+    """Flip a before-after bar model's ``view_mode`` (grouped <-> sliced), KAN-310.
+
+    The mode lives on the diagram spec, so the flipped choice carries through the
+    live preview *and* the PDF export (both render from the object). Mirrors
+    :func:`_toggle_diagram`: deep-copy, mutate, bump version, re-validate.
+    """
+    child = copy.deepcopy(source)
+    code = source["blueprint_code"]
+    diagram = child["question"]["parts"][0].get("diagram")
+    # Guarded by available_ops: a before-after bar model must be present.
+    assert isinstance(diagram, dict) and diagram.get("type") == "bar_model_before_after"
+    current = diagram.get("view_mode", "grouped")
+    diagram["view_mode"] = "grouped" if current == "sliced" else "sliced"
+
+    version = source["provenance"]["version"] + 1
+    child["id"] = f"{code}:{source['seed']}:v{version}"
+    _stamp_lineage(child, source)
+    return canonical.load(child)
+
+
 _DISPATCH = {
     "regenerate": _regenerate,
     "make-harder": _make_harder,
     "make-easier": _make_easier,
     "change-to-decimals": _change_to_decimals,
     "toggle-diagram": _toggle_diagram,
+    "toggle-bar-view": _toggle_bar_view,
 }
 
 

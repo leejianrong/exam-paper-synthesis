@@ -141,6 +141,8 @@ class RatioHardSolver:
         pipeline (and the resulting canonical object) stays reproducible.
         """
         a_name, b_name = params["names"]
+        a, b = params["ratio_before"]
+        c, d = params["ratio_after"]
         spent = params["spent"]
         inter = solution["intermediates"]
         L = inter["L"]
@@ -148,21 +150,28 @@ class RatioHardSolver:
         a_after_units = inter["a_after_units"]
         unit_value = inter["unit_value"]
         b_amount = inter["b_amount"]
+        # ``parts`` is the ORIGINAL ratio-term count each equalised bar represents
+        # (A/B before = a/b parts; A/B after = c/d parts). It drives the two render
+        # modes (KAN-310): "grouped" (default) draws these few parts + a unit-worth
+        # label so coprime-ish ratios never explode; "sliced" keeps the common-unit
+        # grid with heavy dividers on these part boundaries. Each part is worth
+        # ``units / parts`` common units (an exact integer by construction).
         return {
             "type": "bar_model_before_after",
+            "view_mode": "grouped",
             "stages": [
                 {
                     "name": "Before",
                     "bars": [
-                        {"label": a_name, "units": a_before_units},
-                        {"label": b_name, "units": L},
+                        {"label": a_name, "units": a_before_units, "parts": a},
+                        {"label": b_name, "units": L, "parts": b},
                     ],
                 },
                 {
                     "name": "After",
                     "bars": [
-                        {"label": a_name, "units": a_after_units},
-                        {"label": b_name, "units": L},
+                        {"label": a_name, "units": a_after_units, "parts": c},
+                        {"label": b_name, "units": L, "parts": d},
                     ],
                 },
             ],

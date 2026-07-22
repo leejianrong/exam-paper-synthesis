@@ -73,6 +73,8 @@ def check_bar_model_before_after_consistency(
     labels B's (unchanged) amount.
     """
     a_name, b_name = params["names"]
+    a, b = params["ratio_before"]
+    c, d = params["ratio_after"]
     spent = params["spent"]
     inter = solution["intermediates"]
     L = inter["L"]
@@ -82,7 +84,7 @@ def check_bar_model_before_after_consistency(
     b_amount = inter["b_amount"]
 
     stages = spec.get("stages", [])
-    ann_labels = [a.get("label") for a in spec.get("annotations", [])]
+    ann_labels = [a_.get("label") for a_ in spec.get("annotations", [])]
 
     checks: dict[str, bool] = {}
     checks["stage_count"] = len(stages) == 2
@@ -93,13 +95,15 @@ def check_bar_model_before_after_consistency(
 
     before_bars = stages[0].get("bars", []) if len(stages) > 0 else []
     after_bars = stages[1].get("bars", []) if len(stages) > 1 else []
+    # ``parts`` (original ratio terms) must match the ratio; the numbers are what
+    # the consistency check guards — the pixel view_mode never affects them (KAN-310).
     checks["before_bars"] = before_bars == [
-        {"label": a_name, "units": a_before_units},
-        {"label": b_name, "units": L},
+        {"label": a_name, "units": a_before_units, "parts": a},
+        {"label": b_name, "units": L, "parts": b},
     ]
     checks["after_bars"] = after_bars == [
-        {"label": a_name, "units": a_after_units},
-        {"label": b_name, "units": L},
+        {"label": a_name, "units": a_after_units, "parts": c},
+        {"label": b_name, "units": L, "parts": d},
     ]
     # Invariant: B's bar is identical (== L) across both stages.
     before_b = before_bars[1].get("units") if len(before_bars) > 1 else None
@@ -311,6 +315,9 @@ _BRACE_LABEL_GAP = 8  # gap from the brace cusp to its label
 _CHAR_W = 7  # ~px per character at font-size 13 (label-width estimate)
 _STAGE_HEAD_H = 22  # height of a stage-name heading row (before/after variant)
 _STAGE_GAP = 18  # vertical gap between the two stage groups
+_DIV_LIGHT = "0.75"  # sub-unit divider stroke width (fine common-unit grid)
+_DIV_HEAVY = "2"  # original-ratio boundary divider stroke width (KAN-310)
+_WORTH_GAP = 8  # gap from a grouped bar's right edge to its unit-worth label
 
 
 def render_svg(spec: dict) -> str:
@@ -459,31 +466,68 @@ def _render_bar_model(spec: dict) -> str:
     return "".join(lines)
 
 
+def _bafa_parts(bar: dict) -> int:
+    """Original ratio-term count a before-after bar draws as (KAN-310).
+
+    Falls back to ``units`` (one segment per common unit) when ``parts`` is absent
+    or invalid, so a spec authored before the field still renders coherently.
+    """
+    p = bar.get("parts")
+    return p if isinstance(p, int) and p >= 1 else int(bar["units"])
+
+
 def _render_bar_model_before_after(spec: dict) -> str:
     """Render the before-after aid: two stacked stage groups (each a heading + its
     bars), the annotations below, and a vertical brace on the invariant person's bar.
 
+    Two view modes (KAN-310), selected by ``spec["view_mode"]`` (default "grouped"):
+
+    * **grouped** — draw each bar at ORIGINAL ratio granularity (``parts`` segments,
+      one ``_UNIT_W`` wide each) with the A-bar carrying a "= Nu" label giving a
+      segment's worth in common units. Bounded by the ratio terms, so coprime-ish
+      ratios (before 7:1 → after 8:9, LCM 63) never explode into tiny cells.
+    * **sliced** — the full common-unit grid (``units`` cells wide) with a HEAVY
+      divider on the original-ratio boundaries and a LIGHT divider on the sub-units,
+      so the original ratio stays visible over the fine grid.
+
     Pure + deterministic — integer coordinates only, reuses the ``bar_model``
-    drawing style (rect + per-unit dividers + left-gutter label).
+    drawing style (rect + dividers + left-gutter label).
     """
     stages = spec["stages"]
     annotations = spec.get("annotations", [])
     total_bracket = spec.get("total_bracket")
+    grouped = spec.get("view_mode", "grouped") != "sliced"
 
-    # Widest bar across both stages drives the unit span; B (invariant) sits at the
-    # second row of each stage and its right edge anchors the total brace.
+    def drawn_units(bar: dict) -> int:
+        # Bar width in _UNIT_W multiples: original parts (grouped) vs common units.
+        return _bafa_parts(bar) if grouped else int(bar["units"])
+
+    def worth(bar: dict) -> int:
+        # Common-unit worth of one drawn segment (exact by construction).
+        return int(bar["units"]) // _bafa_parts(bar)
+
     all_bars = [bar for stage in stages for bar in stage["bars"]]
-    max_bar_units = max((b["units"] for b in all_bars), default=1)
-    # B's width (invariant): the second bar of the first stage.
-    b_units = stages[0]["bars"][1]["units"] if len(stages[0]["bars"]) > 1 else max_bar_units
-
-    span_units = max(max_bar_units, 1)
+    span_units = max((drawn_units(b) for b in all_bars), default=1)
     right = _LABEL_W + span_units * _UNIT_W
 
-    # Brace on B's bar → the total label (drawn on the last stage's B bar).
-    brace_x = label_x = None
-    if total_bracket:
-        brace_x = _LABEL_W + b_units * _UNIT_W + _BRACE_GAP
+    # In grouped mode the A bar (row 0) of each stage carries a unit-worth label to
+    # its right; account for it in the canvas width.
+    if grouped:
+        for stage in stages:
+            bars = stage["bars"]
+            if bars:
+                a_bar = bars[0]
+                a_right = _LABEL_W + drawn_units(a_bar) * _UNIT_W
+                worth_px = len(f"= {worth(a_bar)}u") * _CHAR_W
+                right = max(right, a_right + _WORTH_GAP + worth_px)
+
+    # B (invariant) sits at the second row of each stage; the last one anchors the
+    # total brace. Its drawn width depends on the mode.
+    b_after = stages[1]["bars"][1] if len(stages) > 1 and len(stages[1]["bars"]) > 1 else None
+    brace_x = None
+    if total_bracket and b_after is not None:
+        b_after_right = _LABEL_W + drawn_units(b_after) * _UNIT_W
+        brace_x = b_after_right + _BRACE_GAP
         label_x = brace_x + _BRACE_W + _BRACE_LABEL_GAP
         right = max(right, label_x + len(total_bracket["label"]) * _CHAR_W + 4)
 
@@ -521,9 +565,9 @@ def _render_bar_model_before_after(spec: dict) -> str:
         )
         y += _STAGE_HEAD_H
         for row, bar in enumerate(stage["bars"]):
-            units = bar["units"]
+            units = int(bar["units"])
             label = bar["label"]
-            bar_w = units * _UNIT_W
+            bar_w = drawn_units(bar) * _UNIT_W
             text_y = y + _BAR_H // 2 + 4
             lines.append(
                 f'<text x="{_LABEL_W - 8}" y="{text_y}" text-anchor="end">{_esc(label)}</text>'
@@ -532,12 +576,32 @@ def _render_bar_model_before_after(spec: dict) -> str:
                 f'<rect x="{_LABEL_W}" y="{y}" width="{bar_w}" height="{_BAR_H}" '
                 f'fill="#eef2fb" stroke="#2f5fe0" stroke-width="1.5"/>'
             )
-            for u in range(1, units):
-                x = _LABEL_W + u * _UNIT_W
-                lines.append(
-                    f'<line x1="{x}" y1="{y}" x2="{x}" y2="{y + _BAR_H}" '
-                    f'stroke="#2f5fe0" stroke-width="0.75"/>'
-                )
+            if grouped:
+                # One divider per original-ratio boundary — a small, bounded count.
+                for u in range(1, _bafa_parts(bar)):
+                    x = _LABEL_W + u * _UNIT_W
+                    lines.append(
+                        f'<line x1="{x}" y1="{y}" x2="{x}" y2="{y + _BAR_H}" '
+                        f'stroke="#2f5fe0" stroke-width="{_DIV_HEAVY}"/>'
+                    )
+                if row == 0:  # A bar → label a segment's unit-worth (per-stage)
+                    wx = _LABEL_W + bar_w + _WORTH_GAP
+                    lines.append(
+                        f'<text x="{wx}" y="{text_y}" text-anchor="start" '
+                        f'fill="#66708a">= {worth(bar)}u</text>'
+                    )
+            else:
+                # Full common-unit grid: heavy on original-ratio boundaries, light
+                # on the sub-units, so the ratio stays visible over the fine grid.
+                group = units // _bafa_parts(bar)
+                for u in range(1, units):
+                    x = _LABEL_W + u * _UNIT_W
+                    heavy = group > 0 and u % group == 0
+                    sw = _DIV_HEAVY if heavy else _DIV_LIGHT
+                    lines.append(
+                        f'<line x1="{x}" y1="{y}" x2="{x}" y2="{y + _BAR_H}" '
+                        f'stroke="#2f5fe0" stroke-width="{sw}"/>'
+                    )
             if row == 1:  # B (the invariant person) — remember its extent
                 last_b_top = y
                 last_b_bot = y + _BAR_H
@@ -545,8 +609,7 @@ def _render_bar_model_before_after(spec: dict) -> str:
         y += _STAGE_GAP - _ROW_GAP  # the trailing _ROW_GAP already added above
 
     # --- total brace on the invariant person's (B's) last bar → its amount ---
-    if total_bracket:
-        assert brace_x is not None  # set together with total_bracket above
+    if total_bracket and brace_x is not None:
         y_top = last_b_top
         y_bot = last_b_bot
         y_mid = (y_top + y_bot) // 2
