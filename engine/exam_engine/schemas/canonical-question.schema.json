@@ -268,9 +268,14 @@
     "diagram_bar_model_before_after": {
       "type": "object", "additionalProperties": false,
       "required": ["type", "stages"],
-      "$comment": "Before-after ratio aid: two stages of bars sharing a unit scale (added in schema 1.2.0).",
+      "$comment": "Before-after ratio aid: two stages of bars sharing a unit scale (added in schema 1.2.0). The optional per-bar `parts` (original ratio-term count that a bar's equalised `units` represent) and `view_mode` (grouped|sliced) drive the two KAN-310 render modes; both are additive and arrived in schema 1.4.0 (alongside the geometry segment `dashed` field). Coprime-ish ratios blow up the common-unit LCM, so `view_mode` defaults to \"grouped\": bars drawn at original-ratio granularity with a per-segment unit-worth label (never explodes). \"sliced\" keeps the common-unit grid with heavy dividers on the original-ratio boundaries. `parts` is display-only (the answer is unchanged); the consistency check verifies it against the ratio terms when present.",
       "properties": {
         "type": { "const": "bar_model_before_after" },
+        "view_mode": {
+          "enum": ["grouped", "sliced"],
+          "default": "grouped",
+          "$comment": "Render mode (KAN-310, schema 1.4.0). Default \"grouped\"."
+        },
         "stages": {
           "type": "array", "minItems": 2, "maxItems": 2,
           "items": {
@@ -285,7 +290,11 @@
                   "required": ["label", "units"],
                   "properties": {
                     "label": { "type": "string" },
-                    "units": { "type": "integer", "minimum": 0 }
+                    "units": { "type": "integer", "minimum": 0 },
+                    "parts": {
+                      "type": "integer", "minimum": 1,
+                      "$comment": "Original ratio-term count this bar's `units` represent (KAN-310, schema 1.4.0). Each drawn segment is worth `units / parts` common units."
+                    }
                   }
                 }
               }

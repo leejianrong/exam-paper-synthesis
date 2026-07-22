@@ -21,7 +21,7 @@ Related decisions: ADR-0004 (object), ADR-0012 (diagram union), ADR-0013 (multi-
 
 | Field | Notes |
 |---|---|
-| `schema_version` | semver, e.g. `"1.3.0"` |
+| `schema_version` | semver, e.g. `"1.4.0"` |
 | `id` | unique instance id |
 | `source_type` | `generated` \| `sourced` (drives conditional requirements) |
 | `blueprint_code` | required for `generated`; `null` for `sourced` |
@@ -60,6 +60,14 @@ that variant's strict sub-schema.
     `stages` (`Before`/`After`), each with one bar per person in a shared unit scale,
     plus `annotations` (labelled notes, e.g. the value of one unit and the amount
     spent) and an optional `total_bracket` labelling the invariant person's amount.
+    Each bar may carry an optional `parts` (its original ratio-term count) and the
+    figure an optional `view_mode` ∈ `grouped | sliced` (both schema **1.4.0**,
+    KAN-310). `grouped` (the default) draws bars at original-ratio granularity with a
+    per-segment unit-worth label so coprime-ish ratios never explode into a fine
+    common-unit grid; `sliced` keeps the full common-unit grid with a heavy divider on
+    the original-ratio boundaries and a light divider on the sub-units. `view_mode` is
+    display-only (the answer is unchanged) and is flipped by the `toggle-bar-view`
+    edit op.
   - `geometry_figure` (schema **1.3.0**) is a general 2D figure — see the dedicated
     section below.
 
@@ -104,7 +112,7 @@ shows only in the detailed answer-key mode (ADR-0005).
 
 ```json
 {
-  "schema_version": "1.3.0",
+  "schema_version": "1.4.0",
   "id": "qi_01H8XR",
   "source_type": "generated",
   "blueprint_code": "P6_RATIO_BEFORE_AFTER_001",
@@ -165,7 +173,7 @@ consistency check asserts.
 
 ```json
 {
-  "schema_version": "1.3.0",
+  "schema_version": "1.4.0",
   "id": "qi_01H8XS",
   "source_type": "generated",
   "blueprint_code": "geometry_angle_easy",
@@ -218,7 +226,7 @@ consistency check asserts.
 
 ```json
 {
-  "schema_version": "1.3.0",
+  "schema_version": "1.4.0",
   "id": "qi_src_00042",
   "source_type": "sourced",
   "blueprint_code": null,
