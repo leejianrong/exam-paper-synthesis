@@ -18,8 +18,12 @@ provable, not approximate.
 
 from __future__ import annotations
 
+import copy
 from fractions import Fraction
 
+from exam_engine.blueprints.registry import get_solver
+from exam_engine.diagram import check_consistency
+from exam_engine.schema import validate_object
 from hypothesis import given
 from invariants import single_part_answer
 from strategies import (
@@ -108,3 +112,26 @@ def test_hard_invariant_before_after_invariant_person(params: dict):
     assert a_before.denominator == 1 and a_after.denominator == 1
     assert a_before - a_after == spent
     assert a_before > 0 and a_after > 0 and answer["value"] > 0
+
+
+@given(params=ratio_hard_params())
+def test_hard_view_mode_is_answer_independent(params: dict):
+    """KAN-310: the before-after diagram's view_mode (grouped|sliced) is a pure
+    rendering choice. Both modes must be schema-valid and pass the numeric
+    consistency check, and neither changes the solved answer."""
+    obj = build_object("ratio_hard", params)
+    answer = single_part_answer(obj)
+    diagram = obj["question"]["parts"][0]["diagram"]
+    assert diagram is not None and diagram["type"] == "bar_model_before_after"
+    assert diagram["view_mode"] == "grouped"  # solver default
+
+    solution = get_solver("ratio_hard").solve(params)
+    for mode in ("grouped", "sliced"):
+        child = copy.deepcopy(obj)
+        child["question"]["parts"][0]["diagram"]["view_mode"] = mode
+        # Still schema-valid and still the printed answer (mode is display-only).
+        assert validate_object(child) == []
+        assert single_part_answer(child) == answer
+        # The numeric consistency check is indifferent to the view mode.
+        checks = check_consistency(child["question"]["parts"][0]["diagram"], params, solution)
+        assert all(checks.values()), (mode, checks)

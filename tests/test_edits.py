@@ -186,3 +186,56 @@ def test_toggle_diagram_both_directions(code, dtype):
     diagram = back["question"]["parts"][0]["diagram"]
     assert diagram is not None
     assert diagram["type"] == dtype
+
+
+# --- KAN-310: toggle-bar-view (before-after view_mode flip) -----------------
+
+
+def _view_mode(obj: dict) -> str:
+    return obj["question"]["parts"][0]["diagram"]["view_mode"]
+
+
+def test_toggle_bar_view_offered_only_for_before_after():
+    # ratio_hard draws a bar_model_before_after → the flip is available.
+    hard = generate("ratio_hard", 8)
+    assert "toggle-bar-view" in edits.available_ops(hard)
+    # ratio_easy/medium draw a plain bar_model → no view_mode to flip.
+    for code in ("ratio_easy", "ratio_medium"):
+        obj = generate(code, 8)
+        assert "toggle-bar-view" not in edits.available_ops(obj)
+
+
+def test_toggle_bar_view_hidden_when_diagram_toggled_off():
+    # With the diagram toggled off there is no view to flip.
+    hard = generate("ratio_hard", 8)
+    off = edits.apply("toggle-diagram", hard, seed=1)
+    assert off["question"]["parts"][0]["diagram"] is None
+    assert "toggle-bar-view" not in edits.available_ops(off)
+
+
+def test_toggle_bar_view_round_trip():
+    source = generate("ratio_hard", 8)
+    before = copy.deepcopy(source)
+    assert _view_mode(source) == "grouped"  # solver default
+
+    # grouped -> sliced
+    sliced = edits.apply("toggle-bar-view", source, seed=1)
+    _lineage_ok(sliced, source)
+    assert _view_mode(sliced) == "sliced"
+    assert source == before  # source untouched (deep-copy semantics)
+
+    # sliced -> grouped (round-trips back to the original view)
+    grouped = edits.apply("toggle-bar-view", sliced, seed=1)
+    _lineage_ok(grouped, sliced)
+    assert _view_mode(grouped) == "grouped"
+
+    # A display-only flip: the printed answer never moves.
+    ans = source["question"]["parts"][0]["answer"]
+    assert sliced["question"]["parts"][0]["answer"] == ans
+    assert grouped["question"]["parts"][0]["answer"] == ans
+
+
+def test_toggle_bar_view_unavailable_raises():
+    easy = generate("ratio_easy", 3)
+    with pytest.raises(EditNotApplicable):
+        edits.apply("toggle-bar-view", easy, seed=1)
