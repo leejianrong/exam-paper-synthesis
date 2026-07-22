@@ -17,6 +17,10 @@ const BRACE_LABEL_GAP = 8
 const CHAR_W = 7
 const STAGE_HEAD_H = 22
 const STAGE_GAP = 18
+// KAN-310 before-after view modes: divider stroke weights + grouped worth-label gap.
+const DIV_LIGHT = '0.75' // sub-unit divider (fine common-unit grid)
+const DIV_HEAVY = '2' // original-ratio boundary divider
+const WORTH_GAP = 8 // gap from a grouped bar's right edge to its unit-worth label
 
 // shaded_fraction layout (mirrors engine/exam_engine/diagram.py).
 const SF_CELL = 40
@@ -35,6 +39,10 @@ const SF_STROKE = '#2f5fe0' // cell border (darker-blue outline)
 export interface BarSpec {
   label: string
   units: number
+  // Original ratio-term count this bar's equalised `units` represent (KAN-310).
+  // Drives the two before-after view modes; each drawn segment is worth
+  // `units / parts` common units. Optional (defaults to `units`).
+  parts?: number
 }
 
 export interface AnnotationSpec {
@@ -61,6 +69,10 @@ export interface BarModelSpec {
 
 export interface BarModelBeforeAfterSpec {
   type: 'bar_model_before_after'
+  // KAN-310 render mode: 'grouped' (default) draws original-ratio granularity +
+  // a unit-worth label (never explodes); 'sliced' keeps the common-unit grid with
+  // heavy dividers on the original-ratio boundaries.
+  view_mode?: 'grouped' | 'sliced'
   stages?: StageSpec[]
   annotations?: AnnotationSpec[]
   total_bracket?: TotalBracket | null
@@ -275,24 +287,57 @@ function renderBarModel(spec: BarModelSpec): string {
   return out.join('')
 }
 
+// Original ratio-term count a before-after bar draws as (KAN-310). Falls back to
+// `units` (one segment per common unit) when `parts` is absent/invalid. Mirrors
+// _bafa_parts in engine/exam_engine/diagram.py.
+function bafaParts(bar: BarSpec): number {
+  const p = bar.parts
+  return typeof p === 'number' && Number.isInteger(p) && p >= 1 ? p : bar.units
+}
+
 // Before-after aid: two stacked stage groups (heading + bars), annotations below,
-// and a vertical brace on the invariant person's bar. Mirrors the engine renderer
-// in engine/exam_engine/diagram.py (_render_bar_model_before_after). Deterministic.
+// and a vertical brace on the invariant person's bar. Two view modes (KAN-310):
+// 'grouped' (default) draws original-ratio granularity + a per-stage unit-worth
+// label so coprime-ish ratios never explode; 'sliced' keeps the common-unit grid
+// with heavy dividers on the original-ratio boundaries + light sub-unit dividers.
+// Mirrors _render_bar_model_before_after in engine/exam_engine/diagram.py.
+// Deterministic (integer coordinates only).
 function renderBarModelBeforeAfter(spec: BarModelBeforeAfterSpec): string {
   const stages = spec.stages ?? []
   const annotations = spec.annotations ?? []
   const totalBracket = spec.total_bracket ?? null
+  const grouped = (spec.view_mode ?? 'grouped') !== 'sliced'
+
+  // Bar width in UNIT_W multiples: original parts (grouped) vs common units.
+  const drawnUnits = (bar: BarSpec): number => (grouped ? bafaParts(bar) : bar.units)
+  // Common-unit worth of one drawn segment (exact by construction).
+  const worth = (bar: BarSpec): number => Math.floor(bar.units / bafaParts(bar))
 
   const allBars = stages.flatMap((s) => s.bars ?? [])
-  const maxBarUnits = Math.max(1, ...allBars.map((b) => b.units))
-  const bUnits = stages[0]?.bars?.[1]?.units ?? maxBarUnits
-
-  const spanUnits = Math.max(maxBarUnits, 1)
+  const spanUnits = Math.max(1, ...allBars.map((b) => drawnUnits(b)))
   let right = LABEL_W + spanUnits * UNIT_W
 
+  // In grouped mode the A bar (row 0) of each stage carries a unit-worth label to
+  // its right; account for it in the canvas width.
+  if (grouped) {
+    for (const stage of stages) {
+      const bars = stage.bars ?? []
+      if (bars.length) {
+        const aBar = bars[0]
+        const aRight = LABEL_W + drawnUnits(aBar) * UNIT_W
+        const worthPx = `= ${worth(aBar)}u`.length * CHAR_W
+        right = Math.max(right, aRight + WORTH_GAP + worthPx)
+      }
+    }
+  }
+
+  // B (invariant) sits at row 1 of each stage; the last one anchors the total
+  // brace. Its drawn width depends on the mode.
+  const bAfter = stages[1]?.bars?.[1]
   let braceX = 0
-  if (totalBracket) {
-    braceX = LABEL_W + bUnits * UNIT_W + BRACE_GAP
+  if (totalBracket && bAfter) {
+    const bAfterRight = LABEL_W + drawnUnits(bAfter) * UNIT_W
+    braceX = bAfterRight + BRACE_GAP
     const labelX = braceX + BRACE_W + BRACE_LABEL_GAP
     right = Math.max(right, labelX + totalBracket.label.length * CHAR_W + 4)
   }
@@ -331,7 +376,7 @@ function renderBarModelBeforeAfter(spec: BarModelBeforeAfterSpec): string {
     for (let row = 0; row < bars.length; row++) {
       const bar = bars[row]
       const units = bar.units
-      const barW = units * UNIT_W
+      const barW = drawnUnits(bar) * UNIT_W
       const textY = y + Math.floor(BAR_H / 2) + 4
       out.push(
         `<text x="${LABEL_W - 8}" y="${textY}" text-anchor="end">${esc(bar.label)}</text>`,
@@ -340,12 +385,35 @@ function renderBarModelBeforeAfter(spec: BarModelBeforeAfterSpec): string {
         `<rect x="${LABEL_W}" y="${y}" width="${barW}" height="${BAR_H}" ` +
           `fill="#eef2fb" stroke="#2f5fe0" stroke-width="1.5"/>`,
       )
-      for (let u = 1; u < units; u++) {
-        const x = LABEL_W + u * UNIT_W
-        out.push(
-          `<line x1="${x}" y1="${y}" x2="${x}" y2="${y + BAR_H}" ` +
-            `stroke="#2f5fe0" stroke-width="0.75"/>`,
-        )
+      if (grouped) {
+        // One divider per original-ratio boundary — a small, bounded count.
+        for (let u = 1; u < bafaParts(bar); u++) {
+          const x = LABEL_W + u * UNIT_W
+          out.push(
+            `<line x1="${x}" y1="${y}" x2="${x}" y2="${y + BAR_H}" ` +
+              `stroke="#2f5fe0" stroke-width="${DIV_HEAVY}"/>`,
+          )
+        }
+        if (row === 0) {
+          // A bar → label a segment's unit-worth (per-stage).
+          const wx = LABEL_W + barW + WORTH_GAP
+          out.push(
+            `<text x="${wx}" y="${textY}" text-anchor="start" fill="#66708a">= ${worth(bar)}u</text>`,
+          )
+        }
+      } else {
+        // Full common-unit grid: heavy on original-ratio boundaries, light on the
+        // sub-units, so the ratio stays visible over the fine grid.
+        const group = Math.floor(units / bafaParts(bar))
+        for (let u = 1; u < units; u++) {
+          const x = LABEL_W + u * UNIT_W
+          const heavy = group > 0 && u % group === 0
+          const sw = heavy ? DIV_HEAVY : DIV_LIGHT
+          out.push(
+            `<line x1="${x}" y1="${y}" x2="${x}" y2="${y + BAR_H}" ` +
+              `stroke="#2f5fe0" stroke-width="${sw}"/>`,
+          )
+        }
       }
       if (row === 1) {
         lastBTop = y
@@ -357,7 +425,7 @@ function renderBarModelBeforeAfter(spec: BarModelBeforeAfterSpec): string {
   }
 
   // Total brace on the invariant person's (B's) last bar → its amount.
-  if (totalBracket) {
+  if (totalBracket && bAfter) {
     const yTop = lastBTop
     const yBot = lastBBot
     const yMid = Math.floor((yTop + yBot) / 2)

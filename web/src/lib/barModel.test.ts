@@ -151,6 +151,69 @@ describe('bar_model_before_after geometry', () => {
   })
 })
 
+// KAN-310: the before-after aid has two view modes selected by `view_mode`.
+// The "explosion" case — before 7:1, after 8:9, common-unit LCM 9 → A's before
+// bar spans 63 units — is exactly what grouped mode must keep legible.
+describe('bar_model_before_after view modes (KAN-310)', () => {
+  const explode: BarModelBeforeAfterSpec = {
+    type: 'bar_model_before_after',
+    stages: [
+      {
+        name: 'Before',
+        bars: [
+          { label: 'Aisha', units: 63, parts: 7 },
+          { label: 'Ben', units: 9, parts: 1 },
+        ],
+      },
+      {
+        name: 'After',
+        bars: [
+          { label: 'Aisha', units: 8, parts: 8 },
+          { label: 'Ben', units: 9, parts: 9 },
+        ],
+      },
+    ],
+    annotations: [{ label: '1 unit = $10' }],
+    total_bracket: { label: 'Ben = $90' },
+  }
+
+  const widthOf = (svg: string): number => Number(svg.split('width="')[1].split('"')[0])
+
+  it('defaults to grouped when view_mode is absent', () => {
+    const withMode = renderDiagram({ ...explode, view_mode: 'grouped' })
+    expect(renderDiagram(explode)).toBe(withMode)
+  })
+
+  it('grouped mode does not explode: O(ratio-terms) dividers + a unit-worth label', () => {
+    const svg = renderDiagram({ ...explode, view_mode: 'grouped' })
+    // (parts-1) dividers per bar: (7-1)+(1-1)+(8-1)+(9-1) = 21 — bounded, small.
+    expect(count(svg, '<line')).toBe(21)
+    expect(count(svg, '<rect')).toBe(4)
+    // Every divider is heavy; no fine sub-unit grid.
+    expect(count(svg, 'stroke-width="2"')).toBe(21)
+    expect(svg).not.toContain('stroke-width="0.75"')
+    // A segment's unit-worth label (before = 9 common units, after = 1).
+    expect(svg).toContain('= 9u')
+    expect(svg).toContain('= 1u')
+  })
+
+  it('sliced mode draws the full grid with heavy vs light dividers', () => {
+    const svg = renderDiagram({ ...explode, view_mode: 'sliced' })
+    expect(svg).toContain('stroke-width="2"') // original-ratio boundaries
+    expect(svg).toContain('stroke-width="0.75"') // sub-units
+    expect(count(svg, '<line')).toBeGreaterThan(21)
+    // Heavy boundaries = Σ(parts-1) = 21 (the same boundaries grouped shows).
+    expect(count(svg, 'stroke-width="2"')).toBe(21)
+  })
+
+  it('grouped is far narrower than the exploded sliced grid', () => {
+    const g = widthOf(renderDiagram({ ...explode, view_mode: 'grouped' }))
+    const s = widthOf(renderDiagram({ ...explode, view_mode: 'sliced' }))
+    expect(g).toBeLessThan(s)
+    expect(s).toBeGreaterThan(2000)
+  })
+})
+
 describe('shaded_fraction geometry', () => {
   const SHADE = 'fill="#93b8f2"'
   const STROKE = 'stroke="#2f5fe0"'

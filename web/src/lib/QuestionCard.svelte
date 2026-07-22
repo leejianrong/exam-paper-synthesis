@@ -39,6 +39,13 @@
   $: canDecimals = ops.includes('change-to-decimals')
   $: canToggleDiagram = ops.includes('toggle-diagram')
   $: diagramLabel = part.diagram ? 'Hide diagram' : 'Show diagram'
+  // toggle-bar-view flips the before-after bar model's view_mode (KAN-310). The
+  // button names the mode it switches TO; the current mode reads off the spec
+  // (defaulting to "grouped").
+  $: canToggleBarView = ops.includes('toggle-bar-view')
+  $: barViewMode =
+    part.diagram?.type === 'bar_model_before_after' ? (part.diagram.view_mode ?? 'grouped') : null
+  $: barViewLabel = barViewMode === 'sliced' ? 'Group segments' : 'Slice into units'
 
   let showKey = false
 
@@ -136,6 +143,15 @@
         disabled={editDisabled}
       >
         {diagramLabel}
+      </button>
+    {/if}
+    {#if canToggleBarView}
+      <button
+        class="edit"
+        on:click={() => dispatch('edit', { op: 'toggle-bar-view' })}
+        disabled={editDisabled}
+      >
+        {barViewLabel}
       </button>
     {/if}
   </div>

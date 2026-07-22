@@ -212,4 +212,68 @@ describe('QuestionCard', () => {
 
     expect(screen.queryByRole('button', { name: /diagram/i })).not.toBeInTheDocument()
   })
+
+  // KAN-310: a ratio_hard card carries a before-after bar model, so the API's
+  // available_ops includes toggle-bar-view; the card shows a button that names
+  // the mode it switches TO, driven by available_ops (no blueprint heuristic).
+  const beforeAfterBase = {
+    id: 'h1',
+    seed: 8,
+    blueprint_code: 'ratio_hard',
+    validation: { status: 'pass' as const },
+    cognitive: { difficulty: 'hard' },
+    available_ops: ['regenerate', 'make-easier', 'toggle-diagram', 'toggle-bar-view'],
+  }
+  const beforeAfterDiagram = (view_mode: 'grouped' | 'sliced') => ({
+    type: 'bar_model_before_after' as const,
+    view_mode,
+    stages: [
+      { name: 'Before', bars: [{ label: 'A', units: 2, parts: 2 }, { label: 'B', units: 3, parts: 3 }] },
+      { name: 'After', bars: [{ label: 'A', units: 1, parts: 1 }, { label: 'B', units: 3, parts: 3 }] },
+    ],
+    total_bracket: { label: 'B = $90' },
+  })
+  const beforeAfterQuestion = (view_mode: 'grouped' | 'sliced'): Question =>
+    ({
+      ...beforeAfterBase,
+      question: {
+        total_marks: 4,
+        parts: [
+          {
+            text: 'Before, A : B = 2 : 3. After spending, A : B = 1 : 3.',
+            marks: 4,
+            answer: { type: 'quantity', value: 90, unit: '$' },
+            diagram: beforeAfterDiagram(view_mode),
+          },
+        ],
+      },
+    }) as Question
+
+  it('shows the toggle-bar-view button when available_ops includes it', () => {
+    render(QuestionCard, { props: { q: beforeAfterQuestion('grouped') } })
+    // In grouped mode the button offers switching TO the sliced (unit-grid) view.
+    expect(screen.getByRole('button', { name: 'Slice into units' })).toBeInTheDocument()
+  })
+
+  it('names the toggle-bar-view button for the mode it switches to (sliced → group)', () => {
+    render(QuestionCard, { props: { q: beforeAfterQuestion('sliced') } })
+    expect(screen.getByRole('button', { name: 'Group segments' })).toBeInTheDocument()
+  })
+
+  it('dispatches toggle-bar-view when the button is clicked', async () => {
+    let op: string | undefined
+    render(QuestionCard, {
+      props: { q: beforeAfterQuestion('grouped') },
+      events: { edit: (e: CustomEvent<{ op: string }>) => (op = e.detail.op) },
+    })
+    await fireEvent.click(screen.getByRole('button', { name: 'Slice into units' }))
+    expect(op).toBe('toggle-bar-view')
+  })
+
+  it('hides toggle-bar-view when available_ops omits it', () => {
+    const q = beforeAfterQuestion('grouped')
+    q.available_ops = ['regenerate', 'make-easier', 'toggle-diagram']
+    render(QuestionCard, { props: { q } })
+    expect(screen.queryByRole('button', { name: /Slice into units|Group segments/ })).not.toBeInTheDocument()
+  })
 })

@@ -1,7 +1,7 @@
 """V7 A1 — the sourced-object interchange proof (KAN-153).
 
 A hand-authored PAST-PAPER question that the engine did NOT generate must be
-*interchange-grade*: it validates against the SAME v1.3.0 schema as generated
+*interchange-grade*: it validates against the SAME v1.4.0 schema as generated
 questions, joins a worksheet next to them, and renders (raster figure included)
 in the preview / PDF path. This test IS the proof (project verification policy);
 it is not a golden regression anchor.

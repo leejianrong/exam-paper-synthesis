@@ -9,6 +9,7 @@ export type EditOp =
   | 'make-easier'
   | 'change-to-decimals'
   | 'toggle-diagram'
+  | 'toggle-bar-view'
 
 interface GenerateResponse {
   questions: Question[]
