@@ -4,10 +4,10 @@ shaping: true
 
 # V6 Slice Plan — Remaining ladders + mandatory geometry
 
-> **Slice V6 of `docs/shaping/SLICES.md`.** Broaden from the single Ratio topic to
+> **Slice V6 of `docs/planning/mvp/SLICES.md`.** Broaden from the single Ratio topic to
 > **all five MVP topics**, and introduce the **mandatory-figure** families where
 > *the figure is the question*. Ground truth for R and Shape A:
-> `docs/shaping/SHAPING.md` (parts **A5** = diagram spec+check+render, **A10** =
+> `docs/planning/mvp/SHAPING.md` (parts **A5** = diagram spec+check+render, **A10** =
 > content & scope; requirements **R1.6** Singapore/PSLE-style incl. non-routine,
 > **R3.1** mandatory accurate geometry figure, **R8.4** 15 blueprints = 3-rung
 > ladder × 5 topics). Difficulty model: `docs/DIFFICULTY.md` + **ADR-0015**.
@@ -164,8 +164,8 @@ and the `1.2.0` references in `CLAUDE.md`. Every generated object still passes
 ## Files touched
 
 ```
-docs/shaping/V6-plan.md                                     # NEW — this plan
-docs/shaping/SLICES.md / SHAPING.md                         # only if scope shifts (D1/D3/D4 outcomes)
+docs/planning/mvp/V6-plan.md                                     # NEW — this plan
+docs/planning/mvp/SLICES.md / SHAPING.md                         # only if scope shifts (D1/D3/D4 outcomes)
 docs/ROADMAP.md                                             # M6 stories → sub-cards + status on merge
 docs/DIFFICULTY.md                                          # only if D1 accepted (Fractions-easy cell note)
 
@@ -297,7 +297,7 @@ Below, the by-construction sampling that keeps every answer a clean value.
 > **⚠️ SUPERSEDED (2026-07-17).** Two of these three families —
 > `composite_geometry` and `area_perimeter` — are **replaced** by the richer,
 > syllabus-grounded **`geometry_figure`** system shaped in
-> **`docs/shaping/V6b-geometry-plan.md`** (epic **M6b** / EPIC-39: the
+> **`docs/planning/mvp/V6b-geometry-plan.md`** (epic **M6b** / EPIC-39: the
 > `geometry_angle` + `geometry_area` ladders). They are removed from the schema
 > (v1.3.0) before being built. **Only `shaded_fraction` survives here**, as the
 > Fractions-easy mandatory figure (D1). The subsection below is retained for
@@ -393,7 +393,7 @@ estimates for grooming.
 
 | Proposed title | Pts | Epic | Depends on | Own PR? |
 |---|---:|---|---|---|
-| V6 slice plan doc (`docs/shaping/V6-plan.md`) | 2 | 31 | — | yes (this deliverable) |
+| V6 slice plan doc (`docs/planning/mvp/V6-plan.md`) | 2 | 31 | — | yes (this deliverable) |
 | **KAN-150a** Diagram family: `area_perimeter` (engine check+render, web mirror, tests) | 3 | 31 | plan | yes |
 | **KAN-150b** Diagram family: `composite_geometry` (engine check+render, web mirror, tests) | 3 | 31 | plan | yes |
 | **KAN-150c** Diagram family: `shaded_fraction` (engine check+render, web mirror, tests) | 2 | 31 | plan | yes |
@@ -566,9 +566,9 @@ flowchart TB
 
 ## Doc-consistency checklist (ripple on merge)
 
-- `docs/shaping/SLICES.md` — V6 row already present; update only if D1/D3/D4 shift
+- `docs/planning/mvp/SLICES.md` — V6 row already present; update only if D1/D3/D4 shift
   scope.
-- `docs/shaping/SHAPING.md` — parts A5/A10 already cover this; no change unless
+- `docs/planning/mvp/SHAPING.md` — parts A5/A10 already cover this; no change unless
   scope shifts.
 - `docs/ROADMAP.md` — M6 currently lists 3 todo stories; replace with the split
   sub-cards above and flip statuses as PRs merge; update the board-summary counts.

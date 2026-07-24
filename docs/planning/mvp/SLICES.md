@@ -4,14 +4,14 @@ shaping: true
 
 # Exam Paper Synthesis — Slices
 
-> **Implementation plan** for Shape A (see `docs/shaping/SHAPING.md` for R, Shape A parts,
+> **Implementation plan** for Shape A (see `docs/planning/mvp/SHAPING.md` for R, Shape A parts,
 > fit check, and the breadboard this slices). Each slice is a **vertical
 > increment** cutting through web → api → engine → content, and **ends in
 > demo-able UI**. Order follows the ADR build directive: **prove the Ratio ladder
 > end-to-end first**, then broaden.
 >
 > **Consistency:** slices reference Shape-A parts (A1…A10) and requirements
-> (R1…R8). A change to a slice's scope must ripple up to `docs/shaping/SHAPING.md`.
+> (R1…R8). A change to a slice's scope must ripple up to `docs/planning/mvp/SHAPING.md`.
 
 ---
 
@@ -132,7 +132,7 @@ separate answer-key PDF; preview matches print. PDF export smoke-tested
 > now = Fractions / Percentage / Speed + the `shaded_fraction` figure; **V6b** =
 > the `geometry_angle` + `geometry_area` ladders on a general `geometry_figure`
 > system (superseding the sketched `composite_geometry` / `area_perimeter`
-> families). See **`docs/shaping/V6b-geometry-plan.md`**.
+> families). See **`docs/planning/mvp/V6b-geometry-plan.md`**.
 
 **Goal:** the other four topics, including the figure-is-the-question families.
 
@@ -151,7 +151,7 @@ carry an accurate figure and offer no diagram toggle; aid families still toggle.
 
 > **Shipped (2026-07-17):** the final MVP slice. `mathgen` CLI (KAN-152, PR #69)
 > and sourced-object interchange (KAN-153, PR #70). See
-> **`docs/shaping/V7-plan.md`** for the full blueprint.
+> **`docs/planning/mvp/V7-plan.md`** for the full blueprint.
 
 **Goal:** headless engine access and interchange-grade schema proof.
 

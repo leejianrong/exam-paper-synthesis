@@ -4,8 +4,8 @@ shaping: true
 
 # V2 Slice Plan — Worked solution + marks + bar model
 
-> **Slice V2 of `docs/shaping/SLICES.md`.** Make the answer *explainable* and add
-> the aid diagram. Ground truth for R and Shape A: `docs/shaping/SHAPING.md`
+> **Slice V2 of `docs/planning/mvp/SLICES.md`.** Make the answer *explainable* and add
+> the aid diagram. Ground truth for R and Shape A: `docs/planning/mvp/SHAPING.md`
 > (parts **A5**, **A6**; requirements **R2.3–R2.4**, **R2.6**, **R3.2–R3.4**).
 > Schema contract: `schemas/canonical-question.schema.json` (`diagram_bar_model`).
 > Diagram policy: ADR-0007 (ratio = **aid/bar_model**, toggleable — but the toggle
@@ -78,8 +78,8 @@ agree by construction.
 ## Files touched
 
 ```
-docs/shaping/V2-plan.md                         # NEW — this plan
-docs/shaping/SLICES.md                          # (only if scope drifts; no drift expected)
+docs/planning/mvp/V2-plan.md                         # NEW — this plan
+docs/planning/mvp/SLICES.md                          # (only if scope drifts; no drift expected)
 
 engine/exam_engine/diagram.py                   # NEW — A5: consistency check + spec→SVG renderer
 engine/exam_engine/blueprints/solvers/ratio_medium.py  # + diagram(params, solution)

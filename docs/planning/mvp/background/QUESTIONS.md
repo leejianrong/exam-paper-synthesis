@@ -1,6 +1,6 @@
 # QUESTIONS — grilling log
 
-Interrogation of `docs/background/REQS.md` to sharpen the plan before PRD/shaping.
+Interrogation of `docs/planning/mvp/background/REQS.md` to sharpen the plan before PRD/shaping.
 As answers settle they migrate into `docs/CONTEXT.md` (shared terms) and
 `docs/adr/*.md` (decisions). Status: 🔴 open · 🟡 partial · 🟢 answered.
 

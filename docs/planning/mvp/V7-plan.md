@@ -4,7 +4,7 @@ shaping: true
 
 # V7 Blueprint — CLI + sourced-object interchange (the final MVP slice)
 
-> **Implementation plan for Slice V7** (`docs/shaping/SLICES.md`, parts **A9**
+> **Implementation plan for Slice V7** (`docs/planning/mvp/SLICES.md`, parts **A9**
 > headless engine access + **A1** canonical load path). V7 is the *last* MVP slice
 > and, unlike V1–V6b, ships **no new maths** — it proves two properties the earlier
 > slices *asserted* but never exercised end-to-end:
@@ -56,7 +56,7 @@ with **one honest exception** the plan makes explicit rather than hand-waving.
 | Schema hooks for a sourced object (`source_type`, `source`, `license`, `provenance.created_by:"ingested"`, nullable `blueprint_code`/`parameters`, `$defs/diagram_raster`) | ✅ all present in **v1.3.0** (verified: the `allOf`/`if-then` requires `source`+`license` when `source_type:"sourced"`; `created_by` enum = `{engine, ingested}`) | author a fixture that uses them; **no schema change** |
 | **Render a `diagram_raster`** (`type:"raster"`, `asset_ref`, `alt_text`) | ❌ **GAP.** `render.render_svg` raises `ValueError` on unknown types; there is **no `raster` branch**. The web mirror `barModel.ts::renderDiagram` returns `''` for unknown types. | **add a small `raster` branch** in the Python renderer **and** the TS mirror (see **S1**) |
 
-> **Honesty note (ripples into `docs/shaping/SLICES.md`).** SLICES.md V7 currently
+> **Honesty note (ripples into `docs/planning/mvp/SLICES.md`).** SLICES.md V7 currently
 > says the renderers are "confirmed to handle a raster diagram … with **no new
 > wiring**." That is **not true of `main`** — `render_svg` raises on `type:"raster"`.
 > The *load/validate/worksheet-join* path is genuinely unchanged (the export route
@@ -243,7 +243,7 @@ flowchart TD
 
 ## Doc-consistency checklist (ripple on merge)
 
-- `docs/shaping/SLICES.md` — V7 row: **correct** the "renderers handle raster with
+- `docs/planning/mvp/SLICES.md` — V7 row: **correct** the "renderers handle raster with
   no new wiring" claim (raster rendering is a small new branch); mark V7 shipped.
 - `docs/ROADMAP.md` — M7: mark KAN-152/153 done with PR numbers; move M7 to **done**.
 - `CLAUDE.md` — overview: append V7 (CLI + sourced interchange) to the slice list;
@@ -265,7 +265,7 @@ slices.
 
 | Card | Pts | Depends on | Files (disjoint) |
 |------|----:|------------|------------------|
-| *(optional)* V7 plan doc (this file) | 1 | — | `docs/shaping/V7-plan.md` |
+| *(optional)* V7 plan doc (this file) | 1 | — | `docs/planning/mvp/V7-plan.md` |
 | **KAN-153** — sourced-object interchange: raster render branch (Py + TS) + sourced fixture + interchange test | 5→**3** | V5 | `engine/…/{render,diagram}.py`, `web/src/lib/{barModel,types}.ts`, `tests/fixtures/sourced/**` |
 | **KAN-152** — `mathgen` CLI (`generate`/`edit`/`export`) as a new `cli/` workspace package + tests | 5 | V5 (soft: 153) | `cli/**`, root `pyproject.toml` |
 

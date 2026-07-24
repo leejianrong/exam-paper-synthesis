@@ -4,8 +4,8 @@ shaping: true
 
 # V3 Slice Plan — Ratio ladder + edit operations
 
-> **Slice V3 of `docs/shaping/SLICES.md`.** The teacher can nudge a question
-> without leaving it. Ground truth for R and Shape A: `docs/shaping/SHAPING.md`
+> **Slice V3 of `docs/planning/mvp/SLICES.md`.** The teacher can nudge a question
+> without leaving it. Ground truth for R and Shape A: `docs/planning/mvp/SHAPING.md`
 > (part **A4**; requirements **R1.1–R1.2**, **R4.3–R4.8**). Difficulty model:
 > `docs/DIFFICULTY.md` + ADR-0015. Edit semantics: **ADR-0009**; lineage/versioning:
 > **ADR-0004**. Diagram policy: ADR-0007. Schema contract:
@@ -89,8 +89,8 @@ generated object still passes `canonical.load` (the A1 gate).
 ## Files touched
 
 ```
-docs/shaping/V3-plan.md                                  # NEW — this plan
-docs/shaping/SLICES.md                                   # note the ratio_hard no-diagram deferral (D3)
+docs/planning/mvp/V3-plan.md                                  # NEW — this plan
+docs/planning/mvp/SLICES.md                                   # note the ratio_hard no-diagram deferral (D3)
 
 # (a) ladder
 content/blueprints/ratio_easy.yaml                       # NEW

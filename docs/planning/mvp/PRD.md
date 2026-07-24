@@ -4,10 +4,10 @@
 > modeling) is complete. This PRD synthesizes the accepted decisions; it does
 > **not** re-litigate them.
 >
-> **Sources of truth (read these for the "why"):** `docs/background/REQS.md`,
+> **Sources of truth (read these for the "why"):** `docs/planning/mvp/background/REQS.md`,
 > `docs/CONTEXT.md` (glossary + decision register), `docs/adr/0001…0015`,
 > `docs/SCHEMA.md` + `schemas/canonical-question.schema.json`,
-> `docs/DIFFICULTY.md`, `docs/background/QUESTIONS.md`.
+> `docs/DIFFICULTY.md`, `docs/planning/mvp/background/QUESTIONS.md`.
 >
 > **Product in one line:** a deterministic, blueprint-driven engine that
 > generates syllabus-aligned Singapore P5–P6 math questions with correct
@@ -477,6 +477,6 @@ tests generally.
 - **Publishing note:** the skill's final step publishes the PRD to an issue
   tracker with the `ready-for-agent` label. No issue tracker is configured for
   this project (not a git repository), so this PRD is delivered as
-  `docs/PRD.md`. Run the tracker setup and re-run the publish step if an issue
+  `docs/planning/mvp/PRD.md`. Run the tracker setup and re-run the publish step if an issue
   tracker is wanted.
 ```

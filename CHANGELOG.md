@@ -11,7 +11,7 @@ blueprint-driven engine generates syllabus-aligned Singapore **P5–P6 Standard*
 math questions with provably-correct step-by-step answer keys and accurate
 diagrams — no LLM in the generation path. The schema-gated canonical question
 object is the single source of truth. Delivered across vertical slices V1–V7
-(see `docs/shaping/SLICES.md`), plus a post-MVP polish wave.
+(see `docs/planning/mvp/SLICES.md`), plus a post-MVP polish wave.
 
 ### Added
 

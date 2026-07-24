@@ -4,7 +4,7 @@ shaping: true
 
 # V6b Blueprint — PSLE geometry figures (angle + area ladders)
 
-> **Extension of Slice V6** (`docs/shaping/SLICES.md`, part **A5** diagram
+> **Extension of Slice V6** (`docs/planning/mvp/SLICES.md`, part **A5** diagram
 > spec+check+render, part **A10** content). This is the product blueprint for the
 > *rich* geometry work shaped with the product owner on 2026-07-17: syllabus-aligned
 > P5–P6 **figure geometry** — unknown angles, area/perimeter of composite figures
@@ -242,8 +242,8 @@ tests/golden/geometry_area_*.jsonl
 web/src/lib/geometry.ts                          # renderGeometryFigure — TS mirror
 web/src/lib/barModel.ts / types.ts               # widen DiagramSpec union; dispatch geometry_figure
 web/src/App.svelte                               # topic selector: + the two geometry topics
-docs/DIFFICULTY.md  docs/SCHEMA.md  docs/shaping/SLICES.md  docs/ROADMAP.md   # ripples
-docs/shaping/V6-plan.md                          # mark composite_geometry/area_perimeter superseded → point here
+docs/DIFFICULTY.md  docs/SCHEMA.md  docs/planning/mvp/SLICES.md  docs/ROADMAP.md   # ripples
+docs/planning/mvp/V6-plan.md                          # mark composite_geometry/area_perimeter superseded → point here
 ```
 
 ---
@@ -335,11 +335,11 @@ system lands (disjoint solver/YAML/golden files). Web lands last.
 
 ## Doc-consistency checklist (ripple on merge)
 
-- `docs/shaping/SLICES.md` — note V6 geometry expanded into the two-ladder M6b system.
+- `docs/planning/mvp/SLICES.md` — note V6 geometry expanded into the two-ladder M6b system.
 - `docs/ROADMAP.md` — add epic **M6b** with its cards; adjust M6 (KAN-149 drops
   Area/Geometry; KAN-150 rewritten).
 - `docs/DIFFICULTY.md` — split the Area/Geometry row into `Geometry (Angles)` +
   `Geometry (Area)` per the rung tables above.
 - `docs/SCHEMA.md` — document `geometry_figure`; record the two removals + speed units; bump the tracked version to v1.3.0.
-- `docs/shaping/V6-plan.md` — mark `composite_geometry` + `area_perimeter` superseded and point here; keep `shaded_fraction`.
+- `docs/planning/mvp/V6-plan.md` — mark `composite_geometry` + `area_perimeter` superseded and point here; keep `shaded_fraction`.
 - `docs/CONTEXT.md` — glossary: the two geometry topics + the aid-vs-mandatory note.
