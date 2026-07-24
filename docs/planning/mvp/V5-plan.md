@@ -4,9 +4,9 @@ shaping: true
 
 # V5 Slice Plan — Preview + export both PDFs
 
-> **Slice V5 of `docs/shaping/SLICES.md`.** Trustworthy printable output, WYSIWYG —
+> **Slice V5 of `docs/planning/mvp/SLICES.md`.** Trustworthy printable output, WYSIWYG —
 > the last rung that closes **L3 acceptance for Ratio**. Ground truth for R and
-> Shape A: `docs/shaping/SHAPING.md` (part **A7**; requirements **R5.2–R5.5**,
+> Shape A: `docs/planning/mvp/SHAPING.md` (part **A7**; requirements **R5.2–R5.5**,
 > **R8.6**). PDF engine: **ADR-0008** (HTML → headless Chromium / Playwright; this
 > slice resolves its open Q-I2/Q-I3/Q-I5). Review/export gate: **ADR-0010**.
 > Single-user/ephemeral/stateless-where-reasonable stance: **ADR-0001**. Engine

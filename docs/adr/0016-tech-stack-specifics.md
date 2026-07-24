@@ -4,7 +4,7 @@
 - Deciders: project owner
 - Related: ADR-0006 (stack & layout), ADR-0014 (schema authority), ADR-0001
   (ephemeral state), Q-K4, Q-K5, Q-M1; surfaced while planning slice V1
-  (`docs/shaping/V1-plan.md`).
+  (`docs/planning/mvp/V1-plan.md`).
 
 ## Context
 

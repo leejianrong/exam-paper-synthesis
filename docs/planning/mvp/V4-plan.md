@@ -4,8 +4,8 @@ shaping: true
 
 # V4 Slice Plan — Review gate + current worksheet
 
-> **Slice V4 of `docs/shaping/SLICES.md`.** The human veto plus the collection
-> surface. Ground truth for R and Shape A: `docs/shaping/SHAPING.md` (part **A8**;
+> **Slice V4 of `docs/planning/mvp/SLICES.md`.** The human veto plus the collection
+> surface. Ground truth for R and Shape A: `docs/planning/mvp/SHAPING.md` (part **A8**;
 > requirements **R4.1–R4.2**, **R5.1**). Review-gate policy: **ADR-0010**; marking:
 > **ADR-0005**; single-user/ephemeral stance: **ADR-0001**. Schema contract:
 > `schemas/canonical-question.schema.json` (v1.2.0 — **no schema change in V4**).

@@ -3,7 +3,7 @@
 This document maps the project's **milestones -> epics -> key stories** as tracked on
 the Simple Kanban board **"Exam Paper Synthesis Roadmap"** (board id `8`). Milestones are a
 naming convention only: slice-backed epics are prefixed `M<n>:` and map 1:1 to the slices in
-[`docs/shaping/SLICES.md`](shaping/SLICES.md); cross-cutting/ongoing epics carry no prefix.
+[`docs/planning/mvp/SLICES.md`](planning/mvp/SLICES.md); cross-cutting/ongoing epics carry no prefix.
 
 Status is evidence-based (git history, open PRs via `gh`, and the code on `main`):
 **done** = merged to `main`; **in_progress** = open PR / active; **todo** = planned.
@@ -47,7 +47,7 @@ Make the answer explainable: worked steps, per-part M/A/B marks, and an accurate
 
 Full Ratio ladder plus edit transforms. Merged via PRs #11-14.
 
-- **done** V3 slice plan doc (`docs/shaping/V3-plan.md`) - PR #11 (KAN-139)
+- **done** V3 slice plan doc (`docs/planning/mvp/V3-plan.md`) - PR #11 (KAN-139)
 - **done** Ratio ladder: `ratio_easy` + `ratio_hard` + `bar_model_before_after` diagram (schema 1.2.0) - PR #12 (KAN-140)
 - **done** Edit-ops backend: object-to-object transforms + `POST /edit/{op}` - PR #13 (KAN-141)
 - **done** Web: edit buttons on QuestionCard (harder/easier hidden at ladder ends) - PR #14 (KAN-142)
@@ -70,7 +70,7 @@ Trustworthy WYSIWYG printable output. Merged via PRs #45, #46, #48-50. PDF
 generation uses headless Chromium (Playwright) at the API boundary; KaTeX is
 vendored self-contained (no CDN), so preview and print are the same document.
 
-- **done** V5 slice plan doc (`docs/shaping/V5-plan.md`) - PR #45 (KAN-204)
+- **done** V5 slice plan doc (`docs/planning/mvp/V5-plan.md`) - PR #45 (KAN-204)
 - **done** Playwright dep + Chromium CI + vendored KaTeX assets - PR #46 (KAN-205)
 - **done** A7 - pure `render_worksheet_html` / `render_answer_key_html` (vendored self-contained KaTeX + inline SVG + print CSS) - PR #48 (KAN-146)
 - **done** `html_to_pdf` via headless Chromium + `POST /export/{preview,worksheet,answer-key}` - PR #49 (KAN-147)
@@ -97,7 +97,7 @@ Syllabus-aligned P5-P6 figure geometry via curated parametric templates. Two lad
 (`geometry_angle_{e,m,h}`, `geometry_area_{e,m,h}`) on one coherent `geometry_figure`
 diagram system that **supersedes** `composite_geometry` + `area_perimeter`. Strictly
 PSLE (no O-Level angle-chasing / tangents / Pythagoras). Shaped with the product owner
-2026-07-17; blueprint: [`docs/shaping/V6b-geometry-plan.md`](shaping/V6b-geometry-plan.md).
+2026-07-17; blueprint: [`docs/planning/mvp/V6b-geometry-plan.md`](planning/mvp/V6b-geometry-plan.md).
 Decisions G1-G7 + Q1 (2-template floor) + Q2 (schema v1.3.0).
 
 - **done** KAN-226 - M6b geometry blueprint doc
@@ -119,7 +119,7 @@ Decisions G1-G7 + Q1 (2-template floor) + Q2 (schema v1.3.0).
 ## M7: CLI + sourced-object interchange (V7, shipped)
 
 Headless engine access plus interchange-grade schema proof. The final MVP slice,
-shipped 2026-07-17. Plan: [`docs/shaping/V7-plan.md`](shaping/V7-plan.md). Both
+shipped 2026-07-17. Plan: [`docs/planning/mvp/V7-plan.md`](planning/mvp/V7-plan.md). Both
 cards built in parallel in treehouse worktrees, landed serially on green CI.
 
 - **done** KAN-152 - A9 `mathgen generate/edit/export` CLI over the engine (new `cli/`

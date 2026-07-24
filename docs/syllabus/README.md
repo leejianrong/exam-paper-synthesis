@@ -31,4 +31,4 @@ The 2021 syllabus covers **P1–P6** across three strands (Number & Algebra,
 Measurement & Geometry, Statistics). This project's MVP deliberately targets only
 a slice of it (P5–P6 Standard: Ratio, Fractions, Percentage, Area/Geometry,
 Speed). Forward-looking diagram/figure needs uncovered while reading the syllabus
-are captured in [`../shaping/diagram-roadmap.md`](../shaping/diagram-roadmap.md).
+are captured in [`../planning/mvp/diagram-roadmap.md`](../planning/mvp/diagram-roadmap.md).

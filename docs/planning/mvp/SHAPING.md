@@ -4,20 +4,20 @@ shaping: true
 
 # Exam Paper Synthesis — Shaping
 
-> **Where this sits:** the problem space is defined (`docs/background/REQS.md`, `docs/background/QUESTIONS.md`)
+> **Where this sits:** the problem space is defined (`docs/planning/mvp/background/REQS.md`, `docs/planning/mvp/background/QUESTIONS.md`)
 > and the solution is largely decided (`docs/adr/0001…0015`, synthesized in
-> `docs/PRD.md`). This doc formalizes the requirements as a negotiated **R set**,
+> `docs/planning/mvp/PRD.md`). This doc formalizes the requirements as a negotiated **R set**,
 > records the decided architecture as the **selected shape (A)**, and runs the
 > **fit check**. From here we breadboard **A** into affordances and slice it.
 >
-> **Ground-truth sources:** `docs/PRD.md` (user stories + decisions),
+> **Ground-truth sources:** `docs/planning/mvp/PRD.md` (user stories + decisions),
 > `docs/adr/*`, `docs/SCHEMA.md`, `docs/DIFFICULTY.md`, `docs/CONTEXT.md` (glossary).
 
 ---
 
 ## Frame
 
-- **Source** (verbatim): `docs/background/chatgpt-conversation-summary.md`, `docs/background/REQS.md`.
+- **Source** (verbatim): `docs/planning/mvp/background/chatgpt-conversation-summary.md`, `docs/planning/mvp/background/REQS.md`.
 - **Problem:** A P5–P6 tuition teacher preparing Standard-Math practice spends
   hours writing questions, drawing figures, working out answers, and laying out a
   matching answer key — and the maths (the part that matters most) is the part

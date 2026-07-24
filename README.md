@@ -7,10 +7,13 @@ truth; **no LLM** is involved — mathematical truth always comes from determini
 Python solvers, so a printed answer key is provably the solution to the printed
 question.
 
-> **Status: slice V1** — end-to-end generation of the `ratio_medium` blueprint
-> (three-term ratio sharing) through engine → API → web. See
-> [`docs/shaping/SLICES.md`](docs/shaping/SLICES.md) for the full roadmap
-> (V2 diagrams/worked solutions, V3 difficulty ladder + edits, … V5 PDF export).
+> **Status: v0.1.0 — MVP complete.** All six topics (Ratio, Fractions,
+> Percentage, Speed, Geometry angle + area) × three difficulty rungs generate
+> end-to-end through engine → API → web, with worked solutions, accurate diagrams,
+> and PDF export; a headless `mathgen` CLI and sourced-object interchange round out
+> the slice. See [`docs/planning/mvp/SLICES.md`](docs/planning/mvp/SLICES.md) for
+> the V1–V7 roadmap and [`CHANGELOG.md`](CHANGELOG.md) for the release. Next: a
+> question editor + persistent bank.
 
 ## Repository layout
 
@@ -22,8 +25,9 @@ web/        Svelte + Vite single-page app
 content/    Data assets: content/blueprints/*.yaml, content/syllabus/*.yaml
 schemas/    canonical-question.schema.json — the authoritative interchange contract
 tests/      pytest suite + tests/golden/ hand-verified fixtures per blueprint
-docs/        background/ (seed & grilling) · shaping/ (design + slice plans)
-            · adr/ (decisions) · PRD, SCHEMA, DIFFICULTY, CONTEXT
+docs/        Living refs (ROADMAP, SCHEMA, DIFFICULTY, CONTEXT) · adr/ (decisions)
+            · syllabus/ · planning/<initiative>/ (mvp/ = V1–V7 design, slice plans,
+            PRD, background; editor/ = the next initiative)
 ```
 
 The engine is UI/HTTP-agnostic and is imported by the API (and a future
@@ -97,10 +101,10 @@ curl -X POST http://localhost:8000/generate \
 
 | Doc | What |
 |-----|------|
-| [`docs/PRD.md`](docs/PRD.md) | Product requirements (MVP) |
-| [`docs/shaping/SHAPING.md`](docs/shaping/SHAPING.md) | Requirements (R), shape, fit check, breadboard |
-| [`docs/shaping/SLICES.md`](docs/shaping/SLICES.md) | Vertical slice roadmap (V1–V7) |
-| [`docs/shaping/V1-plan.md`](docs/shaping/V1-plan.md) | This slice's implementation plan |
+| [`docs/planning/mvp/PRD.md`](docs/planning/mvp/PRD.md) | Product requirements (MVP) |
+| [`docs/planning/mvp/SHAPING.md`](docs/planning/mvp/SHAPING.md) | Requirements (R), shape, fit check, breadboard |
+| [`docs/planning/mvp/SLICES.md`](docs/planning/mvp/SLICES.md) | Vertical slice roadmap (V1–V7) |
+| [`docs/planning/mvp/V1-plan.md`](docs/planning/mvp/V1-plan.md) | This slice's implementation plan |
 | [`docs/SCHEMA.md`](docs/SCHEMA.md) | The canonical question object, explained |
 | [`docs/DIFFICULTY.md`](docs/DIFFICULTY.md) | The principled difficulty model |
 | [`docs/CONTEXT.md`](docs/CONTEXT.md) | Glossary + decision register |

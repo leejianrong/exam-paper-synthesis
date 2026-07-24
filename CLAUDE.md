@@ -34,7 +34,7 @@ alongside generated questions; V7 wired the `raster` renderer branch — Python 
 TS mirror — that this exercises). Every blueprint now ships an independent
 seed-sweep **invariant test** (the correctness authority; goldens are regression
 anchors). All six topics × three rungs generate schema-valid end-to-end). See
-`docs/shaping/SLICES.md`.
+`docs/planning/mvp/SLICES.md`.
 
 ## Repo layout
 
@@ -59,7 +59,7 @@ It's a **uv workspace**. Root `pyproject.toml` declares members `engine/`,
 | `engine/exam_engine/content/blueprints/*.yaml`, `engine/exam_engine/content/syllabus/*.yaml` | Declarative blueprint/syllabus data (`ratio_{easy,medium,hard}.yaml`, `ratio.yaml`). **Package data** (KAN-258): lives under the package so it ships in the wheel; resolved package-relative (env override `EXAM_CONTENT_DIR`). |
 | `engine/exam_engine/schemas/canonical-question.schema.json` | The canonical JSON Schema (currently **v1.4.0**) — single source of truth. **Package data** (KAN-258): ships in the wheel, resolved package-relative (env override `EXAM_SCHEMA_PATH`). |
 | `tests/` | pytest suite: per-blueprint `test_invariants_*.py` seed-sweeps (correctness authority) + shared `tests/invariants.py` helper + `tests/golden/*.jsonl` hand-verified regression anchors. |
-| `docs/` | `SCHEMA.md`, `DIFFICULTY.md`, `CONTEXT.md`, `PRD.md`, `shaping/`, `adr/`. |
+| `docs/` | Living refs at root (`SCHEMA.md`, `DIFFICULTY.md`, `CONTEXT.md`, `ROADMAP.md`) + `adr/` + `syllabus/`; `planning/` holds per-initiative planning (`mvp/` = V1–V7 design + slice plans + `PRD.md` + `background/`, `editor/` = the question-editor initiative). |
 | `site/` | Static landing page (`index.html`). |
 
 A blueprint = declarative YAML (metadata, param schema, wording/solution
@@ -140,7 +140,7 @@ a request; entropy (random seed) enters only here.
 - **Commit messages** end with:
   `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
 - **Multi-level doc consistency**: if a slice's scope shifts, update
-  `docs/shaping/SLICES.md` (and `SHAPING.md`).
+  `docs/planning/mvp/SLICES.md` (and `SHAPING.md`).
 
 ## Where the key docs live
 
@@ -149,9 +149,10 @@ a request; entropy (random seed) enters only here.
 | `docs/SCHEMA.md` | The canonical question object, explained |
 | `docs/DIFFICULTY.md` | The principled difficulty model |
 | `docs/CONTEXT.md` | Glossary + decision register |
-| `docs/PRD.md` | Product requirements (MVP) |
-| `docs/shaping/SHAPING.md` | Requirements, shape, fit check, breadboard |
-| `docs/shaping/SLICES.md` | Vertical slice roadmap (V1–V7) |
-| `docs/shaping/V1-plan.md`, `V2-plan.md`, `V3-plan.md` | Per-slice implementation plans |
+| `docs/planning/mvp/PRD.md` | Product requirements (MVP) |
+| `docs/planning/mvp/SHAPING.md` | Requirements, shape, fit check, breadboard |
+| `docs/planning/mvp/SLICES.md` | Vertical slice roadmap (V1–V7) |
+| `docs/planning/mvp/V1-plan.md`, `V2-plan.md`, `V3-plan.md` | Per-slice implementation plans |
+| `docs/planning/editor/` | The question-editor initiative (the next milestone; product planning lands here) |
 | `docs/ROADMAP.md` | Milestones → epics → stories (mirrors the Simple Kanban board) |
 | `docs/adr/` | Numbered ADRs (0001–0016) |
