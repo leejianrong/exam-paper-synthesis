@@ -163,7 +163,7 @@ requires-dist = [
 
 [[package]]
 name = "exam-paper-synthesis"
-version = "0.0.0"
+version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "exam-api" },
