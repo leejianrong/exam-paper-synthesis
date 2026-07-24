@@ -1,6 +1,6 @@
 [project]
 name = "exam-paper-synthesis"
-version = "0.0.0"
+version = "0.1.0"
 description = "Deterministic, blueprint-driven Singapore P5-P6 math question engine (workspace root)."
 requires-python = ">=3.12"
 dependencies = ["exam-engine", "exam-api", "mathgen"]
