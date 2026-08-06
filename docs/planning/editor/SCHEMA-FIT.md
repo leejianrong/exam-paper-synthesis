@@ -48,33 +48,95 @@ For each question:
 A gap only counts once it's demonstrated by a real question. Speculative
 additions are how a schema rots.
 
-## Verdict tally
+## Papers analysed
 
-| # | Source | Topic | Verdict | Gap |
-|---|---|---|---|---|
-| _(none yet — exercise not started)_ | | | | |
+| Paper | Questions | Figures | Notes |
+|---|---|---|---|
+| Ai Tong School 2025 Prelim, P6 Maths (Paper 1 Booklets A+B, Paper 2) | 47 (100 marks) | 29 | Answer key present with working; 6 items flagged low-confidence by the extractor |
+
+### Composition
+
+| | Count | Share |
+|---|---:|---:|
+| MCQ (Paper 1 Booklet A) | 15 | 32% |
+| Short-answer | 22 | 47% |
+| Structured (multi-part) | 10 | 21% |
+| **Figures total** | **29** | |
+| — `geometric` (candidates for `geometry_figure`) | 13 | 45% |
+| — everything else (no structured home; `raster` only) | 16 | 55% |
+| Figures shared across more than one part | 8 | |
+| Parts with no mark allocation of their own | 4 | |
+
+### Headline result
+
+**17 of 47 questions (36%) cannot be represented at all** under schema v1.4.0 —
+not "awkwardly", but with no valid object available: the 15 MCQs (no `options`
+anywhere), plus Paper 1 Q26 and Paper 2 Q6, each of which has a part whose answer
+is not a value. A further tranche is expressible only by collapsing structure into
+`answer.type: "text"` or an image.
+
+That settles the authoring-scope question the exercise was run to answer. A
+parametric-only editor would not reach a third of this paper, and the topics our
+blueprints cover account for roughly 18 of 47 questions — before considering
+whether we can draw their figures. See
+[Verdict on the authoring surface](#verdict-on-the-authoring-surface).
+
+### What worked
+
+Worth recording, because it means the object is sound where it does reach:
+
+- **`stem` / `parts[]` / `total_marks` matched the paper's own structure.** The
+  extractor independently recorded `figure` at *stem* level for structured
+  questions, which is how the paper is laid out — that's what G2 is about.
+- **`solution_steps` fits the answer key almost directly.** 40 of 47 questions
+  print working, and it maps step-for-step.
+- **`integer` / `decimal` / `fraction` / `quantity` / `text` covered most numeric
+  answers**, and `source` + `license` + `provenance.created_by: "ingested"` carry
+  the paper's identity with nothing missing.
 
 ---
 
 ## Gaps found
 
+### G1–G3: confirmed
+
+All three predicted gaps are demonstrated by this paper. They are no longer
+predictions.
+
 ### Structural gaps identified up front
 
-These three fall out of reading the schema and are near-certain to be hit, but
-they stay listed as *predicted* until a real question demonstrates each one.
+These three fell out of reading the schema before any paper arrived.
 
-#### G1 — No multiple-choice questions (predicted)
+#### G1 — No multiple-choice questions — **CONFIRMED**
 
 There is no `options`, `choices`, or equivalent anywhere in the schema. A part is
 always a constructed response: `answer` is one of
 `integer | decimal | fraction | ratio | quantity | set | text`.
 
-PSLE Paper 1 Booklet A is entirely MCQ, so "author any question" cannot be met
-without this. Cost: a new `answer` variant (or a part-level `options[]` plus a
-key), and a renderer branch for the option list. Also raises a design question —
-is the correct option identified by index or by value?
+**Evidence:** 15 of 47 questions (32%) — the whole of Paper 1 Booklet A. These
+cannot be expressed at all, which makes G1 the single largest gap found.
 
-#### G2 — A figure cannot attach to the stem, only to a part (predicted)
+**And it's worse than "add `options[]`."** Three of the fifteen have options that
+are *themselves diagrams*, not text:
+
+| Q | Options are… |
+|---|---|
+| P1 Q8 | four candidate nets of a cube (FIG-2) |
+| P1 Q9 | four candidate pie charts (FIG-3) |
+| P1 Q11 | four candidate isometric solids (FIG-4) |
+
+So an option is not a string — it needs the same text-or-diagram capability a part
+has. A minimal `options: [string]` would cover 12 of 15 and silently fail the rest.
+
+One more wrinkle: P1 Q7 prints a header row spanning the options
+(`Smallest … Greatest`), which is presentation attached to the option *list*
+rather than to any one option.
+
+Cost: a part-level `options[]` whose entries carry text and/or a diagram, plus
+which option is correct (by label, since the paper labels them `(1)`–`(4)`), and
+a renderer branch. Not cheap, but unavoidable.
+
+#### G2 — A figure cannot attach to the stem, only to a part — **CONFIRMED**
 
 `question` has exactly `{ stem?, parts[], total_marks }` — no `diagram`.
 `diagram` lives on each part. The very common paper layout
@@ -85,23 +147,252 @@ therefore has to duplicate the same figure into every part, or attach it to part
 (a) and rely on layout. Both are wrong: the object stops being a faithful
 representation of the question, and the duplicate copies can drift.
 
+**Evidence:** 8 of 29 figures are shared across more than one part — FIG-9, 14,
+22, 24, 25, 26, 27, 28. That is *every* structured question in the paper that has
+a figure at all. The extractor, working only from the PDF and with no knowledge of
+our schema, recorded `figure:` at stem level for each of them; the paper's own
+layout is stem-level.
+
 Cost: allow `diagram` on `question`. Low risk (additive, optional), but it
 touches both renderers (Python + the TS mirror) and the diagram-consistency
 check needs to know which part's answer a stem-level figure is checked against.
 
-#### G3 — No table representation (predicted)
+#### G3 — No table representation — **CONFIRMED**
 
-No `table`/`rows`/`columns` anywhere, and `diagram` has no table variant. Tables
-appear in real papers both as *given data* (timetables, price lists, tally
-tables, frequency tables) and as *the thing to complete*.
+No `table`/`rows`/`columns` anywhere, and `diagram` has no table variant.
 
-`raster` (an embedded image) is the current escape hatch, which works for
-rendering but makes the content opaque — unsearchable, unstyleable, and unable
-to reflow in a PDF.
+**Evidence:** 4 of 29 figures involve a table — and in two of them the table is
+not given data but the *answer surface*:
+
+| Figure | Role of the table |
+|---|---|
+| FIG-18 (P2 Q1) | water-tariff table with a **blank cell that is the answer** |
+| FIG-22 (P2 Q6b) | three statements × True / False / Not possible to tell, **answered by ticking cells** |
+| FIG-3 (P1 Q9) | given data, feeding four pie-chart options |
+| FIG-28 (P2 Q15) | given figure-number → rod-count table for a pattern question |
+
+`raster` renders these but makes the content opaque. It also cannot work at all
+for FIG-22, where the ticked cells *are* the answer (see G6).
 
 ### Gaps found from real questions
 
-_(to be filled during the exercise)_
+Numbered from G4. Each is demonstrated by at least one question in the paper.
+
+#### G4 — The `diagram` union covers under half the figures
+
+`diagram.type` is closed at `bar_model | bar_model_before_after |
+geometry_figure | shaded_fraction | raster`. Of 29 figures, 13 (45%) are
+`geometric` and so are *candidates* for `geometry_figure`; the other 16 (55%) have
+no structured home and can only be `raster`:
+
+| Kind | Count | Figures |
+|---|---:|---|
+| context picture | 3 | FIG-1, 13, 15 |
+| 3D solid | 3 | FIG-10, 23, 26 |
+| coordinate grid | 2 | FIG-14, 29 |
+| net | 1 | FIG-2 |
+| bar chart | 1 | FIG-9 |
+| line graph | 1 | FIG-19 |
+| table | 1 | FIG-18 |
+| pie chart + response table | 1 | FIG-22 |
+| table + pie-chart options | 1 | FIG-3 |
+| orthographic views + solids | 1 | FIG-4 |
+| rod pattern + table | 1 | FIG-28 |
+
+Notably absent from our union and *recurring*: **3D solids** (cuboids, containers,
+water tanks — 3 figures, and volume is a major P6 topic), **statistical charts**
+(bar, line, pie — 4 figures), and **coordinate/square grids** (2 figures).
+
+Not all 16 deserve a parametric type. But `raster` for 55% of figures means the
+bank is mostly opaque blobs, which undercuts the searchable-bank goal.
+
+#### G5 — `geometry_figure` allows only one unknown, but a shared figure needs one per part
+
+The schema says of `angles`: *exactly one may set `unknown: true`*. That holds for
+a single-part question. It breaks the moment a stem-level figure serves two parts
+that each ask for a different angle.
+
+**Evidence:** FIG-24 (P2 Q8) marks **∠LOK** unknown for part (a) *and* **∠LNM**
+unknown for part (b). FIG-27 (P2 Q14) does the same with **∠DEC** and **∠DFC**.
+
+This interacts with G2: once a figure is stem-level, the one-unknown rule is
+actively wrong. The consistency check needs to bind each unknown to the part that
+asks for it.
+
+#### G6 — Answers that are not values
+
+Three answer shapes in this paper have nowhere to live:
+
+| Q | The answer is… | Today |
+|---|---|---|
+| P1 Q26b | **a construction on the figure** — complete the parallelogram and label point D. The answer key ships a completed figure (FIG-29) | cannot express |
+| P2 Q6b | **a tick per row** in a 3 × 3 True/False/Not-possible-to-tell matrix | cannot express |
+| P2 Q16a | **two labelled slots in one part** — "Least: ___, Most: ___" | cannot express (would need two parts, which the paper doesn't have) |
+
+The construction answer is the deepest of the three: the answer is a *diagram*,
+which means an answer key has to render a figure, not a value. That is a genuine
+extension of what "answer" means, not a new variant of it.
+
+#### G7 — No symbolic or algebraic answers
+
+| Q | Answer as printed |
+|---|---|
+| P1 Q13 | `(42π + 42) m` — asked for explicitly "in terms of π" |
+| P1 Q25 | `$17n` — asked for explicitly "in terms of n" |
+
+Both would have to collapse into `answer.type: "text"`, losing any structured
+checking. Note this is not exotic: "leave your answer in terms of π" is standard
+PSLE phrasing, and our own geometry ladder auto-selects π, so we already care
+about exact forms.
+
+#### G8 — No compound quantities
+
+**Evidence:** P2 Q10 instructs "Express your answer in h and min"; the answer is
+`2 h 36 min`. No `answer` variant composes two units. `quantity` takes a single
+`value` + `unit`.
+
+Also relevant: P1 Q27's answer is `1.95 ℓ` where the figure's readings are in ml
+— unit conversion within one question is routine, and money as dollars-and-cents
+(P2 Q16c, `$10.40`) is the same shape.
+
+#### G9 — `part` requires fields real papers don't supply
+
+`part.required` is `label, text, marks, answer, marking_scheme, solution_steps`.
+Two of those don't survive contact:
+
+- **`marks`** — 4 parts (P1 Q21a/b, P1 Q26a/b) have **no mark allocation of their
+  own**; the paper allocates 2 marks to the whole question. Forcing a per-part
+  split means inventing information the paper doesn't contain.
+- **`marking_scheme`** — the paper's answer key gives *working*, never an M/A/B
+  breakdown. Across all 47 questions, nothing supplies a marking scheme. So every
+  sourced question either fabricates one or cannot validate.
+
+`solution_steps`, by contrast, maps cleanly from `working_shown` — 40 of 47
+questions print working.
+
+#### G10 — Multi-panel figures
+
+Two figures are really *several* drawings that must be read together, with the
+relationship between panels carrying meaning:
+
+- **FIG-12 (P1 Q24)** — "Before folding" and "After folding", joined by a fold
+  line, a curved arrow and a large right-pointing arrow. The transformation
+  *between* panels is the question.
+- **FIG-23 (P2 Q7)** — Figure 1 (empty container), Figure 2 (front view, filled),
+  Figure 3 (same container upside down). Three panels sharing one baseline.
+
+`geometry_figure` is a single point set. `bar_model_before_after` proves we
+already accept the two-stage idea for bar models; this is the general case.
+
+#### G11 — Figure styling primitives are missing
+
+Recurring marks in the `geometric` figures that `geometry_figure` cannot express:
+
+| Mark | Where |
+|---|---|
+| **dashed / construction segments** | FIG-5 (dashed BC), FIG-11, FIG-21 (dashed baseline), FIG-25 (dashed construction lines), FIG-26 (hidden edges) |
+| **dimension arrows** (double-headed, labelled) | FIG-5, 10, 17, 20, 26 |
+| **parallel-side marks** | FIG-16 (AD ∥ BC), FIG-27 (DE ∥ FC), FIG-29 |
+
+`segments` currently carries only `label?` and `ticks?`. Dashed lines and
+dimension arrows are the two most common; both are cheap additive properties.
+
+#### G12 — Shaded regions cannot have holes
+
+`shaded` is `{ boundary: [ids…], arcs? }` — a single closed boundary. Three
+figures shade a region defined by *subtraction*:
+
+- **FIG-6 (P1 Q14)** — the band between an outer and a middle triangle (a ring).
+- **FIG-11 (P1 Q23)** — everything *except* two triangles (a complement).
+- **FIG-25 (P2 Q12)** — caps between an outer boundary and inner semicircle arcs.
+
+Needs either a hole list per shaded region or an even-odd fill rule.
+
+#### G13 — The `unit` enum breaks immediately
+
+The countable-noun tail (`marbles`, `items`, `people`, `units`) was already
+flagged as a stand-in. This paper needs, among others: **pages** (P2 Q9),
+**bags** and **mangoes** (P2 Q11), **muffins** (P1 Q25), **rods** (P2 Q15),
+**coins** (P2 Q16), **students** (P1 Q9), **cubes** (P1 Q11).
+
+The tail is unbounded — it is whatever the word problem is about. A closed
+vocabulary is right for *measurement* units (where `cm` vs `cm^2` matters
+mathematically) and wrong for the noun being counted. These are two different
+things sharing one enum.
+
+Minor: the paper writes litres as `ℓ`; our enum has `l`.
+
+#### G14 — "Measure the figure" questions invert the diagram invariant
+
+`geometry_figure`'s stated principle is that *every labelled value is exact — it
+comes from the solved parameters, never from measuring the drawing*.
+
+**Evidence:** P1 Q20 ("Measure and write down the height…", answer 2.9 cm) and
+P1 Q26a ("Measure and write down the size of ∠ABC", answer 141°) require the
+opposite: the drawing must be to scale, and the answer is read *off* it.
+
+For sourced questions this is only a note. But it's also an **opportunity**: we
+render SVG from exact coordinates, so we control scale precisely — meaning
+measure-the-figure questions are a blueprint family we *could* generate, with the
+answer derived from the coordinates we chose. Worth a separate look.
+
+#### G15 — A paper has section structure; a worksheet is a flat list
+
+This paper is Paper 1 Booklet A (MCQ, no calculator), Booklet B (short answer),
+and Paper 2 (long structured) — 100 marks total. Sections carry their own
+instructions and answer conventions.
+
+Our worksheet is a flat titled list of questions with total marks. Recreating a
+*paper* rather than a *worksheet* needs section grouping. This is a
+worksheet/editor-level gap, not a question-object one, so it belongs in the
+editor's own requirements rather than the schema.
+
+---
+
+## Verdict on the authoring surface
+
+The exercise was run to decide between a parametric-only editor, a free-form one,
+and both. The evidence answers it:
+
+- **Parametric-only is not viable.** It cannot reach the 36% of questions that have
+  no valid object today, and our six blueprint topics cover roughly 18 of 47
+  questions before asking whether we can draw their figures.
+- **Free-form is required**, with `raster` as the pragmatic figure escape hatch —
+  which is exactly the `sourced` / human-vouched path V7 already proved.
+- **Parametric stays valuable** for the topics we do generate, because those
+  questions keep the engine's correctness proof. The trust distinction
+  (`source_type`, `created_by`) is already in the schema and should stay visible
+  in the UI.
+
+So: **both paths, clearly separated** — but free-form is the one that unblocks
+recreating a real paper, and should come first.
+
+### Schema work, ranked
+
+Ranked by frequency in this paper against implementation cost. Nothing here should
+be built speculatively; the ordering is the argument.
+
+| | Change | Unblocks | Cost |
+|---|---|---|---|
+| 1 | Part-level `options[]` with text *and* diagram entries (G1) | 15 questions (32%) | medium |
+| 2 | `diagram` on `question` (G2) | 8 figures, every structured question | low |
+| 3 | `marks` and `marking_scheme` optional on `part` (G9) | 4 parts; every sourced question | low |
+| 4 | Multiple unknowns bound to parts (G5) | 2 figures — and required for #2 to be correct | low |
+| 5 | Segment `style: dashed` + dimension arrows + parallel marks (G11) | 5+ figures | low |
+| 6 | Shaded regions with holes (G12) | 3 figures | medium |
+| 7 | A `table` type (G3) | 4 figures, 2 as answer surface | medium |
+| 8 | Split `unit` into measurement units (closed) + counted noun (open) (G13) | ~7 questions | low |
+| 9 | Symbolic / algebraic answers (G7) | 2 questions | medium |
+| 10 | Compound quantities (G8) | 2+ questions | low |
+| 11 | Multi-panel figures (G10) | 2 figures | medium |
+| 12 | Chart types — bar, line, pie (G4) | 4 figures | high |
+| 13 | 3D solid figures (G4) | 3 figures | high |
+| 14 | Construction answers (G6) | 1 question | high |
+
+Items 12–14 are the ones to *deliberately leave* on `raster` for now: highest
+cost, and the free-form path plus an image handles them at the price of opacity.
+Items 1–5 are the ones that make the editor possible at all, and four of the five
+are cheap.
 
 ---
 
