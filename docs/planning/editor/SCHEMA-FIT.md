@@ -12,6 +12,25 @@ look at real questions first.
 
 Current schema: **v1.4.0** (`engine/exam_engine/schemas/canonical-question.schema.json`).
 
+## Getting a paper in
+
+Papers arrive as text-only Markdown, extracted from a PDF by an external LLM
+tool using the prompt in [`extraction-prompt.md`](extraction-prompt.md), which
+asks for **structured** figure data (named points, marked angles, ticks, shading;
+tables as real tables) rather than prose — a prose description would make "our
+diagram types can't express this" indistinguishable from "the description didn't
+carry enough detail."
+
+Transcripts live in [`papers/`](papers/README.md), untracked: the papers are
+copyrighted and this repo is public.
+
+The prompt forbids the extractor from solving anything. Our schema requires
+`answer`, `marking_scheme` and `solution_steps` on every part, so an extractor
+left to its own devices will compute a missing answer — which would put
+LLM-generated maths into fixtures, the one thing this project exists to avoid. A
+paper with no answer key is itself a finding: it means the editor must support
+authoring a key by hand.
+
 ## Method
 
 For each question:

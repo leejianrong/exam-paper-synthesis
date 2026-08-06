@@ -37,6 +37,12 @@ web/dist/
 docs/syllabus/*
 !docs/syllabus/README.md
 
+# Same rule for extracted exam-paper transcripts (schema-fit exercise): the
+# papers are copyrighted and this repo is PUBLIC. Only the folder's README is
+# tracked. Source PDFs are covered by the *.pdf rule below.
+docs/planning/editor/papers/*
+!docs/planning/editor/papers/README.md
+
 # Playwright / generated exports
 playwright-report/
 test-results/
