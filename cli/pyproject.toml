@@ -5,7 +5,7 @@ description = "Headless CLI driving the exam engine directly — generate/edit/e
 requires-python = ">=3.12"
 dependencies = [
     "exam-engine",
-    "playwright>=1.44",
+    "playwright>=1.62.0",
 ]
 
 [project.scripts]
