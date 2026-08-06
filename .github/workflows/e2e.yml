@@ -33,8 +33,19 @@ jobs:
       - name: Install e2e (Playwright) dependencies
         run: npm ci
 
-      - name: Install Playwright browser
+      # Two independent Playwright clients need browsers here, each pinning its
+      # own Chromium build: the Node one (@playwright/test) drives the e2e specs,
+      # and the Python one (api/app/export.py) launches Chromium to render PDFs
+      # for POST /export/*. Installing only the Node browser worked until the
+      # two versions' build revisions diverged, at which point every /export
+      # call 500s with "Executable doesn't exist at .../chromium_headless_shell-*".
+      - name: Install Playwright browser (Node — drives the e2e specs)
         run: npx playwright install --with-deps chromium
+
+      # No --with-deps: the step above already installed the OS packages, and
+      # both clients need the same ones — only the browser build differs.
+      - name: Install Playwright browser (Python — renders export PDFs)
+        run: uv run playwright install chromium
 
       - name: Run e2e tests (headless)
         run: npm run e2e
