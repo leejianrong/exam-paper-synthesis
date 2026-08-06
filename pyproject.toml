@@ -32,6 +32,10 @@ testpaths = ["tests", "cli/tests"]
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+# Ruff >= 0.16 formats Python inside Markdown code blocks. Docs under docs/ are
+# prose: their snippets are illustrative (often deliberately aligned) and are not
+# part of the build, so keep the formatter and linter to actual source files.
+extend-exclude = ["*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
