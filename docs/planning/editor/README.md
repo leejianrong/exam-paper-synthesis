@@ -14,6 +14,18 @@ An editor where teachers customize and author questions:
 
 First user: the owner, recreating questions by hand from a PDF bank.
 
+## Decisions so far
+
+- **Persistence: local-first, single user.** A durable bank on the owner's own
+  machine (SQLite + figure blobs), reachable through the engine and CLI. No
+  accounts, no hosted state, no auth — backup is copying the file. This keeps the
+  engine's UI/HTTP-agnostic property and defers every multi-user concern.
+- **Authoring scope: not yet decided — being settled empirically.** Rather than
+  choose parametric vs free-form in the abstract, we are running the schema-fit
+  exercise in [`SCHEMA-FIT.md`](SCHEMA-FIT.md): take real exam questions, try to
+  express each as a canonical object, and record what the schema cannot hold.
+  Schema gaps found there get fixed before the editor is designed around them.
+
 ## Open design threads to resolve during planning
 
 - **Trust model** — generated questions are *engine-proven*; hand-authored ones
