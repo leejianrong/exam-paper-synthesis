@@ -367,6 +367,13 @@ and both. The evidence answers it:
 So: **both paths, clearly separated** — but free-form is the one that unblocks
 recreating a real paper, and should come first.
 
+> **A caveat on the 36%.** "Cannot represent" is about missing schema slots and is
+> a poor proxy for what the engine could *generate*. The 15 MCQs are the largest
+> unrepresentable block **and** the most generatable content in the paper. See
+> [`PARAMETERIZATION.md`](PARAMETERIZATION.md), which works the same paper the
+> other way round: ~60% of it is generatable with cheap additions and ~96% with a
+> built-out figure vocabulary, because the obstacle is figures, not mathematics.
+
 ### Schema work, ranked
 
 Ranked by frequency in this paper against implementation cost. Nothing here should
