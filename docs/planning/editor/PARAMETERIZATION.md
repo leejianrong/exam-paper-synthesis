@@ -5,7 +5,10 @@ object can *hold* real questions. This asks the harder and more useful question:
 how many of them could the engine *generate* — deterministically, with a proven
 answer key?
 
-Worked against the same paper: Ai Tong School 2025 Prelim, P6 Maths, 47 questions.
+Worked in detail against one paper — Ai Tong School 2025 Prelim, 47 questions —
+then checked against two more (CHIJ St Nicholas, Catholic High; 141 questions
+total). See [Checked against three papers](#checked-against-three-papers) for what
+survived and what moved.
 
 ## Representation and generation are different questions
 
@@ -108,6 +111,55 @@ Caveat on all of the above: this is one paper and my classification is a judgeme
 call. Bucket boundaries should be re-checked against a second and third paper
 before anything is committed to on the strength of them.
 
+## Checked against three papers
+
+The three papers are structurally identical — 47 questions, 100 marks, exactly 15
+MCQs each — and **41% of all 141 questions (58) carry no figure at all**, which is
+the floor under bucket A regardless of any renderer work.
+
+### What held
+
+- **MCQ is the top priority, unchanged.** 45 questions, precisely 15 per paper.
+- **The maths is almost never the obstacle.** Across all three papers, the blocker
+  is a figure or an answer shape, not a solver.
+- **Bucket C stays tiny** — isometric-solid questions (3 across the three papers)
+  and one folding question. Nothing else genuinely resists.
+- **3D solids stay mostly decorative.** Where dimensions matter they are usually
+  stated in the stem, so a generated version can ship without the drawing.
+
+### What moved
+
+| | One paper said | Three papers say |
+|---|---|---|
+| `geometry_figure` coverage | 45% of figures | **33%** — Ai Tong is unusually geometry-heavy |
+| Tables | 4 figures, rank 7 | **15 of 84 figures (18%), rank 5** — 2nd most common kind, in every paper |
+| Construction answers | 1 question, rank 14 (skip) | **9 questions, rank 7** — every one a drawing on a square grid |
+| Coordinate grids | folded into "cheap additions" | **9 figures, all 3 papers** — and the substrate for construction answers |
+| Nets | 1 question, one-off | **3 figures, one in every paper** |
+
+The correction that matters: **tables, grids and construction answers are one
+cluster**, and a single paper underweighted all three. Nearly every construction
+answer is *"draw shape X on this square grid"* — so grid rendering plus an answer
+that can hold a diagram unlocks 9 questions at once, and the same grid work also
+covers nets and pattern figures.
+
+Bucket-A-versus-B proportions are carried forward from the Ai Tong classification;
+I have not re-bucketed all 141 questions individually. The 41%-no-figure floor and
+the movements above are measured, but the precise 60/36/4 split is still one
+paper's number.
+
+### One more finding, from the answer keys
+
+Every paper's answer key contains errors — a statement copied from the wrong
+question, working that doesn't add up, the wrong person named. Recorded as G19 in
+`SCHEMA-FIT.md`.
+
+For parameterization this is an argument *for* generating rather than sourcing
+wherever a family is reachable: an engine-generated answer key is proven by
+construction, whereas an imported one needs human review and sometimes correction.
+It also means the editor's import path needs a review step, not a silent
+conversion.
+
 ## The real constraint is families, not questions
 
 The binding cost is not schema expressiveness. It is that every blueprint family
@@ -198,18 +250,30 @@ it would mean answer keys render figures.
 
 ## Recommended order
 
-1. **MCQ (`choice`) + `options` with diagram-capable entries.** Unblocks 15
-   questions, and MCQ arithmetic is the cheapest generation in the paper.
+Revised after the second and third papers.
+
+1. **MCQ (`choice`) + `options` with diagram-capable entries.** 45 questions, and
+   MCQ arithmetic is the cheapest generation in the paper.
 2. **`diagram` on `question`, with per-part unknowns.** Cheap, and required for
    stem-level figures to be *correct* rather than merely allowed.
 3. **Optional `marks` / `marking_scheme` on `part`.** Cheap; without it no sourced
    question validates.
-4. **The `chart` type.** Best value per unit of renderer work.
-5. **The cheap `geometry_figure` additions** — dashed segments, dimension arrows,
-   parallel marks, holes.
-6. **`table`, then `grid`.**
-7. The nine no-figure families, in whatever order suits the syllabus.
+4. **`table`.** Promoted from 6th: the second most common figure kind, in every
+   paper, and sometimes the answer surface.
+5. **`grid` background + polygons on `geometry_figure`.** Promoted, because it is
+   the substrate for construction answers, nets and pattern figures — one piece of
+   renderer work serving three clusters.
+6. **`construction` answers** — an answer that carries a diagram. Promoted from
+   "deliberately skip": 9 questions, one in every paper, all on grids from step 5.
+7. **The cheap `geometry_figure` additions** — dashed segments, dimension arrows,
+   parallel marks, north arrow, holes.
+8. **`chart`.** Still good value, but behind the table/grid cluster now.
+9. The nine no-figure families, in whatever order suits the syllabus.
 
-Charts, solids and construction answers stay on `raster` until steps 1–6 land.
-Nothing here is worth building before a second paper confirms the bucket
-boundaries.
+`solid` and multi-panel figures stay on `raster`. Bucket C — isometric-view
+questions and folding — stays out.
+
+The one-paper version of this list had `table` 6th, `grid` bundled into step 5,
+and construction answers dropped entirely. Two more papers were enough to correct
+all three, which is a reasonable argument for running a fourth before committing to
+build order below step 3.

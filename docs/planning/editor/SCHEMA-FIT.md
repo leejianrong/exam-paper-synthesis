@@ -50,11 +50,51 @@ additions are how a schema rots.
 
 ## Papers analysed
 
-| Paper | Questions | Figures | Notes |
-|---|---|---|---|
-| Ai Tong School 2025 Prelim, P6 Maths (Paper 1 Booklets A+B, Paper 2) | 47 (100 marks) | 29 | Answer key present with working; 6 items flagged low-confidence by the extractor |
+| Paper | Questions | Figures | MCQ | Notes |
+|---|---:|---:|---:|---|
+| Ai Tong School 2025 Prelim | 47 (100 marks) | 29 | 15 | answer key with working; 6 low-confidence items |
+| CHIJ St Nicholas Girls' 2025 Prelim | 47 (100 marks) | 27 | 15 | answer key with working; 6 low-confidence items |
+| Catholic High 2025 Prelim | 47 (100 marks) | 28 | 15 | answer key with working; 5 low-confidence items |
+| **Total** | **141** | **84** | **45** | all P6, Paper 1 Booklets A+B and Paper 2 |
 
-### Composition
+The structural uniformity is striking: **47 questions, 100 marks and exactly 15
+MCQs in every paper.** Whatever we build to hold one prelim paper holds them all.
+
+### Aggregate figure kinds (84 figures, 3 papers)
+
+| Kind | Count | Share | In how many papers |
+|---|---:|---:|:--:|
+| geometric | 28 | 33% | 3 |
+| **table** (incl. tables inside composite figures) | **15** | **18%** | 3 |
+| context picture | 10 | 12% | 3 |
+| coordinate / square grid | 9 | 11% | 3 |
+| 3D solid | 8 | 10% | 3 |
+| charts (line 4, bar 2+, pie 1+) | ~11 | 13% | 3 |
+| net | 3 | 4% | **3** |
+| number line | 1 | 1% | 1 |
+
+**58 of 141 questions (41%) have no figure at all.**
+
+### What the second and third papers changed
+
+Ai Tong alone was misleading in three ways, and this is the main value of having
+run more than one paper:
+
+1. **`geometric` fell from 45% to 33%.** Ai Tong is unusually geometry-heavy, so
+   `geometry_figure` covers less of the ground than one paper suggested.
+2. **Tables are far bigger than they looked** — 18% of figures, the second most
+   common kind, present in all three papers, and repeatedly used as the *answer
+   surface*. On one paper's evidence this was ranked 7th; it belongs near the top.
+3. **Construction answers are a recurring cluster, not a one-off.** Ai Tong had
+   one; CHIJ has four and Catholic High four — **9 across the three papers**, and
+   every single one is a drawing on a **square grid**. Ranked 14th (last) on one
+   paper. That was wrong.
+
+Also newly visible as recurring rather than incidental: **nets** (all three
+papers), **symbolic π answers** (all three), and the **True/False/Not-possible-to-tell
+tick matrix** (all three).
+
+### Composition of the first paper
 
 | | Count | Share |
 |---|---:|---:|
@@ -336,6 +376,71 @@ render SVG from exact coordinates, so we control scale precisely — meaning
 measure-the-figure questions are a blueprint family we *could* generate, with the
 answer derived from the coordinates we chose. Worth a separate look.
 
+#### G16 — A stem and figure can be shared across separate *questions*
+
+G2 is about a figure shared across parts of one question. This is a level above:
+a preamble and figure shared by two **numbered questions**.
+
+**Evidence (CHIJ):** *"Use the information below to answer Question 9 and 10"* —
+FIG-4 (a bead-count table) serves Q9 and Q10. The same pattern repeats for
+Q21/Q22 with FIG-9 (a line graph).
+
+One canonical object is one whole question, so there is nowhere to put shared
+context spanning two of them. Duplicating the table into both objects makes them
+silently coupled — edit one and the paper becomes inconsistent.
+
+This is the first finding that argues for something *above* the question object —
+a question **group** or a paper-section container. It overlaps G15 and is probably
+the same feature.
+
+#### G17 — No time-of-day answers (distinct from durations)
+
+Our `unit` enum has `s`, `min`, `h`, which express **durations**. Three questions
+want a **clock time**:
+
+| Q | Answer |
+|---|---|
+| CHIJ P1 Q27 | `3:30 pm` |
+| Catholic High P2 Q12b | `11 50` |
+| Catholic High P1 Q6 | options are times — `4.15 p.m.`, `9.35 p.m.` |
+
+And the two are mixed freely: CHIJ P1 Q7 asks for a duration (`9 h 15 min`) from
+two clock times. A time of day is not a quantity with a unit — it's a distinct
+type, and papers write it inconsistently (`3:30 pm`, `11 50`, `4.15 p.m.`).
+
+#### G18 — No compass directions, and figures need a north arrow
+
+**Evidence:** CHIJ P1 Q24a answers `North-East`; Catholic High P1 Q9's options are
+all compass directions. Both figures (CHIJ FIG-10, CH FIG-6) print a **north
+arrow** beside the grid, which `geometry_figure` has no way to express.
+
+Direction is a small closed vocabulary (8 compass points), so the answer side is
+cheap. The north arrow is a figure annotation, and it pairs with the grid work in
+G4.
+
+#### G19 — Real answer keys contain errors, so import cannot be trusted
+
+Not a schema gap, but it constrains the editor and is worth recording where the
+evidence lives.
+
+Every paper's answer key has defects the extractor flagged:
+
+| Paper | Defect |
+|---|---|
+| Catholic High P1 Q24 | the key's response table prints **a statement from a different question** |
+| Catholic High P1 Q28 | "area of triangle" where the question has no triangle |
+| Catholic High P2 Q15b | working names "Mr. Lee" where the question says Mrs Sim |
+| CHIJ P2 Q9a | working is arithmetically inconsistent (`45 + 28 = 73`, `73 ÷ 6.57 = 79.57`) |
+| CHIJ P2 Q16 | "1 units", "5 unit" |
+| Catholic High P2 Q10 | "m/mim", "Combines speed" |
+
+So `working_shown` cannot be imported straight into `solution_steps` and trusted.
+This is exactly what the schema's `validation.status: "unverified"` plus
+`checks.human_reviewed` is for — and it means **the editor needs a review step on
+import**, not a silent conversion. It also vindicates the extraction prompt's rule
+against the extractor "fixing" anything: these defects are visible precisely
+because it transcribed them verbatim.
+
 #### G15 — A paper has section structure; a worksheet is a flat list
 
 This paper is Paper 1 Booklet A (MCQ, no calculator), Booklet B (short answer),
@@ -374,10 +479,42 @@ recreating a real paper, and should come first.
 > other way round: ~60% of it is generatable with cheap additions and ~96% with a
 > built-out figure vocabulary, because the obstacle is figures, not mathematics.
 
-### Schema work, ranked
+### Schema work, ranked — REVISED over three papers
 
-Ranked by frequency in this paper against implementation cost. Nothing here should
-be built speculatively; the ordering is the argument.
+Three papers moved three things substantially. The revised order:
+
+| | Change | Evidence across 3 papers | Was |
+|---|---|---|---|
+| 1 | Part-level `options[]`, entries carrying text *and/or* diagram (G1) | 45 questions (32%), exactly 15 per paper | 1 |
+| 2 | `diagram` on `question` (G2) | 28 of 84 figures shared across parts | 2 |
+| 3 | `marks` / `marking_scheme` optional on `part` (G9) | 18 parts; no key supplies M/A/B | 3 |
+| 4 | Unknowns bound to parts (G5) | required for #2 to be correct | 4 |
+| 5 | **A `table` type** (G3) | **15 of 84 figures (18%), all 3 papers, used as answer surface** | **7** |
+| 6 | **`grid` background + polygons on `geometry_figure`** (G4) | **9 grid figures, all 3 papers; the substrate for #7** | bundled |
+| 7 | **`construction` answers — an answer that is a diagram** (G6) | **9 questions, all 3 papers, every one on a grid** | **14** |
+| 8 | Segment styling, dimension arrows, parallel marks, north arrow (G11, G18) | 5+ figures per paper | 5 |
+| 9 | Shaded regions with holes / annuli (G12) | rings recur; CHIJ FIG-6, CH FIG-26 | 6 |
+| 10 | `expression` answers — π and algebra (G7) | all 3 papers; **algebra also appears inside table cells** | 9 |
+| 11 | `selection` answers — tick matrices (G6) | all 3 papers | — |
+| 12 | `compound` quantities, `time`, `direction` (G8, G17, G18) | all 3 papers | 10 |
+| 13 | Split `unit` into closed measurement + open counted noun (G13) | pervasive | 8 |
+| 14 | A question **group** / paper-section container (G15, G16) | 2 shared-stem pairs in CHIJ | — |
+| 15 | Charts — bar, line, pie (G4) | ~11 figures, all 3 papers | 12 |
+| 16 | `solid` type (G4) | 8 figures, but dimensions are usually in the stem | 13 |
+| 17 | Multi-panel figures (G10) | 2 figures, 1 paper | 11 |
+
+**The big movers.** `table` from 7th to 5th, `grid` promoted out of a bundle, and
+`construction` answers from dead last to 7th. Those three are one cluster: nearly
+every construction answer is *"draw shape X on this square grid"*, and tables are
+the second most common figure kind in the paper. A one-paper reading badly
+underweighted all three.
+
+`solid` drops in practical terms even though it's 10% of figures, because the
+dimensions are typically stated in the stem — the drawing is often illustrative.
+
+### Original ranking, from the first paper only
+
+Kept for the record, to show what one paper's evidence got wrong.
 
 | | Change | Unblocks | Cost |
 |---|---|---|---|
