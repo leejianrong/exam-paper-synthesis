@@ -39,6 +39,10 @@ E6 if it's promoted back in once the bank has real content.
 
 ## E1 — Bank + review gate (CLI, schema unchanged)
 
+> **Plan:** [`E1-plan.md`](E1-plan.md) — SQLite bank (`engine/exam_engine/bank.py`,
+> stdlib `sqlite3`, no new dependency), `mathgen bank
+> {import,list,search,review}`, and the review-gate semantics (ADR-0019).
+
 **Goal:** a durable place to put sourced questions and a real review step —
 before touching the schema at all, so the persistence spine is proven against
 content the engine already accepts (V7's sourced path).
