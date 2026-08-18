@@ -63,6 +63,22 @@ class EditNotApplicable(EngineError):
         super().__init__(f"edit {op!r} not applicable: {reason}")
 
 
+class BankObjectNotFound(EngineError):
+    """No bank row exists for the requested id (ADR-0017)."""
+
+    def __init__(self, id: str):
+        self.id = id
+        super().__init__(f"no bank object with id {id!r}")
+
+
+class BankDuplicateId(EngineError):
+    """``Bank.add()`` without ``overwrite=True`` on an id already present."""
+
+    def __init__(self, id: str):
+        self.id = id
+        super().__init__(f"bank already has an object with id {id!r} (use --overwrite)")
+
+
 class BlueprintMisconfigured(EngineError):
     """A blueprint that succeeds but fails > 50% of sampling attempts (flaky)."""
 

@@ -3,6 +3,11 @@
     mathgen generate <code> [--seed N] [--count K] [--out FILE]
     mathgen edit <op> [<FILE>|-] [--seed N] [--out FILE]
     mathgen export {preview|worksheet|answer-key} <FILES...> [--title T] [--out FILE]
+    mathgen bank import <FILE.json> [--overwrite]
+    mathgen bank list
+    mathgen bank search [--topic T] [--difficulty D] [--level L]
+                         [--source-type {generated,sourced}] [--reviewed {true,false}]
+    mathgen bank review <ID> [--mark-reviewed] [--no-edit] [--editor CMD]
 
 Only stdlib ``argparse`` is used (no dependency beyond Playwright, which the
 non-PDF paths never import). ``main`` returns a process exit code, so the console
@@ -25,6 +30,28 @@ def build_parser() -> argparse.ArgumentParser:
         description="Drive the exam engine directly: generate/edit/export (no web, no API).",
     )
     sub = parser.add_subparsers(dest="command", required=True)
+
+    bank = sub.add_parser("bank", help="query/manage the local question bank")
+    bank_sub = bank.add_subparsers(dest="bank_cmd", required=True)
+
+    bimp = bank_sub.add_parser("import", help="import object(s) into the bank")
+    bimp.add_argument("file", help="input FILE (single object or JSON array)")
+    bimp.add_argument("--overwrite", action="store_true", help="replace an existing id")
+
+    bank_sub.add_parser("list", help="list all bank objects")
+
+    bsearch = bank_sub.add_parser("search", help="search the bank")
+    bsearch.add_argument("--topic", default=None)
+    bsearch.add_argument("--difficulty", default=None)
+    bsearch.add_argument("--level", default=None)
+    bsearch.add_argument("--source-type", choices=["generated", "sourced"], default=None)
+    bsearch.add_argument("--reviewed", choices=["true", "false"], default=None)
+
+    brev = bank_sub.add_parser("review", help="review (and optionally edit) a bank object")
+    brev.add_argument("id")
+    brev.add_argument("--mark-reviewed", action="store_true")
+    brev.add_argument("--no-edit", action="store_true")
+    brev.add_argument("--editor", default=None, help="override $EDITOR")
 
     gen = sub.add_parser("generate", help="generate canonical question object(s)")
     gen.add_argument("code", help="blueprint code, e.g. ratio_medium")
