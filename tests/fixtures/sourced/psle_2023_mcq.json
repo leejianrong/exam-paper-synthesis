@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.5.0",
+  "id": "sourced:rosyth-2023-prelim-p1-q8",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Geometry and Measurement",
+    "topic": "Geometry (2D shapes)",
+    "subtopic": "Properties of quadrilaterals",
+    "skill_codes": ["P6.GEOM.QUADRILATERALS"]
+  },
+  "cognitive": {
+    "difficulty": "easy",
+    "cognitive_level": "routine_procedural",
+    "heuristics": [],
+    "representations": ["diagram"],
+    "difficulty_levers": []
+  },
+  "question": {
+    "parts": [
+      {
+        "label": "a",
+        "text": "Which of the following quadrilaterals has all four sides equal in length and two pairs of parallel sides, but is not a square?",
+        "marks": 1,
+        "answer": {
+          "type": "choice",
+          "options": [
+            { "label": "1", "text": "A rectangle" },
+            {
+              "label": "2",
+              "text": "A rhombus",
+              "diagram": {
+                "type": "geometry_figure",
+                "unit": "cm",
+                "points": [
+                  { "id": "A", "x": 2.0, "y": 0.0 },
+                  { "id": "B", "x": 4.0, "y": 1.5 },
+                  { "id": "C", "x": 2.0, "y": 3.0 },
+                  { "id": "D", "x": 0.0, "y": 1.5 }
+                ],
+                "segments": [
+                  { "from": "A", "to": "B", "ticks": 1 },
+                  { "from": "B", "to": "C", "ticks": 1 },
+                  { "from": "C", "to": "D", "ticks": 1 },
+                  { "from": "D", "to": "A", "ticks": 1 }
+                ]
+              }
+            },
+            {
+              "label": "3",
+              "text": null,
+              "diagram": {
+                "type": "geometry_figure",
+                "unit": "cm",
+                "points": [
+                  { "id": "A", "x": 1.5, "y": 0.0 },
+                  { "id": "B", "x": 3.0, "y": 1.2 },
+                  { "id": "C", "x": 1.5, "y": 3.0 },
+                  { "id": "D", "x": 0.0, "y": 1.2 }
+                ],
+                "segments": [
+                  { "from": "A", "to": "B", "ticks": 1 },
+                  { "from": "B", "to": "C", "ticks": 2 },
+                  { "from": "C", "to": "D", "ticks": 2 },
+                  { "from": "D", "to": "A", "ticks": 1 }
+                ]
+              }
+            },
+            { "label": "4", "text": "A trapezium" }
+          ],
+          "correct": "2"
+        },
+        "marking_scheme": [
+          { "mark": 1, "type": "B", "description": "Identifies the rhombus: all sides equal, two pairs of parallel sides, no right angles." }
+        ],
+        "solution_steps": [
+          { "text": "A rectangle and a trapezium do not have all four sides equal.", "expr": null },
+          { "text": "The shape in option (3) is a kite: only two pairs of adjacent sides are equal, not all four.", "expr": null },
+          { "text": "The shape in option (2) has all four sides equal and two pairs of parallel sides, and is not a square (its angles are not all 90 degrees) — it is a rhombus.", "expr": null }
+        ],
+        "diagram": null
+      }
+    ],
+    "total_marks": 1
+  },
+  "source": {
+    "origin": "Rosyth School P6 Preliminary Examination",
+    "year": 2023,
+    "paper": "Paper 1",
+    "reference": "Question 8"
+  },
+  "license": "Reproduced from a past preliminary paper for internal practice use only; not for redistribution.",
+  "validation": {
+    "status": "unverified",
+    "checks": { "answer_verified": "hand-checked on ingest" }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}

@@ -6,6 +6,7 @@ renderers are pure functions, so these are fast and deterministic.
 
 from __future__ import annotations
 
+import copy
 import re
 
 import pytest
@@ -197,3 +198,69 @@ def test_question_order_follows_input():
     assert html.index(HARD["question"]["parts"][0]["text"][:20]) < html.index(
         EASY["question"]["parts"][0]["text"][:20]
     )
+
+
+# --- E2 (KAN-663): MCQ options, stem-level diagram, optional marks -----------
+
+
+def _mcq_object() -> dict:
+    obj = copy.deepcopy(EASY)
+    obj["question"]["parts"][0]["answer"] = {
+        "type": "choice",
+        "options": [
+            {"label": "1", "text": "Twelve"},
+            {"label": "2", "text": "Twenty"},
+        ],
+        "correct": "2",
+    }
+    return obj
+
+
+def test_worksheet_never_reveals_mcq_correct_option():
+    html = render_worksheet_html(TITLE, [_mcq_object()])
+    assert "option-correct" not in html
+    assert "Answer:" not in html
+    assert '<span class="option-label">(1)</span>' in html
+    assert '<span class="option-label">(2)</span>' in html
+
+
+def test_answer_key_marks_correct_option():
+    html = render_answer_key_html(TITLE, [_mcq_object()])
+    match = re.search(r'<li class="([^"]*)"><span class="option-label">\(2\)</span>', html)
+    assert match is not None
+    assert "option-correct" in match.group(1)
+    match_wrong = re.search(r'<li class="([^"]*)"><span class="option-label">\(1\)</span>', html)
+    assert match_wrong is not None
+    assert "option-correct" not in match_wrong.group(1)
+    assert "Answer: (2) Twenty" in html
+
+
+def test_stem_diagram_renders_once_before_parts():
+    obj = copy.deepcopy(EASY)
+    obj["question"]["parts"][0]["diagram"] = None  # isolate the stem-level figure
+    part_b = copy.deepcopy(obj["question"]["parts"][0])
+    part_b["label"] = "b"
+    obj["question"]["parts"].append(part_b)
+    obj["question"]["diagram"] = {
+        "type": "shaded_fraction",
+        "shape": "rectangle",
+        "total_parts": 4,
+        "shaded_parts": 1,
+    }
+
+    html = render_worksheet_html(TITLE, [obj])
+    assert html.count('<figure class="diagram">') == 1
+    assert html.index('<figure class="diagram">') < html.index('<div class="part">')
+
+
+def test_part_without_marks_omits_bracket_worksheet_and_key():
+    obj = copy.deepcopy(EASY)
+    part = obj["question"]["parts"][0]
+    del part["marks"]
+    del part["marking_scheme"]
+
+    ws = render_worksheet_html(TITLE, [obj])
+    ak = render_answer_key_html(TITLE, [obj])
+    assert '<span class="marks">' not in ws
+    assert '<span class="marks">' not in ak
+    assert '<div class="answer-space"' in ws

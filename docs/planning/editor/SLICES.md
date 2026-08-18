@@ -72,6 +72,10 @@ right sets; close the CLI and reopen — the object is still there.
 
 ## E2 — Schema v2: MCQ, stem diagram, optional marks
 
+> **Plan:** [`E2-plan.md`](E2-plan.md) — `answer.type:"choice"`, `question.diagram`
+> + per-part unknown binding (`geometry_figure.angles[].part_label`), optional
+> `part.marks`/`marking_scheme`. Schema bumps 1.4.0 → 1.5.0.
+
 **Goal:** unblock the largest single question count (45 MCQs across the three
 papers) and the shared-figure structured questions, at the lowest schema risk —
 the three changes stable across all three papers.
@@ -80,10 +84,14 @@ the three changes stable across all three papers.
 text and/or a diagram, correct label) and a stem-level `question.diagram` with
 per-part unknowns; a part with no `marks`/`marking_scheme` validates.
 
-**Build:** **A3** `choice` sub-schema + MCQ render branch (Python + TS mirror);
-**A4** `diagram` allowed on `question`, unknown-binding to `part.label`, updated
-diagram-consistency check; **A5** `marks`/`marking_scheme` optional on `part`,
-worksheet renderer omits `[n]` when absent.
+**Build:** **A3** `choice` sub-schema + MCQ render branch (Python renderer only
+this slice — the web app's TS diagram mirror has no live path to a v1.5.0-only
+shape yet, see `E2-plan.md`'s Decision 2; deferred to E5); **A4** `diagram`
+allowed on `question`, unknown-binding to `part.label`,
+`check_geometry_figure_consistency`'s optional `part_solutions` kwarg (a
+direct, unit-tested extension, no new pipeline wiring — Decision 2); **A5**
+`marks`/`marking_scheme` optional on `part`, both renderers omit `[n]`/an
+empty M/A/B list when absent.
 
 **Demo / acceptance:** import P1 Q8-shaped MCQ (four candidate nets as diagram
 options) → renders with lettered options, correct one marked in the answer key;
@@ -93,6 +101,11 @@ question with a part carrying no mark allocation → validates and renders
 without a fabricated `[n]`.
 
 ## E3 — Schema v2: table, grid, construction
+
+> **Plan:** [`E3-plan.md`](E3-plan.md) — `question.table` (content-level,
+> answer-cell binding), `geometry_figure.grid`/`.polygons[]`,
+> `answer.type:"construction"`. Schema bumps 1.5.0 → 1.6.0; do not start
+> building until E2 is merged (shared files).
 
 **Goal:** the newly-promoted cluster — tables (2nd most common figure kind,
 sometimes the answer surface), grid backgrounds (the substrate for nets and

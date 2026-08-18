@@ -21,7 +21,7 @@ Related decisions: ADR-0004 (object), ADR-0012 (diagram union), ADR-0013 (multi-
 
 | Field | Notes |
 |---|---|
-| `schema_version` | semver, e.g. `"1.4.0"` |
+| `schema_version` | semver, e.g. `"1.5.0"` |
 | `id` | unique instance id |
 | `source_type` | `generated` \| `sourced` (drives conditional requirements) |
 | `blueprint_code` | required for `generated`; `null` for `sourced` |
@@ -29,7 +29,7 @@ Related decisions: ADR-0004 (object), ADR-0012 (diagram union), ADR-0013 (multi-
 | `syllabus` | `{ level, strand, topic, subtopic?, skill_codes[] }` |
 | `cognitive` | `{ difficulty, cognitive_level, heuristics[]?, representations[]? }` |
 | `parameters` | sampled inputs (generated); validated against the blueprint's own parameter schema |
-| `question` | `{ stem?, parts[], total_marks }` |
+| `question` | `{ stem?, diagram?, parts[], total_marks }` |
 | `source` / `license` | required for `sourced` |
 | `validation` | `{ status, checks{} }` |
 | `provenance` | `{ created_by, llm_used, created_at?, parent_id?, version }` |
@@ -40,16 +40,26 @@ Conditional rules (JSON Schema `if/then`): `generated` ⇒ `blueprint_code` +
 ## Multi-part
 
 One object = one whole question. Each entry in `question.parts[]` has its own
-`text`, `answer`, `marking_scheme`, `solution_steps`, and optional `diagram`.
-`question.total_marks` aggregates the parts. Single-part questions are a `parts`
-array of length 1.
+`text`, `answer`, `solution_steps`, and optional `diagram`, `marks`, and
+`marking_scheme`. `question.total_marks` aggregates the parts. Single-part
+questions are a `parts` array of length 1.
+
+`question` also carries an optional stem-level `diagram` (schema **1.5.0**,
+sibling to `stem`) — a figure shared by every part, rendered once before the
+parts loop, distinct from a part's own `diagram` (both may coexist on the same
+question). See "The `question.diagram` stem-level figure" below.
+
+`part.marks` and `part.marking_scheme` are **optional** (schema **1.5.0**):
+neither renderer fabricates a `[n]` mark bracket or an M/A/B breakdown when
+they are absent — a part that omits `marks` prints no bracket on either sheet,
+and the worksheet's answer-space blank falls back to a sensible default size.
 
 ## Discriminated unions
 
 `answer` and `diagram` are **tagged unions** keyed by `type` — read `type`, apply
 that variant's strict sub-schema.
 
-- **answer.type** ∈ `integer | decimal | fraction | ratio | quantity | set | text`
+- **answer.type** ∈ `integer | decimal | fraction | ratio | quantity | set | text | choice`
 - **diagram.type** ∈ `bar_model | bar_model_before_after | geometry_figure | shaded_fraction | raster`
   (`raster` = an image reference, used by sourced/scanned diagrams). The generated
   families render to inline `<svg>`; `raster` renders to an `<img src="{asset_ref}"
@@ -96,9 +106,56 @@ correct values is always consistent.
 | `points` | yes | `≥2` named vertices `{ id, x, y }` in figure coordinates |
 | `segments` | no | straight edges `{ from, to, label?, ticks? }` (`ticks` = equal-side marks) |
 | `arcs` | no | circular arcs `{ center, radius>0, start_deg, end_deg, label? }` (whole/semi/quarter circles) |
-| `angles` | no | angle marks `{ at, from, to, value_deg?, unknown?, right? }`; exactly one may set `unknown: true` (the value to solve) |
+| `angles` | no | angle marks `{ at, from, to, value_deg?, unknown?, right?, part_label? }`; normally exactly one sets `unknown: true` (the value to solve) |
 | `shaded` | no | region(s) to fill, each `{ boundary: [ids…], arcs? }` |
 | `labels` | no | free text labels `{ at, text }` anchored at a named point |
+
+`angles[].part_label` (schema **1.5.0**) names which `part.label` a given
+unknown answers, for a **stem-level** figure shared by more than one part (see
+below) — e.g. two unknowns on one shared figure, one bound to part `"a"` and
+the other to part `"b"`. Null/absent for a part-scoped figure or a figure with
+a single unknown (today's default, unaffected). `check_geometry_figure_consistency`
+accepts an optional `part_solutions` keyword ( `{part_label: {"answer": {...}}}` )
+to verify each bound unknown against its own part's answer instead of a single
+shared `solution["answer"]`; omitting it keeps the original single-unknown
+behaviour unchanged.
+
+## The `question.diagram` stem-level figure (schema 1.5.0)
+
+A `question` may carry an optional `diagram` (any of the diagram union
+variants), sibling to `stem` and `parts`. It is a figure shared by *every*
+part — e.g. one `geometry_figure` with two angles, each bound via
+`part_label` to the part that asks for it. Both renderers print it once,
+right after the stem and before the parts loop (never duplicated per part).
+It is independent of each part's own (part-scoped) `diagram`: a question may
+carry a stem figure *and* a part with its own supplementary figure.
+
+## The `answer.type: "choice"` MCQ answer (schema 1.5.0)
+
+```json
+{
+  "type": "choice",
+  "options": [
+    { "label": "1", "text": "A rectangle" },
+    { "label": "2", "text": "A rhombus", "diagram": { "type": "geometry_figure", "...": "..." } }
+  ],
+  "correct": "2"
+}
+```
+
+| Field | Req? | Notes |
+|---|---|---|
+| `options` | yes | `≥2` choices, each `{ label, text?, diagram? }` — a choice may carry text, a diagram, or both |
+| `correct` | yes | the `label` of the correct option |
+
+Options are **question content**, not the answer — the worksheet renders every
+option (text and/or diagram) exactly as the answer key does; only which one is
+`correct` is secret. The answer key marks the correct `<li>` and its "Answer:"
+line names the option, e.g. `Answer: (2) A rhombus`. The schema does not
+enforce that `correct` names an existing `options[].label`, or that every
+option carries at least one of `text`/`diagram` — left to human review
+(ADR-0019), the same standing as other sourced-content correctness properties
+the schema doesn't structurally enforce.
 
 ## Marking
 
@@ -268,3 +325,11 @@ the same wrapper the generated `<svg>` figures use). Point `asset_ref` at a
 self-contained `data:` URI (base64) to keep the exported PDF host-free, mirroring
 the vendored-KaTeX precedent. A hand-authored example lives at
 `tests/fixtures/sourced/psle_2023_ratio.json`.
+
+Two more hand-authored sourced fixtures exercise the schema **1.5.0** additions:
+`tests/fixtures/sourced/psle_2023_mcq.json` (a single-part `answer.type:
+"choice"` question — two text-only options, one diagram-only, one carrying
+both) and `tests/fixtures/sourced/psle_2023_stem_diagram.json` (a two-part
+question sharing one stem-level `geometry_figure` `diagram`, with two angles
+each bound to its own part via `part_label`, where one part also omits
+`marks`/`marking_scheme`).

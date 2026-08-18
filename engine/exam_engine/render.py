@@ -151,7 +151,38 @@ def _fmt_answer(answer: dict) -> str:
         return r"\(" + ", ".join(_esc(v) for v in answer.get("values", [])) + r"\)"
     if atype == "text":
         return _esc(answer.get("text", ""))
+    if atype == "choice":
+        correct = answer.get("correct")
+        opt = next((o for o in answer.get("options", []) if o.get("label") == correct), None)
+        label = _esc(correct)
+        if opt and opt.get("text"):
+            return f"({label}) {_mathify(opt['text'])}"
+        return f"({label})"
     return _esc(str(answer))
+
+
+def _render_options(answer: dict, *, reveal_correct: bool) -> list[str]:
+    """The ``<ol class="options">`` block for an MCQ ``answer`` (A3).
+
+    Options are question content (the choices themselves) — rendered on both the
+    worksheet and the answer key. Only which one is ``correct`` is secret, so
+    ``reveal_correct`` (the answer-key branch) is the sole gate on the
+    ``option-correct`` class.
+    """
+    correct = answer.get("correct")
+    out: list[str] = ['<ol class="options">']
+    for opt in answer.get("options", []):
+        is_correct = reveal_correct and opt.get("label") == correct
+        cls = "option option-correct" if is_correct else "option"
+        out.append(f'<li class="{cls}">')
+        out.append(f'<span class="option-label">({_esc(opt["label"])})</span>')
+        if opt.get("text"):
+            out.append(f'<span class="option-text">{_mathify(opt["text"])}</span>')
+        if opt.get("diagram"):
+            out.append(f'<figure class="diagram">{diagram.render_svg(opt["diagram"])}</figure>')
+        out.append("</li>")
+    out.append("</ol>")
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -159,14 +190,25 @@ def _fmt_answer(answer: dict) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _render_part_head(part: dict, *, multipart: bool) -> list[str]:
-    """The ``.part`` block (optional label, text, right-aligned marks) + diagram."""
+def _render_part_head(part: dict, *, multipart: bool, answer_key: bool) -> list[str]:
+    """The ``.part`` block (optional label, text, right-aligned marks) + diagram.
+
+    ``marks`` is optional (A5): the ``[n]`` bracket is emitted only when present,
+    never fabricated. ``answer_key`` gates whether an MCQ's ``options`` (A3)
+    reveal the ``correct`` one.
+    """
     out: list[str] = ['<div class="part">']
     if multipart and part.get("label"):
         out.append(f'<span class="part-label">({_esc(part["label"])})</span>')
     out.append(f'<div class="part-text">{_mathify(part["text"])}</div>')
-    out.append(f'<span class="marks">[{part["marks"]}]</span>')
+    marks = part.get("marks")
+    if marks is not None:
+        out.append(f'<span class="marks">[{marks}]</span>')
     out.append("</div>")
+
+    answer = part.get("answer") or {}
+    if answer.get("type") == "choice":
+        out.extend(_render_options(answer, reveal_correct=answer_key))
 
     spec = part.get("diagram")
     if spec is not None:
@@ -210,14 +252,21 @@ def _render_questions(questions: list[dict], *, answer_key: bool) -> str:
         stem = obj["question"].get("stem")
         if stem:
             out.append(f'<p class="question-stem">{_mathify(stem)}</p>')
+        q_diagram = obj["question"].get("diagram")
+        if q_diagram is not None:
+            out.append(f'<figure class="diagram">{diagram.render_svg(q_diagram)}</figure>')
         for part in parts:
-            out.extend(_render_part_head(part, multipart=multipart))
+            out.extend(_render_part_head(part, multipart=multipart, answer_key=answer_key))
             if answer_key:
                 out.extend(_render_solution(part))
-            else:
+            elif (part.get("answer") or {}).get("type") != "choice":
+                # MCQ parts have nothing to hand-write beyond circling a letter
+                # (the options themselves were already rendered by
+                # _render_part_head) — only constructed-response parts get a
+                # blank answer-space filler.
                 out.append(
                     '<div class="answer-space" aria-hidden="true" '
-                    f'style="--marks:{part["marks"]}"></div>'
+                    f'style="--marks:{part.get("marks", 1)}"></div>'
                 )
         out.append("</li>")
     out.append("</ol>")

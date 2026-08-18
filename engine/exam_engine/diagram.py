@@ -168,7 +168,13 @@ def _num_eq(a: object, b: object) -> bool:
         return False
 
 
-def check_geometry_figure_consistency(spec: dict, params: dict, solution: dict) -> dict[str, bool]:
+def check_geometry_figure_consistency(
+    spec: dict,
+    params: dict,
+    solution: dict,
+    *,
+    part_solutions: dict[str, dict] | None = None,
+) -> dict[str, bool]:
     """Assert a ``geometry_figure`` spec matches its solver's numbers exactly.
 
     The figure is a **mandatory** geometry aid: every value drawn on it must be
@@ -198,6 +204,17 @@ def check_geometry_figure_consistency(spec: dict, params: dict, solution: dict) 
       figures carry no unknown angle, so this check is vacuously true for them —
       their answer (area/length) is verified by the solver, not drawn on the
       figure.
+
+    ``part_solutions`` (optional, added schema 1.5.0 / KAN-663 E2): a stem-level
+    figure can serve more than one part, each unknown angle bound to the part
+    that asks for it via ``angles[].part_label``. When given, it is a
+    ``{part_label: {"answer": {...}}}`` map; each unknown angle's ``value_deg``
+    is checked against ``part_solutions[angle["part_label"]]["answer"]["value"]``
+    instead of the single shared ``solution["answer"]``. Defaults to ``None``,
+    which keeps today's single-unknown/single-``solution["answer"]`` behaviour
+    unchanged — no existing call site needs updating (there is no live blueprint
+    that emits a multi-part, shared-stem-diagram question yet; this extension is
+    proven by a direct unit test, not new pipeline wiring).
 
     Degeneracy guards (independent of params): point ids are non-null and
     distinct, every arc radius is > 0, every numeric ``value_deg`` lies in
@@ -285,7 +302,18 @@ def check_geometry_figure_consistency(spec: dict, params: dict, solution: dict) 
     checks["given_angles_match"] = all(_given_ok(k, v) for k, v in given_angles.items())
 
     unknowns = [a for a in angles if a.get("unknown")]
-    if unknowns:
+    if part_solutions is not None:
+
+        def _bound_ok(ang: dict) -> bool:
+            label = ang.get("part_label")
+            part_sol = part_solutions.get(label) if isinstance(label, str) else None
+            part_ans = (part_sol or {}).get("answer", {})
+            return _num_eq(ang.get("value_deg"), part_ans.get("value"))
+
+        checks["unknown_angle_matches_answer"] = (
+            all(_bound_ok(a) for a in unknowns) if unknowns else True
+        )
+    elif unknowns:
         ans_val = answer.get("value")
         checks["unknown_angle_matches_answer"] = ans_val is not None and all(
             _num_eq(a.get("value_deg"), ans_val) for a in unknowns

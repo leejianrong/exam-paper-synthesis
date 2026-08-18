@@ -94,6 +94,10 @@
       "required": ["parts", "total_marks"],
       "properties": {
         "stem": { "type": ["string", "null"], "description": "Optional shared lead-in for multi-part questions." },
+        "diagram": {
+          "oneOf": [ { "type": "null" }, { "$ref": "#/$defs/diagram" } ],
+          "description": "Optional stem-level figure shared by every part (added schema 1.5.0). Sibling to `stem`, rendered once before the parts loop. Distinct from a part's own `diagram`, which is part-scoped; both may coexist."
+        },
         "parts": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/part" } },
         "total_marks": { "type": "integer", "minimum": 0 }
       }
@@ -102,7 +106,7 @@
     "part": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["label", "text", "marks", "answer", "marking_scheme", "solution_steps"],
+      "required": ["label", "text", "answer", "solution_steps"],
       "properties": {
         "label": { "type": "string", "description": "e.g. 'a', 'b', 'c'. Use 'a' (or '') for single-part." },
         "text": { "type": "string", "minLength": 1 },
@@ -150,7 +154,8 @@
         { "$ref": "#/$defs/answer_ratio" },
         { "$ref": "#/$defs/answer_quantity" },
         { "$ref": "#/$defs/answer_set" },
-        { "$ref": "#/$defs/answer_text" }
+        { "$ref": "#/$defs/answer_text" },
+        { "$ref": "#/$defs/answer_choice" }
       ]
     },
     "answer_integer": {
@@ -215,6 +220,27 @@
       "properties": {
         "type": { "const": "text" },
         "text": { "type": "string" }
+      }
+    },
+    "answer_choice": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "options", "correct"],
+      "$comment": "MCQ answer (added schema 1.5.0, ADR-0020). Options are question content — the worksheet shows all of them; only `correct` is secret.",
+      "properties": {
+        "type": { "const": "choice" },
+        "options": {
+          "type": "array", "minItems": 2,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["label"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1 },
+              "text": { "type": ["string", "null"] },
+              "diagram": { "oneOf": [ { "type": "null" }, { "$ref": "#/$defs/diagram" } ] }
+            }
+          }
+        },
+        "correct": { "type": "string", "minLength": 1 }
       }
     },
 
@@ -384,7 +410,11 @@
               "to": { "type": "string" },
               "value_deg": { "type": ["number", "null"] },
               "unknown": { "type": "boolean", "default": false },
-              "right": { "type": "boolean", "default": false }
+              "right": { "type": "boolean", "default": false },
+              "part_label": {
+                "type": ["string", "null"],
+                "description": "Which part.label this unknown answers, when the figure is stem-level and serves more than one part (added schema 1.5.0). Null/absent when the figure is part-scoped or has a single unknown (today's default)."
+              }
             }
           }
         },
