@@ -1,7 +1,7 @@
 """V7 A1 — the sourced-object interchange proof (KAN-153).
 
 A hand-authored PAST-PAPER question that the engine did NOT generate must be
-*interchange-grade*: it validates against the SAME v1.4.0 schema as generated
+*interchange-grade*: it validates against the SAME schema as generated
 questions, joins a worksheet next to them, and renders (raster figure included)
 in the preview / PDF path. This test IS the proof (project verification policy);
 it is not a golden regression anchor.
@@ -18,10 +18,18 @@ from exam_engine.canonical import CanonicalValidationError
 from exam_engine.render import render_answer_key_html, render_worksheet_html
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sourced" / "psle_2023_ratio.json"
+MCQ_FIXTURE = Path(__file__).parent / "fixtures" / "sourced" / "psle_2023_mcq.json"
+STEM_DIAGRAM_FIXTURE = (
+    Path(__file__).parent / "fixtures" / "sourced" / "psle_2023_stem_diagram.json"
+)
 
 
 def _load_fixture() -> dict:
     return json.loads(FIXTURE.read_text(encoding="utf-8"))
+
+
+def _load(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 # --- the sourced object validates on the same gate as generated ones ---------
@@ -107,6 +115,41 @@ def test_mixed_answer_key_shows_sourced_answers_and_marks():
     assert '<span class="mark-type mark-B">B1</span>' in ak
     # The raster figure also renders in the answer key.
     assert '<figure class="diagram"><img src="data:image/png;base64,' in ak
+
+
+# --- E2 (KAN-663): MCQ + stem-diagram sourced fixtures -----------------------
+
+
+def test_mcq_fixture_loads_and_renders():
+    obj = canonical.load(_load(MCQ_FIXTURE))
+    assert obj["question"]["parts"][0]["answer"]["type"] == "choice"
+
+    ws = render_worksheet_html("MCQ", [obj])
+    assert ws.count("option-correct") == 0
+    for opt in obj["question"]["parts"][0]["answer"]["options"]:
+        assert f"({opt['label']})" in ws
+
+    ak = render_answer_key_html("MCQ", [obj])
+    assert ak.count("option-correct") == 1
+    assert "Answer: (2)" in ak
+
+
+def test_stem_diagram_fixture_loads_and_renders():
+    obj = canonical.load(_load(STEM_DIAGRAM_FIXTURE))
+    parts = obj["question"]["parts"]
+    assert len(parts) == 2
+
+    ws = render_worksheet_html("Stem Diagram", [obj])
+    # Exactly one figure for the whole question, not duplicated per part.
+    assert ws.count('<figure class="diagram">') == 1
+    assert parts[0]["text"] in ws
+    assert parts[1]["text"] in ws
+    # Part (b) carries no marks/marking_scheme: no fabricated `[n]` bracket.
+    assert ws.count('<span class="marks">') == 1
+
+    ak = render_answer_key_html("Stem Diagram", [obj])
+    assert ak.count('<figure class="diagram">') == 1
+    assert ak.count('<span class="marks">') == 1
 
 
 # --- PDF smoke (Chromium required; skips cleanly when absent) ----------------

@@ -330,3 +330,62 @@ def test_dashed_radius_is_a_dotted_dimension_line():
 
 def test_dashed_render_is_deterministic():
     assert render_svg(TRACK_SPEC) == render_svg(TRACK_SPEC)
+
+
+# ---------------------------------------------------------------------------
+# E2 (KAN-663): per-part unknown binding, ``part_solutions`` kwarg.
+# A stem-level figure shared by two parts, each unknown angle bound to the
+# part that asks for it via ``part_label``.
+# ---------------------------------------------------------------------------
+
+STEM_SPEC = {
+    "type": "geometry_figure",
+    "unit": "degrees",
+    "points": [
+        {"id": "L", "x": 0.0, "y": 0.0},
+        {"id": "O", "x": 3.0, "y": 0.0},
+        {"id": "K", "x": 1.5, "y": 2.6},
+        {"id": "N", "x": 6.0, "y": 0.0},
+        {"id": "M", "x": 4.5, "y": 2.6},
+    ],
+    "segments": [
+        {"from": "L", "to": "O"},
+        {"from": "O", "to": "N"},
+        {"from": "L", "to": "K"},
+        {"from": "K", "to": "O"},
+        {"from": "O", "to": "M"},
+        {"from": "M", "to": "N"},
+    ],
+    "angles": [
+        {"at": "O", "from": "L", "to": "K", "value_deg": 70, "unknown": True, "part_label": "a"},
+        {"at": "N", "from": "L", "to": "M", "value_deg": 55, "unknown": True, "part_label": "b"},
+    ],
+}
+STEM_PART_SOLUTIONS = {
+    "a": {"answer": {"type": "integer", "value": 70, "unit": "degrees"}},
+    "b": {"answer": {"type": "integer", "value": 55, "unit": "degrees"}},
+}
+
+
+def test_per_part_unknown_consistency():
+    checks = check_geometry_figure_consistency(
+        STEM_SPEC, {}, {"answer": {}}, part_solutions=STEM_PART_SOLUTIONS
+    )
+    assert checks["unknown_angle_matches_answer"] is True
+
+    swapped = {"a": STEM_PART_SOLUTIONS["b"], "b": STEM_PART_SOLUTIONS["a"]}
+    bad_checks = check_geometry_figure_consistency(
+        STEM_SPEC, {}, {"answer": {}}, part_solutions=swapped
+    )
+    assert bad_checks["unknown_angle_matches_answer"] is False
+
+
+def test_single_unknown_path_unchanged():
+    """Calling without ``part_solutions`` (today's existing call sites) behaves
+    exactly as before — regression guard for the signature change."""
+    with_kwarg = check_geometry_figure_consistency(ANGLE_SPEC, ANGLE_PARAMS, ANGLE_SOLUTION)
+    without_kwarg_explicit_none = check_geometry_figure_consistency(
+        ANGLE_SPEC, ANGLE_PARAMS, ANGLE_SOLUTION, part_solutions=None
+    )
+    assert with_kwarg == without_kwarg_explicit_none
+    assert with_kwarg["unknown_angle_matches_answer"] is True

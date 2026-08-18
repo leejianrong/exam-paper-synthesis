@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.5.0",
+  "id": "sourced:rosyth-2023-prelim-p2-q24",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Geometry and Measurement",
+    "topic": "Geometry (Angles)",
+    "subtopic": "Angles in triangles",
+    "skill_codes": ["P6.GEOM.ANGLES.TRIANGLE"]
+  },
+  "cognitive": {
+    "difficulty": "hard",
+    "cognitive_level": "complex_familiar",
+    "heuristics": ["angle_properties"],
+    "representations": ["diagram"],
+    "difficulty_levers": ["multi_step", "multi_part"]
+  },
+  "question": {
+    "stem": "The figure below shows two triangles, LOK and ONM, sharing the straight base line LN, with O lying on LN.",
+    "diagram": {
+      "type": "geometry_figure",
+      "unit": "cm",
+      "points": [
+        { "id": "L", "x": 0.0, "y": 0.0 },
+        { "id": "O", "x": 3.0, "y": 0.0 },
+        { "id": "K", "x": 1.5, "y": 2.6 },
+        { "id": "N", "x": 6.0, "y": 0.0 },
+        { "id": "M", "x": 4.5, "y": 2.6 }
+      ],
+      "segments": [
+        { "from": "L", "to": "O" },
+        { "from": "O", "to": "N" },
+        { "from": "L", "to": "K" },
+        { "from": "K", "to": "O" },
+        { "from": "O", "to": "M" },
+        { "from": "M", "to": "N" }
+      ],
+      "angles": [
+        { "at": "O", "from": "L", "to": "K", "value_deg": 70, "unknown": true, "part_label": "a" },
+        { "at": "N", "from": "L", "to": "M", "value_deg": 55, "unknown": true, "part_label": "b" }
+      ],
+      "labels": [
+        { "at": "L", "text": "L" },
+        { "at": "O", "text": "O" },
+        { "at": "K", "text": "K" },
+        { "at": "N", "text": "N" },
+        { "at": "M", "text": "M" }
+      ]
+    },
+    "parts": [
+      {
+        "label": "a",
+        "text": "Given that triangle LOK is isosceles with LO = OK and angle OLK = 55 degrees, find angle LOK.",
+        "marks": 2,
+        "answer": { "type": "integer", "value": 70, "unit": "degrees" },
+        "marking_scheme": [
+          { "mark": 1, "type": "M", "description": "Uses the base angles of an isosceles triangle are equal (angle OKL = angle OLK = 55 degrees)." },
+          { "mark": 1, "type": "A", "description": "Angle LOK = 180 - 55 - 55 = 70 degrees." }
+        ],
+        "solution_steps": [
+          { "text": "Since LO = OK, triangle LOK is isosceles, so angle OKL = angle OLK = 55 degrees.", "expr": null },
+          { "text": "Angle LOK = 180 - 55 - 55 = 70 degrees.", "expr": "180-55-55" }
+        ],
+        "diagram": null
+      },
+      {
+        "label": "b",
+        "text": "Given that angle NOM = 70 degrees and angle OMN = 55 degrees, find angle LNM.",
+        "answer": { "type": "integer", "value": 55, "unit": "degrees" },
+        "solution_steps": [
+          { "text": "In triangle ONM, angle LNM = angle ONM = 180 - 70 - 55 = 55 degrees.", "expr": "180-70-55" }
+        ],
+        "diagram": null
+      }
+    ],
+    "total_marks": 2
+  },
+  "source": {
+    "origin": "Rosyth School P6 Preliminary Examination",
+    "year": 2023,
+    "paper": "Paper 2",
+    "reference": "Question 24"
+  },
+  "license": "Reproduced from a past preliminary paper for internal practice use only; not for redistribution.",
+  "validation": {
+    "status": "unverified",
+    "checks": { "answer_verified": "hand-checked on ingest" }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}
