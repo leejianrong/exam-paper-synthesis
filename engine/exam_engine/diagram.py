@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Callable
 
 # ---------------------------------------------------------------------------
 # Consistency check (R3.3): every label/dimension in the diagram must equal the
@@ -873,6 +874,64 @@ def _gf_shaded_edge(arc: dict | None, pt: tuple[int, int], scale: float) -> str:
     return f"A {rr} {rr} 0 {large} {sweep} {pt[0]} {pt[1]}"
 
 
+def _gf_grid_extent(grid: dict) -> tuple[float, float, float, float]:
+    """``(x0, y0, x1, y1)`` of a grid in figure space (origin = top-left corner)."""
+    origin = grid.get("origin") or {}
+    ox, oy = float(origin.get("x", 0)), float(origin.get("y", 0))
+    size = float(grid["cell_size"])
+    return ox, oy, ox + grid["cols"] * size, oy + grid["rows"] * size
+
+
+_GF_GRID = "#c7d0e0"  # grid backdrop lines
+
+
+def _gf_draw_grid(lines: list[str], grid: dict, tx: Callable, ty: Callable) -> None:
+    x0, y0, x1, y1 = _gf_grid_extent(grid)
+    size = float(grid["cell_size"])
+    for c in range(grid["cols"] + 1):
+        x = tx(x0 + c * size)
+        lines.append(
+            f'<line x1="{x}" y1="{ty(y0)}" x2="{x}" y2="{ty(y1)}" '
+            f'stroke="{_GF_GRID}" stroke-width="1"/>'
+        )
+    for r in range(grid["rows"] + 1):
+        y = ty(y0 + r * size)
+        lines.append(
+            f'<line x1="{tx(x0)}" y1="{y}" x2="{tx(x1)}" y2="{y}" '
+            f'stroke="{_GF_GRID}" stroke-width="1"/>'
+        )
+    if grid.get("show_axes"):
+        for c in range(grid["cols"] + 1):
+            lines.append(
+                f'<text x="{tx(x0 + c * size)}" y="{ty(y1) + 14}" text-anchor="middle" '
+                f'fill="{_GF_TEXT}" font-size="10">{c}</text>'
+            )
+        for r in range(grid["rows"] + 1):
+            # y axis counts upward from the bottom edge, as on a graph.
+            lines.append(
+                f'<text x="{tx(x0) - 6}" y="{ty(y0 + r * size) + 3}" text-anchor="end" '
+                f'fill="{_GF_TEXT}" font-size="10">{grid["rows"] - r}</text>'
+            )
+
+
+def _gf_draw_polygons(
+    lines: list[str], polygons: list[dict], grid: dict, tx: Callable, ty: Callable
+) -> None:
+    """One bordered unit square per cell (not a traced outline): the lines
+    between adjacent cells are content (net folds, countable rod squares)."""
+    x0, y0, _, _ = _gf_grid_extent(grid)
+    size = float(grid["cell_size"])
+    for poly in polygons:
+        fill = _GF_FILL if poly.get("fill") else "none"
+        for col, row in poly["cells"]:
+            ax, ay = tx(x0 + col * size), ty(y0 + row * size)
+            bx, by = tx(x0 + (col + 1) * size), ty(y0 + (row + 1) * size)
+            lines.append(
+                f'<rect x="{ax}" y="{ay}" width="{bx - ax}" height="{by - ay}" '
+                f'fill="{fill}" stroke="{_GF_STROKE}" stroke-width="1.5"/>'
+            )
+
+
 def _render_geometry_figure(spec: dict) -> str:
     """Render a ``geometry_figure`` spec to a self-contained inline ``<svg>``."""
     points = spec.get("points") or []
@@ -882,10 +941,17 @@ def _render_geometry_figure(spec: dict) -> str:
     angles = spec.get("angles") or []
     shaded = spec.get("shaded") or []
     labels = spec.get("labels") or []
+    grid = spec.get("grid")
+    polygons = spec.get("polygons") or []
 
-    # Bounding box over points + arc extents.
+    # Bounding box over points + arc extents (+ the grid's extent, so a
+    # grid-only figure with no points still sizes correctly).
     xs = [p[0] for p in pmap.values()]
     ys = [p[1] for p in pmap.values()]
+    if grid:
+        gx0, gy0, gx1, gy1 = _gf_grid_extent(grid)
+        xs += [gx0, gx1]
+        ys += [gy0, gy1]
     for arc in arcs:
         cx, cy = pmap[arc["center"]]
         r = float(arc["radius"])
@@ -914,6 +980,11 @@ def _render_geometry_figure(spec: dict) -> str:
     height = _r(h * scale) + 2 * _GF_PAD
 
     lines: list[str] = [_gf_header(width, height)]
+
+    # --- grid backdrop + polygon cells (drawn first, behind everything) -----
+    if grid:
+        _gf_draw_grid(lines, grid, tx, ty)
+        _gf_draw_polygons(lines, polygons, grid, tx, ty)
 
     # --- shaded regions (drawn first, behind the strokes) -------------------
     # Trace each region's boundary as a single closed <path>. Edges are straight

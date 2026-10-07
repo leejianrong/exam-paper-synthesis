@@ -104,8 +104,8 @@ without a fabricated `[n]`.
 
 > **Plan:** [`E3-plan.md`](E3-plan.md) — `question.table` (content-level,
 > answer-cell binding), `geometry_figure.grid`/`.polygons[]`,
-> `answer.type:"construction"`. Schema bumps 1.5.0 → 1.6.0; do not start
-> building until E2 is merged (shared files).
+> `answer.type:"construction"`. Schema bumps 1.5.0 → 1.6.0. (E2 has merged;
+> E3 is implemented in `feat/editor-e3-table-grid-construction`.)
 
 **Goal:** the newly-promoted cluster — tables (2nd most common figure kind,
 sometimes the answer surface), grid backgrounds (the substrate for nets and

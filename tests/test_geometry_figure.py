@@ -389,3 +389,43 @@ def test_single_unknown_path_unchanged():
     )
     assert with_kwarg == without_kwarg_explicit_none
     assert with_kwarg["unknown_angle_matches_answer"] is True
+
+
+# --- E3 (KAN-663): grid backdrop + polygon cells -----------------------------
+
+
+def _grid_spec(**extra):
+    return {
+        "type": "geometry_figure",
+        "unit": "cm",
+        "points": [],
+        "grid": {"cell_size": 1, "cols": 4, "rows": 3},
+        **extra,
+    }
+
+
+def test_grid_renders_backdrop_lines():
+    svg = render_svg(_grid_spec())
+    assert svg.count("<line") == (4 + 1) + (3 + 1)
+
+
+def test_polygons_render_one_rect_per_cell():
+    svg = render_svg(_grid_spec(polygons=[{"cells": [[0, 0], [1, 0], [1, 1]]}]))
+    assert svg.count("<rect") == 3
+
+
+def test_grid_only_figure_has_sane_bounding_box():
+    import re
+
+    svg = render_svg(_grid_spec())
+    m = re.search(r'viewBox="0 0 (\d+) (\d+)"', svg)
+    assert m
+    w, h = int(m.group(1)), int(m.group(2))
+    assert w > 56 and h > 56  # larger than padding alone
+    assert w > h  # 4x3 grid is wider than tall
+
+
+def test_grid_axes_label_edges():
+    spec = _grid_spec()
+    spec["grid"]["show_axes"] = True
+    assert render_svg(spec).count("<text") == (4 + 1) + (3 + 1)

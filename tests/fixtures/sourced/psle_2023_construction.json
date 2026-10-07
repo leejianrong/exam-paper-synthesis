@@ -1,0 +1,199 @@
+{
+  "schema_version": "1.6.0",
+  "id": "sourced:parallelogram-2023-construction",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Geometry and Measurement",
+    "topic": "Geometry (Properties of shapes)",
+    "subtopic": "Parallelograms",
+    "skill_codes": [
+      "P6.GEOM.PARALLELOGRAM"
+    ]
+  },
+  "cognitive": {
+    "difficulty": "medium",
+    "cognitive_level": "routine_procedural",
+    "heuristics": [],
+    "representations": [
+      "diagram"
+    ],
+    "difficulty_levers": []
+  },
+  "question": {
+    "stem": null,
+    "parts": [
+      {
+        "label": "a",
+        "text": "Complete parallelogram ABCD on the grid and label point D.",
+        "marks": 2,
+        "answer": {
+          "type": "construction",
+          "diagram": {
+            "type": "geometry_figure",
+            "unit": "cm",
+            "grid": {
+              "cell_size": 1,
+              "cols": 6,
+              "rows": 5
+            },
+            "points": [
+              {
+                "id": "A",
+                "x": 1,
+                "y": 4
+              },
+              {
+                "id": "B",
+                "x": 4,
+                "y": 4
+              },
+              {
+                "id": "C",
+                "x": 5,
+                "y": 1
+              },
+              {
+                "id": "D",
+                "x": 2,
+                "y": 1
+              }
+            ],
+            "segments": [
+              {
+                "from": "A",
+                "to": "B"
+              },
+              {
+                "from": "B",
+                "to": "C"
+              },
+              {
+                "from": "C",
+                "to": "D"
+              },
+              {
+                "from": "D",
+                "to": "A"
+              }
+            ],
+            "labels": [
+              {
+                "at": "A",
+                "text": "A"
+              },
+              {
+                "at": "B",
+                "text": "B"
+              },
+              {
+                "at": "C",
+                "text": "C"
+              },
+              {
+                "at": "D",
+                "text": "D"
+              }
+            ]
+          }
+        },
+        "marking_scheme": [
+          {
+            "mark": 1,
+            "type": "M",
+            "description": "Correct method."
+          },
+          {
+            "mark": 1,
+            "type": "A",
+            "description": "Correct answer."
+          }
+        ],
+        "solution_steps": [
+          {
+            "text": "AB is parallel and equal to DC, so D is 3 squares to the left of C: D = (2, 1).",
+            "expr": null
+          },
+          {
+            "text": "Join CD and DA and label D.",
+            "expr": null
+          }
+        ],
+        "diagram": {
+          "type": "geometry_figure",
+          "unit": "cm",
+          "grid": {
+            "cell_size": 1,
+            "cols": 6,
+            "rows": 5
+          },
+          "points": [
+            {
+              "id": "A",
+              "x": 1,
+              "y": 4
+            },
+            {
+              "id": "B",
+              "x": 4,
+              "y": 4
+            },
+            {
+              "id": "C",
+              "x": 5,
+              "y": 1
+            }
+          ],
+          "segments": [
+            {
+              "from": "A",
+              "to": "B"
+            },
+            {
+              "from": "B",
+              "to": "C"
+            }
+          ],
+          "labels": [
+            {
+              "at": "A",
+              "text": "A"
+            },
+            {
+              "at": "B",
+              "text": "B"
+            },
+            {
+              "at": "C",
+              "text": "C"
+            }
+          ]
+        }
+      }
+    ],
+    "total_marks": 2
+  },
+  "source": {
+    "origin": "Rosyth School P6 Preliminary Examination",
+    "year": 2023,
+    "paper": "Paper 2",
+    "reference": "Question 26(b)"
+  },
+  "license": "Reproduced from a past preliminary paper for internal practice use only; not for redistribution.",
+  "validation": {
+    "status": "unverified",
+    "checks": {
+      "answer_verified": "hand-checked on ingest"
+    }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}

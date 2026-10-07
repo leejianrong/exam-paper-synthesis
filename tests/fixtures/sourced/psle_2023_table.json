@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.6.0",
+  "id": "sourced:tariff-2023-table",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Number and Algebra",
+    "topic": "Whole Numbers",
+    "subtopic": "Tables and money",
+    "skill_codes": [
+      "P6.NUM.MONEY"
+    ]
+  },
+  "cognitive": {
+    "difficulty": "medium",
+    "cognitive_level": "routine_procedural",
+    "heuristics": [],
+    "representations": [
+      "table"
+    ],
+    "difficulty_levers": []
+  },
+  "question": {
+    "stem": "The table shows the water tariff charged by a company.",
+    "table": {
+      "caption": "Water tariff",
+      "headers": [
+        "Usage (m^3)",
+        "Rate per m^3"
+      ],
+      "rows": [
+        [
+          "First 10",
+          "$2"
+        ],
+        [
+          "Next 10",
+          "$3.30"
+        ],
+        [
+          "Total charge for 20 m^3",
+          {
+            "answer_for": "a"
+          }
+        ]
+      ]
+    },
+    "parts": [
+      {
+        "label": "a",
+        "text": "How much is the charge for 20 m^3 of water?",
+        "marks": 2,
+        "answer": {
+          "type": "decimal",
+          "value": 53.0,
+          "unit": "$"
+        },
+        "marking_scheme": [
+          {
+            "mark": 1,
+            "type": "M",
+            "description": "Correct method."
+          },
+          {
+            "mark": 1,
+            "type": "A",
+            "description": "Correct answer."
+          }
+        ],
+        "solution_steps": [
+          {
+            "text": "Charge for the first 10 m^3 = 10 x $2 = $20.",
+            "expr": null
+          },
+          {
+            "text": "Charge for the next 10 m^3 = 10 x $3.30 = $33.",
+            "expr": null
+          },
+          {
+            "text": "Total = $20 + $33 = $53.",
+            "expr": null
+          }
+        ],
+        "diagram": null
+      }
+    ],
+    "total_marks": 2
+  },
+  "source": {
+    "origin": "Rosyth School P6 Preliminary Examination",
+    "year": 2023,
+    "paper": "Paper 2",
+    "reference": "Question 18"
+  },
+  "license": "Reproduced from a past preliminary paper for internal practice use only; not for redistribution.",
+  "validation": {
+    "status": "unverified",
+    "checks": {
+      "answer_verified": "hand-checked on ingest"
+    }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}

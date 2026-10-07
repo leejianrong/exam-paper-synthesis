@@ -165,7 +165,7 @@ def test_v1_4_0_golden_fixtures_still_validate():
     """Additive-only proof (R7.7): every blueprint that shipped a golden fixture
     file before this slice (each ``tests/golden/*.jsonl`` names one blueprint
     code) still produces schema-valid objects, and the pre-existing sourced
-    fixture still loads unmodified — under the grown (v1.5.0) schema.
+    fixture still loads unmodified — under the grown (v1.6.0) schema.
 
     (The golden ``*.jsonl`` files themselves hold ``{params, expected}`` seed-sweep
     regression anchors, not full canonical objects — see ``tests/invariants.py`` —
@@ -188,3 +188,80 @@ def test_v1_4_0_golden_fixtures_still_validate():
     checked += 1
 
     assert checked > 0
+
+
+# --- E3 (KAN-663): table, grid + polygons, construction answer ---------------
+
+
+def _with_table(obj: dict, table: dict) -> dict:
+    obj = copy.deepcopy(obj)
+    obj["question"]["table"] = table
+    return obj
+
+
+def _grid_figure(**extra: object) -> dict:
+    return {
+        "type": "geometry_figure",
+        "unit": "cm",
+        "points": [],
+        "grid": {"cell_size": 1, "cols": 4, "rows": 3},
+        **extra,
+    }
+
+
+def test_table_valid():
+    table = {
+        "caption": "Tariff",
+        "headers": ["Usage", "Rate"],
+        "rows": [["First 10", "$2"], ["Next 10", {"answer_for": "a"}], [None, 3]],
+    }
+    assert validate_object(_with_table(_valid_obj(), table)) == []
+
+
+def test_table_cell_rejects_unknown_shape():
+    bad = {"rows": [[{"value": 3}]]}
+    assert validate_object(_with_table(_valid_obj(), bad)) != []
+    bad_extra = {"rows": [[{"answer_for": "a", "extra": 1}]]}
+    assert validate_object(_with_table(_valid_obj(), bad_extra)) != []
+
+
+def test_geometry_figure_grid_and_polygons_valid():
+    obj = _valid_obj()
+    obj["question"]["diagram"] = _grid_figure(polygons=[{"cells": [[0, 0], [1, 0]], "fill": True}])
+    assert validate_object(obj) == []
+
+
+@pytest.mark.parametrize("missing", ["cell_size", "cols", "rows"])
+def test_grid_requires_cell_size_cols_rows(missing: str):
+    obj = _valid_obj()
+    fig = _grid_figure()
+    del fig["grid"][missing]
+    obj["question"]["diagram"] = fig
+    assert validate_object(obj) != []
+
+
+def _construction_obj(diagram: dict) -> dict:
+    obj = copy.deepcopy(_valid_obj())
+    obj["question"]["parts"][0]["answer"] = {"type": "construction", "diagram": diagram}
+    return obj
+
+
+def test_construction_answer_valid():
+    fig = _grid_figure(points=[{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 1, "y": 1}])
+    assert validate_object(_construction_obj(fig)) == []
+
+
+def test_construction_answer_rejects_non_geometry_diagram():
+    bad = {"type": "shaded_fraction", "shape": "bar", "total_parts": 4, "shaded_parts": 1}
+    assert validate_object(_construction_obj(bad)) != []
+    assert validate_object(_construction_obj({"type": "geometry_figure", "unit": "cm"})) != []
+
+
+def test_v1_5_0_objects_still_validate():
+    """Additive-only proof (R7.7): E2's fixtures still load unmodified under 1.6.0."""
+    from exam_engine import canonical
+
+    for name in ("psle_2023_ratio", "psle_2023_mcq", "psle_2023_stem_diagram"):
+        data = json.loads((FIXTURES_DIR / "sourced" / f"{name}.json").read_text("utf-8"))
+        assert data["schema_version"] in ("1.4.0", "1.5.0")
+        canonical.load(data)

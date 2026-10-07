@@ -21,7 +21,7 @@ Related decisions: ADR-0004 (object), ADR-0012 (diagram union), ADR-0013 (multi-
 
 | Field | Notes |
 |---|---|
-| `schema_version` | semver, e.g. `"1.5.0"` |
+| `schema_version` | semver, e.g. `"1.6.0"` |
 | `id` | unique instance id |
 | `source_type` | `generated` \| `sourced` (drives conditional requirements) |
 | `blueprint_code` | required for `generated`; `null` for `sourced` |
@@ -156,6 +156,23 @@ enforce that `correct` names an existing `options[].label`, or that every
 option carries at least one of `text`/`diagram` — left to human review
 (ADR-0019), the same standing as other sourced-content correctness properties
 the schema doesn't structurally enforce.
+
+## `question.table`, `geometry_figure.grid`/`polygons`, and `answer.type: "construction"` (schema 1.6.0)
+
+Three additive growths (ADR-0020, editor slice E3); every 1.5.0 object still validates.
+
+- **`question.table`** — a content-level table, sibling of `stem`/`diagram`, rendered once
+  before the parts as a real `<table>`: `{ caption?, headers?, rows: [[cell…]] }`. A cell is a
+  plain string/number/`null` (empty), or `{ "answer_for": "<part.label>" }`, which marks the
+  cell as that part's answer surface — blank on the worksheet, filled with the part's answer
+  in the answer key. The label is not schema-enforced to exist (human review).
+- **`geometry_figure.grid`** — a square-grid backdrop `{ cell_size, cols, rows, origin?,
+  show_axes? }`, and **`polygons[]`** — `{ cells: [[col,row]…], fill?, label? }`, each cell
+  drawn as its own bordered unit square (the lines between cells are content: net folds,
+  countable rod squares). `points` may now be empty so a grid-only figure (a net) is valid.
+- **`answer.type: "construction"`** — `{ type, diagram: geometry_figure }`: the answer is
+  itself a figure. The worksheet shows the part's own (incomplete) `diagram`; the answer key
+  draws the completed one instead of an "Answer:" line.
 
 ## Marking
 
