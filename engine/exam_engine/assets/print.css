@@ -255,3 +255,25 @@ body {
 .mark-desc {
   flex: 1 1 auto;
 }
+
+/* E3 (KAN-663): content-level table (A6) */
+.content-table {
+  border-collapse: collapse;
+  margin: 0.6em 0;
+}
+.content-table th,
+.content-table td {
+  border: 1px solid #334155;
+  padding: 0.3em 0.9em;
+  text-align: center;
+  min-width: 3.5em;
+  height: 1.6em;
+}
+.content-table caption {
+  font-weight: 600;
+  margin-bottom: 0.3em;
+}
+.table-blank {
+  display: inline-block;
+  min-width: 3em;
+}

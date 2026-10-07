@@ -24,6 +24,12 @@ STEM_DIAGRAM_FIXTURE = (
 )
 
 
+SOURCED = Path(__file__).parent / "fixtures" / "sourced"
+TABLE_FIXTURE = SOURCED / "psle_2023_table.json"
+GRID_NET_FIXTURE = SOURCED / "psle_2023_grid_net.json"
+CONSTRUCTION_FIXTURE = SOURCED / "psle_2023_construction.json"
+
+
 def _load_fixture() -> dict:
     return json.loads(FIXTURE.read_text(encoding="utf-8"))
 
@@ -150,6 +156,42 @@ def test_stem_diagram_fixture_loads_and_renders():
     ak = render_answer_key_html("Stem Diagram", [obj])
     assert ak.count('<figure class="diagram">') == 1
     assert ak.count('<span class="marks">') == 1
+
+
+# --- E3 (KAN-663): table, grid net, construction sourced fixtures ------------
+
+
+def test_table_fixture_loads_and_renders():
+    obj = canonical.load(_load(TABLE_FIXTURE))
+    ws = render_worksheet_html("Table", [obj])
+    assert '<table class="content-table">' in ws
+    assert 'class="table-blank"' in ws
+    assert "53" not in ws.split('<table class="content-table">')[1].split("</table>")[0]
+
+    ak = render_answer_key_html("Table", [obj])
+    table_html = ak.split('<table class="content-table">')[1].split("</table>")[0]
+    assert "table-blank" not in table_html
+    assert "53.00" in table_html
+
+
+def test_grid_net_fixture_loads_and_renders():
+    obj = canonical.load(_load(GRID_NET_FIXTURE))
+    ws = render_worksheet_html("Net", [obj])
+    svg = ws.split("<svg", 1)[1].split("</svg>", 1)[0]
+    assert svg.count("<rect") == 6
+    assert svg.count("<line") == (4 + 1) + (3 + 1)
+
+
+def test_construction_fixture_loads_and_renders():
+    obj = canonical.load(_load(CONSTRUCTION_FIXTURE))
+    ws = render_worksheet_html("Construction", [obj])
+    assert ws.count('<figure class="diagram">') == 1
+    assert ">D</text>" not in ws  # the worksheet figure is the incomplete one
+
+    ak = render_answer_key_html("Construction", [obj])
+    assert ak.count('<figure class="diagram') == 2
+    assert 'class="final-answer"' not in ak
+    assert ak.count(">D</text>") == 1
 
 
 # --- PDF smoke (Chromium required; skips cleanly when absent) ----------------

@@ -264,3 +264,45 @@ def test_part_without_marks_omits_bracket_worksheet_and_key():
     assert '<span class="marks">' not in ws
     assert '<span class="marks">' not in ak
     assert '<div class="answer-space"' in ws
+
+
+# --- E3 (KAN-663): table + construction render units ------------------------
+
+
+def _obj_with_table() -> dict:
+    obj = copy.deepcopy(generate("ratio_medium", 42))
+    part = obj["question"]["parts"][0]
+    part["answer"] = {"type": "integer", "value": 7351, "unit": ""}
+    obj["question"]["table"] = {
+        "headers": ["Item", "Value"],
+        "rows": [["Given", "12"], ["Missing", {"answer_for": part["label"]}]],
+    }
+    return obj
+
+
+def test_worksheet_table_blank_cell_hides_answer():
+    html = render_worksheet_html("T", [_obj_with_table()])
+    table = html.split('<table class="content-table">')[1].split("</table>")[0]
+    assert "7351" not in table
+    assert 'class="table-blank"' in table
+
+
+def test_answer_key_table_fills_blank_cell():
+    html = render_answer_key_html("T", [_obj_with_table()])
+    table = html.split('<table class="content-table">')[1].split("</table>")[0]
+    assert "7351" in table
+    assert "table-blank" not in table
+
+
+def test_construction_answer_key_renders_figure_not_text():
+    obj = generate("ratio_medium", 42)
+    fig = {
+        "type": "geometry_figure",
+        "unit": "cm",
+        "points": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 2, "y": 0}],
+        "segments": [{"from": "A", "to": "B"}],
+    }
+    obj["question"]["parts"][0]["answer"] = {"type": "construction", "diagram": fig}
+    html = render_answer_key_html("C", [obj])
+    assert 'class="diagram answer-diagram"' in html
+    assert 'class="final-answer"' not in html

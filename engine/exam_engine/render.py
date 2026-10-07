@@ -225,7 +225,13 @@ def _render_solution(part: dict) -> list[str]:
         out.append(f'<li class="step">{_mathify(step["text"])}</li>')
     out.append("</ol>")
 
-    out.append(f'<p class="final-answer">Answer: {_fmt_answer(part["answer"])}</p>')
+    answer = part["answer"]
+    if answer["type"] == "construction":
+        # The answer *is* a figure: draw the completed construction.
+        svg = diagram.render_svg(answer["diagram"])
+        out.append(f'<figure class="diagram answer-diagram">{svg}</figure>')
+    else:
+        out.append(f'<p class="final-answer">Answer: {_fmt_answer(answer)}</p>')
 
     out.append('<ul class="marking-scheme">')
     for mark in part.get("marking_scheme", []):
@@ -242,6 +248,37 @@ def _render_solution(part: dict) -> list[str]:
     return out
 
 
+def _render_table_cell(cell: object, parts: list[dict], *, answer_key: bool) -> str:
+    if isinstance(cell, dict):  # {"answer_for": part.label}
+        if not answer_key:
+            return '<span class="table-blank" aria-hidden="true"></span>'
+        part = next((p for p in parts if p["label"] == cell["answer_for"]), None)
+        return _fmt_answer(part["answer"]) if part else ""
+    if cell is None:
+        return ""
+    return _mathify(str(cell))
+
+
+def _render_table(table: dict, parts: list[dict], *, answer_key: bool) -> str:
+    """A real ``<table>``; ``answer_for`` cells are blank on the worksheet and
+    filled with the bound part's answer in the answer key (A6)."""
+    out = ['<table class="content-table">']
+    if table.get("caption"):
+        out.append(f"<caption>{_mathify(table['caption'])}</caption>")
+    headers = table.get("headers")
+    if headers:
+        cells = "".join(f"<th>{_mathify(str(h)) if h is not None else ''}</th>" for h in headers)
+        out.append(f"<thead><tr>{cells}</tr></thead>")
+    out.append("<tbody>")
+    for row in table["rows"]:
+        cells = "".join(
+            f"<td>{_render_table_cell(c, parts, answer_key=answer_key)}</td>" for c in row
+        )
+        out.append(f"<tr>{cells}</tr>")
+    out.append("</tbody></table>")
+    return "".join(out)
+
+
 def _render_questions(questions: list[dict], *, answer_key: bool) -> str:
     """The ``<ol class="questions">`` body, in the given (tray) order."""
     out: list[str] = ['<ol class="questions">']
@@ -255,6 +292,9 @@ def _render_questions(questions: list[dict], *, answer_key: bool) -> str:
         q_diagram = obj["question"].get("diagram")
         if q_diagram is not None:
             out.append(f'<figure class="diagram">{diagram.render_svg(q_diagram)}</figure>')
+        q_table = obj["question"].get("table")
+        if q_table is not None:
+            out.append(_render_table(q_table, parts, answer_key=answer_key))
         for part in parts:
             out.extend(_render_part_head(part, multipart=multipart, answer_key=answer_key))
             if answer_key:

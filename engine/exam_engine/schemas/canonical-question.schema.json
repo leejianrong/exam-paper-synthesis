@@ -98,6 +98,10 @@
           "oneOf": [ { "type": "null" }, { "$ref": "#/$defs/diagram" } ],
           "description": "Optional stem-level figure shared by every part (added schema 1.5.0). Sibling to `stem`, rendered once before the parts loop. Distinct from a part's own `diagram`, which is part-scoped; both may coexist."
         },
+        "table": {
+          "oneOf": [ { "type": "null" }, { "$ref": "#/$defs/table" } ],
+          "description": "Optional content-level table (added schema 1.6.0, ADR-0020). Sibling to `stem`/`diagram`, rendered once before the parts loop; a cell may bind to a part's answer via `answer_for`."
+        },
         "parts": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/part" } },
         "total_marks": { "type": "integer", "minimum": 0 }
       }
@@ -155,8 +159,41 @@
         { "$ref": "#/$defs/answer_quantity" },
         { "$ref": "#/$defs/answer_set" },
         { "$ref": "#/$defs/answer_text" },
-        { "$ref": "#/$defs/answer_choice" }
+        { "$ref": "#/$defs/answer_choice" },
+        { "$ref": "#/$defs/answer_construction" }
       ]
+    },
+    "table": {
+      "type": "object", "additionalProperties": false,
+      "required": ["rows"],
+      "properties": {
+        "caption": { "type": ["string", "null"] },
+        "headers": { "type": ["array", "null"], "items": { "type": ["string", "number", "null"] } },
+        "rows": {
+          "type": "array", "minItems": 1,
+          "items": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/table_cell" } }
+        }
+      }
+    },
+    "table_cell": {
+      "$comment": "A plain value (null = genuinely empty cell), or {answer_for: part.label} marking the cell as that part's answer surface: blank on the worksheet, filled in the answer key. The label is not schema-enforced to exist (human review).",
+      "oneOf": [
+        { "type": ["string", "number", "null"] },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["answer_for"],
+          "properties": { "answer_for": { "type": "string", "minLength": 1 } }
+        }
+      ]
+    },
+    "answer_construction": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "diagram"],
+      "$comment": "Answer whose value is itself a figure (added schema 1.6.0, ADR-0020): the answer key draws the completed geometry_figure instead of printing a value.",
+      "properties": {
+        "type": { "const": "construction" },
+        "diagram": { "$ref": "#/$defs/diagram_geometry_figure" }
+      }
     },
     "answer_integer": {
       "type": "object", "additionalProperties": false,
@@ -356,8 +393,8 @@
         "type": { "const": "geometry_figure" },
         "unit": { "$ref": "#/$defs/unit", "$comment": "For length/area labels; angles are unitless degrees." },
         "points": {
-          "type": "array", "minItems": 2,
-          "description": "Named vertices in figure coordinates.",
+          "type": "array", "minItems": 0,
+          "description": "Named vertices in figure coordinates. May be empty for a grid-only figure (e.g. a net drawn purely with `polygons`; schema 1.6.0).",
           "items": {
             "type": "object", "additionalProperties": false,
             "required": ["id", "x", "y"],
@@ -427,6 +464,39 @@
             "properties": {
               "boundary": { "type": "array", "minItems": 3, "items": { "type": "string" } },
               "arcs": { "type": "array" }
+            }
+          }
+        },
+        "grid": {
+          "type": ["object", "null"], "additionalProperties": false,
+          "required": ["cell_size", "cols", "rows"],
+          "description": "Square-grid backdrop (added schema 1.6.0): coordinate grids, nets, rod patterns, construction canvases.",
+          "properties": {
+            "cell_size": { "type": "number", "exclusiveMinimum": 0 },
+            "cols": { "type": "integer", "minimum": 1 },
+            "rows": { "type": "integer", "minimum": 1 },
+            "origin": {
+              "type": ["object", "null"], "additionalProperties": false,
+              "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+              "description": "Figure-space coordinate of the grid's top-left corner; defaults to (0, 0)."
+            },
+            "show_axes": { "type": "boolean", "default": false, "description": "Numbered x/y labels along the grid edges." }
+          }
+        },
+        "polygons": {
+          "type": "array",
+          "description": "Grid-cell regions (schema 1.6.0); each cell is drawn as its own bordered unit square. Requires `grid`.",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["cells"],
+            "properties": {
+              "cells": {
+                "type": "array", "minItems": 1,
+                "items": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "integer", "minimum": 0 } },
+                "description": "[col, row] 0-indexed grid cells."
+              },
+              "fill": { "type": "boolean", "default": false },
+              "label": { "type": ["string", "null"] }
             }
           }
         },
