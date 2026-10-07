@@ -137,8 +137,7 @@ a request; entropy (random seed) enters only here.
   and type-check with mypy (Python 3.12, over `exam_engine` + `app`). Run locally
   with `make py-lint` / `make py-fmt` / `make py-typecheck`; all three must be
   green (as must `uv run pytest`) before pushing.
-- **Commit messages** end with:
-  `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
+- **Commit messages** carry no `Co-Authored-By` trailer (or any other AI attribution line).
 - **Multi-level doc consistency**: if a slice's scope shifts, update
   `docs/planning/mvp/SLICES.md` (and `SHAPING.md`).
 
