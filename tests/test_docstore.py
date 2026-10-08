@@ -90,3 +90,13 @@ def test_persists_across_instances(tmp_path):
     path = tmp_path / "docs.sqlite3"
     rec = SqliteDocumentStore(path).create("alice", empty_document("kept"), 0)
     assert SqliteDocumentStore(path).get("alice", rec["id"])["title"] == "kept"
+
+
+def test_erase_owner_removes_only_that_owners_documents(store):
+    store.create("alice", empty_document("A1"), 0)
+    store.create("alice", empty_document("A2"), 0)
+    keep = store.create("bob", empty_document("B"), 0)
+    assert store.erase_owner("alice") == 2
+    assert store.list("alice") == []
+    assert [d["id"] for d in store.list("bob")] == [keep["id"]]
+    assert store.erase_owner("alice") == 0

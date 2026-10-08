@@ -53,6 +53,7 @@ class DocumentStore(Protocol):
         self, owner_id: str, doc_id: str, document: dict, total_marks: int, base_version: int
     ) -> dict: ...
     def delete(self, owner_id: str, doc_id: str) -> None: ...
+    def erase_owner(self, owner_id: str) -> int: ...
 
 
 def _now() -> str:
@@ -161,6 +162,11 @@ class SqliteDocumentStore:
             )
             if cur.rowcount == 0:
                 raise DocumentNotFound(doc_id)
+
+    def erase_owner(self, owner_id: str) -> int:
+        """Delete every document the owner has (account deletion); returns how many."""
+        with closing(self._connect()) as conn, conn:
+            return conn.execute("DELETE FROM documents WHERE owner_id=?", (owner_id,)).rowcount
 
 
 @lru_cache(maxsize=8)

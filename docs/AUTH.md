@@ -28,6 +28,10 @@ Redirect (callback) URI: `{EXAM_PUBLIC_URL}/auth/{google|microsoft|github}/callb
 - Linking: a second provider reaches the same account **only** when both sides have a *verified* email (Google's `email_verified`; GitHub's primary verified address). Microsoft does not assert verification, so its email never links. An unverified email never links or claims an address.
 - Documents, bank rows and assets are owned by the user id; a foreign id is always 404.
 
+## Your data: export and deletion (W5)
+
+Both are in the account menu (click your name). `GET /account/export` returns a zip: `account.json`, `documents/<id>.json`, `bank/<n>-<id>.json`, and every image as its original bytes in `assets/` with an `assets/index.json`. `DELETE /account` with body `{"confirm": "DELETE"}` erases the documents, images, bank rows, export-allowance events, sessions, linked sign-ins and the user row, then clears the cookie; anything else is a 422 and changes nothing. Signing in again with the same Google/Microsoft/GitHub identity afterwards starts a new, empty account (and a fresh export allowance).
+
 ## Export allowance (W3c)
 
 PDF export is the expensive step (headless Chromium), so each account has a rolling allowance:

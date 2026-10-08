@@ -208,3 +208,13 @@ def test_unlimited_when_both_limits_are_zero(fake_pdf, monkeypatch):
 def test_quota_requires_sign_in(monkeypatch):
     monkeypatch.delenv("EXAM_DEV_AUTH")
     assert client.get("/auth/quota").status_code == 401
+
+
+def test_erase_owner_forgets_only_that_owner(ledger, clock):
+    limits = Limits(per_day=1, per_minute=0)
+    assert ledger.consume("alice", limits).allowed
+    assert ledger.consume("bob", limits).allowed
+    ledger.erase_owner("alice")
+    assert ledger.used("alice") == (0, 0)
+    assert ledger.used("bob") == (1, 1)
+    assert ledger.consume("alice", limits).allowed

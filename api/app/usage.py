@@ -52,6 +52,7 @@ class UsageLedger(Protocol):
     def consume(self, owner_id: str, limits: Limits) -> Allowance: ...
     def refund(self, ticket: int) -> None: ...
     def used(self, owner_id: str) -> tuple[int, int]: ...  # (last 24 h, last minute)
+    def erase_owner(self, owner_id: str) -> None: ...
 
 
 def _now() -> float:
@@ -134,6 +135,10 @@ class SqliteUsageLedger:
                 (owner_id, now - MINUTE_S),
             ).fetchone()[0]
         return int(day), int(minute)
+
+    def erase_owner(self, owner_id: str) -> None:
+        with closing(self._connect()) as conn:
+            conn.execute("DELETE FROM export_events WHERE owner_id = ?", (owner_id,))
 
 
 @lru_cache(maxsize=8)

@@ -118,6 +118,8 @@ class AssetStore(Protocol):
     def delete(self, owner_id: str, asset_id: str) -> None: ...
     def usage(self, owner_id: str) -> int: ...
     def owned(self, owner_id: str, asset_ids: list[str]) -> set[str]: ...
+    def export_all(self, owner_id: str) -> list[dict]: ...
+    def erase_owner(self, owner_id: str) -> int: ...
 
 
 def _now() -> str:
@@ -127,6 +129,18 @@ def _now() -> str:
 def default_path() -> Path:
     env = os.environ.get("EXAM_ASSETS_PATH")
     return Path(env) if env else Path.home() / ".exam_engine" / "assets.sqlite3"
+
+
+def _asset(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "mime": row["mime"],
+        "filename": row["filename"],
+        "width": row["width"],
+        "height": row["height"],
+        "bytes": row["size"],
+        "data": bytes(row["data"]),
+    }
 
 
 class SqliteAssetStore:
@@ -167,15 +181,7 @@ class SqliteAssetStore:
             ).fetchone()
         if row is None:
             raise AssetNotFound(asset_id)
-        return {
-            "id": row["id"],
-            "mime": row["mime"],
-            "filename": row["filename"],
-            "width": row["width"],
-            "height": row["height"],
-            "bytes": row["size"],
-            "data": bytes(row["data"]),
-        }
+        return _asset(row)
 
     def delete(self, owner_id: str, asset_id: str) -> None:
         with closing(self._connect()) as conn, conn:
@@ -203,6 +209,18 @@ class SqliteAssetStore:
                 (owner_id, *asset_ids),
             ).fetchall()
         return {r["id"] for r in rows}
+
+    def export_all(self, owner_id: str) -> list[dict]:
+        """Every asset the owner has, bytes included (data export), oldest first."""
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                "SELECT * FROM assets WHERE owner_id = ? ORDER BY created_at, id", (owner_id,)
+            ).fetchall()
+        return [_asset(r) for r in rows]
+
+    def erase_owner(self, owner_id: str) -> int:
+        with closing(self._connect()) as conn, conn:
+            return conn.execute("DELETE FROM assets WHERE owner_id = ?", (owner_id,)).rowcount
 
 
 @lru_cache(maxsize=8)

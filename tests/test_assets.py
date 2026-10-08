@@ -192,3 +192,16 @@ def test_filename_is_sanitised():
 
     stored = get_asset_store().get("alice", meta["id"])
     assert "/" not in stored["filename"] and "<" not in stored["filename"]
+
+
+def test_export_all_and_erase_owner_are_owner_scoped(store):
+    a1 = store.put("alice", png(), "image/png", "a.png", (2, 3))
+    store.put("alice", jpeg(), "image/jpeg", "b.jpg", (4, 5))
+    keep = store.put("bob", png(), "image/png", "c.png", (2, 3))
+    exported = store.export_all("alice")
+    assert [e["filename"] for e in exported] == ["a.png", "b.jpg"]
+    assert exported[0]["id"] == a1["id"] and exported[0]["data"] == png()
+    assert store.export_all("nobody") == []
+    assert store.erase_owner("alice") == 2
+    assert store.usage("alice") == 0 and store.export_all("alice") == []
+    assert store.get("bob", keep["id"])["data"] == png()

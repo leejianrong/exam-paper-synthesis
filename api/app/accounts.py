@@ -67,6 +67,7 @@ class AccountStore(Protocol):
     def create_session(self, user_id: str) -> str: ...
     def user_for_session(self, token: str) -> dict | None: ...
     def delete_session(self, token: str) -> None: ...
+    def delete_user(self, user_id: str) -> None: ...
 
 
 def _now() -> datetime:
@@ -171,6 +172,13 @@ class SqliteAccountStore:
     def delete_session(self, token: str) -> None:
         with closing(self._connect()) as conn, conn:
             conn.execute("DELETE FROM sessions WHERE token_hash = ?", (hash_token(token),))
+
+    def delete_user(self, user_id: str) -> None:
+        """Remove the account: its sessions, linked identities and the user row."""
+        with closing(self._connect()) as conn, conn:
+            conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+            conn.execute("DELETE FROM identities WHERE user_id = ?", (user_id,))
+            conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
 
 @lru_cache(maxsize=8)

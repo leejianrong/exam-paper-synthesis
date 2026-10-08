@@ -70,3 +70,22 @@ export async function loadQuota(): Promise<Quota | null> {
     return null
   }
 }
+
+/** The caller's data as a zip (W5 privacy promise). Throws on a non-2xx answer. */
+export async function exportAccountData(): Promise<Blob> {
+  const res = await fetch(`${BASE}/account/export`, { credentials: 'include' })
+  if (!res.ok) throw new Error(`API ${res.status}`)
+  return res.blob()
+}
+
+/** Erase the account and everything in it; the caller must have asked the user to confirm. */
+export async function deleteAccount(): Promise<void> {
+  const res = await fetch(`${BASE}/account`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ confirm: 'DELETE' }),
+  })
+  if (!res.ok) throw new Error(`API ${res.status}`)
+  session.set({ status: 'anon' })
+}
