@@ -1,21 +1,48 @@
 <script lang="ts">
-  // The answer key region under the page: derived from the document's questions, in
-  // order, with the same numbering as the body. Read-only; free-form entries (W2) will
-  // add editable slots here.
+  // The answer key region under the page: one entry per numbered question, in document
+  // order, with the same numbering as the body. Templated entries are generated and
+  // read-only; a free-form entry shows its question and an editable answer (written back to
+  // the question's node by the page).
+  import { createEventDispatcher } from 'svelte'
   import { fmtAnswer } from '../format'
   import type { Question } from '../types'
+  import { blocksToHtml, type DocJSON, type DocNode } from './doc'
+  import AnswerEditor from './AnswerEditor.svelte'
   import FragmentView from './FragmentView.svelte'
 
-  export let questions: Question[] = []
+  export let blocks: DocNode[] = []
+
+  const dispatch = createEventDispatcher<{ answer: { blockId: string; answer: DocJSON } }>()
 </script>
 
 <section class="key" aria-label="Answer key">
   <h2>Answer key</h2>
-  {#if questions.length === 0}
+  {#if blocks.length === 0}
     <p class="empty">Answers appear here as you add questions.</p>
   {/if}
   <ol>
-    {#each questions as q, i (i)}
+    {#each blocks as block, i (block.attrs?.block_id ?? i)}
+      {#if block.type === 'freeformQuestion'}
+        {@const marks = block.attrs?.marks as number | null | undefined}
+        <li class="entry freeform" data-block-id={block.attrs?.block_id}>
+          <div class="head">
+            <span class="n">{i + 1}.</span>
+            <span class="label">Answer</span>
+            {#if marks !== null && marks !== undefined}<span class="marks">[{marks}]</span>{/if}
+          </div>
+          <div class="qtext">
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -- escaped by blocksToHtml -->
+            {@html blocksToHtml(block.content)}
+          </div>
+          <AnswerEditor
+            value={(block.attrs?.answer as DocJSON) ?? { type: 'doc', content: [] }}
+            label={`Answer to question ${i + 1}`}
+            on:change={(e) =>
+              dispatch('answer', { blockId: String(block.attrs?.block_id), answer: e.detail.answer })}
+          />
+        </li>
+      {:else}
+      {@const q = block.attrs?.question as Question}
       {@const part = q.question.parts[0]}
       {#if q.source_type === 'sourced'}
         <!-- bank question: the engine's own key markup, so MCQ options, tables and
@@ -41,6 +68,7 @@
           </ul>
         {/if}
       </li>
+      {/if}
       {/if}
     {/each}
   </ol>
@@ -100,6 +128,17 @@
     margin-left: auto;
     font-family: var(--mono);
     color: var(--mark);
+  }
+  .qtext {
+    font-family: var(--serif);
+    color: var(--ink-soft);
+    margin: 0.2rem 0 0.4rem 1.6rem;
+  }
+  .qtext :global(p) {
+    margin: 0.15rem 0;
+  }
+  .freeform :global(.answer) {
+    margin-left: 1.6rem;
   }
   .steps {
     list-style: decimal;

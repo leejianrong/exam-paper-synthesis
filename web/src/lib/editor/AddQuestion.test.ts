@@ -42,11 +42,11 @@ describe('AddQuestion picker', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('API 500: down')
   })
 
-  it('offers Free-form disabled (W2), and Escape closes', async () => {
+  it('offers Free-form, and Escape closes', async () => {
     const close = vi.fn()
     render(AddQuestion, { props: {}, events: { close } })
     expect(screen.getByRole('tab', { name: 'From my bank' })).toBeEnabled()
-    expect(screen.getByRole('tab', { name: 'Free-form' })).toBeDisabled()
+    expect(screen.getByRole('tab', { name: 'Free-form' })).toBeEnabled()
     await fireEvent.keyDown(window, { key: 'Escape' })
     expect(close).toHaveBeenCalled()
   })
@@ -121,5 +121,13 @@ describe('AddQuestion picker', () => {
       await fireEvent.click(screen.getByRole('tab', { name: 'From my bank' }))
       expect(fetchMock.mock.calls.filter((c) => String(c[0]).endsWith('/bank'))).toHaveLength(1)
     })
+  })
+
+  it('Free-form inserts straight away, with no generation step', async () => {
+    const freeform = vi.fn()
+    render(AddQuestion, { props: {}, events: { freeform } })
+    await fireEvent.click(screen.getByRole('tab', { name: 'Free-form' }))
+    expect(freeform).toHaveBeenCalledTimes(1)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

@@ -1,6 +1,6 @@
 <script lang="ts">
-  // The "+" picker: choose how to add a question. Templated (generated) is live in W1;
-  // "From my bank" arrives in W1d and "Free-form" in W2, so those tabs are shown disabled.
+  // The "+" picker: choose how to add a question. Templated (generated), From my bank, or
+  // Free-form (an empty teacher-written block, inserted straight away).
   import { createEventDispatcher } from 'svelte'
   import { generate, listBank, type BankItem } from '../api'
   import { TOPICS, DIFFICULTIES, blueprintCode } from '../topics'
@@ -8,7 +8,7 @@
   import FragmentView from './FragmentView.svelte'
   import QuestionBody from './QuestionBody.svelte'
 
-  const dispatch = createEventDispatcher<{ insert: { question: Question }; close: void }>()
+  const dispatch = createEventDispatcher<{ insert: { question: Question }; freeform: void; close: void }>()
 
   type Tab = 'templated' | 'bank'
   let tab: Tab = 'templated'
@@ -90,8 +90,12 @@
         class:on={tab === 'bank'}
         on:click={showBank}>From my bank</button
       >
-      <button role="tab" aria-selected="false" class="tab" disabled title="Coming soon"
-        >Free-form</button
+      <button
+        role="tab"
+        aria-selected="false"
+        class="tab"
+        title="Type your own question on the page"
+        on:click={() => dispatch('freeform')}>Free-form</button
       >
     </div>
 

@@ -161,3 +161,49 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
   const full = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/full`)).text()
   expect(full).toContain('option-correct')
 })
+
+test('write a free-form question, set marks, write its answer, reload, preview and export', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '+ New paper' }).click()
+  await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
+  const id = page.url().split('/docs/')[1]
+  await page.getByLabel('Paper title').fill('Free-form Paper')
+
+  await addQuestion(page)
+  await page.getByRole('button', { name: 'Add question' }).click()
+  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
+
+  // The caret is already in the new block: just type the question.
+  const block = page.locator('.ffblock')
+  await expect(block).toHaveCount(1)
+  await page.keyboard.type('Ann has 12 sweets and gives away 5. How many are left?')
+  await expect(block.locator('.ff-body')).toHaveText('Ann has 12 sweets and gives away 5. How many are left?')
+  await block.getByLabel('Marks').fill('3')
+  await block.getByLabel('Marks').press('Enter')
+  await expect(block.locator('.ff-marks')).toHaveText('[3]')
+
+  // The answer is written in the key region (entry 2: numbering is shared).
+  const entry = page.getByRole('region', { name: 'Answer key' }).locator('.entry.freeform')
+  await expect(entry).toContainText('2.')
+  await entry.locator('.answer').click()
+  await page.keyboard.type('12 - 5 = 7. Ann has 7 sweets left.')
+
+  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await page.reload()
+  await expect(page.locator('.ffblock')).toContainText('How many are left?')
+  await expect(page.locator('.ffblock .ff-marks')).toHaveText('[3]')
+  await expect(page.locator('.entry.freeform .answer')).toContainText('Ann has 7 sweets left.')
+
+  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
+  const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
+  expect(student).toContain('How many are left?')
+  expect(student).toContain('[3]')
+  expect(student).not.toContain('Ann has 7 sweets left.')
+  expect(key).toContain('Ann has 7 sweets left.')
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Answer key PDF' }).click(),
+  ])
+  expect(download.suggestedFilename()).toMatch(/\.pdf$/)
+})

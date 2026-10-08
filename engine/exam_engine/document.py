@@ -21,10 +21,13 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
-DOCUMENT_SCHEMA_VERSION = "1.0.0"
+DOCUMENT_SCHEMA_VERSION = "1.1.0"  # 1.1.0 (W2a): + freeformQuestion; 1.0.0 documents still valid
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000
+MAX_BLOCK_TEXT_CHARS = 20_000
+
+QUESTION_TYPES = ("templatedQuestion", "freeformQuestion")
 
 _SCHEMA_PATH = Path(__file__).resolve().parent / "schemas" / "document.schema.json"
 
@@ -54,8 +57,30 @@ def questions_in_order(doc: dict) -> list[dict]:
     return [n["attrs"]["question"] for n in question_blocks(doc)]
 
 
+def freeform_blocks(doc: dict) -> list[dict]:
+    """The ``freeformQuestion`` nodes (teacher-written, unverified), in document order."""
+    return [n for n in doc["content"]["content"] if n.get("type") == "freeformQuestion"]
+
+
+def numbered_blocks(doc: dict) -> list[dict]:
+    """Every numbered question block (templated and free-form), in document order."""
+    return [n for n in doc["content"]["content"] if n.get("type") in QUESTION_TYPES]
+
+
 def total_marks(doc: dict) -> int:
-    return sum(q["question"]["total_marks"] for q in questions_in_order(doc))
+    """Templated totals plus the marks teachers gave their free-form questions."""
+    return sum(q["question"]["total_marks"] for q in questions_in_order(doc)) + sum(
+        n["attrs"].get("marks") or 0 for n in freeform_blocks(doc)
+    )
+
+
+def text_length(nodes: list[dict]) -> int:
+    """Characters of text under ``nodes`` (recursive), for the per-block body limit."""
+    total = 0
+    for n in nodes:
+        total += len(n.get("text", ""))
+        total += text_length(n.get("content", []))
+    return total
 
 
 def validate_document(doc: object) -> list[str]:
@@ -83,7 +108,7 @@ def validate_document(doc: object) -> list[str]:
     seen: set[str] = set()
     n_questions = 0
     for i, node in enumerate(blocks):
-        if node["type"] != "templatedQuestion":
+        if node["type"] not in QUESTION_TYPES:
             continue
         n_questions += 1
         base = f"content/content/{i}/attrs"
@@ -91,6 +116,21 @@ def validate_document(doc: object) -> list[str]:
         if block_id in seen:
             errors.append(f"{base}/block_id: duplicate block id {block_id!r}")
         seen.add(block_id)
+
+        if node["type"] == "freeformQuestion":
+            for label, nodes in (
+                ("content", node["content"]),
+                ("answer", node["attrs"].get("answer", {}).get("content", [])),
+            ):
+                chars = text_length(nodes)
+                if chars > MAX_BLOCK_TEXT_CHARS:
+                    where = f"content/content/{i}/" + (
+                        "content" if label == "content" else "attrs/answer"
+                    )
+                    errors.append(
+                        f"{where}: {chars} characters of text; the limit is {MAX_BLOCK_TEXT_CHARS}"
+                    )
+            continue
 
         question = node["attrs"]["question"]
         q_errors = validate_object(question)

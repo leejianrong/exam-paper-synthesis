@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 import pytest
-from documents import gen_block, heading, make_doc, para, question_block, text
+from documents import freeform_block, gen_block, heading, make_doc, para, question_block, text
 from exam_engine import edits, generate
 from exam_engine.blueprints.registry import get_solver
 from exam_engine.document import (
@@ -286,3 +286,123 @@ def test_document_without_questions_renders_student_and_full():
 def test_unknown_mode_rejected():
     with pytest.raises(ValueError):
         render_document_html("T", make_doc(), mode="teacher")
+
+
+# --- free-form questions (W2a, schema 1.1.0) --------------------------------------
+
+
+def test_freeform_validates_and_old_documents_still_do():
+    doc = make_doc(para("intro"), freeform_block("Q?", marks=3, answer="42"), gen_block())
+    assert validate_document(doc) == []
+    old = make_doc(gen_block())
+    old["schema_version"] = "1.0.0"
+    assert validate_document(old) == []
+    unmarked = make_doc(freeform_block(marks=None))
+    assert validate_document(unmarked) == []
+    del unmarked["content"]["content"][0]["attrs"]["marks"]
+    assert validate_document(unmarked) == []
+
+
+def _bad_freeform(**change):
+    block = freeform_block()
+    block["attrs"].update(change.get("attrs", {}))
+    if "content" in change:
+        block["content"] = change["content"]
+    return make_doc(block)
+
+
+@pytest.mark.parametrize(
+    "doc",
+    [
+        _bad_freeform(attrs={"marks": -1}),
+        _bad_freeform(attrs={"marks": 1.5}),
+        _bad_freeform(attrs={"marks": 101}),
+        _bad_freeform(attrs={"extra": 1}),
+        _bad_freeform(attrs={"block_id": "no"}),
+        _bad_freeform(content=[]),
+        _bad_freeform(content=[heading("no headings")]),
+        _bad_freeform(content=[{"type": "templatedQuestion"}]),
+        _bad_freeform(content=[{"type": "freeformQuestion", "attrs": {}, "content": []}]),
+        _bad_freeform(attrs={"answer": {"type": "doc", "content": [heading("h")]}}),
+        _bad_freeform(attrs={"answer": "text"}),
+    ],
+)
+def test_malformed_freeform_rejected(doc):
+    assert validate_document(doc) != []
+
+
+def test_freeform_body_and_answer_text_limits():
+    long_body = {"type": "paragraph", "content": [text("x" * 20000), {"type": "hardBreak"}]}
+    ok = _bad_freeform(content=[long_body])
+    assert validate_document(ok) == []
+    two = _bad_freeform(content=[long_body, para("y")])
+    assert any("characters of text" in e for e in validate_document(two))
+    ans = freeform_block(answer="a")
+    ans["attrs"]["answer"]["content"] = [long_body, para("y")]
+    assert any("attrs/answer" in e for e in validate_document(make_doc(ans)))
+
+
+def test_freeform_shares_block_id_space_and_question_limit():
+    errors = validate_document(
+        make_doc(freeform_block(block_id="same_id"), gen_block()),
+    )
+    assert errors == []
+    dup = make_doc(freeform_block(block_id="same_id"), freeform_block(block_id="same_id"))
+    assert any("duplicate block id" in e for e in validate_document(dup))
+    many = make_doc(
+        *[freeform_block(block_id=f"ff_{i:04d}") for i in range(MAX_QUESTION_BLOCKS + 1)]
+    )
+    assert any("the limit is 200" in e for e in validate_document(many))
+    mixed = make_doc(
+        *[freeform_block(block_id=f"ff_{i:04d}") for i in range(MAX_QUESTION_BLOCKS)], gen_block()
+    )
+    assert any("the limit is 200" in e for e in validate_document(mixed))
+
+
+def test_total_marks_includes_freeform():
+    a = generate("ratio_easy", 1)
+    doc = make_doc(
+        question_block(a),
+        freeform_block(marks=3),
+        freeform_block(marks=None),
+        freeform_block(marks=2),
+    )
+    assert total_marks(doc) == a["question"]["total_marks"] + 5
+
+
+def _question_numbers(html: str) -> int:
+    return len(re.findall(r'<(?:li|section) class="question', html))
+
+
+def test_freeform_render_modes_and_numbering():
+    a = generate("ratio_easy", 1)
+    doc = make_doc(
+        para("Section A"),
+        freeform_block("Ann has <b>5</b> & 7 sweets.", marks=3, answer="Answer: 12 sweets"),
+        question_block(a),
+        freeform_block("Blank answer one", marks=None),
+    )
+    student = render_document_html("T", doc, mode="student")
+    assert _question_numbers(student) == 3
+    assert "Answer: 12 sweets" not in student
+    assert "No answer written yet" not in student
+    assert "[3]" in student and f"Total: {a['question']['total_marks'] + 3} marks" in student
+    assert "Ann has &lt;b&gt;5&lt;/b&gt; &amp; 7 sweets." in student
+    assert student.count('class="answer-space"') >= 3
+
+    key = render_document_html("T", doc, mode="key")
+    assert _question_numbers(key) == 3
+    assert "Answer: 12 sweets" in key
+    assert key.count("No answer written yet") == 1
+    assert "Blank answer one" in key
+
+    full = render_document_html("T", doc, mode="full")
+    assert _question_numbers(full) == 6
+    assert "Answer: 12 sweets" in full.split('class="key-section"')[1]
+    assert "Answer: 12 sweets" not in full.split('class="key-section"')[0]
+
+
+def test_freeform_only_document_renders_all_modes():
+    doc = make_doc(freeform_block("Only one", marks=1, answer="yes"))
+    for mode in ("student", "key", "full"):
+        assert "Only one" in render_document_html("T", doc, mode=mode)
