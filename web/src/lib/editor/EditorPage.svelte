@@ -7,6 +7,7 @@
   import type { Question } from '../types'
   import AddQuestion from './AddQuestion.svelte'
   import AnswerKey from './AnswerKey.svelte'
+  import Inspector from './Inspector.svelte'
   import { createAutosaver, type Autosaver } from './autosave'
   import { buildDocument, freeformNode, numberedNodes, totalMarks, type DocJSON } from './doc'
   import {
@@ -41,6 +42,7 @@
   let busy = ''
   let actionError = ''
   let notice = ''
+  let selectedId: string | null = null // the block the author is in (for the inspector)
   let previewHtml: string | null = null
   let tick = 0 // bumps on every editor transaction so toolbar state re-reads
 
@@ -126,6 +128,11 @@
 
   function onBeforeUnload(e: BeforeUnloadEvent) {
     if (status === 'dirty' || status === 'saving' || status === 'error') e.preventDefault()
+  }
+
+  function trackBlock(e: Event) {
+    const host = (e.target as HTMLElement).closest('[data-block-id]')
+    selectedId = host?.getAttribute('data-block-id') ?? null
   }
 
   function insertionPoint(editor: Editor): number {
@@ -279,6 +286,7 @@
 {/if}
 
 <div class="desk" class:hidden={loading || !!loadError}>
+<div class="main">
   <div class="tools" role="toolbar" aria-label="Formatting">
     <button
       aria-pressed={act.bold}
@@ -338,7 +346,14 @@
       on:input={scheduleSave}
     />
     <p class="sheetmeta"><span>Name: ______________</span><span>Total: {marks} marks</span></p>
-    <div class="surface" bind:this={element}></div>
+    <div
+      class="surface"
+      role="presentation"
+      bind:this={element}
+      on:click={trackBlock}
+      on:focusin={trackBlock}
+      on:keyup={trackBlock}
+    ></div>
 
     <button class="plus" aria-label="Add question" on:click={() => (pickerAt = null)}>
       <span class="plus-sign">+</span> Add question
@@ -350,6 +365,8 @@
     on:answer={(e) => setAnswer(e.detail.blockId, e.detail.answer)}
     on:error={(e) => (actionError = e.detail)}
   />
+</div>
+<Inspector {blocks} {marks} {selectedId} />
 </div>
 
 <MathPopover />
@@ -457,9 +474,21 @@
   }
 
   .desk {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
     background: var(--desk);
     padding: 1rem 1rem 4rem;
     min-height: 100vh;
+  }
+  .main {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  @media (max-width: 1150px) {
+    .desk {
+      flex-direction: column;
+    }
   }
   .tools {
     width: 210mm;

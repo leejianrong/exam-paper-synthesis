@@ -137,7 +137,7 @@
     <div class="candidates">
       {#each candidates as q (q.id)}
         <article class="candidate" data-testid="candidate">
-          <QuestionBody {q} showStatus={false} />
+          <QuestionBody {q} />
           <button class="use" on:click={() => dispatch('insert', { question: q })}>Use this</button>
         </article>
       {/each}

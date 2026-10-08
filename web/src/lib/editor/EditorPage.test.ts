@@ -267,3 +267,27 @@ describe('EditorPage convert to free-form (W2c)', () => {
     expect(screen.getByText('Original generated text.')).toBeInTheDocument()
   })
 })
+
+describe('EditorPage inspector (EXA-93)', () => {
+  it('keeps status off the page and shows it in the inspector for the block you click', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => record([questionNode(makeQuestion({ id: 'a' }, 'First.')), freeformDocNode({ id: 'ff_i' })]),
+      text: async () => '',
+    })
+    render(EditorPage, { props: { id: 'd1' } })
+    await screen.findByText('First.')
+    const surface = document.querySelector('.surface') as HTMLElement
+    expect(surface).not.toHaveTextContent(/engine-verified|From my bank|Unreviewed/)
+
+    const inspector = screen.getByRole('complementary', { name: 'Inspector' })
+    expect(inspector).toHaveTextContent('This paper')
+    await fireEvent.click(screen.getByTestId('question-block'))
+    expect(inspector).toHaveTextContent('Question 1')
+    expect(inspector).toHaveTextContent('Engine-verified')
+    await fireEvent.click(document.querySelector('.ffblock .ff-body') as HTMLElement)
+    expect(inspector).toHaveTextContent('Question 2')
+    expect(inspector).toHaveTextContent('not checked by the engine')
+  })
+})
