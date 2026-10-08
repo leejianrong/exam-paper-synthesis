@@ -33,3 +33,12 @@ class EditResponse(BaseModel):
 class ExportRequest(BaseModel):
     title: str = "worksheet"
     questions: list[dict]
+
+
+class CreateDocumentRequest(BaseModel):
+    title: str | None = None
+
+
+class SaveDocumentRequest(BaseModel):
+    document: dict
+    base_version: int

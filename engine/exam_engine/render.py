@@ -279,36 +279,47 @@ def _render_table(table: dict, parts: list[dict], *, answer_key: bool) -> str:
     return "".join(out)
 
 
+def _render_question_item(obj: dict, *, answer_key: bool, tag: str = "li") -> list[str]:
+    """One question's markup (stem, shared figure/table, parts, answer space or solution).
+
+    ``tag`` is ``li`` inside a flat ``<ol class="questions">`` list, or ``section`` when a
+    document interleaves questions with rich text (numbering is a CSS counter either way).
+    """
+    out: list[str] = []
+    parts = obj["question"]["parts"]
+    multipart = len(parts) > 1
+    out.append(f'<{tag} class="question">')
+    stem = obj["question"].get("stem")
+    if stem:
+        out.append(f'<p class="question-stem">{_mathify(stem)}</p>')
+    q_diagram = obj["question"].get("diagram")
+    if q_diagram is not None:
+        out.append(f'<figure class="diagram">{diagram.render_svg(q_diagram)}</figure>')
+    q_table = obj["question"].get("table")
+    if q_table is not None:
+        out.append(_render_table(q_table, parts, answer_key=answer_key))
+    for part in parts:
+        out.extend(_render_part_head(part, multipart=multipart, answer_key=answer_key))
+        if answer_key:
+            out.extend(_render_solution(part))
+        elif (part.get("answer") or {}).get("type") != "choice":
+            # MCQ parts have nothing to hand-write beyond circling a letter
+            # (the options themselves were already rendered by
+            # _render_part_head) — only constructed-response parts get a
+            # blank answer-space filler.
+            out.append(
+                '<div class="answer-space" aria-hidden="true" '
+                f'style="--marks:{part.get("marks", 1)}"></div>'
+            )
+    out.append(f"</{tag}>")
+    return out
+
+
 def _render_questions(questions: list[dict], *, answer_key: bool) -> str:
     """The ``<ol class="questions">`` body, in the given (tray) order."""
     out: list[str] = ['<ol class="questions">']
     for obj in questions:
-        parts = obj["question"]["parts"]
-        multipart = len(parts) > 1
-        out.append('<li class="question">')
-        stem = obj["question"].get("stem")
-        if stem:
-            out.append(f'<p class="question-stem">{_mathify(stem)}</p>')
-        q_diagram = obj["question"].get("diagram")
-        if q_diagram is not None:
-            out.append(f'<figure class="diagram">{diagram.render_svg(q_diagram)}</figure>')
-        q_table = obj["question"].get("table")
-        if q_table is not None:
-            out.append(_render_table(q_table, parts, answer_key=answer_key))
-        for part in parts:
-            out.extend(_render_part_head(part, multipart=multipart, answer_key=answer_key))
-            if answer_key:
-                out.extend(_render_solution(part))
-            elif (part.get("answer") or {}).get("type") != "choice":
-                # MCQ parts have nothing to hand-write beyond circling a letter
-                # (the options themselves were already rendered by
-                # _render_part_head) — only constructed-response parts get a
-                # blank answer-space filler.
-                out.append(
-                    '<div class="answer-space" aria-hidden="true" '
-                    f'style="--marks:{part.get("marks", 1)}"></div>'
-                )
-        out.append("</li>")
+        out.extend(_render_question_item(obj, answer_key=answer_key))
     out.append("</ol>")
     return "".join(out)
 
@@ -377,4 +388,119 @@ def render_answer_key_html(title: str, questions: list[dict]) -> str:
     body = _render_questions(questions, answer_key=True)
     return _document(
         root_class="sheet answer-key", title=key_title, header_html=header, body_html=body
+    )
+
+
+# ---------------------------------------------------------------------------
+# Documents (W1b): rich text + templated questions, one continuous numbering.
+# ---------------------------------------------------------------------------
+
+_MARK_TAGS = {"bold": "strong", "italic": "em", "underline": "u"}
+# Document heading levels 1-3 sit under the sheet title (h1): render as h2-h4.
+_HEADING_TAGS = {1: "h2", 2: "h3", 3: "h4"}
+
+
+def _render_inline(nodes: list[dict]) -> str:
+    out: list[str] = []
+    for node in nodes:
+        if node["type"] == "hardBreak":
+            out.append("<br>")
+            continue
+        html = _mathify(node["text"])
+        for mark in node.get("marks", []):
+            tag = _MARK_TAGS[mark["type"]]
+            html = f"<{tag}>{html}</{tag}>"
+        out.append(html)
+    return "".join(out)
+
+
+def _render_rich_block(node: dict) -> str:
+    """Serialise one whitelisted (schema-validated) rich-text node to escaped HTML."""
+    kind = node["type"]
+    if kind == "heading":
+        tag = _HEADING_TAGS[node["attrs"]["level"]]
+        return f'<{tag} class="doc-heading">{_render_inline(node.get("content", []))}</{tag}>'
+    if kind == "paragraph":
+        return f"<p>{_render_inline(node.get('content', []))}</p>"
+    if kind in ("bulletList", "orderedList"):
+        tag = "ul" if kind == "bulletList" else "ol"
+        start = (node.get("attrs") or {}).get("start")
+        attr = f' start="{int(start)}"' if tag == "ol" and start not in (None, 1) else ""
+        items = "".join(
+            "<li>" + "".join(_render_rich_block(c) for c in li["content"]) + "</li>"
+            for li in node["content"]
+        )
+        return f"<{tag}{attr}>{items}</{tag}>"
+    if kind == "pageBreak":
+        return '<div class="page-break"></div>'
+    raise ValueError(f"not a rich-text node: {kind!r}")  # pragma: no cover - schema-gated
+
+
+def _render_document_body(doc: dict, *, answer_key: bool) -> str:
+    """Document blocks in order; questions and rich text share one numbering counter."""
+    out: list[str] = ['<div class="doc-body questions">']
+    for node in doc["content"]["content"]:
+        if node["type"] == "templatedQuestion":
+            out.extend(
+                _render_question_item(
+                    node["attrs"]["question"], answer_key=answer_key, tag="section"
+                )
+            )
+        else:
+            out.append(_render_rich_block(node))
+    out.append("</div>")
+    return "".join(out)
+
+
+def render_document_html(title: str, doc: dict, *, mode: str) -> str:
+    """Render a document (see :mod:`exam_engine.document`) as self-contained HTML.
+
+    ``mode``: ``student`` — the paper only, no solutions anywhere; ``key`` — the answer
+    key only (each question with its worked solution and marking scheme, same numbering);
+    ``full`` — the student paper, a page break, then the Answer Key section.
+    """
+    if mode not in ("student", "key", "full"):
+        raise ValueError(f"unknown document render mode {mode!r}")
+
+    questions = [
+        n["attrs"]["question"]
+        for n in doc["content"]["content"]
+        if n["type"] == "templatedQuestion"
+    ]
+    marks = _total_marks(questions)
+
+    if mode == "key":
+        header = (
+            '<header class="sheet-header">'
+            f'<h1 class="sheet-title">{_esc(title)} — Answer Key</h1>'
+            f'<p class="sheet-meta"><span class="field-marks">Total: {marks} marks</span></p>'
+            "</header>"
+        )
+        body = _render_questions(questions, answer_key=True)
+        return _document(
+            root_class="sheet answer-key", title=title, header_html=header, body_html=body
+        )
+
+    header = (
+        '<header class="sheet-header">'
+        f'<h1 class="sheet-title">{_esc(title)}</h1>'
+        '<p class="sheet-meta">'
+        '<span class="field-name">Name: ______________</span>'
+        f'<span class="field-marks">Total: {marks} marks</span>'
+        "</p>"
+        "</header>"
+    )
+    body = _render_document_body(doc, answer_key=False)
+    if mode == "full":
+        body += (
+            '<section class="key-section">'
+            '<h2 class="key-heading">Answer Key</h2>'
+            f"{_render_questions(questions, answer_key=True)}"
+            "</section>"
+        )
+    return _document(
+        root_class="sheet worksheet" + (" with-key" if mode == "full" else ""),
+        title=title,
+        header_html=header,
+        body_html=body,
     )

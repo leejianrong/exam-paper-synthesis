@@ -277,3 +277,11 @@ body {
   display: inline-block;
   min-width: 3em;
 }
+
+/* W1b: documents — rich text between questions, page breaks, answer-key section */
+.doc-body p { margin: 0 0 0.7rem; }
+.doc-body ul, .doc-body ol { margin: 0 0 0.7rem; padding-left: 1.6rem; }
+.doc-heading { margin: 1.2rem 0 0.6rem; break-after: avoid; }
+.page-break { break-after: page; }
+.key-section { break-before: page; }
+.key-heading { margin: 0 0 1rem; }
