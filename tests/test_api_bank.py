@@ -6,9 +6,9 @@ import json
 from pathlib import Path
 
 import pytest
+from app.bankstore import open_owner_bank
 from app.main import app
 from exam_engine import generate
-from exam_engine.bank import open_bank
 from fastapi.testclient import TestClient
 
 client = TestClient(app)
@@ -28,7 +28,7 @@ def _env(monkeypatch, tmp_path):
 
 
 def _seed(owner: str, *objs: dict) -> None:
-    bank = open_bank(owner_id=owner)
+    bank = open_owner_bank(owner)
     for obj in objs:
         bank.add(obj)
     bank.close()
@@ -64,7 +64,7 @@ def test_default_owner_sees_what_the_cli_imported():
 def test_bank_filters_and_review_flag():
     mcq = _fixture("psle_2023_mcq")
     _seed("alice", mcq, generate("ratio_medium", 1))
-    bank = open_bank(owner_id="alice")
+    bank = open_owner_bank("alice")
     bank.mark_reviewed(mcq["id"])
     bank.close()
 

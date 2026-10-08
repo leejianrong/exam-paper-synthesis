@@ -9,10 +9,14 @@ from documents import gen_block, make_doc, para
 from exam_engine.document import empty_document, total_marks
 
 
-@pytest.fixture(params=["sqlite"])
+@pytest.fixture(params=["sqlite", "postgres"])
 def store(request, tmp_path):
     if request.param == "sqlite":
         return SqliteDocumentStore(tmp_path / "docs.sqlite3")
+    if request.param == "postgres":
+        from app.pgstores import PgDocumentStore
+
+        return PgDocumentStore(request.getfixturevalue("pg_db"))
     raise AssertionError(request.param)  # pragma: no cover
 
 

@@ -10,10 +10,14 @@ from app import accounts as accounts_mod
 from app.accounts import Profile, SqliteAccountStore, hash_token
 
 
-@pytest.fixture(params=["sqlite"])
+@pytest.fixture(params=["sqlite", "postgres"])
 def store(request, tmp_path):
     if request.param == "sqlite":
         return SqliteAccountStore(tmp_path / "accounts.sqlite3")
+    if request.param == "postgres":
+        from app.pgstores import PgAccountStore
+
+        return PgAccountStore(request.getfixturevalue("pg_db"))
     raise AssertionError(request.param)  # pragma: no cover
 
 
@@ -90,13 +94,14 @@ def test_sessions_resolve_expire_and_end(store, monkeypatch):
 
 
 def test_tokens_are_stored_hashed(store, tmp_path):
-    import sqlite3
-
     user = store.login(P())
     token = store.create_session(user["id"])
-    rows = (
-        sqlite3.connect(tmp_path / "accounts.sqlite3")
-        .execute("SELECT token_hash FROM sessions")
-        .fetchall()
-    )
-    assert rows == [(hash_token(token),)] and token not in rows[0][0]
+    if hasattr(store, "db"):  # Postgres
+        with store.db.connection() as conn:
+            stored = [r["token_hash"] for r in conn.execute("SELECT token_hash FROM sessions")]
+    else:
+        import sqlite3
+
+        db = sqlite3.connect(tmp_path / "accounts.sqlite3")
+        stored = [r[0] for r in db.execute("SELECT token_hash FROM sessions")]
+    assert stored == [hash_token(token)] and token not in stored[0]

@@ -23,10 +23,14 @@ def _dev_env(monkeypatch):
     monkeypatch.setenv("EXAM_DEV_AUTH", "1")
 
 
-@pytest.fixture(params=["sqlite"])
+@pytest.fixture(params=["sqlite", "postgres"])
 def store(request, tmp_path):
     if request.param == "sqlite":
         return SqliteAssetStore(tmp_path / "contract.sqlite3")
+    if request.param == "postgres":
+        from app.pgstores import PgAssetStore
+
+        return PgAssetStore(request.getfixturevalue("pg_db"))
     raise AssertionError(request.param)  # pragma: no cover
 
 

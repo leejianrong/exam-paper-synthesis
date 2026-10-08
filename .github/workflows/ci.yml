@@ -14,6 +14,23 @@ jobs:
   python:
     name: Python tests
     runs-on: ubuntu-latest
+    # W3b: the Postgres stores run the same contract tests as SQLite, and the whole API
+    # suite runs a second time against Postgres.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: pw
+          POSTGRES_DB: exam
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      EXAM_TEST_DATABASE_URL: postgresql://postgres:pw@localhost:5432/exam
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -32,6 +49,11 @@ jobs:
 
       - name: Run tests
         run: uv run pytest
+
+      - name: Run the API tests against Postgres
+        run: uv run pytest -q
+        env:
+          EXAM_TEST_BACKEND: postgres
 
   web:
     name: Web build
