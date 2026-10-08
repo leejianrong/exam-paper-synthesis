@@ -36,3 +36,47 @@ def strip_ui_hints(obj: dict) -> dict:
     if not any(k in obj for k in _UI_HINT_KEYS):
         return obj
     return {k: v for k, v in obj.items() if k not in _UI_HINT_KEYS}
+
+
+def strip_document_hints(document: object) -> object:
+    """Strip UI-only hints from every embedded question of a document (W1b/W1c).
+
+    The editor keeps ``available_ops`` on each question (it drives the block toolbar), but
+    stored snapshots are canonical objects, so hints are removed on the way in and
+    re-attached on the way out. Non-conforming input is returned untouched for the
+    validator to reject with a proper error.
+    """
+    try:
+        blocks = document["content"]["content"]  # type: ignore[index]
+        if not isinstance(blocks, list):
+            return document
+    except (KeyError, TypeError):
+        return document
+    new_blocks = []
+    for node in blocks:
+        question = node.get("attrs", {}).get("question") if isinstance(node, dict) else None
+        if (
+            isinstance(node, dict)
+            and node.get("type") == "templatedQuestion"
+            and isinstance(question, dict)
+        ):
+            node = {**node, "attrs": {**node["attrs"], "question": strip_ui_hints(question)}}
+        new_blocks.append(node)
+    return {**document, "content": {**document["content"], "content": new_blocks}}  # type: ignore[index,dict-item]
+
+
+def with_document_hints(record: dict) -> dict:
+    """Attach ``available_ops`` to each generated question of a stored document record."""
+    document = record["document"]
+    blocks = []
+    for node in document["content"]["content"]:
+        if node.get("type") == "templatedQuestion" and node["attrs"]["question"].get(
+            "blueprint_code"
+        ):
+            question = with_available_ops(node["attrs"]["question"])
+            node = {**node, "attrs": {**node["attrs"], "question": question}}
+        blocks.append(node)
+    return {
+        **record,
+        "document": {**document, "content": {**document["content"], "content": blocks}},
+    }

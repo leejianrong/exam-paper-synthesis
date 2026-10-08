@@ -19,6 +19,7 @@ from . import export
 from .auth import current_owner
 from .docstore import DocumentNotFound, DocumentStore, VersionConflict, get_store
 from .models import CreateDocumentRequest, SaveDocumentRequest
+from .ops import strip_document_hints, with_document_hints
 from .quota import check_export_quota, export_slot
 
 router = APIRouter(prefix="/documents")
@@ -66,7 +67,7 @@ def list_documents(owner: Owner, store: Store) -> dict:
 @router.get("/{doc_id}")
 def get_document(doc_id: str, owner: Owner, store: Store) -> dict:
     try:
-        return store.get(owner, doc_id)
+        return with_document_hints(store.get(owner, doc_id))
     except DocumentNotFound:
         raise _not_found() from None
 
@@ -82,9 +83,10 @@ def save_document(
     declared = request.headers.get("content-length")
     if declared is not None and declared.isdigit() and int(declared) > _MAX_BODY_BYTES:
         raise HTTPException(status_code=413, detail="document is too large")
-    document = _valid_or_422(req.document)
+    document = _valid_or_422(strip_document_hints(req.document))
     try:
-        return store.save(owner, doc_id, document, docs.total_marks(document), req.base_version)
+        saved = store.save(owner, doc_id, document, docs.total_marks(document), req.base_version)
+        return with_document_hints(saved)
     except DocumentNotFound:
         raise _not_found() from None
     except VersionConflict as e:

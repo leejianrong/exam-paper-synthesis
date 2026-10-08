@@ -1,8 +1,15 @@
 import { defineConfig, devices } from '@playwright/test'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 
 // Ports for the two dev servers Playwright boots for the e2e run.
 const API_PORT = 8000
 const WEB_PORT = 5173
+
+// The document API (W1b) is tenant-scoped; the e2e run uses the dev identity stub and a
+// throwaway database (specs create their own papers and never assume an empty store).
+const DOCS_DB = path.join(os.tmpdir(), 'exam-e2e-documents.sqlite3')
 
 /**
  * Playwright config for the Generate-flow browser acceptance test (ADR-0008).
@@ -39,6 +46,9 @@ export default defineConfig({
       timeout: 120_000,
       stdout: 'pipe',
       stderr: 'pipe',
+      // A server that is already running locally is reused as-is, so the editor spec
+      // needs one started with these two variables (CI always starts fresh).
+      env: { ...process.env, EXAM_DEV_AUTH: '1', EXAM_DOCS_PATH: DOCS_DB },
     },
     {
       // Vite dev server for the Svelte SPA (reads VITE_API, defaults to :8000).

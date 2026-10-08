@@ -48,7 +48,10 @@ export interface Question {
   id: string
   seed: number
   blueprint_code: string
+  source_type?: string
   parent_id?: string | null
+  /** The sampled parameters (generated questions); read by the Edit-names form. */
+  parameters?: Record<string, unknown> | null
   question: { parts: QuestionPart[]; total_marks: number }
   validation: { status: ValidationStatus }
   cognitive?: { difficulty?: Difficulty }

@@ -10,7 +10,7 @@ import { test, expect } from '@playwright/test'
  * and the expandable M/A/B answer key.
  */
 test('Generate produces a validated ratio question card', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/#/classic')
 
   // The Generate button is the single call-to-action on the landing page.
   const generate = page.getByRole('button', { name: 'Generate' })

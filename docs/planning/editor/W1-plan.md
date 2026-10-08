@@ -189,6 +189,8 @@ so a burst can't exhaust the Fly machine.
 
 ## W1c — Editor shell (web)
 
+> **Status: implemented** (branch `feat/w1c-editor`). The Svelte 5 node-view spike worked (no fallback needed). Findings: the API's `available_ops` hint is stripped from stored snapshots on save and re-attached on read (`ops.strip_document_hints` / `with_document_hints`), mirroring KAN-243; the `e2e` job runs the API with `EXAM_DEV_AUTH=1` and a temp `EXAM_DOCS_PATH`; classic e2e specs now start at `#/classic`.
+
 **Stack:** `@tiptap/core` + `@tiptap/starter-kit` (headings, lists, bold/italic, history) +
 `@tiptap/extension-underline`, used directly from a Svelte 5 component (no wrapper library
 needed). The `templatedQuestion` node uses a custom node view that `mount()`s a Svelte

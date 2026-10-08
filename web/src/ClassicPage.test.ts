@@ -10,7 +10,7 @@ vi.mock('./lib/api', () => ({
   editQuestion: (...args: unknown[]) => editQuestion(...args),
 }))
 
-import App from './App.svelte'
+import App from './ClassicPage.svelte'
 
 beforeEach(() => {
   generate.mockReset()
