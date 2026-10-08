@@ -6,6 +6,7 @@
   import StarterKit from '@tiptap/starter-kit'
   import type { Question } from '../types'
   import AddQuestion from './AddQuestion.svelte'
+  import AccountChip from './AccountChip.svelte'
   import AnswerKey from './AnswerKey.svelte'
   import Inspector from './Inspector.svelte'
   import { createAutosaver, type Autosaver } from './autosave'
@@ -256,6 +257,7 @@
   <span class="chip {status}" role="status" aria-live="polite">{statusLabel}</span>
   <span class="total">{marks} marks</span>
   <span class="spacer"></span>
+  <AccountChip />
   <div class="export" role="group" aria-label="Export">
     <button disabled={!!busy} on:click={() => preview('full')}>Preview</button>
     <button disabled={!!busy} on:click={() => download('student')}>Student PDF</button>

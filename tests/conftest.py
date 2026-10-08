@@ -37,5 +37,6 @@ import pytest  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def _isolated_assets_store(monkeypatch, tmp_path):
-    """Never let a test touch the real ~/.exam_engine asset store (W2b)."""
+    """Never let a test touch the real ~/.exam_engine asset / account stores (W2b, W3)."""
     monkeypatch.setenv("EXAM_ASSETS_PATH", str(tmp_path / "assets.sqlite3"))
+    monkeypatch.setenv("EXAM_AUTH_PATH", str(tmp_path / "accounts.sqlite3"))

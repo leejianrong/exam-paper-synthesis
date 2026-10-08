@@ -4,6 +4,7 @@
   import { createDocument, deleteDocument, listDocuments } from './docsApi'
   import type { DocumentSummary } from './doc'
   import { navigate } from '../router'
+  import AccountChip from './AccountChip.svelte'
 
   let docs: DocumentSummary[] = []
   let loaded = false
@@ -55,6 +56,7 @@
   <div class="masthead">
     <span class="wordmark">exam-paper-synthesis</span>
     <a class="classic" href="#/classic">Classic generator</a>
+    <AccountChip />
   </div>
   <div class="head">
     <h1>Your papers</h1>

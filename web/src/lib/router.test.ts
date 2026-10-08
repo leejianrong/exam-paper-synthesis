@@ -13,4 +13,8 @@ describe('parseHash', () => {
     expect(parseHash('#/docs/')).toEqual({ name: 'list' })
     expect(parseHash('#/nope')).toEqual({ name: 'list' })
   })
+  it('routes the login page with its error', () => {
+    expect(parseHash('#/login?error=denied')).toEqual({ name: 'login', error: 'denied' })
+    expect(parseHash('#/login')).toEqual({ name: 'login', error: '' })
+  })
 })

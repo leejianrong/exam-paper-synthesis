@@ -1,6 +1,7 @@
 // Image assets (W2b): upload and URLs. The server validates the bytes (PNG/JPEG only, size
 // and quota limits); here we only send them and report its reason when it refuses.
 
+import { apiFetch } from '../http'
 const BASE: string = import.meta.env.VITE_API ?? 'http://localhost:8000'
 
 export interface AssetMeta {
@@ -17,7 +18,7 @@ export function assetUrl(id: string): string {
 }
 
 export async function uploadAsset(file: Blob, filename = 'image'): Promise<AssetMeta> {
-  const res = await fetch(`${BASE}/assets`, {
+  const res = await apiFetch(`${BASE}/assets`, {
     method: 'POST',
     headers: { 'x-filename': filename },
     body: file,
