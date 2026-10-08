@@ -96,7 +96,7 @@
 <style>
   .names {
     border: 1px solid var(--line);
-    background: var(--paper-2);
+    background: var(--wash);
     border-radius: 8px;
     padding: 0.7rem 0.8rem;
     margin: 0.4rem 0;
