@@ -116,7 +116,8 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
   await page.getByRole('button', { name: 'Add question' }).click()
   const dialog = page.getByRole('dialog', { name: 'Add question' })
   await dialog.getByRole('tab', { name: 'From my bank' }).click()
-  await expect(dialog.getByTestId('bank-item')).toHaveCount(2)
+  // (A server reused across local runs may also hold items other specs imported.)
+  await expect.poll(() => dialog.getByTestId('bank-item').count()).toBeGreaterThanOrEqual(2)
   // The engine's own print markup is drawn (MCQ options are real list items).
   await expect(dialog.locator('li.option').first()).toBeVisible()
   await dialog.getByTestId('bank-item').first().getByRole('button', { name: 'Use this' }).click()
@@ -421,4 +422,47 @@ test('a remark is private: kept through edits and reloads, never in a preview or
   await page.getByRole('button', { name: 'Preview' }).click()
   await expect(page.frameLocator('iframe[title="Print preview"]').getByText('Answer Key').first()).toBeVisible()
   expect(await page.frameLocator('iframe[title="Print preview"]').locator('body').innerText()).not.toContain(SECRET)
+})
+
+test('reviewing a bank question is a deliberate act: confirm to mark, one click to withdraw', async ({ page }) => {
+  const base = JSON.parse(fs.readFileSync('tests/fixtures/sourced/psle_2023_ratio.json', 'utf8'))
+  const mine = { ...base, id: `sourced:e2e-review-${Date.now().toString(36)}` }
+  const imported = await page.request.post('http://localhost:8000/bank/import', { data: { objects: [mine] } })
+  expect((await imported.json()).imported).toBe(1)
+  const inBank = async () =>
+    (await (await page.request.get('http://localhost:8000/bank')).json()).items.find((i) => i.id === mine.id)
+  expect((await inBank()).reviewed).toBe(false)
+
+  await page.goto('/')
+  await page.getByRole('button', { name: '+ New paper' }).click()
+  await page.getByRole('button', { name: 'Add question' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Add question' })
+  await dialog.getByRole('tab', { name: 'From my bank' }).click()
+  const item = dialog.getByTestId('bank-item').last() // newest import is listed last
+
+  // One click is not enough: the confirmation has to be ticked.
+  await item.getByRole('button', { name: /Mark as reviewed…/ }).click()
+  const go = item.getByRole('button', { name: 'Mark as reviewed', exact: true })
+  await expect(go).toBeDisabled()
+  expect((await inBank()).reviewed).toBe(false)
+  await item.getByLabel(/I have checked this question/).check()
+  await go.click()
+  await expect(item.locator('.tag', { hasText: 'Reviewed' })).toBeVisible()
+  expect((await inBank()).reviewed).toBe(true)
+
+  // The copy a paper takes carries the review; the inspector says so and can withdraw it.
+  await item.getByRole('button', { name: 'Use this' }).click()
+  const block = page.getByTestId('question-block')
+  await block.click({ position: { x: 12, y: 60 } })
+  const inspector = page.getByRole('complementary', { name: 'Inspector' })
+  await expect(inspector).toContainText('reviewed by you')
+  await inspector.getByRole('button', { name: 'Withdraw review' }).click()
+  await expect(inspector).toContainText('not yet reviewed')
+  expect((await inBank()).reviewed).toBe(false)
+
+  // …and the paper remembers, across a reload.
+  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await page.reload()
+  await page.getByTestId('question-block').click({ position: { x: 12, y: 60 } })
+  await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText('not yet reviewed')
 })

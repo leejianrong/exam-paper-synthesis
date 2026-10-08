@@ -56,6 +56,10 @@ class ConvertFreeformRequest(BaseModel):
     question: dict
 
 
+class BankReviewRequest(BaseModel):
+    reviewed: bool
+
+
 class BankImportRequest(BaseModel):
     objects: list[Any]  # per-item validation happens in the route, so one bad item is reported
     replace: bool = False

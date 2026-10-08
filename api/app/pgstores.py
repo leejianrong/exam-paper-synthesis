@@ -391,11 +391,18 @@ class PgBank:
         obj["provenance"]["version"] = existing["provenance"].get("version", 1) + 1
         return self.add(obj, overwrite=True)
 
-    def mark_reviewed(self, obj_id: str) -> dict:
-        """Flip ``checks.human_reviewed`` (ADR-0019's review action)."""
+    def set_reviewed(self, obj_id: str, reviewed: bool) -> dict:
+        """Set ``checks.human_reviewed`` (ADR-0019's review action, and its undo); idempotent."""
         obj = self.get(obj_id)
-        obj.setdefault("validation", {}).setdefault("checks", {})["human_reviewed"] = True
+        checks = obj.setdefault("validation", {}).setdefault("checks", {})
+        if bool(checks.get("human_reviewed")) == reviewed:
+            return obj
+        checks["human_reviewed"] = reviewed
         return self.update(obj)
+
+    def mark_reviewed(self, obj_id: str) -> dict:
+        """Flip ``checks.human_reviewed`` to true (ADR-0019's review action)."""
+        return self.set_reviewed(obj_id, True)
 
     def get(self, obj_id: str) -> dict:
         with self.db.connection() as conn:

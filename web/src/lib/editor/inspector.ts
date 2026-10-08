@@ -50,6 +50,14 @@ export function describeBlock(node: DocNode, number: number): Facts {
   }
 }
 
+/** A copy of `q` with the human-review flag set (the snapshot a paper or the bank list holds). */
+export function withReviewed(q: Question, reviewed: boolean): Question {
+  return {
+    ...q,
+    validation: { ...q.validation, checks: { ...q.validation.checks, human_reviewed: reviewed } },
+  }
+}
+
 export interface Summary {
   questions: number
   generated: number

@@ -184,3 +184,52 @@ def test_import_rejects_malformed_requests_and_needs_auth(monkeypatch):
     assert client.post("/bank/import", json={"objects": "x"}, headers=ALICE).status_code == 422
     monkeypatch.delenv("EXAM_DEV_AUTH")
     assert _import([]).status_code == 401
+
+
+# --- review toggle (ADR-0019: a deliberate act, owner-scoped, sourced only) ----------------
+
+
+def _review(obj_id: str, reviewed: bool, headers=ALICE):
+    return client.put(f"/bank/{obj_id}/review", json={"reviewed": reviewed}, headers=headers)
+
+
+def test_review_toggle_marks_and_withdraws_and_shows_in_the_listing():
+    mcq = _fixture("psle_2023_mcq")
+    client.post("/bank/import", json={"objects": [mcq]}, headers=ALICE)
+    item = lambda: client.get("/bank", headers=ALICE).json()["items"][0]  # noqa: E731
+    assert item()["reviewed"] is False  # imports arrive unreviewed
+
+    assert _review(mcq["id"], True).json() == {"id": mcq["id"], "reviewed": True}
+    assert item()["reviewed"] is True
+    assert client.get("/bank?reviewed=true", headers=ALICE).json()["items"]
+    assert _review(mcq["id"], True).status_code == 200  # idempotent
+
+    assert _review(mcq["id"], False).json()["reviewed"] is False
+    assert item()["reviewed"] is False
+
+
+def test_review_is_owner_scoped_and_needs_auth(monkeypatch):
+    mcq = _fixture("psle_2023_mcq")
+    client.post("/bank/import", json={"objects": [mcq]}, headers=ALICE)
+    assert _review(mcq["id"], True, BOB).status_code == 404  # not Bob's, whatever the id
+    assert client.get("/bank", headers=ALICE).json()["items"][0]["reviewed"] is False
+    assert _review("sourced:nope", True).status_code == 404
+    monkeypatch.delenv("EXAM_DEV_AUTH")
+    assert _review(mcq["id"], True).status_code == 401
+
+
+def test_replacing_a_reviewed_question_resets_review():
+    mcq = _fixture("psle_2023_mcq")
+    client.post("/bank/import", json={"objects": [mcq]}, headers=ALICE)
+    _review(mcq["id"], True)
+    client.post("/bank/import", json={"objects": [mcq], "replace": True}, headers=ALICE)
+    assert client.get("/bank", headers=ALICE).json()["items"][0]["reviewed"] is False
+
+
+def test_generated_questions_are_not_part_of_the_review_gate():
+    obj = generate("ratio_medium", 3)
+    bank = open_owner_bank("alice")
+    bank.add(obj)
+    bank.close()
+    resp = _review(obj["id"], True)
+    assert resp.status_code == 422 and "sourced" in resp.json()["detail"]

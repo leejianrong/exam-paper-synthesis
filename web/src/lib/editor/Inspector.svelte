@@ -4,17 +4,27 @@
   import { createEventDispatcher } from 'svelte'
   import type { DocNode } from './doc'
   import { describeBlock, summarise } from './inspector'
+  import ReviewControl from './ReviewControl.svelte'
+  import type { Question } from '../types'
 
   export let blocks: DocNode[] = []
   export let marks = 0
   export let selectedId: string | null = null
 
-  const dispatch = createEventDispatcher<{ remark: { blockId: string; remark: string } }>()
+  const dispatch = createEventDispatcher<{
+    remark: { blockId: string; remark: string }
+    review: { blockId: string; reviewed: boolean }
+  }>()
   const MAX_REMARK = 2000
 
   $: index = blocks.findIndex((b) => b.attrs?.block_id === selectedId)
   $: facts = index >= 0 ? describeBlock(blocks[index], index + 1) : null
   $: summary = summarise(blocks, marks)
+  $: bankQuestion =
+    index >= 0 && blocks[index].type === 'templatedQuestion' &&
+    (blocks[index].attrs?.question as Question).source_type === 'sourced'
+      ? (blocks[index].attrs?.question as Question)
+      : null
   $: remark = index >= 0 ? String(blocks[index].attrs?.remark ?? '') : ''
 </script>
 
@@ -28,6 +38,14 @@
         <dd>{value}</dd>
       {/each}
     </dl>
+    {#if bankQuestion}
+      <ReviewControl
+        id={bankQuestion.id}
+        reviewed={Boolean(bankQuestion.validation.checks?.human_reviewed)}
+        allowMissing
+        on:changed={(e) => dispatch('review', { blockId: String(selectedId), reviewed: e.detail.reviewed })}
+      />
+    {/if}
     <label class="remark">
       <span>Remarks <small>(only you see these; never printed)</small></span>
       <textarea

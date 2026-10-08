@@ -113,3 +113,25 @@ def test_erase_removes_only_this_owners_questions(open_bank):
     assert alice.search() == []
     assert [o["id"] for o in bob.search()] == [mcq["id"]]
     assert alice.erase() == 0
+
+
+def test_set_reviewed_flips_both_ways_idempotently_and_only_for_the_owner(open_bank):
+    mcq = fixture("psle_2023_mcq")
+    alice, bob = open_bank("alice"), open_bank("bob")
+    alice.add(mcq)
+    bob.add(mcq)
+
+    def reviewed(bank) -> bool:
+        return bool(bank.get(mcq["id"])["validation"]["checks"].get("human_reviewed"))
+
+    assert not reviewed(alice)
+    on = alice.set_reviewed(mcq["id"], True)
+    assert reviewed(alice) and on["provenance"]["version"] == 2
+    assert [o["id"] for o in alice.search(reviewed=True)] == [mcq["id"]]
+    assert alice.set_reviewed(mcq["id"], True)["provenance"]["version"] == 2  # no-op: no bump
+    off = alice.set_reviewed(mcq["id"], False)
+    assert not reviewed(alice) and off["provenance"]["version"] == 3
+    assert alice.search(reviewed=True) == []
+    assert not reviewed(bob)  # another owner's copy is untouched
+    with pytest.raises(BankObjectNotFound):
+        alice.set_reviewed("sourced:nope", True)
