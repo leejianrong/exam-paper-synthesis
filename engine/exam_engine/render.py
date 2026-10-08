@@ -25,7 +25,9 @@ Math convention: ``\\(…\\)`` inline, ``\\[…\\]`` display; ``$`` is currency
 from __future__ import annotations
 
 import base64
+import html
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 from . import diagram
@@ -400,11 +402,36 @@ _MARK_TAGS = {"bold": "strong", "italic": "em", "underline": "u"}
 _HEADING_TAGS = {1: "h2", 2: "h3", 3: "h4"}
 
 
+# Resolves an asset id to ``(mime, bytes)``, or ``None`` when it is missing. Supplied by the
+# API (the engine is storage-agnostic); images are inlined as ``data:`` URIs because headless
+# Chromium renders the page from ``set_content`` with no origin to fetch from.
+AssetResolver = Callable[[str], "tuple[str, bytes] | None"]
+
+
+def _render_image(node: dict, assets: AssetResolver | None) -> str:
+    attrs = node["attrs"]
+    found = assets(attrs["asset_id"]) if assets else None
+    if found is None:
+        # Visible in every mode: a missing figure must never silently print as nothing.
+        return '<p class="missing-image">[image unavailable]</p>'
+    mime, data = found
+    src = f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
+    width = int(attrs.get("width_pct") or 100)
+    alt = html.escape(attrs.get("alt") or "", quote=True)  # attribute context: quotes too
+    return (
+        f'<figure class="doc-image"><img src="{src}" alt="{alt}" style="width:{width}%"></figure>'
+    )
+
+
 def _render_inline(nodes: list[dict]) -> str:
     out: list[str] = []
     for node in nodes:
         if node["type"] == "hardBreak":
             out.append("<br>")
+            continue
+        if node["type"] == "math":
+            # Escaped, then typeset by the KaTeX bootstrap (trust off: \href etc. are inert).
+            out.append(f'<span class="doc-math">\\({_esc(node["attrs"]["latex"])}\\)</span>')
             continue
         html = _mathify(node["text"])
         for mark in node.get("marks", []):
@@ -414,7 +441,7 @@ def _render_inline(nodes: list[dict]) -> str:
     return "".join(out)
 
 
-def _render_rich_block(node: dict) -> str:
+def _render_rich_block(node: dict, assets: AssetResolver | None = None) -> str:
     """Serialise one whitelisted (schema-validated) rich-text node to escaped HTML."""
     kind = node["type"]
     if kind == "heading":
@@ -427,16 +454,24 @@ def _render_rich_block(node: dict) -> str:
         start = (node.get("attrs") or {}).get("start")
         attr = f' start="{int(start)}"' if tag == "ol" and start not in (None, 1) else ""
         items = "".join(
-            "<li>" + "".join(_render_rich_block(c) for c in li["content"]) + "</li>"
+            "<li>" + "".join(_render_rich_block(c, assets) for c in li["content"]) + "</li>"
             for li in node["content"]
         )
         return f"<{tag}{attr}>{items}</{tag}>"
+    if kind == "image":
+        return _render_image(node, assets)
     if kind == "pageBreak":
         return '<div class="page-break"></div>'
     raise ValueError(f"not a rich-text node: {kind!r}")  # pragma: no cover - schema-gated
 
 
-def _render_freeform_item(node: dict, *, answer_key: bool, tag: str = "section") -> list[str]:
+def _render_freeform_item(
+    node: dict,
+    *,
+    answer_key: bool,
+    tag: str = "section",
+    assets: AssetResolver | None = None,
+) -> list[str]:
     """A teacher-written question (W2a): body + ``[marks]``, then answer space or key answer.
 
     Free-form blocks carry no verification, so nothing here claims any. In the key an empty
@@ -444,7 +479,7 @@ def _render_freeform_item(node: dict, *, answer_key: bool, tag: str = "section")
     """
     attrs = node["attrs"]
     marks = attrs.get("marks")
-    body = "".join(_render_rich_block(b) for b in node["content"])
+    body = "".join(_render_rich_block(b, assets) for b in node["content"])
     out = [f'<{tag} class="question freeform">', '<div class="part">']
     out.append(f'<div class="part-text">{body}</div>')
     if marks is not None:
@@ -453,7 +488,7 @@ def _render_freeform_item(node: dict, *, answer_key: bool, tag: str = "section")
     if answer_key:
         answer = attrs.get("answer", {}).get("content", [])
         if answer:
-            inner = "".join(_render_rich_block(b) for b in answer)
+            inner = "".join(_render_rich_block(b, assets) for b in answer)
             out.append(f'<div class="solution teacher-answer">{inner}</div>')
         else:
             out.append('<p class="no-answer">No answer written yet</p>')
@@ -465,12 +500,14 @@ def _render_freeform_item(node: dict, *, answer_key: bool, tag: str = "section")
     return out
 
 
-def _render_numbered_blocks(blocks: list[dict], *, answer_key: bool) -> str:
+def _render_numbered_blocks(
+    blocks: list[dict], *, answer_key: bool, assets: AssetResolver | None = None
+) -> str:
     """The ``<ol class="questions">`` body for document question blocks (both kinds)."""
     out: list[str] = ['<ol class="questions">']
     for node in blocks:
         if node["type"] == "freeformQuestion":
-            out.extend(_render_freeform_item(node, answer_key=answer_key, tag="li"))
+            out.extend(_render_freeform_item(node, answer_key=answer_key, tag="li", assets=assets))
         else:
             out.extend(_render_question_item(node["attrs"]["question"], answer_key=answer_key))
     out.append("</ol>")
@@ -486,12 +523,14 @@ def _doc_total_marks(blocks: list[dict]) -> int:
     )
 
 
-def _render_document_body(doc: dict, *, answer_key: bool) -> str:
+def _render_document_body(
+    doc: dict, *, answer_key: bool, assets: AssetResolver | None = None
+) -> str:
     """Document blocks in order; questions and rich text share one numbering counter."""
     out: list[str] = ['<div class="doc-body questions">']
     for node in doc["content"]["content"]:
         if node["type"] == "freeformQuestion":
-            out.extend(_render_freeform_item(node, answer_key=answer_key))
+            out.extend(_render_freeform_item(node, answer_key=answer_key, assets=assets))
         elif node["type"] == "templatedQuestion":
             out.extend(
                 _render_question_item(
@@ -499,17 +538,21 @@ def _render_document_body(doc: dict, *, answer_key: bool) -> str:
                 )
             )
         else:
-            out.append(_render_rich_block(node))
+            out.append(_render_rich_block(node, assets))
     out.append("</div>")
     return "".join(out)
 
 
-def render_document_html(title: str, doc: dict, *, mode: str) -> str:
+def render_document_html(
+    title: str, doc: dict, *, mode: str, assets: AssetResolver | None = None
+) -> str:
     """Render a document (see :mod:`exam_engine.document`) as self-contained HTML.
 
     ``mode``: ``student`` — the paper only, no solutions anywhere; ``key`` — the answer
     key only (each question with its worked solution and marking scheme, same numbering);
     ``full`` — the student paper, a page break, then the Answer Key section.
+    ``assets`` resolves an image's ``asset_id`` to ``(mime, bytes)`` so figures are inlined as
+    ``data:`` URIs; an id it cannot resolve prints a visible "[image unavailable]" line.
     """
     if mode not in ("student", "key", "full"):
         raise ValueError(f"unknown document render mode {mode!r}")
@@ -528,7 +571,7 @@ def render_document_html(title: str, doc: dict, *, mode: str) -> str:
             f'<p class="sheet-meta"><span class="field-marks">Total: {marks} marks</span></p>'
             "</header>"
         )
-        body = _render_numbered_blocks(blocks, answer_key=True)
+        body = _render_numbered_blocks(blocks, answer_key=True, assets=assets)
         return _document(
             root_class="sheet answer-key", title=title, header_html=header, body_html=body
         )
@@ -542,12 +585,12 @@ def render_document_html(title: str, doc: dict, *, mode: str) -> str:
         "</p>"
         "</header>"
     )
-    body = _render_document_body(doc, answer_key=False)
+    body = _render_document_body(doc, answer_key=False, assets=assets)
     if mode == "full":
         body += (
             '<section class="key-section">'
             '<h2 class="key-heading">Answer Key</h2>'
-            f"{_render_numbered_blocks(blocks, answer_key=True)}"
+            f"{_render_numbered_blocks(blocks, answer_key=True, assets=assets)}"
             "</section>"
         )
     return _document(

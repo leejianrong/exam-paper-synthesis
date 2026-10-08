@@ -2,20 +2,33 @@
 
 from __future__ import annotations
 
+import base64
 import copy
 import json
 import re
 from pathlib import Path
 
 import pytest
-from documents import freeform_block, gen_block, heading, make_doc, para, question_block, text
+from documents import (
+    freeform_block,
+    gen_block,
+    heading,
+    image_node,
+    make_doc,
+    math_node,
+    para,
+    question_block,
+    text,
+)
 from exam_engine import edits, generate
 from exam_engine.blueprints.registry import get_solver
 from exam_engine.document import (
+    MAX_IMAGES,
     MAX_QUESTION_BLOCKS,
     empty_document,
     question_blocks,
     questions_in_order,
+    referenced_assets,
     total_marks,
     validate_document,
     verify_snapshot,
@@ -406,3 +419,113 @@ def test_freeform_only_document_renders_all_modes():
     doc = make_doc(freeform_block("Only one", marks=1, answer="yes"))
     for mode in ("student", "key", "full"):
         assert "Only one" in render_document_html("T", doc, mode=mode)
+
+
+# --- images and equations (W2b, schema 1.2.0) ---------------------------------------
+
+
+def test_image_and_math_accepted_where_allowed():
+    ff = freeform_block("Q", marks=2, answer="a")
+    ff["content"] = [
+        {"type": "paragraph", "content": [text("Find "), math_node(r"\frac{3}{4} \times 8")]},
+        image_node(),
+    ]
+    ff["attrs"]["answer"]["content"] = [
+        {"type": "paragraph", "content": [math_node("x=6")]},
+        image_node("asset_0002"),
+    ]
+    doc = make_doc(para("intro"), image_node("asset_0003"), heading("H"), ff)
+    doc["content"]["content"][2]["content"].append(math_node("\\pi"))
+    assert validate_document(doc) == []
+    assert referenced_assets(doc) == ["asset_0003", "asset_0001", "asset_0002"]
+
+
+@pytest.mark.parametrize(
+    "node",
+    [
+        {"type": "image", "attrs": {"asset_id": "x"}},  # id too short
+        {"type": "image", "attrs": {"asset_id": "has space!!"}},
+        {"type": "image", "attrs": {"asset_id": "asset_0001", "width_pct": 5}},
+        {"type": "image", "attrs": {"asset_id": "asset_0001", "width_pct": 101}},
+        {"type": "image", "attrs": {"asset_id": "asset_0001", "width_pct": 50.5}},
+        {"type": "image", "attrs": {"asset_id": "asset_0001", "src": "http://evil/x.png"}},
+        {"type": "image", "attrs": {"asset_id": "asset_0001", "alt": "x" * 301}},
+        {"type": "image"},
+        {"type": "paragraph", "content": [{"type": "math", "attrs": {"latex": ""}}]},
+        {"type": "paragraph", "content": [{"type": "math", "attrs": {"latex": "x" * 501}}]},
+        {"type": "paragraph", "content": [{"type": "math", "attrs": {"latex": "x", "a": 1}}]},
+        {"type": "paragraph", "content": [math_node("a \\) <script>alert(1)</script> \\(")]},
+        {"type": "paragraph", "content": [math_node("\\]")]},
+        {"type": "math", "attrs": {"latex": "x"}},  # inline only, not a block
+        {
+            "type": "bulletList",
+            "content": [{"type": "listItem", "content": [image_node()]}],
+        },  # images are not allowed inside list items
+    ],
+)
+def test_bad_image_or_math_rejected(node):
+    assert validate_document(make_doc(node)) != []
+
+
+def test_latex_limit_is_inclusive_and_delimiter_error_is_explained():
+    assert (
+        validate_document(make_doc({"type": "paragraph", "content": [math_node("x" * 500)]})) == []
+    )
+    errors = validate_document(make_doc({"type": "paragraph", "content": [math_node("a\\)b")]}))
+    assert any("delimiter" in e for e in errors)
+
+
+def test_image_count_limit_counts_answers_too():
+    ok = make_doc(*[image_node(f"asset_{i:04d}") for i in range(MAX_IMAGES)])
+    assert validate_document(ok) == []
+    ff = freeform_block(answer="a")
+    ff["attrs"]["answer"]["content"].append(image_node("asset_9999"))
+    over = make_doc(*[image_node(f"asset_{i:04d}") for i in range(MAX_IMAGES)], ff)
+    assert any("images; the limit is 40" in e for e in validate_document(over))
+
+
+def test_image_inside_freeform_body_and_older_documents():
+    old = make_doc(gen_block())
+    old["schema_version"] = "1.1.0"
+    assert validate_document(old) == []
+
+
+def _resolver(known: dict[str, tuple[str, bytes]]):
+    return lambda asset_id: known.get(asset_id)
+
+
+def test_render_inlines_images_and_typesets_escaped_math():
+    ff = freeform_block("x", marks=1, answer="a")
+    ff["content"] = [
+        {
+            "type": "paragraph",
+            "content": [text("Evaluate "), math_node("a<b \\& \\frac{1}{2}")],
+        },
+        image_node("asset_0001", alt='A "quoted" <fig>', width_pct=40),
+    ]
+    ff["attrs"]["answer"]["content"] = [image_node("asset_0002")]
+    doc = make_doc(image_node("asset_0003"), ff)
+    known = {
+        "asset_0001": ("image/png", b"PNGDATA"),
+        "asset_0002": ("image/jpeg", b"JPGDATA"),
+        "asset_0003": ("image/png", b"TOPDATA"),
+    }
+    student = render_document_html("T", doc, mode="student", assets=_resolver(known))
+    assert "data:image/png;base64," + base64.b64encode(b"PNGDATA").decode() in student
+    assert "data:image/png;base64," + base64.b64encode(b"TOPDATA").decode() in student
+    assert 'style="width:40%"' in student
+    assert 'alt="A &quot;quoted&quot; &lt;fig&gt;"' in student
+    assert "\\(a&lt;b \\&amp; \\frac{1}{2}\\)" in student
+    assert b"JPGDATA" and base64.b64encode(b"JPGDATA").decode() not in student  # answer
+    key = render_document_html("T", doc, mode="key", assets=_resolver(known))
+    assert "data:image/jpeg;base64," + base64.b64encode(b"JPGDATA").decode() in key
+    assert "<script>alert" not in student
+
+
+def test_missing_asset_renders_a_visible_placeholder_not_a_broken_page():
+    doc = make_doc(freeform_block("Q"), image_node("asset_0001"))
+    for resolver in (None, _resolver({})):
+        html = render_document_html("T", doc, mode="student", assets=resolver)
+        body = html.split("<body>")[1].split("<script>")[0]
+        assert "[image unavailable]" in body and "doc-image" not in body
+        assert html.count("Q") >= 1

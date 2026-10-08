@@ -57,3 +57,11 @@ def freeform_block(
     if answer is not None:
         attrs["answer"] = {"type": "doc", "content": [para(answer)]}
     return {"type": "freeformQuestion", "attrs": attrs, "content": [para(body)]}
+
+
+def image_node(asset_id: str = "asset_0001", *, alt: str | None = "A figure", width_pct: int = 60):
+    return {"type": "image", "attrs": {"asset_id": asset_id, "alt": alt, "width_pct": width_pct}}
+
+
+def math_node(latex: str = r"\frac{3}{4}") -> dict:
+    return {"type": "math", "attrs": {"latex": latex}}

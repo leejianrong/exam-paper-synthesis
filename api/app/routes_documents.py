@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
 from . import export
+from .assets import AssetNotFound, AssetStore, get_asset_store
 from .auth import current_owner
 from .docstore import DocumentNotFound, DocumentStore, VersionConflict, get_store
 from .models import CreateDocumentRequest, SaveDocumentRequest
@@ -26,6 +27,7 @@ router = APIRouter(prefix="/documents")
 
 Owner = Annotated[str, Depends(current_owner)]
 Store = Annotated[DocumentStore, Depends(get_store)]
+Assets = Annotated[AssetStore, Depends(get_asset_store)]
 Mode = Literal["student", "key", "full"]
 # A little above the engine's content limit, to cover the JSON envelope.
 _MAX_BODY_BYTES = docs.MAX_CONTENT_BYTES + 100_000
@@ -47,6 +49,28 @@ def _valid_or_422(document: object) -> dict:
         raise HTTPException(status_code=422, detail=errors)
     assert isinstance(document, dict)
     return document
+
+
+def _owned_assets_or_422(document: dict, owner: str, assets: AssetStore) -> None:
+    """Every image must point at an asset the caller owns (a foreign id looks missing)."""
+    wanted = docs.referenced_assets(document)
+    missing = [a for a in wanted if a not in assets.owned(owner, wanted)]
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail=[f"content: image asset {a!r} does not exist" for a in missing],
+        )
+
+
+def _resolver(assets: AssetStore, owner: str):
+    def resolve(asset_id: str) -> tuple[str, bytes] | None:
+        try:
+            a = assets.get(owner, asset_id)
+        except AssetNotFound:
+            return None
+        return a["mime"], a["data"]
+
+    return resolve
 
 
 @router.post("", status_code=201)
@@ -79,11 +103,13 @@ def save_document(
     request: Request,
     owner: Owner,
     store: Store,
+    assets: Assets,
 ) -> dict:
     declared = request.headers.get("content-length")
     if declared is not None and declared.isdigit() and int(declared) > _MAX_BODY_BYTES:
         raise HTTPException(status_code=413, detail="document is too large")
     document = _valid_or_422(strip_document_hints(req.document))
+    _owned_assets_or_422(document, owner, assets)
     try:
         saved = store.save(owner, doc_id, document, docs.total_marks(document), req.base_version)
         return with_document_hints(saved)
@@ -105,7 +131,9 @@ def delete_document(doc_id: str, owner: Owner, store: Store) -> Response:
     return Response(status_code=204)
 
 
-def _html_for(store: DocumentStore, owner: str, doc_id: str, mode: Mode) -> tuple[str, str]:
+def _html_for(
+    store: DocumentStore, assets: AssetStore, owner: str, doc_id: str, mode: Mode
+) -> tuple[str, str]:
     try:
         rec = store.get(owner, doc_id)
     except DocumentNotFound:
@@ -113,7 +141,9 @@ def _html_for(store: DocumentStore, owner: str, doc_id: str, mode: Mode) -> tupl
     document = rec["document"]
     if mode == "key" and not docs.numbered_blocks(document):
         raise HTTPException(status_code=422, detail="no questions to put in an answer key")
-    return rec["title"], render_document_html(rec["title"], document, mode=mode)
+    return rec["title"], render_document_html(
+        rec["title"], document, mode=mode, assets=_resolver(assets, owner)
+    )
 
 
 @router.get("/{doc_id}/preview/{mode}")
@@ -122,8 +152,9 @@ def preview_document(
     mode: Mode,
     owner: Owner,
     store: Store,
+    assets: Assets,
 ) -> HTMLResponse:
-    _, html = _html_for(store, owner, doc_id, mode)
+    _, html = _html_for(store, assets, owner, doc_id, mode)
     return HTMLResponse(content=html)
 
 
@@ -133,8 +164,9 @@ def export_document(
     mode: Mode,
     owner: Owner,
     store: Store,
+    assets: Assets,
 ) -> Response:
-    title, html = _html_for(store, owner, doc_id, mode)
+    title, html = _html_for(store, assets, owner, doc_id, mode)
     check_export_quota(owner)
     with export_slot():
         pdf = export.html_to_pdf(html)

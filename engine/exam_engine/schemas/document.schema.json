@@ -28,14 +28,16 @@
         { "$ref": "#/$defs/ordered_list" },
         { "$ref": "#/$defs/page_break" },
         { "$ref": "#/$defs/templated_question" },
-        { "$ref": "#/$defs/freeform_question" }
+        { "$ref": "#/$defs/freeform_question" },
+        { "$ref": "#/$defs/image" }
       ]
     },
     "text_block": {
       "oneOf": [
         { "$ref": "#/$defs/paragraph" },
         { "$ref": "#/$defs/bullet_list" },
-        { "$ref": "#/$defs/ordered_list" }
+        { "$ref": "#/$defs/ordered_list" },
+        { "$ref": "#/$defs/image" }
       ]
     },
     "heading": {
@@ -97,7 +99,35 @@
       }
     },
     "inline": {
-      "oneOf": [ { "$ref": "#/$defs/text" }, { "$ref": "#/$defs/hard_break" } ]
+      "oneOf": [ { "$ref": "#/$defs/text" }, { "$ref": "#/$defs/hard_break" }, { "$ref": "#/$defs/math" } ]
+    },
+    "math": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "attrs"],
+      "properties": {
+        "type": { "const": "math" },
+        "attrs": {
+          "type": "object", "additionalProperties": false,
+          "required": ["latex"],
+          "properties": { "latex": { "type": "string", "minLength": 1, "maxLength": 500 } }
+        }
+      }
+    },
+    "image": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "attrs"],
+      "properties": {
+        "type": { "const": "image" },
+        "attrs": {
+          "type": "object", "additionalProperties": false,
+          "required": ["asset_id"],
+          "properties": {
+            "asset_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{8,64}$" },
+            "alt": { "type": ["string", "null"], "maxLength": 300 },
+            "width_pct": { "type": "integer", "minimum": 10, "maximum": 100 }
+          }
+        }
+      }
     },
     "text": {
       "type": "object", "additionalProperties": false,

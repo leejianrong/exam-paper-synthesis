@@ -303,3 +303,22 @@ body {
   font-style: italic;
   margin: 0.6rem 0 0;
 }
+
+/* --- images in teacher-written text --- */
+.doc-image {
+  margin: 0.5rem 0;
+  padding: 0;
+  break-inside: avoid;
+}
+
+.doc-image img {
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+
+.missing-image {
+  color: var(--mark);
+  font-style: italic;
+  margin: 0.5rem 0;
+}
