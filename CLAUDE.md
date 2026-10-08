@@ -50,7 +50,7 @@ It's a **uv workspace**. Root `pyproject.toml` declares members `engine/`,
 | `engine/exam_engine/schema.py` | Canonical schema loading + validation. |
 | `engine/exam_engine/diagram.py` | Diagram consistency check + deterministic spec → inline SVG renderer. |
 | `engine/exam_engine/errors.py` | Structured engine errors (`UnknownBlueprint`, `InfeasibleConstraints`, `DiagramInconsistent`, `EditNotApplicable`). |
-| `engine/exam_engine/edits.py` | V3 edit ops as re-validated object→object transforms (`apply`, `available_ops`): regenerate / make-harder / make-easier / change-to-decimals / toggle-diagram / toggle-bar-view (flips the before-after bar model's `view_mode`, KAN-310). |
+| `engine/exam_engine/edits.py` | V3 edit ops as re-validated object→object transforms (`apply`, `available_ops`): regenerate / make-harder / make-easier / change-to-decimals / toggle-diagram / toggle-bar-view (flips the before-after bar model's `view_mode`, KAN-310) / **set-cosmetic** (W1a: rename people / swap item via `param_roles`, re-solved through `pipeline.build_from_params`; not in `available_ops`). |
 | `engine/exam_engine/ladder.py` | Topic difficulty ladders + `sibling(code, dir)` (drives make-harder/easier). |
 | `engine/exam_engine/blueprints/` | `base.py` (solver protocol + param validation), `registry.py` (content loader + solver registry), `solvers/ratio_{easy,medium,hard}.py`. |
 | `api/app/` | Thin **FastAPI** over the engine (`main.py`, `routes_generate.py` = `POST /generate`, `routes_edit.py` = `POST /edit/{op}`, `routes_export.py` = `POST /export/{preview,worksheet,answer-key}`, `export.py` = the impure Chromium `html_to_pdf`, `models.py` = Pydantic envelopes only). Package `exam-api`; ASGI entry `app.main:app`. |

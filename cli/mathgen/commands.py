@@ -23,7 +23,7 @@ from pathlib import Path
 
 from exam_engine import canonical, edits, pipeline
 from exam_engine.bank import open_bank
-from exam_engine.errors import EditNotApplicable, EngineError
+from exam_engine.errors import EditNotApplicable, EngineError, ParamsInvalid
 from exam_engine.render import render_answer_key_html, render_worksheet_html
 
 
@@ -83,17 +83,37 @@ def cmd_generate(args: argparse.Namespace) -> int:
 # --- edit -------------------------------------------------------------------
 
 
+def _parse_sets(pairs: list[str]) -> dict:
+    """``["names=Ann,Ben", "context=desk"]`` -> ``{"names": ["Ann", "Ben"], "context": "desk"}``.
+
+    A value with a comma is a list (name arrays); the engine rejects a list/scalar
+    mismatch with a clear message.
+    """
+    changes: dict = {}
+    for pair in pairs:
+        key, sep, value = pair.partition("=")
+        if not sep or not key:
+            raise SystemExit(f"mathgen: --set expects PARAM=VALUE, got {pair!r}")
+        changes[key] = [v.strip() for v in value.split(",")] if "," in value else value.strip()
+    return changes
+
+
 def cmd_edit(args: argparse.Namespace) -> int:
     obj = canonical.load(_read_object(args.source))
-    available = edits.available_ops(obj)
-    if args.op not in available:
+    if not edits.applicable(args.op, obj):
+        available = sorted(edits.available_ops(obj) | {"set-cosmetic"})
         _err(
             f"edit {args.op!r} is not available for {obj['blueprint_code']!r}; "
-            f"available: {', '.join(sorted(available))}"
+            f"available: {', '.join(available)}"
         )
         return 2
 
-    child = edits.apply(args.op, obj, seed=args.seed)
+    changes = _parse_sets(args.set) if args.op == "set-cosmetic" else None
+    try:
+        child = edits.apply(args.op, obj, seed=args.seed, changes=changes)
+    except (EditNotApplicable, ParamsInvalid) as e:
+        _err(str(e))
+        return 2
     _write_text(canonical.to_json(child, indent=2), args.out)
     return 0
 

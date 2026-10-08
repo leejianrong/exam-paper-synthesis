@@ -22,6 +22,8 @@ class GenerateResponse(BaseModel):
 class EditRequest(BaseModel):
     question: dict
     seed: int | None = None
+    # Only for `set-cosmetic` (W1a): {param: new value(s)}, e.g. {"names": ["Ann", "Ben"]}.
+    changes: dict | None = None
 
 
 class EditResponse(BaseModel):

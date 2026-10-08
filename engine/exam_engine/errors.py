@@ -88,3 +88,12 @@ class BlueprintMisconfigured(EngineError):
         super().__init__(
             f"blueprint {code!r} is likely misconfigured: failure_rate={failure_rate:.2f} (> 0.5)"
         )
+
+
+class ParamsInvalid(EngineError):
+    """Parameters handed to ``build_from_params`` fail schema, solve-validation or a check."""
+
+    def __init__(self, code: str, checks: dict):
+        self.code = code
+        self.checks = checks
+        super().__init__(f"parameters invalid for blueprint {code!r}: {checks}")

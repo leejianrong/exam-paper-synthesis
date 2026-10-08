@@ -1,7 +1,7 @@
 """Sole CLI entry point: argparse wiring + dispatch (KAN-152).
 
     mathgen generate <code> [--seed N] [--count K] [--out FILE]
-    mathgen edit <op> [<FILE>|-] [--seed N] [--out FILE]
+    mathgen edit <op> [<FILE>|-] [--seed N] [--set PARAM=V1,V2] [--out FILE]
     mathgen export {preview|worksheet|answer-key} <FILES...> [--title T] [--out FILE]
     mathgen bank import <FILE.json> [--overwrite]
     mathgen bank list
@@ -63,6 +63,13 @@ def build_parser() -> argparse.ArgumentParser:
     ed.add_argument("op", choices=sorted(edits.KNOWN_OPS), help="edit operation")
     ed.add_argument("source", nargs="?", default="-", help="input FILE or '-' for stdin")
     ed.add_argument("--seed", type=int, default=None, help="seed for resample ops")
+    ed.add_argument(
+        "--set",
+        action="append",
+        default=[],
+        metavar="PARAM=VALUE[,VALUE…]",
+        help="set-cosmetic only: new name(s)/item, e.g. --set names=Ann,Ben,Cal (repeatable)",
+    )
     ed.add_argument("--out", default=None, help="write to FILE instead of stdout")
 
     exp = sub.add_parser("export", help="render a worksheet/answer-key from objects")

@@ -32,7 +32,7 @@ parameter_schema: { … unchanged … }
 param_roles:            # every property of parameter_schema MUST appear here
   names:  { role: name }      # array → role applies to each element
   ratio:  { role: number }
-  total:  { role: number, derived: true }   # tier-2 note: not independently editable
+  total:  { role: number }
 ```
 
 Roles: `name | item | number | choice`. Only `name` and `item` are tier-1 editable.
@@ -75,8 +75,8 @@ question "different". Revisit only if teachers complain about near-duplicate det
 ## Surface
 
 - **API:** `POST /edit/set-cosmetic` (object + `changes`) alongside the existing edit
-  routes; `GET /blueprints/{code}/params` returns each editable slot with role, current
-  constraints, and (for `item`) the allowed pool — the editor builds its popover from this.
+  routes; `GET /blueprints/{code}/params` returns each editable slot with role, count, constraints,
+  and (for `item`) the allowed pool — the editor builds its popover from this.
 - **CLI:** `mathgen edit set-cosmetic q.json --set names=Ann,Ben,Cal --out q2.json`.
 - **Editor UI (W1):** an "Edit names" popover on the templated block (fields labelled
   Name 1…n), not click-on-token editing — token click would need span offsets in the
@@ -97,8 +97,8 @@ question "different". Revisit only if teachers complain about near-duplicate det
 
 ## Out of scope / later (tier 2 design note)
 
-Numeric editing needs a notion of **free vs derived** params (the `derived: true` flag
-above): the form would expose only free params (`ratio`, `unit_value`) and recompute
+Numeric editing needs a notion of **free vs derived** params (a future `derived: true`
+flag on `number` roles — not added in W1a, to avoid guessing): the form would expose only free params (`ratio`, `unit_value`) and recompute
 `total`; solvers whose `sample()` builds constraints "by construction" would need a
 `from_free_params()` hook. Not built in W1.
 
@@ -107,3 +107,14 @@ above): the form would expose only free params (`ratio`, `unit_value`) and recom
 `mathgen edit set-cosmetic` renames the people in a `ratio_medium` question; worksheet, answer
 key and bar model all show the new names; every number and the answer are unchanged; the
 object is schema-valid; the same op refused on `ratio` with a clear error.
+
+## Implementation notes (as built)
+
+- `set-cosmetic` is in `edits.KNOWN_OPS` and `edits.apply(..., changes=…)` but **not** in
+  `available_ops()`: that set drives one-click buttons and many tests pin it exactly, while
+  this op needs a form. Use `edits.applicable(op, obj)` / `cosmetic.editable_slots(code)`.
+- Item pools live on the solver (`ITEM_POOL` class attribute on the two percentage solvers),
+  not in YAML, to avoid duplicating the list the solver samples from.
+- `ParamsInvalid` (new) is raised by `pipeline.build_from_params` when edited params are
+  infeasible; the API maps it to 422 like `EditNotApplicable`.
+- Status: **implemented** (PR for branch `feat/w1a-param-roles`).

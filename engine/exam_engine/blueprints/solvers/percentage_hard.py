@@ -39,6 +39,8 @@ _ORIGINAL_UNITS_MAX = 75  # ×20 -> $1500
 
 
 class PercentageHardSolver:
+    ITEM_POOL = ITEM_POOL
+
     # ctx keys (params + intermediates) that carry money — scaled by change-to-decimals (V3).
     MONEY_KEYS = {"new_value", "original"}
 

@@ -54,3 +54,46 @@ def test_unknown_op_is_404():
 def test_malformed_question_is_422():
     resp = client.post("/edit/regenerate", json={"question": {"not": "a canonical object"}})
     assert resp.status_code == 422
+
+
+# --- W1a: set-cosmetic + editable-slot discovery ------------------------------
+
+
+def test_edit_set_cosmetic_renames_and_stamps_lineage():
+    source = _generate("ratio_medium", 42)
+    resp = client.post(
+        "/edit/set-cosmetic",
+        json={"question": source, "changes": {"names": ["Ann", "Ben", "Cal"]}},
+    )
+    assert resp.status_code == 200
+    child = resp.json()["question"]
+    assert validate_object(_canonical(child)) == []
+    assert child["parameters"]["names"] == ["Ann", "Ben", "Cal"]
+    assert child["question"]["parts"][0]["answer"] == source["question"]["parts"][0]["answer"]
+    assert child["provenance"]["parent_id"] == source["id"]
+    assert child["provenance"]["created_at"] is not None
+    # Not a button op: the available_ops hint stays the one-click set.
+    assert "set-cosmetic" not in child["available_ops"]
+
+
+def test_edit_set_cosmetic_rejects_numeric_param_with_422():
+    source = _generate("ratio_medium", 42)
+    resp = client.post("/edit/set-cosmetic", json={"question": source, "changes": {"total": 99}})
+    assert resp.status_code == 422
+    assert "changes the maths" in resp.json()["detail"]
+
+
+def test_edit_set_cosmetic_without_changes_is_422():
+    source = _generate("ratio_medium", 42)
+    resp = client.post("/edit/set-cosmetic", json={"question": source})
+    assert resp.status_code == 422
+
+
+def test_editable_params_endpoint():
+    resp = client.get("/blueprints/ratio_medium/params")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["code"] == "ratio_medium"
+    assert body["slots"] == [{"key": "names", "role": "name", "count": 3, "max_length": 24}]
+    assert client.get("/blueprints/geometry_angle_easy/params").json()["slots"] == []
+    assert client.get("/blueprints/nope/params").status_code == 404

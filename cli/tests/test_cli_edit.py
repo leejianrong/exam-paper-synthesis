@@ -63,3 +63,29 @@ def test_tampered_object_exits_nonzero(capsys, tmp_path):
     rc = main(["edit", "regenerate", str(src)])
     assert rc != 0
     assert "invalid canonical object" in capsys.readouterr().err
+
+
+def test_set_cosmetic_renames_via_set_flag(capsys, tmp_path):
+    parent = _generate(capsys, "ratio_medium", 3)
+    src = tmp_path / "parent.json"
+    src.write_text(json.dumps(parent))
+
+    rc = main(["edit", "set-cosmetic", str(src), "--set", "names=Ann,Ben,Cal"])
+    assert rc == 0
+    child = json.loads(capsys.readouterr().out)
+    canonical.load(child)
+    assert child["parameters"]["names"] == ["Ann", "Ben", "Cal"]
+    assert child["question"]["parts"][0]["answer"] == parent["question"]["parts"][0]["answer"]
+    assert child["provenance"]["parent_id"] == parent["id"]
+
+
+def test_set_cosmetic_refuses_a_numeric_param(capsys, tmp_path):
+    parent = _generate(capsys, "ratio_medium", 3)
+    src = tmp_path / "parent.json"
+    src.write_text(json.dumps(parent))
+
+    rc = main(["edit", "set-cosmetic", str(src), "--set", "total=99"])
+    captured = capsys.readouterr()
+    assert rc == 2
+    assert captured.out == ""
+    assert "changes the maths" in captured.err
