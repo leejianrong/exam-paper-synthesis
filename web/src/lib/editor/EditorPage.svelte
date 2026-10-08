@@ -9,6 +9,7 @@
   import AccountChip from './AccountChip.svelte'
   import AnswerKey from './AnswerKey.svelte'
   import Inspector from './Inspector.svelte'
+  import { withReviewed } from './inspector'
   import { createAutosaver, type Autosaver } from './autosave'
   import { buildDocument, freeformNode, numberedNodes, totalMarks, type DocJSON } from './doc'
   import {
@@ -180,6 +181,15 @@
   // A free-form answer is edited in the key region and stored on its question's node.
   const setAnswer = (blockId: string, answer: DocJSON) =>
     setBlockAttrs(blockId, ['freeformQuestion'], { answer })
+
+  // Review (ADR-0019) is stored on the paper's own copy of a bank question as well as in the bank.
+  function setReviewed(blockId: string, reviewed: boolean) {
+    const node = blocks.find((b) => b.attrs?.block_id === blockId)
+    if (!node || node.type !== 'templatedQuestion') return
+    setBlockAttrs(blockId, ['templatedQuestion'], {
+      question: withReviewed(node.attrs?.question as Question, reviewed),
+    })
+  }
 
   // A remark is the author's private note, edited in the inspector; it never prints.
   const setRemark = (blockId: string, remark: string) =>
@@ -383,7 +393,13 @@
     on:error={(e) => (actionError = e.detail)}
   />
 </div>
-<Inspector {blocks} {marks} {selectedId} on:remark={(e) => setRemark(e.detail.blockId, e.detail.remark)} />
+<Inspector
+  {blocks}
+  {marks}
+  {selectedId}
+  on:remark={(e) => setRemark(e.detail.blockId, e.detail.remark)}
+  on:review={(e) => setReviewed(e.detail.blockId, e.detail.reviewed)}
+/>
 </div>
 
 <MathPopover />

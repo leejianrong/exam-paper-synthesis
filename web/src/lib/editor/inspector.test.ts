@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { describeBlock, summarise } from './inspector'
+import { describeBlock, summarise, withReviewed } from './inspector'
 import { freeformDocNode, makeBankQuestion, makeQuestion, templatedNodes } from './fixtures'
 
 describe('describeBlock', () => {
@@ -52,6 +52,17 @@ describe('summarise remarks (W5)', () => {
     const withRemark = { ...a, attrs: { ...a.attrs, remark: 'check units' } }
     const blank = { ...b, attrs: { ...b.attrs, remark: '  ' } }
     expect(summarise([withRemark, blank, freeformDocNode({ marks: 1 })], 3).remarks).toBe(1)
+  })
+})
+
+describe('withReviewed', () => {
+  it('sets the flag on a copy and leaves the original alone', () => {
+    const q = makeBankQuestion()
+    const on = withReviewed(q, true)
+    expect(on.validation.checks?.human_reviewed).toBe(true)
+    expect(q.validation.checks?.human_reviewed).toBeFalsy()
+    expect(withReviewed(on, false).validation.checks?.human_reviewed).toBe(false)
+    expect(describeBlock(templatedNodes([on])[0], 1).status.tone).toBe('ok')
   })
 })
 

@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from .auth import current_owner
 from .bankstore import BankLike, open_owner_bank
-from .models import BankImportRequest
+from .models import BankImportRequest, BankReviewRequest
 
 router = APIRouter()
 
@@ -60,6 +60,29 @@ def list_bank(
             for obj in objects
         ]
     }
+
+
+@router.put("/bank/{obj_id:path}/review")
+def review_bank_item(obj_id: str, req: BankReviewRequest, owner: Owner) -> dict:
+    """Mark one of the caller's imported questions reviewed, or withdraw that (ADR-0019).
+
+    Review is a deliberate human act: nothing else ever sets it (imports arrive unreviewed, and
+    ``replace`` resets it). Only ``sourced`` questions go through the gate; generated ones are
+    proven by construction. Owner-scoped: someone else's id is a 404.
+    """
+    with closing(open_owner_bank(owner)) as bank:
+        try:
+            current = bank.get(obj_id)
+        except BankObjectNotFound:
+            raise HTTPException(status_code=404, detail="no such question in your bank") from None
+        if current.get("source_type") != "sourced":
+            raise HTTPException(
+                status_code=422,
+                detail="only imported (sourced) questions are reviewed; generated ones are "
+                "proven by the engine",
+            )
+        stored = bank.set_reviewed(obj_id, req.reviewed)
+    return {"id": stored["id"], "reviewed": req.reviewed}
 
 
 async def _read_import(request: Request) -> BankImportRequest:

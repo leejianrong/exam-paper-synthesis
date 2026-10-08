@@ -55,3 +55,14 @@ unreviewed sourced object **block** use in a paper, or only get **flagged**?
   reasoning is single-user-specific and should be revisited — a shared bank with
   multiple authors likely does need a hard gate before content is usable by
   someone other than its author.
+
+## Addendum (W5): the in-app review action
+
+The review action now exists in the editor, still as a deliberate act and still the only
+path: `PUT /bank/{id}/review` (owner-scoped, `sourced` objects only) flips
+`checks.human_reviewed` either way. The UI never does it in one click: marking reviewed needs
+a ticked confirmation ("I have checked this question, its answer and its marking scheme");
+withdrawing a review is one click (the safe direction). It lives on each card in the picker's
+"From my bank" tab and in the inspector for a bank question in a paper, which also updates the
+paper's own copy. Imports (and `replace`) still always arrive unreviewed.
+

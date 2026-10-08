@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/svelte'
 import Inspector from './Inspector.svelte'
-import { freeformDocNode, makeQuestion, templatedNodes } from './fixtures'
+import { freeformDocNode, makeBankQuestion, makeQuestion, templatedNodes } from './fixtures'
 
 describe('Inspector remarks (W5)', () => {
   const blocks = () => [...templatedNodes([makeQuestion()]), freeformDocNode({ id: 'ff_9', marks: 2 })]
@@ -34,5 +34,14 @@ describe('Inspector remarks (W5)', () => {
     })
     expect(screen.queryByLabelText(/Remarks/)).toBeNull()
     expect(screen.getByText('Remarks')).toBeInTheDocument()
+  })
+
+  it('offers review only for bank questions, and says it is a deliberate act', async () => {
+    const [bank, generated] = templatedNodes([makeBankQuestion(), makeQuestion()])
+    const view = render(Inspector, { props: { blocks: [bank, generated], marks: 6, selectedId: 'blk_0' } })
+    expect(screen.getByRole('button', { name: /Mark as reviewed…/ })).toBeInTheDocument()
+    await view.rerender({ blocks: [bank, generated], marks: 6, selectedId: 'blk_1' })
+    expect(screen.queryByRole('button', { name: /Mark as reviewed…/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Withdraw review' })).toBeNull()
   })
 })

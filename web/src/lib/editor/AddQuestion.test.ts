@@ -96,6 +96,27 @@ describe('AddQuestion picker', () => {
       expect(insert.mock.calls[0][0].detail.question.id).toBe('s1')
     })
 
+    it('marks a bank question reviewed after confirmation, and the inserted copy carries it', async () => {
+      stubBank([item('s1', 'Ratio', false)])
+      const base = fetchMock.getMockImplementation()!
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+        String(url).includes('/review') ? { ok: true, status: 200, json: async () => ({}), text: async () => '' } : base(url, init),
+      )
+      const insert = vi.fn()
+      render(AddQuestion, { props: {}, events: { insert } })
+      await fireEvent.click(screen.getByRole('tab', { name: 'From my bank' }))
+      await waitFor(() => expect(screen.getAllByTestId('bank-item')).toHaveLength(1))
+      expect(screen.getByText('Unreviewed')).toBeInTheDocument()
+
+      await fireEvent.click(screen.getByRole('button', { name: /Mark as reviewed…/ }))
+      await fireEvent.click(screen.getByLabelText(/I have checked/))
+      await fireEvent.click(screen.getByRole('button', { name: 'Mark as reviewed' }))
+      await waitFor(() => expect(screen.getByText('Reviewed')).toBeInTheDocument())
+
+      await fireEvent.click(screen.getByRole('button', { name: 'Use this' }))
+      expect(insert.mock.calls[0][0].detail.question.validation.checks.human_reviewed).toBe(true)
+    })
+
     it('says how to fill an empty bank', async () => {
       stubBank([])
       render(AddQuestion, { props: {} })

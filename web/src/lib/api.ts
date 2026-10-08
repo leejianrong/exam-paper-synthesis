@@ -166,6 +166,25 @@ export async function listBank(): Promise<BankItem[]> {
   return ((await res.json()) as { items: BankItem[] }).items
 }
 
+/**
+ * Mark a bank question reviewed (or withdraw that): ADR-0019's deliberate human act. Resolves
+ * `false` when the question is no longer in the owner's bank (404), so a paper's own copy can
+ * still be reviewed; any other failure throws.
+ */
+export async function setBankReviewed(id: string, reviewed: boolean): Promise<boolean> {
+  const res = await apiFetch(`${BASE}/bank/${encodeURIComponent(id)}/review`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ reviewed }),
+  })
+  if (res.status === 404) return false
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`API ${res.status}: ${detail}`)
+  }
+  return true
+}
+
 /** One item's outcome from POST /bank/import. */
 export interface ImportResult {
   index: number

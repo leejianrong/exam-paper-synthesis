@@ -188,11 +188,21 @@ class Bank:
         self._upsert(obj, existing["imported_at"])
         return obj
 
-    def mark_reviewed(self, id: str) -> dict:
-        """Flip ``checks.human_reviewed`` and persist (ADR-0019's review action)."""
+    def set_reviewed(self, id: str, reviewed: bool) -> dict:
+        """Set ``checks.human_reviewed`` and persist (ADR-0019's review action, and its undo).
+
+        A no-op (no version bump) when the object already is in the requested state.
+        """
         obj = self.get(id)
-        obj.setdefault("validation", {}).setdefault("checks", {})["human_reviewed"] = True
+        checks = obj.setdefault("validation", {}).setdefault("checks", {})
+        if bool(checks.get("human_reviewed")) == reviewed:
+            return obj
+        checks["human_reviewed"] = reviewed
         return self.update(obj)
+
+    def mark_reviewed(self, id: str) -> dict:
+        """Flip ``checks.human_reviewed`` to true and persist (ADR-0019's review action)."""
+        return self.set_reviewed(id, True)
 
     def search(
         self,

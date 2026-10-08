@@ -3,6 +3,8 @@
   // Free-form (an empty teacher-written block, inserted straight away).
   import { createEventDispatcher } from 'svelte'
   import { generate, listBank, type BankItem } from '../api'
+  import ReviewControl from './ReviewControl.svelte'
+  import { withReviewed } from './inspector'
   import { TOPICS, DIFFICULTIES, blueprintCode } from '../topics'
   import type { Difficulty, Question } from '../types'
   import BankImport from './BankImport.svelte'
@@ -68,6 +70,13 @@
     } finally {
       bankLoading = false
     }
+  }
+
+  // The review flag travels with the snapshot a paper takes, so keep the listed copy in step.
+  function onReviewed(id: string, reviewed: boolean) {
+    bankItems = bankItems.map((i) =>
+      i.id === id ? { ...i, reviewed, question: withReviewed(i.question, reviewed) } : i,
+    )
   }
 
   $: bankTopics = [...new Set(bankItems.map((i) => i.topic).filter((t): t is string => !!t))].sort()
@@ -178,6 +187,13 @@
               >
             </div>
             <FragmentView question={item.question} />
+            {#if item.source_type === 'sourced'}
+              <ReviewControl
+                id={item.id}
+                reviewed={item.reviewed}
+                on:changed={(e) => onReviewed(item.id, e.detail.reviewed)}
+              />
+            {/if}
             <button class="use" on:click={() => dispatch('insert', { question: item.question })}
               >Use this</button
             >
