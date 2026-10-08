@@ -113,7 +113,7 @@ def test_mixed_answer_key_shows_sourced_answers_and_marks():
     ak = render_answer_key_html("Mixed", [generated, sourced])
 
     # Part (a): integer total 96. Part (b): the fraction 3/8.
-    assert r"Answer: \(96\)" in ak
+    assert "Answer: 96" in ak
     assert r"\frac{3}{8}" in ak
     # The hand-authored M/A/B marking scheme is present.
     assert '<span class="mark-type mark-M">M1</span>' in ak

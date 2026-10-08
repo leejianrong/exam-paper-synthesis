@@ -529,3 +529,23 @@ def test_missing_asset_renders_a_visible_placeholder_not_a_broken_page():
         body = html.split("<body>")[1].split("<script>")[0]
         assert "[image unavailable]" in body and "doc-image" not in body
         assert html.count("Q") >= 1
+
+
+# --- one typeface (EXA-94) ---------------------------------------------------------------
+
+
+def test_documents_embed_the_one_typeface_and_declare_no_other_families():
+    html = render_document_html("T", make_doc(freeform_block("Q")), mode="full")
+    assert html.count('font-family:"Inter"') == 4  # regular, italic, semibold, bold
+    assert "data:font/woff2;base64," in html
+    css = html.split("<style>")[3]  # font, katex, then print.css
+    families = set(re.findall(r"--(?:serif|sans|mono):\s*([^;]+);", html))
+    assert len(families) == 1 and next(iter(families)).startswith('"Inter"')
+    assert "Iowan" not in css and "ui-monospace" not in css
+
+
+def test_diagrams_use_the_same_typeface():
+    from exam_engine import diagram
+
+    spec = generate("ratio_medium", 3)["question"]["parts"][0]["diagram"]
+    assert 'font-family="Inter, system-ui, sans-serif"' in diagram.render_svg(spec)
