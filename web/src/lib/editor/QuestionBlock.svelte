@@ -104,7 +104,7 @@
   .block:hover,
   .block:focus-within {
     border-color: var(--line);
-    background: color-mix(in srgb, var(--paper-2) 60%, transparent);
+    background: var(--wash);
   }
   .num::before {
     content: counter(q) '.';

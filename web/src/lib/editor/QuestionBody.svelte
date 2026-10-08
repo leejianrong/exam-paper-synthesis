@@ -5,6 +5,8 @@
   import type { Question } from '../types'
 
   export let q: Question
+  /** The verified badge is for the page; the picker shows just the question. */
+  export let showStatus = true
   $: part = q.question.parts[0]
   $: svg = renderDiagram(part.diagram)
   $: diagramAria =
@@ -17,11 +19,13 @@
 
 <div class="qbody">
   <div class="meta">
-    <span class="badge {q.validation.status}"
-      ><span class="dot" aria-hidden="true"></span>{q.validation.status === 'pass'
-        ? 'engine-verified'
-        : 'unverified'}</span
-    >
+    {#if showStatus}
+      <span class="badge {q.validation.status}"
+        ><span class="dot" aria-hidden="true"></span>{q.validation.status === 'pass'
+          ? 'engine-verified'
+          : 'unverified'}</span
+      >
+    {/if}
     <span class="marks">[{part.marks}]</span>
   </div>
   <p class="text">{part.text}</p>
@@ -66,6 +70,7 @@
   .marks {
     color: var(--mark);
     font-weight: 600;
+    margin-left: auto;
   }
   .text {
     font-family: var(--serif);
@@ -75,7 +80,7 @@
     color: var(--ink);
   }
   .diagram {
-    background: var(--paper);
+    background: var(--page);
     border: 1px solid var(--line-soft);
     border-radius: 6px;
     padding: 0.5rem;

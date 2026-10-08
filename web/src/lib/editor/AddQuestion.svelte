@@ -76,7 +76,7 @@
     <div class="candidates">
       {#each candidates as q (q.id)}
         <article class="candidate" data-testid="candidate">
-          <QuestionBody {q} />
+          <QuestionBody {q} showStatus={false} />
           <button class="use" on:click={() => dispatch('insert', { question: q })}>Use this</button>
         </article>
       {/each}
@@ -185,7 +185,7 @@
     border: 1px solid var(--line);
     border-radius: 8px;
     padding: 0.7rem 0.8rem;
-    background: var(--paper);
+    background: var(--wash);
     display: grid;
     gap: 0.5rem;
   }

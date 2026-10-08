@@ -112,7 +112,12 @@
 
   function insertQuestion(q: Question) {
     if (!editor) return
-    const at = pickerAt ?? editor.state.doc.content.size
+    const { doc } = editor.state
+    // "Add question" at the end goes before the editor's empty trailing paragraph, so
+    // repeated inserts stack with no blank gap between them.
+    const last = doc.lastChild
+    const trailing = last?.type.name === 'paragraph' && last.content.size === 0
+    const at = pickerAt ?? (trailing && last ? doc.content.size - last.nodeSize : doc.content.size)
     editor.chain().focus().insertContentAt(at, questionNode(q)).run()
     pickerAt = undefined
   }
@@ -355,7 +360,7 @@
   }
 
   .desk {
-    background: var(--paper-sink);
+    background: var(--desk);
     padding: 1rem 1rem 4rem;
     min-height: 100vh;
   }
@@ -379,8 +384,8 @@
     max-width: 100%;
     min-height: 297mm;
     margin: 0 auto;
-    background: #fff;
-    color: #191c21;
+    background: var(--page);
+    color: var(--ink);
     box-shadow: var(--shadow);
     padding: 18mm 20mm;
     box-sizing: border-box;
@@ -401,7 +406,7 @@
     justify-content: space-between;
     margin: 0.3rem 0 1.2rem;
     padding-bottom: 0.6rem;
-    border-bottom: 2px solid #191c21;
+    border-bottom: 2px solid var(--ink);
     font-size: 0.9rem;
   }
   .surface :global(.ProseMirror) {
@@ -461,7 +466,7 @@
     position: relative;
     width: min(900px, 96vw);
     height: 90vh;
-    background: #fff;
+    background: var(--page);
     border-radius: 10px;
     overflow: hidden;
   }
