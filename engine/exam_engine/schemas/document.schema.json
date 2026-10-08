@@ -27,7 +27,15 @@
         { "$ref": "#/$defs/bullet_list" },
         { "$ref": "#/$defs/ordered_list" },
         { "$ref": "#/$defs/page_break" },
-        { "$ref": "#/$defs/templated_question" }
+        { "$ref": "#/$defs/templated_question" },
+        { "$ref": "#/$defs/freeform_question" }
+      ]
+    },
+    "text_block": {
+      "oneOf": [
+        { "$ref": "#/$defs/paragraph" },
+        { "$ref": "#/$defs/bullet_list" },
+        { "$ref": "#/$defs/ordered_list" }
       ]
     },
     "heading": {
@@ -130,6 +138,31 @@
             "question": { "type": "object", "description": "Frozen snapshot of a canonical question object (validated by the canonical schema)." }
           }
         }
+      }
+    },
+    "freeform_question": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "attrs", "content"],
+      "properties": {
+        "type": { "const": "freeformQuestion" },
+        "attrs": {
+          "type": "object", "additionalProperties": false,
+          "required": ["block_id"],
+          "properties": {
+            "block_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{4,64}$" },
+            "marks": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+            "answer": { "$ref": "#/$defs/answer_doc" }
+          }
+        },
+        "content": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/text_block" } }
+      }
+    },
+    "answer_doc": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "content"],
+      "properties": {
+        "type": { "const": "doc" },
+        "content": { "type": "array", "items": { "$ref": "#/$defs/text_block" } }
       }
     }
   }

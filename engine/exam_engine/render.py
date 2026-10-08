@@ -436,11 +436,63 @@ def _render_rich_block(node: dict) -> str:
     raise ValueError(f"not a rich-text node: {kind!r}")  # pragma: no cover - schema-gated
 
 
+def _render_freeform_item(node: dict, *, answer_key: bool, tag: str = "section") -> list[str]:
+    """A teacher-written question (W2a): body + ``[marks]``, then answer space or key answer.
+
+    Free-form blocks carry no verification, so nothing here claims any. In the key an empty
+    answer prints a quiet placeholder, so a blank is never mistaken for a written answer.
+    """
+    attrs = node["attrs"]
+    marks = attrs.get("marks")
+    body = "".join(_render_rich_block(b) for b in node["content"])
+    out = [f'<{tag} class="question freeform">', '<div class="part">']
+    out.append(f'<div class="part-text">{body}</div>')
+    if marks is not None:
+        out.append(f'<span class="marks">[{marks}]</span>')
+    out.append("</div>")
+    if answer_key:
+        answer = attrs.get("answer", {}).get("content", [])
+        if answer:
+            inner = "".join(_render_rich_block(b) for b in answer)
+            out.append(f'<div class="solution teacher-answer">{inner}</div>')
+        else:
+            out.append('<p class="no-answer">No answer written yet</p>')
+    else:
+        out.append(
+            f'<div class="answer-space" aria-hidden="true" style="--marks:{marks or 2}"></div>'
+        )
+    out.append(f"</{tag}>")
+    return out
+
+
+def _render_numbered_blocks(blocks: list[dict], *, answer_key: bool) -> str:
+    """The ``<ol class="questions">`` body for document question blocks (both kinds)."""
+    out: list[str] = ['<ol class="questions">']
+    for node in blocks:
+        if node["type"] == "freeformQuestion":
+            out.extend(_render_freeform_item(node, answer_key=answer_key, tag="li"))
+        else:
+            out.extend(_render_question_item(node["attrs"]["question"], answer_key=answer_key))
+    out.append("</ol>")
+    return "".join(out)
+
+
+def _doc_total_marks(blocks: list[dict]) -> int:
+    return sum(
+        n["attrs"].get("marks") or 0
+        if n["type"] == "freeformQuestion"
+        else n["attrs"]["question"]["question"]["total_marks"]
+        for n in blocks
+    )
+
+
 def _render_document_body(doc: dict, *, answer_key: bool) -> str:
     """Document blocks in order; questions and rich text share one numbering counter."""
     out: list[str] = ['<div class="doc-body questions">']
     for node in doc["content"]["content"]:
-        if node["type"] == "templatedQuestion":
+        if node["type"] == "freeformQuestion":
+            out.extend(_render_freeform_item(node, answer_key=answer_key))
+        elif node["type"] == "templatedQuestion":
             out.extend(
                 _render_question_item(
                     node["attrs"]["question"], answer_key=answer_key, tag="section"
@@ -462,12 +514,12 @@ def render_document_html(title: str, doc: dict, *, mode: str) -> str:
     if mode not in ("student", "key", "full"):
         raise ValueError(f"unknown document render mode {mode!r}")
 
-    questions = [
-        n["attrs"]["question"]
+    blocks = [
+        n
         for n in doc["content"]["content"]
-        if n["type"] == "templatedQuestion"
+        if n["type"] in ("templatedQuestion", "freeformQuestion")
     ]
-    marks = _total_marks(questions)
+    marks = _doc_total_marks(blocks)
 
     if mode == "key":
         header = (
@@ -476,7 +528,7 @@ def render_document_html(title: str, doc: dict, *, mode: str) -> str:
             f'<p class="sheet-meta"><span class="field-marks">Total: {marks} marks</span></p>'
             "</header>"
         )
-        body = _render_questions(questions, answer_key=True)
+        body = _render_numbered_blocks(blocks, answer_key=True)
         return _document(
             root_class="sheet answer-key", title=title, header_html=header, body_html=body
         )
@@ -495,7 +547,7 @@ def render_document_html(title: str, doc: dict, *, mode: str) -> str:
         body += (
             '<section class="key-section">'
             '<h2 class="key-heading">Answer Key</h2>'
-            f"{_render_questions(questions, answer_key=True)}"
+            f"{_render_numbered_blocks(blocks, answer_key=True)}"
             "</section>"
         )
     return _document(

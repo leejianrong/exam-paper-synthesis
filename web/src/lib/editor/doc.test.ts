@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { buildDocument, newBlockId, questionsOf, totalMarks, type DocJSON } from './doc'
-import { makeQuestion } from './fixtures'
+import {
+  blocksToHtml,
+  buildDocument,
+  freeformNode,
+  newBlockId,
+  normalizeAnswer,
+  numberedNodes,
+  questionsOf,
+  totalMarks,
+  type DocJSON,
+} from './doc'
+import { freeformDocNode, makeQuestion } from './fixtures'
 
 const block = (id: string, q = makeQuestion()) => ({
   type: 'templatedQuestion',
@@ -31,7 +41,55 @@ describe('document helpers', () => {
     const ids = out.content.content.filter((n) => n.type === 'templatedQuestion').map((n) => n.attrs?.block_id)
     expect(new Set(ids).size).toBe(3)
     expect(ids[0]).toBe('b_same')
-    expect(out.schema_version).toBe('1.0.0')
+    expect(out.schema_version).toBe('1.1.0')
     expect(out.title).toBe('T')
+  })
+})
+
+
+describe('free-form helpers (W2a)', () => {
+  it('counts free-form marks in the total and numbers both kinds together', () => {
+    const doc: DocJSON = {
+      type: 'doc',
+      content: [block('b_1'), freeformDocNode({ marks: 4 }), freeformDocNode({ id: 'ff_2', marks: null })],
+    }
+    expect(totalMarks(doc)).toBe(3 + 4)
+    expect(numberedNodes(doc)).toHaveLength(3)
+    expect(questionsOf(doc)).toHaveLength(1)
+  })
+
+  it('gives repeated free-form block ids a fresh id too', () => {
+    const out = buildDocument('T', {
+      type: 'doc',
+      content: [freeformDocNode({ id: 'ff_dup' }), freeformDocNode({ id: 'ff_dup' })],
+    })
+    const ids = out.content.content.map((n) => n.attrs?.block_id)
+    expect(new Set(ids).size).toBe(2)
+    expect(out.schema_version).toBe('1.1.0')
+  })
+
+  it('a new free-form node is empty, unmarked and has a valid id', () => {
+    const n = freeformNode()
+    expect(n.attrs?.marks).toBeNull()
+    expect(String(n.attrs?.block_id)).toMatch(/^[A-Za-z0-9_-]{4,64}$/)
+    expect(normalizeAnswer(n.attrs?.answer as DocJSON).content).toEqual([])
+  })
+
+  it('normalizeAnswer drops trailing empty paragraphs only', () => {
+    const text = { type: 'paragraph', content: [{ type: 'text', text: 'x' }] }
+    const out = normalizeAnswer({ type: 'doc', content: [{ type: 'paragraph' }, text, { type: 'paragraph' }] })
+    expect(out.content).toHaveLength(2)
+    expect(normalizeAnswer({ type: 'doc', content: [{ type: 'paragraph' }] }).content).toEqual([])
+  })
+
+  it('blocksToHtml escapes text and keeps marks and lists', () => {
+    const html = blocksToHtml([
+      { type: 'paragraph', content: [{ type: 'text', text: '<b>&', marks: [{ type: 'bold' }] }] },
+      {
+        type: 'bulletList',
+        content: [{ type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a' }] }] }],
+      },
+    ])
+    expect(html).toBe('<p><strong>&lt;b&gt;&amp;</strong></p><ul><li><p>a</p></li></ul>')
   })
 })

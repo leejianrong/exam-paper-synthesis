@@ -92,7 +92,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
 })
 
 /** Swap a block with its previous/next sibling. */
-function moveBlock(editor: NodeViewRendererProps['editor'], pos: number, size: number, dir: -1 | 1) {
+export function moveBlock(editor: NodeViewRendererProps['editor'], pos: number, size: number, dir: -1 | 1) {
   const { doc, tr } = editor.state
   const $pos = doc.resolve(pos)
   const index = $pos.index()

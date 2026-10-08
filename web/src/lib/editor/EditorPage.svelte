@@ -8,7 +8,7 @@
   import AddQuestion from './AddQuestion.svelte'
   import AnswerKey from './AnswerKey.svelte'
   import { createAutosaver, type Autosaver } from './autosave'
-  import { buildDocument, questionsOf, totalMarks, type DocJSON } from './doc'
+  import { buildDocument, freeformNode, numberedNodes, totalMarks, type DocJSON } from './doc'
   import {
     ApiError,
     exportDocument,
@@ -17,6 +17,7 @@
     saveDocument,
     type ExportMode,
   } from './docsApi'
+  import { FreeformQuestion, QuestionDocument, insertFreeform } from './freeformQuestion'
   import { PageBreak } from './pageBreak'
   import { TemplatedQuestion, questionNode } from './templatedQuestion'
 
@@ -38,7 +39,7 @@
   let previewHtml: string | null = null
   let tick = 0 // bumps on every editor transaction so toolbar state re-reads
 
-  $: questions = questionsOf(content) as Question[]
+  $: blocks = numberedNodes(content)
   $: marks = totalMarks(content)
   $: statusLabel = {
     saved: 'Saved',
@@ -68,6 +69,7 @@
         element,
         extensions: [
           StarterKit.configure({
+            document: false,
             heading: { levels: [1, 2, 3] },
             // Only the node/mark types the document schema allows (document.schema.json).
             blockquote: false,
@@ -77,7 +79,9 @@
             strike: false,
             link: false,
           }),
+          QuestionDocument,
           PageBreak,
+          FreeformQuestion.configure({ onAddBelow: (pos: number) => (pickerAt = pos) }),
           TemplatedQuestion.configure({ onAddBelow: (pos: number) => (pickerAt = pos) }),
         ],
         content: rec.document.content,
@@ -110,16 +114,42 @@
     if (status === 'dirty' || status === 'saving' || status === 'error') e.preventDefault()
   }
 
-  function insertQuestion(q: Question) {
-    if (!editor) return
+  function insertionPoint(editor: Editor): number {
     const { doc } = editor.state
     // "Add question" at the end goes before the editor's empty trailing paragraph, so
     // repeated inserts stack with no blank gap between them.
     const last = doc.lastChild
     const trailing = last?.type.name === 'paragraph' && last.content.size === 0
-    const at = pickerAt ?? (trailing && last ? doc.content.size - last.nodeSize : doc.content.size)
-    editor.chain().focus().insertContentAt(at, questionNode(q)).run()
+    return pickerAt ?? (trailing && last ? doc.content.size - last.nodeSize : doc.content.size)
+  }
+
+  function insertQuestion(q: Question) {
+    if (!editor) return
+    editor.chain().focus().insertContentAt(insertionPoint(editor), questionNode(q)).run()
     pickerAt = undefined
+  }
+
+  function insertFreeformQuestion() {
+    if (!editor) return
+    insertFreeform(editor, insertionPoint(editor), freeformNode())
+    pickerAt = undefined
+  }
+
+  // A free-form answer is edited in the key region and stored on its question's node.
+  function setAnswer(blockId: string, answer: DocJSON) {
+    if (!editor) return
+    const { doc, tr } = editor.state
+    let target: number | null = null
+    doc.descendants((node, pos) => {
+      if (target === null && node.type.name === 'freeformQuestion' && node.attrs.block_id === blockId)
+        target = pos
+      return false
+    })
+    if (target === null) return
+    const node = doc.nodeAt(target)
+    if (!node) return
+    tr.setNodeMarkup(target, undefined, { ...node.attrs, answer })
+    editor.view.dispatch(tr)
   }
 
   // Toolbar state, re-read after every editor transaction (`tick`).
@@ -183,7 +213,7 @@
   <div class="export" role="group" aria-label="Export">
     <button disabled={!!busy} on:click={() => preview('full')}>Preview</button>
     <button disabled={!!busy} on:click={() => download('student')}>Student PDF</button>
-    <button disabled={!!busy || questions.length === 0} on:click={() => download('key')}
+    <button disabled={!!busy || blocks.length === 0} on:click={() => download('key')}
       >Answer key PDF</button
     >
     <button disabled={!!busy} on:click={() => download('full')}>Full copy PDF</button>
@@ -259,12 +289,13 @@
     </button>
   </div>
 
-  <AnswerKey {questions} />
+  <AnswerKey {blocks} on:answer={(e) => setAnswer(e.detail.blockId, e.detail.answer)} />
 </div>
 
 {#if pickerAt !== undefined}
   <AddQuestion
     on:insert={(e) => insertQuestion(e.detail.question)}
+    on:freeform={insertFreeformQuestion}
     on:close={() => (pickerAt = undefined)}
   />
 {/if}
@@ -417,6 +448,86 @@
   }
   .surface :global(.qblock) {
     counter-increment: q;
+  }
+  .surface :global(.ffblock) {
+    display: grid;
+    grid-template-columns: 2rem 1fr;
+    gap: 0.25rem;
+    padding: 0.6rem 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+  }
+  .surface :global(.ffblock:hover),
+  .surface :global(.ffblock:focus-within) {
+    border-color: var(--line);
+    background: var(--wash);
+  }
+  .surface :global(.ff-num::before) {
+    content: counter(q) '.';
+    font-family: var(--mono);
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .surface :global(.ff-row) {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+  }
+  .surface :global(.ff-body) {
+    flex: 1 1 auto;
+    min-height: 1.6em;
+  }
+  .surface :global(.ff-body > :first-child) {
+    margin-top: 0;
+  }
+  .surface :global(.ff-body > :last-child) {
+    margin-bottom: 0;
+  }
+  .surface :global(.ff-marks) {
+    flex: 0 0 auto;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--mark);
+  }
+  .surface :global(.ff-bar) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.4rem;
+    opacity: 0;
+    transition: opacity 0.12s;
+    font-family: var(--sans);
+    font-size: 12px;
+  }
+  .surface :global(.ffblock:hover .ff-bar),
+  .surface :global(.ffblock:focus-within .ff-bar) {
+    opacity: 1;
+  }
+  .surface :global(.ff-spacer) {
+    flex: 1;
+  }
+  .surface :global(.ff-marks-input) {
+    width: 3.6rem;
+    font: inherit;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.15rem 0.3rem;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .surface :global(.ff-bar button) {
+    font: inherit;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 0.2rem 0.55rem;
+    cursor: pointer;
+  }
+  .surface :global(.ff-bar button.danger) {
+    color: var(--mark);
   }
   .surface :global(.page-break-marker) {
     border-top: 2px dashed var(--line);

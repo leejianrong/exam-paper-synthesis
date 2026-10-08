@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from app.main import app
-from documents import gen_block, heading, make_doc, para, question_block
+from documents import freeform_block, gen_block, heading, make_doc, para, question_block
 from exam_engine import generate
 from fastapi.testclient import TestClient
 from test_export_api import requires_chromium
@@ -194,3 +194,23 @@ def test_ui_hints_are_stripped_on_save_and_reattached_on_read():
     assert "available_ops" not in stored["question"]
     html = client.get(f"/documents/{rec['id']}/preview/student", headers=ALICE)
     assert html.status_code == 200
+
+
+def test_freeform_round_trips_and_counts_marks():
+    rec = _create()
+    doc = make_doc(
+        freeform_block("Typed on the page", marks=4, answer="Worked answer"),
+        gen_block("ratio_easy", 4),
+    )
+    saved = _save(rec, doc).json()
+    got = client.get(f"/documents/{rec['id']}", headers=ALICE).json()
+    assert got["document"]["content"]["content"][0] == doc["content"]["content"][0]
+    assert got["total_marks"] == saved["total_marks"] > 4
+    key = client.get(f"/documents/{rec['id']}/preview/key", headers=ALICE)
+    assert "Worked answer" in key.text
+
+
+def test_key_export_allowed_for_freeform_only_document():
+    rec = _create()
+    assert _save(rec, make_doc(freeform_block("Only freeform"))).status_code == 200
+    assert client.get(f"/documents/{rec['id']}/preview/key", headers=ALICE).status_code == 200

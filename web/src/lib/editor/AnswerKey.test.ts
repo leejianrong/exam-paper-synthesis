@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/svelte'
 import { vi } from 'vitest'
 import AnswerKey from './AnswerKey.svelte'
-import { makeBankQuestion, makeQuestion, routeFetch } from './fixtures'
+import { freeformDocNode, makeBankQuestion, makeQuestion, routeFetch, templatedNodes } from './fixtures'
 
 describe('AnswerKey', () => {
   it('lists answers, steps and marking in document order with matching numbers', () => {
@@ -13,7 +13,7 @@ describe('AnswerKey', () => {
         'Second.',
       ),
     ]
-    render(AnswerKey, { props: { questions: qs } })
+    render(AnswerKey, { props: { blocks: templatedNodes(qs) } })
     const entries = document.querySelectorAll('.entry')
     expect(entries).toHaveLength(2)
     expect(entries[0]).toHaveTextContent('1.')
@@ -25,7 +25,7 @@ describe('AnswerKey', () => {
   })
 
   it('shows a placeholder when there are no questions', () => {
-    render(AnswerKey, { props: { questions: [] } })
+    render(AnswerKey, { props: { blocks: [] } })
     expect(screen.getByText('Answers appear here as you add questions.')).toBeInTheDocument()
   })
 
@@ -45,7 +45,7 @@ describe('AnswerKey', () => {
         }),
       ),
     )
-    render(AnswerKey, { props: { questions: [makeQuestion({ id: 'a' }), makeBankQuestion()] } })
+    render(AnswerKey, { props: { blocks: templatedNodes([makeQuestion({ id: 'a' }), makeBankQuestion()]) } })
     // The generated entry stays hand-built; the bank one is the engine fragment, numbered 2.
     expect(document.querySelectorAll('.entry')).toHaveLength(2)
     await waitFor(() =>
@@ -53,5 +53,38 @@ describe('AnswerKey', () => {
     )
     expect(seen).toEqual([{ mode: 'key', number: 2 }])
     vi.unstubAllGlobals()
+  })
+
+  it('numbers free-form entries with templated ones and edits the answer in place', async () => {
+    const answers: Array<{ blockId: string; answer: unknown }> = []
+    render(AnswerKey, {
+      events: { answer: (e: CustomEvent) => answers.push(e.detail) },
+      props: {
+        blocks: [
+          ...templatedNodes([makeQuestion({ id: 'a' })]),
+          freeformDocNode({ id: 'ff_a', marks: 3, body: 'Ann has <5> sweets.', answer: 'Old answer' }),
+        ],
+      },
+    })
+
+    const entry = document.querySelector('.entry.freeform') as HTMLElement
+    expect(entry).toHaveTextContent('2.')
+    expect(entry).toHaveTextContent('[3]')
+    expect(entry).toHaveTextContent('Ann has <5> sweets.')
+    const pm = entry.querySelector('.ProseMirror') as HTMLElement & { editor: import('@tiptap/core').Editor }
+    expect(pm).toHaveTextContent('Old answer')
+
+    pm.editor.commands.setContent({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'New answer' }] }],
+    })
+    await waitFor(() => expect(answers).toHaveLength(1))
+    expect(answers[0].blockId).toBe('ff_a')
+    expect(JSON.stringify(answers[0].answer)).toContain('New answer')
+  })
+
+  it('an empty free-form answer invites writing one', () => {
+    render(AnswerKey, { props: { blocks: [freeformDocNode({ answer: '' })] } })
+    expect(document.querySelector('.ProseMirror')).toBeInTheDocument()
   })
 })

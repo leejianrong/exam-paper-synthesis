@@ -111,7 +111,7 @@ def _html_for(store: DocumentStore, owner: str, doc_id: str, mode: Mode) -> tupl
     except DocumentNotFound:
         raise _not_found() from None
     document = rec["document"]
-    if mode == "key" and not docs.question_blocks(document):
+    if mode == "key" and not docs.numbered_blocks(document):
         raise HTTPException(status_code=422, detail="no questions to put in an answer key")
     return rec["title"], render_document_html(rec["title"], document, mode=mode)
 

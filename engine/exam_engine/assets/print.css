@@ -280,3 +280,26 @@ body {
 .page-break { break-after: page; }
 .key-section { break-before: page; }
 .key-heading { margin: 0 0 1rem; }
+
+/* --- free-form (teacher-written) questions --- */
+.freeform .part-text > :first-child {
+  margin-top: 0;
+}
+
+.freeform .part-text > :last-child {
+  margin-bottom: 0;
+}
+
+.teacher-answer > :first-child {
+  margin-top: 0;
+}
+
+.teacher-answer > :last-child {
+  margin-bottom: 0;
+}
+
+.no-answer {
+  color: var(--ink-faint);
+  font-style: italic;
+  margin: 0.6rem 0 0;
+}

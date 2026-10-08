@@ -43,3 +43,17 @@ def make_doc(*blocks: dict, title: str = "Test paper") -> dict:
         "title": title,
         "content": {"type": "doc", "content": list(blocks)},
     }
+
+
+def freeform_block(
+    body: str = "Write a question.",
+    *,
+    marks: int | None = 2,
+    answer: str | None = None,
+    block_id: str | None = None,
+) -> dict:
+    """A teacher-written ``freeformQuestion`` (W2a)."""
+    attrs: dict = {"block_id": block_id or f"ff_{next(_ids):04d}", "marks": marks}
+    if answer is not None:
+        attrs["answer"] = {"type": "doc", "content": [para(answer)]}
+    return {"type": "freeformQuestion", "attrs": attrs, "content": [para(body)]}

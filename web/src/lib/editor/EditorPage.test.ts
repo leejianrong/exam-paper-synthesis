@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/svelte'
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte'
 import EditorPage from './EditorPage.svelte'
-import { makeQuestion } from './fixtures'
+import { freeformDocNode, makeQuestion } from './fixtures'
 import { questionNode } from './templatedQuestion'
 
 // Driven through the real docsApi with fetch stubbed.
@@ -64,5 +64,75 @@ describe('EditorPage', () => {
     await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
     expect(screen.getByRole('button', { name: 'Answer key PDF' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Student PDF' })).toBeEnabled()
+  })
+
+  describe('free-form questions (W2a)', () => {
+    const load = async (content: unknown[]) => {
+      fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => record(content) })
+      render(EditorPage, { props: { id: 'd1' } })
+      await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
+    }
+
+    it('shows the typed body, the [marks] as printed, and a numbered answer entry', async () => {
+      await load([
+        questionNode(makeQuestion({ id: 'a' }, 'First.')),
+        freeformDocNode({ marks: 4, body: 'Typed on the page.', answer: 'Written answer' }),
+      ])
+      const block = await waitFor(() => {
+        const b = document.querySelector('.ffblock') as HTMLElement
+        expect(b).toBeTruthy()
+        return b
+      })
+      expect(block).toHaveTextContent('Typed on the page.')
+      expect(block.querySelector('.ff-marks')).toHaveTextContent('[4]')
+      expect(screen.getByText('7 marks', { selector: '.total' })).toBeInTheDocument()
+      expect(document.querySelectorAll('.entry')).toHaveLength(2)
+      expect(screen.getByRole('button', { name: 'Answer key PDF' })).toBeEnabled()
+      expect(document.querySelector('.entry.freeform .ProseMirror')).toHaveTextContent('Written answer')
+    })
+
+    it('the marks field updates the page bracket and the total', async () => {
+      await load([freeformDocNode({ marks: 2 })])
+      const input = (await screen.findByLabelText('Marks')) as HTMLInputElement
+      input.value = '5'
+      await fireEvent.change(input)
+      await waitFor(() => expect(screen.getByText('5 marks', { selector: '.total' })).toBeInTheDocument())
+      expect(document.querySelector('.ff-marks')).toHaveTextContent('[5]')
+      input.value = ''
+      await fireEvent.change(input)
+      await waitFor(() => expect(screen.getByText('0 marks', { selector: '.total' })).toBeInTheDocument())
+      expect(document.querySelector('.ff-marks')).toHaveTextContent('')
+    })
+
+    it('"Add question → Free-form" inserts an empty block', async () => {
+      await load([])
+      await fireEvent.click(screen.getByRole('button', { name: 'Add question' }))
+      await fireEvent.click(screen.getByRole('tab', { name: 'Free-form' }))
+      await waitFor(() => expect(document.querySelectorAll('.ffblock')).toHaveLength(1))
+      expect(screen.queryByRole('dialog', { name: 'Add question' })).not.toBeInTheDocument()
+      expect(document.querySelectorAll('.entry.freeform')).toHaveLength(1)
+    })
+
+    it('an answer typed in the key is written back to the question node and saved', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      try {
+        await load([freeformDocNode({ id: 'ff_w', marks: 1 })])
+        const pm = (await waitFor(() => {
+          const p = document.querySelector('.entry.freeform .ProseMirror')
+          expect(p).toBeTruthy()
+          return p
+        })) as HTMLElement & { editor: import('@tiptap/core').Editor }
+        pm.editor.commands.setContent('<p>Final answer</p>')
+        await vi.advanceTimersByTimeAsync(1500)
+        const put = fetchMock.mock.calls.find((c) => c[1]?.method === 'PUT')
+        expect(put).toBeTruthy()
+        const saved = JSON.parse(put![1].body).document.content.content[0]
+        expect(saved.type).toBe('freeformQuestion')
+        expect(JSON.stringify(saved.attrs.answer)).toContain('Final answer')
+        expect(saved.attrs.block_id).toBe('ff_w')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
   })
 })

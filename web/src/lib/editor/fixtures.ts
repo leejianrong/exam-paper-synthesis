@@ -67,3 +67,24 @@ export function routeFetch(routes: Record<string, Reply>) {
     return { ok: true, status: 200, json: async () => body, text: async () => (text ? body : JSON.stringify(body)) }
   }
 }
+
+/** Wrap questions as document nodes, as the page hands them to the answer key. */
+export function templatedNodes(questions: Question[]) {
+  return questions.map((question, i) => ({
+    type: 'templatedQuestion',
+    attrs: { block_id: `blk_${i}`, question },
+  }))
+}
+
+export function freeformDocNode(over: { id?: string; marks?: number | null; body?: string; answer?: string } = {}) {
+  const para = (t: string) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })
+  return {
+    type: 'freeformQuestion',
+    attrs: {
+      block_id: over.id ?? 'ff_test_1',
+      marks: over.marks === undefined ? 3 : over.marks,
+      answer: { type: 'doc', content: over.answer ? [para(over.answer)] : [] },
+    },
+    content: [para(over.body ?? 'How many sweets are left?')],
+  }
+}
