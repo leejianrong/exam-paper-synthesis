@@ -212,4 +212,8 @@ def _store_at(path: Path) -> SqliteAssetStore:
 
 def get_asset_store() -> AssetStore:
     """FastAPI dependency: the configured store (env read per call so tests can redirect it)."""
+    from . import pgstores
+
+    if url := pgstores.database_url():
+        return pgstores.PgAssetStore(pgstores.get_database(url))
     return _store_at(default_path())

@@ -16,10 +16,14 @@ ALICE = {"X-Dev-Owner": "alice"}
 BOB = {"X-Dev-Owner": "bob"}
 
 
-@pytest.fixture(params=["sqlite"])
+@pytest.fixture(params=["sqlite", "postgres"])
 def ledger(request, tmp_path):
     if request.param == "sqlite":
         return SqliteUsageLedger(tmp_path / "ledger.sqlite3")
+    if request.param == "postgres":
+        from app.pgstores import PgUsageLedger
+
+        return PgUsageLedger(request.getfixturevalue("pg_db"))
     raise AssertionError(request.param)  # pragma: no cover
 
 

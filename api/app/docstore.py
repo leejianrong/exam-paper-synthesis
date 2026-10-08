@@ -170,4 +170,8 @@ def _store_at(path: Path) -> SqliteDocumentStore:
 
 def get_store() -> DocumentStore:
     """FastAPI dependency: the configured store (env read per call so tests can redirect it)."""
+    from . import pgstores  # lazy: SQLite-only runs need no Postgres driver at import
+
+    if url := pgstores.database_url():
+        return pgstores.PgDocumentStore(pgstores.get_database(url))
     return _store_at(default_path())

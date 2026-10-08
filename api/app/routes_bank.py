@@ -12,11 +12,12 @@ from contextlib import closing
 from typing import Annotated
 
 from exam_engine import canonical
-from exam_engine.bank import BankDuplicateId, BankObjectNotFound, open_bank
 from exam_engine.canonical import CanonicalValidationError
+from exam_engine.errors import BankDuplicateId, BankObjectNotFound
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from .auth import current_owner
+from .bankstore import BankLike, open_owner_bank
 from .models import BankImportRequest
 
 router = APIRouter()
@@ -37,7 +38,7 @@ def list_bank(
     reviewed: bool | None = None,
 ) -> dict:
     """The owner's bank questions, oldest first, optionally filtered."""
-    with closing(open_bank(owner_id=owner)) as bank:
+    with closing(open_owner_bank(owner)) as bank:
         objects = bank.search(
             topic=topic,
             level=level,
@@ -83,7 +84,7 @@ def _unreviewed(obj: dict) -> dict:
     return {**obj, "validation": {**obj.get("validation", {}), "checks": checks}}
 
 
-def _exists(bank, obj_id: str) -> bool:
+def _exists(bank: BankLike, obj_id: str) -> bool:
     try:
         bank.get(obj_id)
     except BankObjectNotFound:
@@ -105,7 +106,7 @@ async def import_bank(request: Request, owner: Owner) -> dict:
             status_code=422, detail=f"at most {MAX_IMPORT_OBJECTS} questions per import"
         )
     results: list[dict] = []
-    with closing(open_bank(owner_id=owner)) as bank:
+    with closing(open_owner_bank(owner)) as bank:
         for index, raw in enumerate(req.objects):
             item: dict = {"index": index, "id": raw.get("id") if isinstance(raw, dict) else None}
             if not isinstance(raw, dict):

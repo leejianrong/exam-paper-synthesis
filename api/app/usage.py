@@ -143,4 +143,8 @@ def _ledger_at(path: Path) -> SqliteUsageLedger:
 
 def get_ledger() -> UsageLedger:
     """The configured ledger (env read per call so tests can redirect it)."""
+    from . import pgstores
+
+    if url := pgstores.database_url():
+        return pgstores.PgUsageLedger(pgstores.get_database(url))
     return _ledger_at(default_path())
