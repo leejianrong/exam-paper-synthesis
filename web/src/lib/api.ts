@@ -1,3 +1,4 @@
+import { apiFetch } from './http'
 import type { Question } from './types'
 
 const BASE: string = import.meta.env.VITE_API ?? 'http://localhost:8000'
@@ -23,7 +24,7 @@ interface EditResponse {
  * Generate questions from a blueprint. Returns an array of canonical objects.
  */
 export async function generate(blueprintCode: string, count = 1): Promise<Question[]> {
-  const res = await fetch(`${BASE}/generate`, {
+  const res = await apiFetch(`${BASE}/generate`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ blueprint_code: blueprintCode, count }),
@@ -45,7 +46,7 @@ export async function editQuestion(
   question: Question,
   seed: number | null = null,
 ): Promise<Question> {
-  const res = await fetch(`${BASE}/edit/${op}`, {
+  const res = await apiFetch(`${BASE}/edit/${op}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ question, seed }),
@@ -68,7 +69,7 @@ export type ExportKind = 'worksheet' | 'answer-key'
  * preview the exact print doc.
  */
 export async function previewWorksheet(title: string, questions: Question[]): Promise<string> {
-  const res = await fetch(`${BASE}/export/preview`, {
+  const res = await apiFetch(`${BASE}/export/preview`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ title, questions }),
@@ -89,7 +90,7 @@ export async function exportPdf(
   title: string,
   questions: Question[],
 ): Promise<Blob> {
-  const res = await fetch(`${BASE}/export/${kind}`, {
+  const res = await apiFetch(`${BASE}/export/${kind}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ title, questions }),
@@ -114,7 +115,7 @@ export interface EditableSlot {
 
 /** The cosmetic slots of a blueprint, for building the "Edit names" form. */
 export async function getEditableSlots(blueprintCode: string): Promise<EditableSlot[]> {
-  const res = await fetch(`${BASE}/blueprints/${blueprintCode}/params`)
+  const res = await apiFetch(`${BASE}/blueprints/${blueprintCode}/params`)
   if (!res.ok) {
     const detail = await res.text()
     throw new Error(`API ${res.status}: ${detail}`)
@@ -131,7 +132,7 @@ export async function setCosmetic(
   question: Question,
   changes: Record<string, string | string[]>,
 ): Promise<Question> {
-  const res = await fetch(`${BASE}/edit/set-cosmetic`, {
+  const res = await apiFetch(`${BASE}/edit/set-cosmetic`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ question, changes }),
@@ -157,7 +158,7 @@ export interface BankItem {
 
 /** The owner's bank questions (import: `importBank` here, or `mathgen bank import`). */
 export async function listBank(): Promise<BankItem[]> {
-  const res = await fetch(`${BASE}/bank`)
+  const res = await apiFetch(`${BASE}/bank`)
   if (!res.ok) {
     const detail = await res.text()
     throw new Error(`API ${res.status}: ${detail}`)
@@ -186,7 +187,7 @@ export interface ImportResponse {
  * unreviewed; a duplicate id is reported unless `replace`; one bad item never blocks the rest.
  */
 export async function importBank(objects: unknown[], replace = false): Promise<ImportResponse> {
-  const res = await fetch(`${BASE}/bank/import`, {
+  const res = await apiFetch(`${BASE}/bank/import`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ objects, replace }),
@@ -214,7 +215,7 @@ export interface FreeformConversion {
 }
 
 export async function convertToFreeform(question: Question): Promise<FreeformConversion> {
-  const res = await fetch(`${BASE}/convert/freeform`, {
+  const res = await apiFetch(`${BASE}/convert/freeform`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ question }),
@@ -232,7 +233,7 @@ export async function renderQuestionHtml(
   mode: 'student' | 'key' = 'student',
   number: number | null = null,
 ): Promise<string> {
-  const res = await fetch(`${BASE}/render/question`, {
+  const res = await apiFetch(`${BASE}/render/question`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ question, mode, number }),
@@ -247,8 +248,8 @@ export async function renderQuestionHtml(
 /** The shared stylesheet / script for embedded engine fragments. */
 export async function fetchFragmentAssets(): Promise<{ css: string; js: string }> {
   const [css, js] = await Promise.all([
-    fetch(`${BASE}/render/question.css`),
-    fetch(`${BASE}/render/katex.js`),
+    apiFetch(`${BASE}/render/question.css`),
+    apiFetch(`${BASE}/render/katex.js`),
   ])
   if (!css.ok || !js.ok) throw new Error(`API ${css.ok ? js.status : css.status}: render assets`)
   return { css: await css.text(), js: await js.text() }

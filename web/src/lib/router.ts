@@ -7,9 +7,11 @@ export type Route =
   | { name: 'list' }
   | { name: 'editor'; id: string }
   | { name: 'classic' }
+  | { name: 'login'; error: string }
 
 export function parseHash(hash: string): Route {
-  const path = hash.replace(/^#/, '') || '/'
+  const [path, query = ''] = (hash.replace(/^#/, '') || '/').split('?')
+  if (path === '/login') return { name: 'login', error: new URLSearchParams(query).get('error') ?? '' }
   if (path === '/classic') return { name: 'classic' }
   const m = /^\/docs\/([A-Za-z0-9-]+)$/.exec(path)
   if (m) return { name: 'editor', id: m[1] }
