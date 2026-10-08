@@ -40,7 +40,9 @@ is the checklist below it. Target: October 2026, Fly.io + Neon (ADR-0022).
 6. **Backups drill**: restore a Neon branch to a point in time once, so the first time is not an
    emergency.
 7. **Policy pages**: privacy notice (what is stored: email, name, papers, images; no passwords),
-   terms (free, export limit, private content), and a contact address. Sourced past-paper content
+   terms (free, export limit, private content), and a contact address. Both privacy promises are
+   built: `GET /account/export` (zip of JSON + images) and `DELETE /account` (see AUTH.md); the
+   notice can link them from the account menu. Sourced past-paper content
    is "internal practice use only" — it stays private to its owner by design; do not add any
    shared bank of it.
 8. **Monitoring**: an uptime check on `/ready`; Fly metrics/alerts for memory (Chromium) and 5xx;
@@ -53,4 +55,3 @@ is the checklist below it. Target: October 2026, Fly.io + Neon (ADR-0022).
 - Content-Security-Policy (the print preview iframe uses inline scripts; needs a nonce plan).
 - Rate limiting on `/auth/*` beyond what Cloudflare gives.
 - Object storage for images if Postgres size becomes a concern (the `AssetStore` protocol allows it).
-- Account deletion / data export (a privacy-policy promise worth keeping early).

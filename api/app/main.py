@@ -13,6 +13,7 @@ from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
 from . import config
+from .routes_account import router as account_router
 from .routes_assets import router as assets_router
 from .routes_auth import router as auth_router
 from .routes_bank import router as bank_router
@@ -74,6 +75,7 @@ async def _security_headers(request: Request, call_next) -> Response:
 
 app.include_router(router)
 app.include_router(auth_router)
+app.include_router(account_router)
 app.include_router(edit_router)
 app.include_router(export_router)
 app.include_router(documents_router)

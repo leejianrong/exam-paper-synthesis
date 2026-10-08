@@ -105,3 +105,17 @@ def test_tokens_are_stored_hashed(store, tmp_path):
         db = sqlite3.connect(tmp_path / "accounts.sqlite3")
         stored = [r[0] for r in db.execute("SELECT token_hash FROM sessions")]
     assert stored == [hash_token(token)] and token not in stored[0]
+
+
+def test_delete_user_removes_account_identities_and_sessions(store):
+    ann = store.login(P())
+    store.login(P("github", "42", "ann@example.com", True))  # linked to the same account
+    other = store.login(P(subject="g-2", email="b@x.com", name="Bo"))
+    token, other_token = store.create_session(ann["id"]), store.create_session(other["id"])
+    store.delete_user(ann["id"])
+    assert store.get_user(ann["id"]) is None
+    assert store.user_for_session(token) is None
+    assert store.user_for_session(other_token)["id"] == other["id"]
+    # signing in again with a removed identity starts a brand-new account
+    assert store.login(P())["id"] != ann["id"]
+    store.delete_user("never-existed")  # idempotent

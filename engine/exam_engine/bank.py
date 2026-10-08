@@ -229,6 +229,13 @@ class Bank:
         cur = self._conn.execute(sql, params)
         return [json.loads(row["json"]) for row in cur.fetchall()]
 
+    def erase(self) -> int:
+        """Delete every question this owner holds (account deletion); returns how many."""
+        with self._conn:
+            return self._conn.execute(
+                "DELETE FROM objects WHERE owner_id = ?", (self.owner_id,)
+            ).rowcount
+
     def close(self) -> None:
         self._conn.close()
 

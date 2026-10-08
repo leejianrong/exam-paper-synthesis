@@ -101,3 +101,15 @@ def test_mark_reviewed_bumps_version_and_flags_the_row(open_bank):
     assert after["validation"]["checks"]["human_reviewed"] is True
     assert after["provenance"]["version"] == before["provenance"]["version"] + 1
     assert [o["id"] for o in bank.search(reviewed=True)] == [mcq["id"]]
+
+
+def test_erase_removes_only_this_owners_questions(open_bank):
+    mcq, table = fixture("psle_2023_mcq"), fixture("psle_2023_table")
+    alice, bob = open_bank("alice"), open_bank("bob")
+    alice.add(mcq)
+    alice.add(table)
+    bob.add(mcq)
+    assert alice.erase() == 2
+    assert alice.search() == []
+    assert [o["id"] for o in bob.search()] == [mcq["id"]]
+    assert alice.erase() == 0

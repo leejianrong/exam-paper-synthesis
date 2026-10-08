@@ -241,8 +241,24 @@ class PgDocumentStore:
             if cur.rowcount == 0:
                 raise DocumentNotFound(doc_id)
 
+    def erase_owner(self, owner_id: str) -> int:
+        with self.db.connection() as conn:
+            return conn.execute("DELETE FROM documents WHERE owner_id=%s", (owner_id,)).rowcount
+
 
 # --- assets ------------------------------------------------------------------------------
+
+
+def _asset(row: dict) -> dict:
+    return {
+        "id": row["id"],
+        "mime": row["mime"],
+        "filename": row["filename"],
+        "width": row["width"],
+        "height": row["height"],
+        "bytes": row["size"],
+        "data": bytes(row["data"]),
+    }
 
 
 class PgAssetStore:
@@ -273,15 +289,7 @@ class PgAssetStore:
             ).fetchone()
         if row is None:
             raise AssetNotFound(asset_id)
-        return {
-            "id": row["id"],
-            "mime": row["mime"],
-            "filename": row["filename"],
-            "width": row["width"],
-            "height": row["height"],
-            "bytes": row["size"],
-            "data": bytes(row["data"]),
-        }
+        return _asset(row)
 
     def delete(self, owner_id: str, asset_id: str) -> None:
         with self.db.connection() as conn:
@@ -308,6 +316,17 @@ class PgAssetStore:
                 (owner_id, list(asset_ids)),
             ).fetchall()
         return {r["id"] for r in rows}
+
+    def export_all(self, owner_id: str) -> list[dict]:
+        with self.db.connection() as conn:
+            rows = conn.execute(
+                "SELECT * FROM assets WHERE owner_id = %s ORDER BY created_at, id", (owner_id,)
+            ).fetchall()
+        return [_asset(r) for r in rows]
+
+    def erase_owner(self, owner_id: str) -> int:
+        with self.db.connection() as conn:
+            return conn.execute("DELETE FROM assets WHERE owner_id = %s", (owner_id,)).rowcount
 
 
 # --- bank --------------------------------------------------------------------------------
@@ -417,6 +436,12 @@ class PgBank:
             rows = conn.execute(sql, params).fetchall()
         return [r["json"] for r in rows]
 
+    def erase(self) -> int:
+        with self.db.connection() as conn:
+            return conn.execute(
+                "DELETE FROM objects WHERE owner_id = %s", (self.owner_id,)
+            ).rowcount
+
     def close(self) -> None:  # the pool is shared; nothing per-bank to release
         pass
 
@@ -508,6 +533,12 @@ class PgAccountStore:
         with self.db.connection() as conn:
             conn.execute("DELETE FROM sessions WHERE token_hash = %s", (hash_token(token),))
 
+    def delete_user(self, user_id: str) -> None:
+        with self.db.connection() as conn:  # one transaction: the FK order is sessions, ids, user
+            conn.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
+            conn.execute("DELETE FROM identities WHERE user_id = %s", (user_id,))
+            conn.execute("DELETE FROM users WHERE id = %s", (user_id,))
+
 
 def _session_now() -> datetime:
     from . import accounts
@@ -551,6 +582,10 @@ class PgUsageLedger:
     def refund(self, ticket: int) -> None:
         with self.db.connection() as conn:
             conn.execute("DELETE FROM export_events WHERE id = %s", (ticket,))
+
+    def erase_owner(self, owner_id: str) -> None:
+        with self.db.connection() as conn:
+            conn.execute("DELETE FROM export_events WHERE owner_id = %s", (owner_id,))
 
     def used(self, owner_id: str) -> tuple[int, int]:
         now = usage._now()
