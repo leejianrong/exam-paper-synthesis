@@ -9,6 +9,8 @@ primary_region = "sin"
 [env]
   EXAM_PUBLIC_URL = "https://exam-paper-synthesis.fly.dev"
   EXAM_WEB_URL = "https://exam-paper-synthesis.fly.dev"
+  # Fly overwrites this header, so the per-address /auth limits see the real client.
+  EXAM_CLIENT_IP_HEADER = "Fly-Client-IP"
   EXAM_EXPORT_CONCURRENCY = "2"
   EXAM_EXPORT_TIMEOUT_MS = "30000"
 

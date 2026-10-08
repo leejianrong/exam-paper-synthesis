@@ -43,6 +43,16 @@ def _isolated_assets_store(monkeypatch, tmp_path):
     monkeypatch.setenv("EXAM_USAGE_PATH", str(tmp_path / "usage.sqlite3"))
 
 
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits():
+    """The /auth limiter is process-global state; no test may inherit another's hits (W5)."""
+    from app import ratelimit
+
+    ratelimit.limiter.reset()
+    yield
+    ratelimit.limiter.reset()
+
+
 @pytest.fixture
 def pg_db():
     """A fresh Postgres schema for one test (W3b); skipped unless EXAM_TEST_DATABASE_URL is set.

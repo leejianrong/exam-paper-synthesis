@@ -43,4 +43,10 @@ describe('LoginPage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Sign-in was cancelled.')
     await screen.findByRole('link', { name: /Google/ })
   })
+
+  it('explains a rate-limited sign-in', async () => {
+    providers([{ name: 'google', label: 'Google' }])
+    render(LoginPage, { props: { error: 'rate_limited' } })
+    expect(await screen.findByRole('alert')).toHaveTextContent('Too many sign-in attempts')
+  })
 })

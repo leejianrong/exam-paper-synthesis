@@ -14,6 +14,7 @@
     denied: 'Sign-in was cancelled.',
     state: 'That sign-in link expired. Please try again.',
     provider: 'The sign-in provider did not accept the request. Please try again.',
+    rate_limited: 'Too many sign-in attempts. Please wait a few minutes and try again.',
     not_configured: 'That sign-in method is not available.',
   }
 
