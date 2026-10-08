@@ -8,11 +8,15 @@
   import type { Question } from '../types'
   import { blocksToHtml, type DocJSON, type DocNode } from './doc'
   import AnswerEditor from './AnswerEditor.svelte'
+  import { typesetMath } from './math'
   import FragmentView from './FragmentView.svelte'
 
   export let blocks: DocNode[] = []
 
-  const dispatch = createEventDispatcher<{ answer: { blockId: string; answer: DocJSON } }>()
+  const dispatch = createEventDispatcher<{
+    answer: { blockId: string; answer: DocJSON }
+    error: string
+  }>()
 </script>
 
 <section class="key" aria-label="Answer key">
@@ -30,13 +34,14 @@
             <span class="label">Answer</span>
             {#if marks !== null && marks !== undefined}<span class="marks">[{marks}]</span>{/if}
           </div>
-          <div class="qtext">
+          <div class="qtext" use:typesetMath={blocksToHtml(block.content)}>
             <!-- eslint-disable-next-line svelte/no-at-html-tags -- escaped by blocksToHtml -->
             {@html blocksToHtml(block.content)}
           </div>
           <AnswerEditor
             value={(block.attrs?.answer as DocJSON) ?? { type: 'doc', content: [] }}
             label={`Answer to question ${i + 1}`}
+            on:error={(e) => dispatch('error', e.detail)}
             on:change={(e) =>
               dispatch('answer', { blockId: String(block.attrs?.block_id), answer: e.detail.answer })}
           />
@@ -133,6 +138,10 @@
     font-family: var(--serif);
     color: var(--ink-soft);
     margin: 0.2rem 0 0.4rem 1.6rem;
+  }
+  .qtext :global(img) {
+    max-width: 100%;
+    height: auto;
   }
   .qtext :global(p) {
     margin: 0.15rem 0;

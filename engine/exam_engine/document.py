@@ -21,11 +21,13 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
-DOCUMENT_SCHEMA_VERSION = "1.1.0"  # 1.1.0 (W2a): + freeformQuestion; 1.0.0 documents still valid
+# 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math. Older documents stay valid.
+DOCUMENT_SCHEMA_VERSION = "1.2.0"
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000
 MAX_BLOCK_TEXT_CHARS = 20_000
+MAX_IMAGES = 40
 
 QUESTION_TYPES = ("templatedQuestion", "freeformQuestion")
 
@@ -74,6 +76,27 @@ def total_marks(doc: dict) -> int:
     )
 
 
+def _walk(nodes: list[dict]):
+    for n in nodes:
+        yield n
+        yield from _walk(n.get("content", []))
+        answer = (n.get("attrs") or {}).get("answer")
+        if isinstance(answer, dict):
+            yield from _walk(answer.get("content", []))
+
+
+def referenced_assets(doc: dict) -> list[str]:
+    """Distinct ``asset_id``s the document's image nodes point at, in first-use order.
+
+    The engine is storage-agnostic: the API checks each id exists and is the caller's.
+    """
+    seen: dict[str, None] = {}
+    for n in _walk(doc["content"]["content"]):
+        if n.get("type") == "image":
+            seen.setdefault(n["attrs"]["asset_id"], None)
+    return list(seen)
+
+
 def text_length(nodes: list[dict]) -> int:
     """Characters of text under ``nodes`` (recursive), for the per-block body limit."""
     total = 0
@@ -105,6 +128,7 @@ def validate_document(doc: object) -> list[str]:
         return [f"<root>: document is {size} bytes; the limit is {MAX_CONTENT_BYTES}"]
 
     blocks = doc["content"]["content"]
+    errors += _check_math_and_images(blocks)
     seen: set[str] = set()
     n_questions = 0
     for i, node in enumerate(blocks):
@@ -143,6 +167,23 @@ def validate_document(doc: object) -> list[str]:
         errors.append(
             f"content/content: {n_questions} questions; the limit is {MAX_QUESTION_BLOCKS}"
         )
+    return errors
+
+
+def _check_math_and_images(blocks: list[dict]) -> list[str]:
+    errors: list[str] = []
+    n_images = 0
+    for n in _walk(blocks):
+        kind = n.get("type")
+        if kind == "image":
+            n_images += 1
+        elif kind == "math":
+            latex = n["attrs"]["latex"]
+            # \) would close the \( … \) delimiter the renderer wraps it in.
+            if "\\)" in latex or "\\(" in latex or "\\[" in latex or "\\]" in latex:
+                errors.append(f"math: {latex[:40]!r} contains a LaTeX delimiter")
+    if n_images > MAX_IMAGES:
+        errors.append(f"content: {n_images} images; the limit is {MAX_IMAGES}")
     return errors
 
 

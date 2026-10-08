@@ -30,3 +30,12 @@ settings.register_profile("dev", max_examples=50, deadline=None, derandomize=Tru
 settings.register_profile("nightly", max_examples=1000, deadline=None, derandomize=True)
 
 settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "ci"))
+
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _isolated_assets_store(monkeypatch, tmp_path):
+    """Never let a test touch the real ~/.exam_engine asset store (W2b)."""
+    monkeypatch.setenv("EXAM_ASSETS_PATH", str(tmp_path / "assets.sqlite3"))

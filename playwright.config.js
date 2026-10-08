@@ -12,6 +12,7 @@ const WEB_PORT = 5173
 const DOCS_DB = path.join(os.tmpdir(), 'exam-e2e-documents.sqlite3')
 // The question bank the API reads (the CLI writes the same file, as the `local` owner).
 const BANK_DB = path.join(os.tmpdir(), 'exam-e2e-bank.sqlite3')
+const ASSETS_DB = path.join(os.tmpdir(), 'exam-e2e-assets.sqlite3')
 
 /**
  * Playwright config for the Generate-flow browser acceptance test (ADR-0008).
@@ -50,7 +51,7 @@ export default defineConfig({
       stderr: 'pipe',
       // A server that is already running locally is reused as-is, so the editor spec
       // needs one started with these three variables (CI always starts fresh).
-      env: { ...process.env, EXAM_DEV_AUTH: '1', EXAM_DOCS_PATH: DOCS_DB, EXAM_BANK_PATH: BANK_DB },
+      env: { ...process.env, EXAM_DEV_AUTH: '1', EXAM_DOCS_PATH: DOCS_DB, EXAM_BANK_PATH: BANK_DB, EXAM_ASSETS_PATH: ASSETS_DB },
     },
     {
       // Vite dev server for the Svelte SPA (reads VITE_API, defaults to :8000).

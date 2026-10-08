@@ -18,6 +18,10 @@
     type ExportMode,
   } from './docsApi'
   import { FreeformQuestion, QuestionDocument, insertFreeform } from './freeformQuestion'
+  import { IMAGE_TYPES, uploadAsset } from './assets'
+  import MathPopover from './MathPopover.svelte'
+  import { openMathEditor } from './mathEditor'
+  import { ImageBlock, ImageUpload, MathNode, uploadAndInsert } from './media'
   import { PageBreak } from './pageBreak'
   import { TemplatedQuestion, questionNode } from './templatedQuestion'
 
@@ -80,6 +84,12 @@
             link: false,
           }),
           QuestionDocument,
+          ImageBlock,
+          MathNode,
+          ImageUpload.configure({
+            upload: (f: File) => uploadAsset(f, f.name),
+            onError: (m: string) => (actionError = m),
+          }),
           PageBreak,
           FreeformQuestion.configure({ onAddBelow: (pos: number) => (pickerAt = pos) }),
           TemplatedQuestion.configure({ onAddBelow: (pos: number) => (pickerAt = pos) }),
@@ -152,11 +162,36 @@
     editor.view.dispatch(tr)
   }
 
+  let fileInput: HTMLInputElement
+
+  async function onPickImages() {
+    const files = Array.from(fileInput.files ?? [])
+    fileInput.value = ''
+    if (!editor) return
+    actionError = ''
+    await uploadAndInsert(editor, files, {
+      upload: (f) => uploadAsset(f, f.name),
+      onError: (m) => (actionError = m),
+    })
+  }
+
+  function addEquation() {
+    const e = editor
+    if (!e) return
+    openMathEditor({
+      latex: '',
+      apply: (latex) => {
+        if (latex) e.chain().focus().insertContent({ type: 'math', attrs: { latex } }).run()
+      },
+    })
+  }
+
   // Toolbar state, re-read after every editor transaction (`tick`).
   function readActive(revision: number) {
     const e = editor
     return {
       revision,
+      inText: e?.state.selection.$from.parent.isTextblock ?? false,
       bold: e?.isActive('bold') ?? false,
       italic: e?.isActive('italic') ?? false,
       underline: e?.isActive('underline') ?? false,
@@ -269,6 +304,18 @@
       >Page break</button
     >
     <span class="sep"></span>
+    <button disabled={!act.inText} on:click={addEquation}>Equation</button>
+    <button on:click={() => fileInput.click()}>Image</button>
+    <input
+      bind:this={fileInput}
+      type="file"
+      accept={IMAGE_TYPES.join(',')}
+      multiple
+      hidden
+      aria-label="Choose image"
+      on:change={onPickImages}
+    />
+    <span class="sep"></span>
     <button aria-label="Undo" on:click={() => editor?.chain().focus().undo().run()}>↶</button>
     <button aria-label="Redo" on:click={() => editor?.chain().focus().redo().run()}>↷</button>
   </div>
@@ -289,8 +336,14 @@
     </button>
   </div>
 
-  <AnswerKey {blocks} on:answer={(e) => setAnswer(e.detail.blockId, e.detail.answer)} />
+  <AnswerKey
+    {blocks}
+    on:answer={(e) => setAnswer(e.detail.blockId, e.detail.answer)}
+    on:error={(e) => (actionError = e.detail)}
+  />
 </div>
+
+<MathPopover />
 
 {#if pickerAt !== undefined}
   <AddQuestion
@@ -528,6 +581,62 @@
   }
   .surface :global(.ff-bar button.danger) {
     color: var(--mark);
+  }
+  .surface :global(.doc-image-node) {
+    margin: 0.5rem 0;
+    padding: 0;
+    border-radius: 4px;
+  }
+  .surface :global(.doc-image-img) {
+    display: block;
+    height: auto;
+    max-width: 100%;
+  }
+  .surface :global(.doc-image-node.selected) {
+    outline: 2px solid var(--verify);
+  }
+  .surface :global(.doc-image-bar) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.3rem;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    font-family: var(--sans);
+    font-size: 12px;
+  }
+  .surface :global(.doc-image-bar input) {
+    font: inherit;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.15rem 0.3rem;
+    background: var(--page);
+    color: var(--ink);
+  }
+  .surface :global(.doc-image-width) {
+    width: 4rem;
+  }
+  .surface :global(.doc-image-bar button) {
+    font: inherit;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    border-radius: 6px;
+    padding: 0.15rem 0.5rem;
+    cursor: pointer;
+  }
+  .surface :global(.doc-image-bar .danger) {
+    color: var(--mark);
+  }
+  .surface :global(.math-node) {
+    cursor: pointer;
+    border-radius: 3px;
+  }
+  .surface :global(.math-node:hover),
+  .surface :global(.math-node.ProseMirror-selectednode) {
+    background: var(--verify-soft);
   }
   .surface :global(.page-break-marker) {
     border-top: 2px dashed var(--line);

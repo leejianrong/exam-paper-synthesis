@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import pytest
 from app.main import app
-from documents import freeform_block, gen_block, heading, make_doc, para, question_block
+from documents import freeform_block, gen_block, heading, image_node, make_doc, para, question_block
 from exam_engine import generate
 from fastapi.testclient import TestClient
+from images import png
 from test_export_api import requires_chromium
 
 client = TestClient(app)
@@ -214,3 +215,42 @@ def test_key_export_allowed_for_freeform_only_document():
     rec = _create()
     assert _save(rec, make_doc(freeform_block("Only freeform"))).status_code == 200
     assert client.get(f"/documents/{rec['id']}/preview/key", headers=ALICE).status_code == 200
+
+
+def _asset(headers=ALICE) -> str:
+    resp = client.post("/assets", content=png(), headers=headers)
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
+def test_save_rejects_missing_or_foreign_assets():
+    rec = _create()
+    mine, theirs = _asset(ALICE), _asset(BOB)
+    assert _save(rec, make_doc(image_node(mine))).status_code == 200
+    rec = client.get(f"/documents/{rec['id']}", headers=ALICE).json()
+    for bad in ("0" * 32, theirs):
+        resp = _save(rec, make_doc(freeform_block(answer="a"), image_node(bad)))
+        assert resp.status_code == 422
+        assert any("does not exist" in e for e in resp.json()["detail"])
+
+
+def test_preview_inlines_my_images_as_data_uris():
+    rec = _create()
+    asset = _asset()
+    ff = freeform_block("See the figure", marks=1)
+    ff["content"].append(image_node(asset))
+    assert _save(rec, make_doc(ff)).status_code == 200
+    html = client.get(f"/documents/{rec['id']}/preview/student", headers=ALICE).text
+    assert "data:image/png;base64," in html and "[image unavailable]" not in html
+    assert f"/assets/{asset}" not in html  # inlined, not linked
+
+
+@requires_chromium
+def test_export_pdf_with_image_and_equation():
+    rec = _create()
+    ff = freeform_block("Evaluate", marks=2, answer="a")
+    ff["content"][0]["content"].append({"type": "math", "attrs": {"latex": "\\frac{3}{4}"}})
+    ff["content"].append(image_node(_asset()))
+    assert _save(rec, make_doc(ff)).status_code == 200
+    resp = client.post(f"/documents/{rec['id']}/export/student", headers=ALICE)
+    assert resp.status_code == 200 and resp.content.startswith(b"%PDF")
