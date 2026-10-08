@@ -160,22 +160,30 @@
     pickerAt = undefined
   }
 
-  // A free-form answer is edited in the key region and stored on its question's node.
-  function setAnswer(blockId: string, answer: DocJSON) {
+  // Set attributes on the question block with this id (both kinds), as one undoable step.
+  function setBlockAttrs(blockId: string, kinds: string[], attrs: Record<string, unknown>) {
     if (!editor) return
     const { doc, tr } = editor.state
     let target: number | null = null
     doc.descendants((node, pos) => {
-      if (target === null && node.type.name === 'freeformQuestion' && node.attrs.block_id === blockId)
+      if (target === null && kinds.includes(node.type.name) && node.attrs.block_id === blockId)
         target = pos
       return false
     })
     if (target === null) return
     const node = doc.nodeAt(target)
     if (!node) return
-    tr.setNodeMarkup(target, undefined, { ...node.attrs, answer })
+    tr.setNodeMarkup(target, undefined, { ...node.attrs, ...attrs })
     editor.view.dispatch(tr)
   }
+
+  // A free-form answer is edited in the key region and stored on its question's node.
+  const setAnswer = (blockId: string, answer: DocJSON) =>
+    setBlockAttrs(blockId, ['freeformQuestion'], { answer })
+
+  // A remark is the author's private note, edited in the inspector; it never prints.
+  const setRemark = (blockId: string, remark: string) =>
+    setBlockAttrs(blockId, ['templatedQuestion', 'freeformQuestion'], { remark: remark || null })
 
   let fileInput: HTMLInputElement
 
@@ -375,7 +383,7 @@
     on:error={(e) => (actionError = e.detail)}
   />
 </div>
-<Inspector {blocks} {marks} {selectedId} />
+<Inspector {blocks} {marks} {selectedId} on:remark={(e) => setRemark(e.detail.blockId, e.detail.remark)} />
 </div>
 
 <MathPopover />

@@ -42,6 +42,16 @@ describe('summarise', () => {
       ...templatedNodes([makeQuestion(), makeBankQuestion()]),
       freeformDocNode(),
     ]
-    expect(summarise(blocks, 8)).toEqual({ questions: 3, generated: 1, bank: 1, freeform: 1, marks: 8 })
+    expect(summarise(blocks, 8)).toEqual({ questions: 3, generated: 1, bank: 1, freeform: 1, remarks: 0, marks: 8 })
   })
 })
+
+describe('summarise remarks (W5)', () => {
+  it('counts questions that carry a non-blank remark', () => {
+    const [a, b] = templatedNodes([makeQuestion(), makeQuestion()])
+    const withRemark = { ...a, attrs: { ...a.attrs, remark: 'check units' } }
+    const blank = { ...b, attrs: { ...b.attrs, remark: '  ' } }
+    expect(summarise([withRemark, blank, freeformDocNode({ marks: 1 })], 3).remarks).toBe(1)
+  })
+})
+

@@ -21,8 +21,9 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
-# 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math. Older documents stay valid.
-DOCUMENT_SCHEMA_VERSION = "1.2.0"
+# 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math; 1.3.0 (W5): + question `remark`.
+# Older documents stay valid (every addition is optional).
+DOCUMENT_SCHEMA_VERSION = "1.3.0"
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000

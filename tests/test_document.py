@@ -549,3 +549,60 @@ def test_diagrams_use_the_same_typeface():
 
     spec = generate("ratio_medium", 3)["question"]["parts"][0]["diagram"]
     assert 'font-family="Inter, system-ui, sans-serif"' in diagram.render_svg(spec)
+
+
+# --- W5: per-block remarks (schema 1.3.0) --------------------------------------------------
+
+SECRET = "REMARK-do-not-print-7f3a"
+
+
+def _with_remark(block: dict, remark) -> dict:
+    out = copy.deepcopy(block)
+    out["attrs"]["remark"] = remark
+    return out
+
+
+@pytest.mark.parametrize("make", [lambda: gen_block(), lambda: freeform_block(answer="4")])
+def test_a_remark_is_valid_on_both_question_kinds(make):
+    assert (
+        validate_document(make_doc(_with_remark(make(), "Re-check the units with Ms Tan."))) == []
+    )
+    assert (
+        validate_document(make_doc(_with_remark(make(), ""))) == []
+    )  # a cleared remark may be empty
+
+
+@pytest.mark.parametrize("bad", [None, 5, ["x"], "x" * 2001])
+def test_a_remark_must_be_a_string_of_at_most_2000_characters(bad):
+    assert validate_document(make_doc(_with_remark(gen_block(), bad)))  # rejected (oneOf block)
+    assert validate_document(make_doc(_with_remark(freeform_block(), bad)))
+
+
+def test_a_remark_is_not_allowed_on_other_blocks():
+    block = {"type": "pageBreak", "attrs": {"remark": "x"}}
+    assert validate_document(make_doc(block))
+
+
+def test_documents_written_before_remarks_still_validate():
+    doc = make_doc(gen_block(), freeform_block())
+    doc["schema_version"] = "1.2.0"
+    assert validate_document(doc) == []
+
+
+def test_remarks_never_reach_any_rendering():
+    doc = make_doc(
+        _with_remark(gen_block(), SECRET),
+        _with_remark(freeform_block("Find x.", answer="3"), SECRET),
+    )
+    for mode in ("student", "key", "full"):
+        assert SECRET not in render_document_html("P", doc, mode=mode)
+
+
+def test_a_remark_does_not_disturb_snapshot_verification_or_marks():
+    plain = make_doc(gen_block(), freeform_block(marks=3))
+    remarked = copy.deepcopy(plain)
+    for block in remarked["content"]["content"]:
+        block["attrs"]["remark"] = SECRET
+    assert validate_document(remarked) == []
+    assert total_marks(remarked) == total_marks(plain)
+    assert questions_in_order(remarked) == questions_in_order(plain)

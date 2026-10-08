@@ -55,6 +55,7 @@ export interface Summary {
   generated: number
   bank: number
   freeform: number
+  remarks: number
   marks: number
 }
 
@@ -70,6 +71,7 @@ export function summarise(blocks: DocNode[], marks: number): Summary {
     generated: blocks.filter((b) => kind(b) === 'generated').length,
     bank: blocks.filter((b) => kind(b) === 'bank').length,
     freeform: blocks.filter((b) => kind(b) === 'freeform').length,
+    remarks: blocks.filter((b) => typeof b.attrs?.remark === 'string' && b.attrs.remark.trim()).length,
     marks,
   }
 }

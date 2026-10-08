@@ -388,3 +388,37 @@ test('typing "1. " makes a numbered list that still saves (editor-only attribute
   await expect(entry.locator('.answer ol')).toBeVisible()
   await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
 })
+
+test('a remark is private: kept through edits and reloads, never in a preview or export', async ({ page }) => {
+  const SECRET = 'REMARK private note 7c1e'
+  await page.goto('/')
+  await page.getByRole('button', { name: '+ New paper' }).click()
+  await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
+  const id = page.url().split('/docs/')[1]
+  await addQuestion(page)
+  const block = page.getByTestId('question-block').first()
+
+  // Select the question (click in it) and write a remark in the inspector.
+  await block.click({ position: { x: 5, y: 5 } })
+  const remark = page.getByLabel(/^Remarks/)
+  await remark.fill(SECRET)
+  // The page itself shows nothing of it.
+  await expect(block).not.toContainText(SECRET)
+
+  // Editing the question afterwards (Make harder) must not lose the remark.
+  await block.getByRole('button', { name: 'Make harder' }).click()
+  await expect(remark).toHaveValue(SECRET)
+
+  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await page.reload()
+  await page.getByTestId('question-block').first().click({ position: { x: 5, y: 5 } })
+  await expect(page.getByLabel(/^Remarks/)).toHaveValue(SECRET)
+
+  for (const mode of ['student', 'key', 'full']) {
+    const html = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/${mode}`)).text()
+    expect(html).not.toContain(SECRET)
+  }
+  await page.getByRole('button', { name: 'Preview' }).click()
+  await expect(page.frameLocator('iframe[title="Print preview"]').getByText('Answer Key').first()).toBeVisible()
+  expect(await page.frameLocator('iframe[title="Print preview"]').locator('body').innerText()).not.toContain(SECRET)
+})
