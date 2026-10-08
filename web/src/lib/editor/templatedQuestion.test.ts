@@ -103,7 +103,7 @@ describe('templatedQuestion node view', () => {
     expect(texts(e)).toEqual(['a', 'b'])
   })
 
-  it('draws a bank question as "From my bank" with no engine-only edits', async () => {
+  it('draws a bank question with no on-page tags and no engine-only edits', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation(
@@ -115,9 +115,10 @@ describe('templatedQuestion node view', () => {
       ),
     )
     make({ type: 'doc', content: [questionNode(makeBankQuestion())] })
-    expect(screen.getByText('From my bank')).toBeInTheDocument()
-    expect(screen.getByText('Unreviewed')).toBeInTheDocument()
-    expect(screen.queryByText('engine-verified')).not.toBeInTheDocument()
+    // Status lives in the inspector, never on the page (EXA-93).
+    for (const tag of ['From my bank', 'Unreviewed', 'engine-verified']) {
+      expect(screen.queryByText(tag)).not.toBeInTheDocument()
+    }
     for (const name of ['Regenerate', 'Make harder', 'Edit names']) {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
     }
@@ -126,15 +127,5 @@ describe('templatedQuestion node view', () => {
     await waitFor(() =>
       expect(screen.getByTestId('fragment').shadowRoot?.textContent).toContain('bank question html'),
     )
-  })
-
-  it('a reviewed bank question drops the Unreviewed tag', () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500, text: async () => 'x' }))
-    make({
-      type: 'doc',
-      content: [questionNode(makeBankQuestion({ validation: { status: 'pass', checks: { human_reviewed: true } } }))],
-    })
-    expect(screen.getByText('From my bank')).toBeInTheDocument()
-    expect(screen.queryByText('Unreviewed')).not.toBeInTheDocument()
   })
 })

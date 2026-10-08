@@ -123,8 +123,13 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
 
   const block = page.getByTestId('question-block')
   await expect(block).toHaveCount(1)
-  await expect(block.getByText('From my bank')).toBeVisible()
-  await expect(block.getByText('Unreviewed')).toBeVisible()
+  // Status is in the inspector, never on the page.
+  await expect(block.getByText('From my bank')).toHaveCount(0)
+  await expect(block.getByText('Unreviewed')).toHaveCount(0)
+  await block.click({ position: { x: 12, y: 60 } })
+  const inspector = page.getByRole('complementary', { name: 'Inspector' })
+  await expect(inspector).toContainText('From my bank')
+  await expect(inspector).toContainText('not yet reviewed')
   await expect(block.getByRole('button', { name: 'Make harder' })).toHaveCount(0)
   await expect(block.locator('li.option').first()).toBeVisible()
 
@@ -153,7 +158,7 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
   // A bank question saves, reloads, and the student copy shows its options but no answers.
   await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
   await page.reload()
-  await expect(page.getByTestId('question-block').getByText('From my bank')).toHaveCount(2)
+  await expect(page.getByTestId('question-block')).toHaveCount(2)
   const student = await (
     await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)
   ).text()

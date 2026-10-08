@@ -1,12 +1,9 @@
 <script lang="ts">
-  // The presentational body of a question (no edit/approve chrome): verified badge,
-  // marks, question text and diagram. Used by the editor's question block and the picker.
+  // The presentational body of a question (no edit/approve chrome): marks, question text and diagram. Used by the editor's question block and the picker.
   import { renderDiagram } from '../barModel'
   import type { Question } from '../types'
 
   export let q: Question
-  /** The verified badge is for the page; the picker shows just the question. */
-  export let showStatus = true
   $: part = q.question.parts[0]
   $: svg = renderDiagram(part.diagram)
   $: diagramAria =
@@ -19,13 +16,6 @@
 
 <div class="qbody">
   <div class="meta">
-    {#if showStatus}
-      <span class="badge {q.validation.status}"
-        ><span class="dot" aria-hidden="true"></span>{q.validation.status === 'pass'
-          ? 'engine-verified'
-          : 'unverified'}</span
-      >
-    {/if}
     <span class="marks">[{part.marks}]</span>
   </div>
   <p class="text">{part.text}</p>
@@ -45,27 +35,6 @@
     margin-bottom: 0.35rem;
     font-family: var(--mono);
     font-size: 11.5px;
-  }
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.1rem 0.5rem;
-    border-radius: 999px;
-  }
-  .badge .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-  }
-  .badge.pass {
-    color: var(--verify-ink);
-    background: var(--verify-soft);
-  }
-  .badge.fail {
-    color: var(--mark);
-    background: var(--mark-soft);
   }
   .marks {
     color: var(--mark);
