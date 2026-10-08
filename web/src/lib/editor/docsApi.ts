@@ -81,6 +81,11 @@ export async function previewDocument(id: string, mode: ExportMode): Promise<str
 
 export async function exportDocument(id: string, mode: ExportMode): Promise<Blob> {
   const res = await apiFetch(`${BASE}/documents/${id}/export/${mode}`, { method: 'POST' })
+  if (res.status === 429) {
+    // The account's export allowance: the server's message already says when to retry.
+    const body = (await res.json().catch(() => ({}))) as { detail?: unknown }
+    throw new Error(typeof body.detail === 'string' ? body.detail : 'Export limit reached. Try again later.')
+  }
   if (!res.ok) return fail(res)
   return res.blob()
 }

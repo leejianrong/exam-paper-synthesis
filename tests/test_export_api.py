@@ -30,6 +30,14 @@ def _chromium_available() -> bool:
         return False
 
 
+@pytest.fixture(autouse=True)
+def _dev_identity(monkeypatch):
+    # Exports need an owner (W3); these tests are about the contract, not identity.
+    monkeypatch.setenv("EXAM_DEV_AUTH", "1")
+    monkeypatch.setenv("EXAM_EXPORT_LIMIT_PER_DAY", "0")
+    monkeypatch.setenv("EXAM_EXPORT_LIMIT_PER_MINUTE", "0")
+
+
 requires_chromium = pytest.mark.skipif(
     not _chromium_available(),
     reason="headless Chromium not installed (run: playwright install chromium)",

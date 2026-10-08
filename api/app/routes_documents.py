@@ -21,7 +21,7 @@ from .auth import current_owner
 from .docstore import DocumentNotFound, DocumentStore, VersionConflict, get_store
 from .models import CreateDocumentRequest, SaveDocumentRequest
 from .ops import strip_document_hints, with_document_hints
-from .quota import check_export_quota, export_slot
+from .quota import check_export_quota, export_slot, refund_export
 
 router = APIRouter(prefix="/documents")
 
@@ -167,9 +167,13 @@ def export_document(
     assets: Assets,
 ) -> Response:
     title, html = _html_for(store, assets, owner, doc_id, mode)
-    check_export_quota(owner)
-    with export_slot():
-        pdf = export.html_to_pdf(html)
+    ticket = check_export_quota(owner)
+    try:
+        with export_slot():
+            pdf = export.html_to_pdf(html)
+    except BaseException:
+        refund_export(ticket)  # a failed render must not cost the teacher an export
+        raise
     filename = f"{_slug(title)}-{_MODE_SUFFIX[mode]}.pdf"
     return Response(
         content=pdf,

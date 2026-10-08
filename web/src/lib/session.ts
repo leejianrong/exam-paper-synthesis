@@ -55,3 +55,18 @@ export async function loadProviders(): Promise<{ providers: ProviderInfo[]; dev:
 export function loginUrl(provider: string): string {
   return `${BASE}/auth/${encodeURIComponent(provider)}/login`
 }
+
+export interface Quota {
+  per_day: number
+  /** Exports left in the rolling 24 h, or `null` when the account is unlimited. */
+  left_day: number | null
+}
+
+export async function loadQuota(): Promise<Quota | null> {
+  try {
+    const res = await fetch(`${BASE}/auth/quota`, { credentials: 'include' })
+    return res.ok ? ((await res.json()) as Quota) : null
+  } catch {
+    return null
+  }
+}

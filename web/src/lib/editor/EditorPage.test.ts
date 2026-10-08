@@ -291,3 +291,32 @@ describe('EditorPage inspector (EXA-93)', () => {
     expect(inspector).toHaveTextContent('not checked by the engine')
   })
 })
+
+describe('EditorPage export allowance (W3c)', () => {
+  const setup = (exportReply: () => unknown) => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith('/auth/quota')) return { ok: true, status: 200, json: async () => ({ per_day: 30, left_day: 4 }) }
+      if (String(url).includes('/export/')) return exportReply()
+      return { ok: true, status: 200, json: async () => record([]), text: async () => '' }
+    })
+  }
+
+  it('shows how many exports are left today', async () => {
+    setup(() => ({ ok: true, status: 200, blob: async () => new Blob(['%PDF']) }))
+    render(EditorPage, { props: { id: 'd1' } })
+    expect(await screen.findByText('4 exports left today')).toBeInTheDocument()
+  })
+
+  it('a refused export (429) says when to try again instead of a raw API error', async () => {
+    setup(() => ({
+      ok: false,
+      status: 429,
+      json: async () => ({ detail: 'Export limit reached this minute. Try again in 42 seconds.' }),
+    }))
+    render(EditorPage, { props: { id: 'd1' } })
+    await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
+    await fireEvent.click(screen.getByRole('button', { name: 'Student PDF' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Try again in 42 seconds.')
+    expect(screen.getByRole('alert')).not.toHaveTextContent('API 429')
+  })
+})

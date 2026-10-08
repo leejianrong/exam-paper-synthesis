@@ -13,6 +13,8 @@ const DOCS_DB = path.join(os.tmpdir(), 'exam-e2e-documents.sqlite3')
 // The question bank the API reads (the CLI writes the same file, as the `local` owner).
 const BANK_DB = path.join(os.tmpdir(), 'exam-e2e-bank.sqlite3')
 const ASSETS_DB = path.join(os.tmpdir(), 'exam-e2e-assets.sqlite3')
+const AUTH_DB = path.join(os.tmpdir(), 'exam-e2e-accounts.sqlite3')
+const USAGE_DB = path.join(os.tmpdir(), 'exam-e2e-usage.sqlite3')
 
 /**
  * Playwright config for the Generate-flow browser acceptance test (ADR-0008).
@@ -51,7 +53,13 @@ export default defineConfig({
       stderr: 'pipe',
       // A server that is already running locally is reused as-is, so the editor spec
       // needs one started with these three variables (CI always starts fresh).
-      env: { ...process.env, EXAM_DEV_AUTH: '1', EXAM_DOCS_PATH: DOCS_DB, EXAM_BANK_PATH: BANK_DB, EXAM_ASSETS_PATH: ASSETS_DB },
+      env: { ...process.env, EXAM_DEV_AUTH: '1', EXAM_DOCS_PATH: DOCS_DB, EXAM_BANK_PATH: BANK_DB, EXAM_ASSETS_PATH: ASSETS_DB,
+        EXAM_AUTH_PATH: AUTH_DB,
+        EXAM_USAGE_PATH: USAGE_DB,
+        // e2e exports freely (the allowance is covered by pytest and vitest)
+        EXAM_EXPORT_LIMIT_PER_DAY: '0',
+        EXAM_EXPORT_LIMIT_PER_MINUTE: '0',
+      },
     },
     {
       // Vite dev server for the Svelte SPA (reads VITE_API, defaults to :8000).

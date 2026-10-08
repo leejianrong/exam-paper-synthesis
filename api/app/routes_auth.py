@@ -19,8 +19,9 @@ import httpx
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 
+from . import usage
 from .accounts import SESSION_TTL, AccountStore, get_account_store
-from .auth import SESSION_COOKIE
+from .auth import SESSION_COOKIE, current_owner
 from .oauth import (
     PROVIDERS,
     OAuthError,
@@ -172,3 +173,17 @@ def logout(request: Request, accounts: Accounts) -> Response:
     resp = Response(status_code=204)
     resp.delete_cookie(SESSION_COOKIE, path="/")
     return resp
+
+
+@router.get("/quota")
+def quota(owner: Annotated[str, Depends(current_owner)]) -> dict:
+    """The caller's export allowance, for the UI ("exports left today")."""
+    limits = usage.limits_from_env()
+    day, minute = usage.get_ledger().used(owner)
+    return {
+        "per_day": limits.per_day,
+        "per_minute": limits.per_minute,
+        "used_day": day,
+        "used_minute": minute,
+        "left_day": None if limits.per_day <= 0 else max(0, limits.per_day - day),
+    }

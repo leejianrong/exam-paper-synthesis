@@ -1,7 +1,7 @@
 """W1b — export limits.
 
-``check_export_quota`` is the per-account export limit hook: a no-op in W1, filled in by
-W3 (free product, capped exports per account — ADR-0022). The semaphore bounds how many
+``check_export_quota`` enforces the per-account export allowance (free product, capped exports
+per account — ADR-0022; the ledger is in ``usage.py``). The semaphore bounds how many
 headless-Chromium renders run at once so a burst cannot exhaust the machine.
 """
 
@@ -14,11 +14,45 @@ from contextlib import contextmanager
 
 from fastapi import HTTPException
 
+from . import usage
+
 _ACQUIRE_TIMEOUT_S = 30.0
 
 
-def check_export_quota(owner_id: str) -> None:
-    """Raise ``HTTPException(429)`` when ``owner_id`` is over their export allowance (W3)."""
+def check_export_quota(owner_id: str) -> int | None:
+    """Consume one export from ``owner_id``'s allowance, or raise **429** with ``Retry-After``.
+
+    Returns the ledger ticket (pass it to :func:`refund_export` if the export then fails), or
+    ``None`` when the account is unlimited.
+    """
+    limits = usage.limits_from_env()
+    if limits.per_day <= 0 and limits.per_minute <= 0:
+        return None
+    allowance = usage.get_ledger().consume(owner_id, limits)
+    if not allowance.allowed:
+        what = "this minute" if allowance.reason == "minute" else "in the last 24 hours"
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Export limit reached for {what}. Try again in {_human(allowance.retry_after)}."
+            ),
+            headers={"Retry-After": str(allowance.retry_after)},
+        )
+    return allowance.ticket
+
+
+def refund_export(ticket: int | None) -> None:
+    """Give back an export that did not produce a PDF."""
+    if ticket is not None:
+        usage.get_ledger().refund(ticket)
+
+
+def _human(seconds: int) -> str:
+    if seconds < 90:
+        return f"{seconds} seconds"
+    if seconds < 5400:
+        return f"{round(seconds / 60)} minutes"
+    return f"{round(seconds / 3600)} hours"
 
 
 def _limit() -> int:
