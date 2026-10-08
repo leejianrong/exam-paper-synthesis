@@ -2,7 +2,8 @@
 
 Export is a read-only *view* of already-built canonical objects: the client
 worksheet store POSTs its approved ``{title, questions}`` set (the engine/API
-hold no session, ADR-0001). Each route validates every question through the same
+hold no session, ADR-0001). Every route needs a signed-in owner (W3), and PDF routes also
+spend the account's export allowance (W3c). Each route validates every question through the same
 canonical load gate used by ``/edit/{op}`` — a tampered/invalid object, or an
 empty set, is rejected with **422**. Nothing is stamped (no ``created_at``).
 
@@ -14,18 +15,35 @@ and sets headers.
 from __future__ import annotations
 
 import re
+from typing import Annotated
 
 from exam_engine import canonical
 from exam_engine.canonical import CanonicalValidationError
 from exam_engine.render import render_answer_key_html, render_worksheet_html
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse, Response
 
 from . import export
+from .auth import current_owner
 from .models import ExportRequest
 from .ops import strip_ui_hints
+from .quota import check_export_quota, export_slot, refund_export
 
 router = APIRouter(prefix="/export")
+
+Owner = Annotated[str, Depends(current_owner)]
+
+
+def _pdf(html: str, owner: str) -> bytes:
+    """Render under the account's allowance and the shared concurrency cap."""
+    ticket = check_export_quota(owner)
+    try:
+        with export_slot():
+            return export.html_to_pdf(html)
+    except BaseException:
+        refund_export(ticket)
+        raise
+
 
 _SLUG_STRIP_RE = re.compile(r"[^a-z0-9]+")
 
@@ -48,17 +66,17 @@ def _validated_questions(req: ExportRequest) -> list[dict]:
 
 
 @router.post("/preview")
-def post_preview(req: ExportRequest) -> HTMLResponse:
+def post_preview(req: ExportRequest, owner: Owner) -> HTMLResponse:
     questions = _validated_questions(req)
     html = render_worksheet_html(req.title, questions)
     return HTMLResponse(content=html)
 
 
 @router.post("/worksheet")
-def post_worksheet(req: ExportRequest) -> Response:
+def post_worksheet(req: ExportRequest, owner: Owner) -> Response:
     questions = _validated_questions(req)
     html = render_worksheet_html(req.title, questions)
-    pdf = export.html_to_pdf(html)
+    pdf = _pdf(html, owner)
     return Response(
         content=pdf,
         media_type="application/pdf",
@@ -67,10 +85,10 @@ def post_worksheet(req: ExportRequest) -> Response:
 
 
 @router.post("/answer-key")
-def post_answer_key(req: ExportRequest) -> Response:
+def post_answer_key(req: ExportRequest, owner: Owner) -> Response:
     questions = _validated_questions(req)
     html = render_answer_key_html(req.title, questions)
-    pdf = export.html_to_pdf(html)
+    pdf = _pdf(html, owner)
     return Response(
         content=pdf,
         media_type="application/pdf",

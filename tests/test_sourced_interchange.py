@@ -219,7 +219,8 @@ requires_chromium = pytest.mark.skipif(
 
 
 @requires_chromium
-def test_mixed_worksheet_exports_pdf():
+def test_mixed_worksheet_exports_pdf(monkeypatch):
+    monkeypatch.setenv("EXAM_DEV_AUTH", "1")
     from app.main import app
     from fastapi.testclient import TestClient
 

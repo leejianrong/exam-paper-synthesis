@@ -27,3 +27,15 @@ Redirect (callback) URI: `{EXAM_PUBLIC_URL}/auth/{google|microsoft|github}/callb
 - Session: random token, stored hashed, 30 days; cookie `exam_session` is HttpOnly, SameSite=Lax. `POST /auth/logout` deletes it. `GET /auth/me` says who you are.
 - Linking: a second provider reaches the same account **only** when both sides have a *verified* email (Google's `email_verified`; GitHub's primary verified address). Microsoft does not assert verification, so its email never links. An unverified email never links or claims an address.
 - Documents, bank rows and assets are owned by the user id; a foreign id is always 404.
+
+## Export allowance (W3c)
+
+PDF export is the expensive step (headless Chromium), so each account has a rolling allowance:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `EXAM_EXPORT_LIMIT_PER_DAY` | 30 | PDF exports in the last 24 hours (`0` = unlimited) |
+| `EXAM_EXPORT_LIMIT_PER_MINUTE` | 5 | PDF exports in the last minute (`0` = unlimited) |
+| `EXAM_USAGE_PATH` | `~/.exam_engine/usage.sqlite3` | the ledger |
+
+Over the limit ⇒ **429** with `Retry-After` and a plain message. Previews, conversion and everything else are free; a render that fails is refunded. `GET /auth/quota` reports what is left (the editor shows "N exports left today"). All PDF routes — documents and the classic `/export/*` — now require a signed-in owner and share this allowance and the concurrency cap.

@@ -25,6 +25,7 @@
   import { openMathEditor } from './mathEditor'
   import { ImageBlock, ImageUpload, MathNode, uploadAndInsert } from './media'
   import { PageBreak } from './pageBreak'
+  import { loadQuota, type Quota } from '../session'
   import { TemplatedQuestion, questionNode } from './templatedQuestion'
 
   export let id: string
@@ -43,6 +44,7 @@
   let busy = ''
   let actionError = ''
   let notice = ''
+  let quota: Quota | null = null
   let selectedId: string | null = null // the block the author is in (for the inspector)
   let previewHtml: string | null = null
   let tick = 0 // bumps on every editor transaction so toolbar state re-reads
@@ -63,6 +65,7 @@
   }
 
   onMount(async () => {
+    void loadQuota().then((q) => (quota = q))
     try {
       const rec = await getDocument(id)
       title = rec.document.title
@@ -233,6 +236,7 @@
       actionError = e instanceof Error ? e.message : String(e)
     } finally {
       busy = ''
+      void loadQuota().then((q) => (quota = q))
     }
   }
 
@@ -257,6 +261,9 @@
   <span class="chip {status}" role="status" aria-live="polite">{statusLabel}</span>
   <span class="total">{marks} marks</span>
   <span class="spacer"></span>
+  {#if quota && typeof quota.left_day === 'number'}
+    <span class="quota" title="PDF exports left in the last 24 hours">{quota.left_day} exports left today</span>
+  {/if}
   <AccountChip />
   <div class="export" role="group" aria-label="Export">
     <button disabled={!!busy} on:click={() => preview('full')}>Preview</button>
@@ -430,6 +437,10 @@
   .total {
     font-family: var(--mono);
     color: var(--mark);
+  }
+  .quota {
+    color: var(--ink-faint);
+    font-size: 12.5px;
   }
   .spacer {
     flex: 1;
