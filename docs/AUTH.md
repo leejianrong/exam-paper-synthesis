@@ -51,3 +51,7 @@ Over the limit ⇒ **429** with `Retry-After` and a plain message. Previews, con
 Tests: `EXAM_TEST_DATABASE_URL` enables the Postgres contract tests (each in its own throwaway schema); add `EXAM_TEST_BACKEND=postgres` to run the whole API suite on Postgres. CI does both. Locally: `docker run -d -p 55432:5432 -e POSTGRES_PASSWORD=pw -e POSTGRES_DB=exam postgres:16-alpine`.
 
 Data in the SQLite files does not migrate automatically; the dev-stub owner `local` has no counterpart in a production database (accounts get fresh ids). `mathgen` keeps using the local SQLite bank.
+
+## Content-Security-Policy (W5)
+
+Every API response carries a CSP (`api/app/csp.py`; `/docs` is exempt and only exists outside production). Scripts: `'self'` plus the SHA-256 of the three inline print scripts (KaTeX, auto-render, bootstrap) — no `'unsafe-inline'`, no `'unsafe-eval'`. Hashes rather than a nonce because the SPA is a static file and those scripts are identical for every document; the editor's preview iframe (`srcdoc`) and the classic page's `blob:` preview *inherit* the parent's policy, and the hashes let exactly those scripts run. Styles keep `'unsafe-inline'` (print HTML `<style>` blocks, `style` attributes); fonts and images are self/`data:`. If you change `render.py`'s inline scripts the hashes follow automatically (`inline_script_hashes()`); if you add a new inline script anywhere, `tests/test_csp.py` and `tests/e2e/csp.spec.js` fail. The e2e spec runs the built SPA and API on one origin (:8001), because the Vite dev server never sends the policy.

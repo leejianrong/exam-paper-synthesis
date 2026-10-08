@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from app import config, export
 from app.main import app, mount_web
@@ -127,6 +129,14 @@ def test_the_built_web_app_is_served_from_the_same_origin_and_the_api_still_wins
     assert "<title>app</title>" in client.get("/").text
     assert client.get("/app.js").text == "console.log(1)"
     assert client.get("/health").json() == {"status": "ok"}  # mounted last: API first
+
+
+def test_no_api_route_shadows_the_web_builds_asset_directory():
+    # web/vite.config.ts emits the bundle under /static; one origin means the API's routes win,
+    # so none of them may live there (they once did under /assets, which 404'd the whole app).
+    assert not [r.path for r in app.routes if getattr(r, "path", "").startswith("/static")]
+    config = (Path(__file__).parents[1] / "web" / "vite.config.ts").read_text(encoding="utf-8")
+    assert "assetsDir: 'static'" in config
 
 
 def test_no_build_means_nothing_is_mounted(tmp_path):

@@ -6,6 +6,9 @@ import { svelteTesting } from '@testing-library/svelte/vite'
 export default defineConfig({
   plugins: [svelte(), svelteTesting()],
   server: { port: 5173 },
+  // Not the default `assets`: the API owns `/assets/{id}` (uploaded images) and, mounted on one
+  // origin in production, would answer the bundle's requests with a JSON 404.
+  build: { assetsDir: 'static' },
   test: {
     environment: 'jsdom',
     globals: true,
