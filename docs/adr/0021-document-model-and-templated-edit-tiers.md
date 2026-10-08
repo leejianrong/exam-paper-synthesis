@@ -42,8 +42,9 @@ slots. Blocks have stable ids; numbering is shared between body and key.
 | 2 | Numeric parameters (later slice) | Re-run validate → solve → schema-check; infeasible values rejected; key recomputed. |
 | 3 | Wording / sentence structure | **Not editable.** Escape hatch: **Convert to free-form** — detaches from the engine, drops the verified badge, pre-fills the answer slot as editable text. |
 
-Blueprints must therefore mark each parameter as cosmetic or numeric (to be specified in
-the W1 plan; current YAML param schema has no such notion).
+Blueprints mark each parameter with a role (`name | item | number | choice`) in a
+`param_roles` block; only `name` and `item` are tier 1. Specified in
+`docs/planning/editor/W1a-param-roles-plan.md`.
 
 ## Consequences
 
