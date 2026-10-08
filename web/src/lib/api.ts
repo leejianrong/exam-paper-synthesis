@@ -100,3 +100,46 @@ export async function exportPdf(
   }
   return res.blob()
 }
+
+/** One cosmetic (name/item) slot of a blueprint, from GET /blueprints/{code}/params (W1a). */
+export interface EditableSlot {
+  key: string
+  role: 'name' | 'item'
+  /** Number of values: 1 for a scalar, the array length for a list of names. */
+  count: number
+  max_length?: number
+  /** Allowed values for an `item` slot (a fixed list — no free text). */
+  pool?: string[]
+}
+
+/** The cosmetic slots of a blueprint, for building the "Edit names" form. */
+export async function getEditableSlots(blueprintCode: string): Promise<EditableSlot[]> {
+  const res = await fetch(`${BASE}/blueprints/${blueprintCode}/params`)
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`API ${res.status}: ${detail}`)
+  }
+  const data = (await res.json()) as { slots: EditableSlot[] }
+  return data.slots
+}
+
+/**
+ * Rename people / swap an item without touching the maths (POST /edit/set-cosmetic).
+ * `changes` maps a parameter to its new value(s), e.g. `{ names: ['Ann', 'Ben'] }`.
+ */
+export async function setCosmetic(
+  question: Question,
+  changes: Record<string, string | string[]>,
+): Promise<Question> {
+  const res = await fetch(`${BASE}/edit/set-cosmetic`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ question, changes }),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`API ${res.status}: ${detail}`)
+  }
+  const data = (await res.json()) as EditResponse
+  return data.question
+}

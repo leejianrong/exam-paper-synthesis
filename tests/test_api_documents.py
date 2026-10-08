@@ -61,7 +61,9 @@ def test_crud_happy_path():
     assert body["version"] == 2 and body["title"] == "Ratio review 2" and body["total_marks"] > 0
 
     got = client.get(f"/documents/{rec['id']}", headers=ALICE).json()
-    assert got["document"] == doc
+    from app.ops import strip_document_hints
+
+    assert strip_document_hints(got["document"]) == doc  # modulo the re-attached UI hints
 
     listing = client.get("/documents", headers=ALICE).json()["documents"]
     assert [d["id"] for d in listing] == [rec["id"]] and "document" not in listing[0]
@@ -170,3 +172,25 @@ def test_export_concurrency_slot_is_bounded(monkeypatch):
         assert getattr(err.value, "status_code", None) == 503
     with quota.export_slot():  # released afterwards
         pass
+
+
+def test_ui_hints_are_stripped_on_save_and_reattached_on_read():
+    """The editor round-trips available_ops on each question; stored snapshots stay canonical."""
+    rec = _create()
+    block = gen_block("ratio_medium", 3)
+    block["attrs"]["question"]["available_ops"] = ["regenerate", "make-harder"]  # stale hint
+    resp = _save(rec, make_doc(block))
+    assert resp.status_code == 200
+    served = resp.json()["document"]["content"]["content"][0]["attrs"]["question"]
+    assert "regenerate" in served["available_ops"] and "toggle-diagram" in served["available_ops"]
+
+    got = client.get(f"/documents/{rec['id']}", headers=ALICE).json()
+    assert "available_ops" in got["document"]["content"]["content"][0]["attrs"]["question"]
+
+    # What is stored (and rendered/exported) carries no UI hint.
+    from app.docstore import get_store
+
+    stored = get_store().get("alice", rec["id"])["document"]["content"]["content"][0]["attrs"]
+    assert "available_ops" not in stored["question"]
+    html = client.get(f"/documents/{rec['id']}/preview/student", headers=ALICE)
+    assert html.status_code == 200

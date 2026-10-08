@@ -28,7 +28,7 @@ async function approveOne(page) {
 }
 
 test('Export worksheet PDF downloads a non-empty .pdf', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/#/classic')
   const tray = await approveOne(page)
 
   const button = page.getByRole('button', { name: 'Export worksheet PDF' })
@@ -55,7 +55,7 @@ test('Export worksheet PDF downloads a non-empty .pdf', async ({ page }) => {
 })
 
 test('Export answer-key PDF downloads a non-empty -answers.pdf', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/#/classic')
   await approveOne(page)
 
   const button = page.getByRole('button', { name: 'Export answer-key PDF' })
@@ -77,7 +77,7 @@ test('Export answer-key PDF downloads a non-empty -answers.pdf', async ({ page }
 })
 
 test('Preview opens a new tab showing the rendered worksheet', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/#/classic')
   await approveOne(page)
 
   const button = page.getByRole('button', { name: 'Preview', exact: true })

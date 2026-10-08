@@ -10,7 +10,7 @@ import { test, expect } from '@playwright/test'
  * there is NO toggle-diagram control (the engine omits it from available_ops).
  */
 test('selecting a geometry topic renders a mandatory figure with no toggle', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/#/classic')
 
   // Drive the live selectors.
   await page.getByLabel('Topic').selectOption('geometry_area')

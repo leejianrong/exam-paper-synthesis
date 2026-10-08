@@ -10,7 +10,7 @@ import { test, expect } from '@playwright/test'
  * harness of generate.spec.js.
  */
 test('Approve adds to the worksheet tray; Discard removes a review card', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/#/classic')
 
   // Generate two cards (each click prepends one) so we can approve one and
   // discard a different one.
