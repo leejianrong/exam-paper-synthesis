@@ -6,7 +6,7 @@ do not re-describe the canonical schema.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -50,3 +50,12 @@ class RenderQuestionRequest(BaseModel):
     question: dict
     mode: Literal["student", "key"] = "student"
     number: int | None = None
+
+
+class ConvertFreeformRequest(BaseModel):
+    question: dict
+
+
+class BankImportRequest(BaseModel):
+    objects: list[Any]  # per-item validation happens in the route, so one bad item is reported
+    replace: bool = False

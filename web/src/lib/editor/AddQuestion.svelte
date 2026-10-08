@@ -5,6 +5,7 @@
   import { generate, listBank, type BankItem } from '../api'
   import { TOPICS, DIFFICULTIES, blueprintCode } from '../topics'
   import type { Difficulty, Question } from '../types'
+  import BankImport from './BankImport.svelte'
   import FragmentView from './FragmentView.svelte'
   import QuestionBody from './QuestionBody.svelte'
 
@@ -40,6 +41,19 @@
   let bankError = ''
   let bankTopic = ''
   let reviewedOnly = false
+  let importing = false
+
+  async function afterImport() {
+    bankLoaded = false // pick up what was just imported
+    bankItems = []
+    bankLoading = false
+    try {
+      bankItems = await listBank()
+      bankLoaded = true
+    } catch (e) {
+      bankError = e instanceof Error ? e.message : String(e)
+    }
+  }
 
   async function showBank() {
     tab = 'bank'
@@ -131,6 +145,11 @@
         <p class="hint">Pick a topic and difficulty, then generate a few options to choose from.</p>
       {/if}
     </div>
+    {:else if importing}
+      <BankImport
+        on:done={afterImport}
+        on:cancel={() => (importing = false)}
+      />
     {:else}
       <div class="selectors">
         <label
@@ -143,6 +162,7 @@
         <label class="check"
           ><input type="checkbox" bind:checked={reviewedOnly} /> Reviewed only</label
         >
+        <button class="import-btn" on:click={() => (importing = true)}>Import…</button>
       </div>
 
       {#if bankError}<p class="error" role="alert">{bankError}</p>{/if}
@@ -165,8 +185,8 @@
         {/each}
         {#if bankLoaded && bankItems.length === 0}
           <p class="hint">
-            Nothing in your bank yet. Import questions with
-            <code>mathgen bank import &lt;file.json&gt;</code> and they will show up here.
+            Nothing in your bank yet. Use <b>Import…</b> to add question JSON files (or run
+            <code>mathgen bank import &lt;file.json&gt;</code>) and they will show up here.
           </p>
         {:else if bankLoaded && shownBank.length === 0}
           <p class="hint">No bank questions match these filters.</p>
@@ -277,6 +297,16 @@
     background: var(--wash);
     display: grid;
     gap: 0.5rem;
+  }
+  .import-btn {
+    font: inherit;
+    margin-left: auto;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 0.35rem 0.8rem;
+    cursor: pointer;
   }
   .use {
     justify-self: start;

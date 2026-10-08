@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -277,4 +278,108 @@ test('uploads are validated by content and are private to their owner', async ({
   expect(mine.headers()['x-content-type-options']).toBe('nosniff')
   const theirs = await request.get(`${api}/assets/${id}`, { headers: { 'X-Dev-Owner': 'e2e-bob' } })
   expect(theirs.status()).toBe(404)
+})
+
+test('convert a generated question to free-form: text, answer and its figure as an image', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '+ New paper' }).click()
+  await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
+  const id = page.url().split('/docs/')[1]
+  await page.getByLabel('Paper title').fill('Convert Paper')
+  await addQuestion(page)
+  const block = page.getByTestId('question-block')
+  await expect(block).toHaveCount(1)
+  const original = await block.locator('.part-text, .text').first().innerText().catch(() => '')
+
+  await block.getByRole('button', { name: 'Convert to free-form' }).click()
+  const ff = page.locator('.ffblock')
+  await expect(ff).toHaveCount(1)
+  await expect(page.getByTestId('question-block')).toHaveCount(0)
+  // The bar model became an uploaded PNG, and the written answer is editable in the key.
+  const img = ff.locator('img.doc-image-img')
+  await expect(img).toBeVisible()
+  await expect.poll(() => img.evaluate((e) => e.naturalWidth)).toBeGreaterThan(100)
+  await expect(ff.locator('.ff-marks')).toHaveText(/\[\d+\]/)
+  const entry = page.getByRole('region', { name: 'Answer key' }).locator('.entry.freeform')
+  await expect(entry.locator('.answer')).toContainText('Answer:')
+  if (original) await expect(ff.locator('.ff-body')).toContainText(original.slice(0, 20))
+
+  // Now it is the teacher's text: edit it freely.
+  await ff.locator('.ff-body p').first().click()
+  await page.keyboard.press('End')
+  await page.keyboard.type(' (edited)')
+  await expect(ff.locator('.ff-body')).toContainText('(edited)')
+
+  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
+  expect(student).toContain('(edited)')
+  expect(student).toContain('data:image/png;base64,')
+  const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
+  expect(key).toContain('Answer:')
+
+})
+
+// A private owner per run: the shared `local` bank is asserted exactly by another test.
+const IMPORTER = `e2e-importer-${Date.now().toString(36)}`
+test.describe('bank import', () => {
+test.use({ extraHTTPHeaders: { 'X-Dev-Owner': IMPORTER } })
+
+test('import canonical JSON into the bank from the editor, review-gated, per-item errors', async ({ page }) => {
+  const base = JSON.parse(fs.readFileSync('tests/fixtures/sourced/psle_2023_ratio.json', 'utf8'))
+  const stamp = Date.now().toString(36)
+  const good = { ...base, id: `sourced:e2e-import-${stamp}` }
+  const broken = { ...base, id: `sourced:e2e-broken-${stamp}`, question: { ...base.question, total_marks: undefined } }
+
+  await page.goto('/')
+  await page.getByRole('button', { name: '+ New paper' }).click()
+  await page.getByRole('button', { name: 'Add question' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Add question' })
+  await dialog.getByRole('tab', { name: 'From my bank' }).click()
+  await dialog.getByRole('button', { name: 'Import…' }).click()
+
+  // Two files in one go: a good question that claims to be reviewed, and a broken one.
+  good.validation = { ...good.validation, checks: { ...(good.validation?.checks ?? {}), human_reviewed: true } }
+  await dialog.getByLabel('Choose JSON files').setInputFiles([
+    { name: 'good.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(good)) },
+    { name: 'broken.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(broken)) },
+  ])
+  await dialog.getByRole('button', { name: 'Import' }).click()
+  const results = dialog.getByRole('list', { name: 'Import results' })
+  await expect(results.locator('[data-status="imported"]')).toHaveCount(1)
+  await expect(results.locator('[data-status="invalid"]')).toHaveCount(1)
+  await expect(results.locator('[data-status="invalid"]')).toContainText('total_marks')
+
+  // Importing the same file again reports a duplicate instead of overwriting.
+  await dialog.getByLabel('Choose JSON files').setInputFiles([
+    { name: 'good.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(good)) },
+  ])
+  await dialog.getByRole('button', { name: 'Import' }).click()
+  await expect(results.locator('[data-status="duplicate"]')).toHaveCount(1)
+
+  // Back in the bank it is listed, and it arrived unreviewed whatever the file claimed.
+  await dialog.getByRole('button', { name: 'Back to bank' }).click()
+  const item = dialog.getByTestId('bank-item').filter({ has: page.locator('.tag', { hasText: 'Unreviewed' }) })
+  await expect(item.first()).toBeVisible()
+  const bank = await (await page.request.get('http://localhost:8000/bank')).json()
+  const stored = bank.items.find((i) => i.id === good.id)
+  expect(stored).toBeTruthy()
+  expect(stored.reviewed).toBe(false)
+})
+})
+
+test('typing "1. " makes a numbered list that still saves (editor-only attributes are stripped)', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '+ New paper' }).click()
+  await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
+  await page.getByRole('button', { name: 'Add question' }).click()
+  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
+  await page.keyboard.type('Which are prime?')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('1. Two')
+  await expect(page.locator('.ffblock .ff-body ol')).toBeVisible()
+  const entry = page.getByRole('region', { name: 'Answer key' }).locator('.entry.freeform')
+  await entry.locator('.answer').click()
+  await page.keyboard.type('7. Seven')
+  await expect(entry.locator('.answer ol')).toBeVisible()
+  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
 })

@@ -201,3 +201,69 @@ describe('EditorPage images and equations (W2b)', () => {
     expect(document.querySelector('.entry.freeform .qtext img')).toBeTruthy()
   })
 })
+
+describe('EditorPage convert to free-form (W2c)', () => {
+  const conversion = (dropped: string[] = []) => ({
+    marks: 3,
+    content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Converted question text.' }] },
+      { type: 'image', attrs: { asset_id: 'a'.repeat(32), alt: 'Diagram', width_pct: 60 } },
+    ],
+    answer: {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Answer: $40' }] }],
+    },
+    dropped,
+  })
+
+  const load = async (convert: () => unknown) => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith('/convert/freeform')) return convert()
+      return {
+        ok: true,
+        status: 200,
+        json: async () => record([questionNode(makeQuestion({ id: 'a' }, 'Original generated text.'))]),
+        text: async () => '',
+      }
+    })
+    render(EditorPage, { props: { id: 'd1' } })
+    await screen.findByText('Original generated text.')
+  }
+
+  it('replaces the generated block with an editable free-form one (marks, text, answer)', async () => {
+    await load(() => ({ ok: true, status: 200, json: async () => conversion() }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Convert to free-form' }))
+
+    await waitFor(() => expect(document.querySelector('.ffblock')).toBeTruthy())
+    expect(screen.queryByTestId('question-block')).toBeNull()
+    expect(document.querySelector('.ffblock')).toHaveTextContent('Converted question text.')
+    expect(document.querySelector('.ffblock .ff-marks')).toHaveTextContent('[3]')
+    expect(document.querySelector('.ffblock img.doc-image-img')).toBeTruthy()
+    expect(document.querySelector('.entry.freeform .ProseMirror')).toHaveTextContent('Answer: $40')
+    expect(screen.getByText('3 marks', { selector: '.total' })).toBeInTheDocument()
+  })
+
+  it('names the figures it had to drop', async () => {
+    await load(() => ({ ok: true, status: 200, json: async () => conversion(['figure (could not be drawn)']) }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Convert to free-form' }))
+    expect(await screen.findByText(/Not included: figure \(could not be drawn\)/)).toBeInTheDocument()
+  })
+
+  it('leaves the block alone and says why when the conversion fails', async () => {
+    await load(() => ({ ok: false, status: 500, text: async () => 'boom' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Convert to free-form' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('API 500')
+    expect(screen.getByTestId('question-block')).toBeInTheDocument()
+    expect(document.querySelector('.ffblock')).toBeNull()
+  })
+
+  it('undo restores the generated block', async () => {
+    await load(() => ({ ok: true, status: 200, json: async () => conversion() }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Convert to free-form' }))
+    await waitFor(() => expect(document.querySelector('.ffblock')).toBeTruthy())
+    await fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    await waitFor(() => expect(screen.getByTestId('question-block')).toBeInTheDocument())
+    expect(document.querySelector('.ffblock')).toBeNull()
+    expect(screen.getByText('Original generated text.')).toBeInTheDocument()
+  })
+})

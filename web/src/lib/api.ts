@@ -155,7 +155,7 @@ export interface BankItem {
   question: Question
 }
 
-/** The owner's bank questions (read-only here; import is `mathgen bank import`). */
+/** The owner's bank questions (import: `importBank` here, or `mathgen bank import`). */
 export async function listBank(): Promise<BankItem[]> {
   const res = await fetch(`${BASE}/bank`)
   if (!res.ok) {
@@ -163,6 +163,67 @@ export async function listBank(): Promise<BankItem[]> {
     throw new Error(`API ${res.status}: ${detail}`)
   }
   return ((await res.json()) as { items: BankItem[] }).items
+}
+
+/** One item's outcome from POST /bank/import. */
+export interface ImportResult {
+  index: number
+  id: string | null
+  status: 'imported' | 'replaced' | 'duplicate' | 'invalid'
+  errors?: string[]
+}
+
+export interface ImportResponse {
+  results: ImportResult[]
+  imported: number
+  replaced: number
+  duplicate: number
+  invalid: number
+}
+
+/**
+ * Import canonical objects into the owner's bank (POST /bank/import). Items arrive
+ * unreviewed; a duplicate id is reported unless `replace`; one bad item never blocks the rest.
+ */
+export async function importBank(objects: unknown[], replace = false): Promise<ImportResponse> {
+  const res = await fetch(`${BASE}/bank/import`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ objects, replace }),
+  })
+  if (!res.ok) {
+    let detail = res.statusText
+    try {
+      const body = (await res.json()) as { detail?: unknown }
+      if (typeof body.detail === 'string') detail = body.detail
+    } catch {
+      /* keep statusText */
+    }
+    throw new Error(`Import failed: ${detail}`)
+  }
+  return (await res.json()) as ImportResponse
+}
+
+/** A question converted to free-form pieces (POST /convert/freeform). */
+export interface FreeformConversion {
+  marks: number
+  content: Array<Record<string, unknown>>
+  answer: { type: 'doc'; content: Array<Record<string, unknown>> }
+  /** Figures that could not be drawn, by name (the conversion still succeeded). */
+  dropped: string[]
+}
+
+export async function convertToFreeform(question: Question): Promise<FreeformConversion> {
+  const res = await fetch(`${BASE}/convert/freeform`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ question }),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`API ${res.status}: ${detail}`)
+  }
+  return (await res.json()) as FreeformConversion
 }
 
 /** Engine-rendered HTML for one question (POST /render/question): the print markup. */

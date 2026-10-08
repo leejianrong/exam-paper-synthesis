@@ -40,6 +40,7 @@
   let pickerAt: number | null | undefined = undefined // undefined = closed, null = end
   let busy = ''
   let actionError = ''
+  let notice = ''
   let previewHtml: string | null = null
   let tick = 0 // bumps on every editor transaction so toolbar state re-reads
 
@@ -92,7 +93,10 @@
           }),
           PageBreak,
           FreeformQuestion.configure({ onAddBelow: (pos: number) => (pickerAt = pos) }),
-          TemplatedQuestion.configure({ onAddBelow: (pos: number) => (pickerAt = pos) }),
+          TemplatedQuestion.configure({
+            onAddBelow: (pos: number) => (pickerAt = pos),
+            onNotice: (m: string) => (notice = m),
+          }),
         ],
         content: rec.document.content,
         onUpdate: ({ editor: e }) => {
@@ -262,6 +266,11 @@
   </p>
 {/if}
 {#if actionError}<p class="banner err" role="alert">{actionError}</p>{/if}
+{#if notice}
+  <p class="banner note" aria-live="polite">
+    {notice} <button on:click={() => (notice = '')}>Dismiss</button>
+  </p>
+{/if}
 
 {#if loading}
   <p class="loading">Loading…</p>
@@ -434,6 +443,10 @@
     background: var(--mark-soft);
     color: var(--mark);
     font-size: 13px;
+  }
+  .banner.note {
+    background: var(--wash);
+    color: var(--ink-soft);
   }
   .loading {
     text-align: center;

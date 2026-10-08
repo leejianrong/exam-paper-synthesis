@@ -16,6 +16,7 @@
     remove: () => void
     move: (dir: -1 | 1) => void
     addBelow: () => void
+    convert: () => Promise<void>
   }
 
   $: q = $store
@@ -45,11 +46,12 @@
   let error = ''
   let editingNames = false
 
-  async function run(fn: () => Promise<Question>) {
+  async function run(fn: () => Promise<Question | void>) {
     busy = true
     error = ''
     try {
-      ctx.replace(await fn())
+      const next = await fn()
+      if (next) ctx.replace(next)
       editingNames = false
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
@@ -96,6 +98,11 @@
       {#if q.source_type !== 'sourced' && q.blueprint_code}
         <button disabled={busy} on:click={() => (editingNames = !editingNames)}>Edit names</button>
       {/if}
+      <button
+        disabled={busy}
+        title="Turn this into an editable question — it will no longer be generated"
+        on:click={() => run(() => ctx.convert())}>Convert to free-form</button
+      >
       <span class="spacer"></span>
       <button title="Move up" aria-label="Move up" on:click={() => ctx.move(-1)}>↑</button>
       <button title="Move down" aria-label="Move down" on:click={() => ctx.move(1)}>↓</button>

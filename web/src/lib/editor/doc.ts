@@ -74,9 +74,33 @@ export function totalMarks(doc: DocJSON): number {
 
 export const EMPTY_ANSWER: DocJSON = { type: 'doc', content: [] }
 
+/**
+ * Strip editor-only attributes the document schema does not allow. TipTap's ordered list
+ * carries a `type` (list-style) attribute — `null` by default — that must never reach the
+ * server; `start` is kept only when it is not 1.
+ */
+export function cleanNode(node: DocNode): DocNode {
+  let out = node
+  if (node.type === 'orderedList') {
+    const start = Number(node.attrs?.start)
+    const rest: DocNode = { ...node }
+    delete rest.attrs
+    out = Number.isInteger(start) && start > 1 ? { ...rest, attrs: { start } } : rest
+  }
+  if (out.content) out = { ...out, content: out.content.map(cleanNode) }
+  if (out.type === 'freeformQuestion' && out.attrs?.answer) {
+    const answer = out.attrs.answer as DocJSON
+    out = {
+      ...out,
+      attrs: { ...out.attrs, answer: { ...answer, content: (answer.content ?? []).map(cleanNode) } },
+    }
+  }
+  return out
+}
+
 /** A free-form answer with trailing empty paragraphs dropped (empty ⇒ no content). */
 export function normalizeAnswer(answer: DocJSON | undefined | null): DocJSON {
-  const content = [...(answer?.content ?? [])]
+  const content = (answer?.content ?? []).map(cleanNode)
   while (content.length) {
     const last = content[content.length - 1]
     if (last.type === 'paragraph' && !(last.content?.length)) content.pop()
@@ -141,7 +165,7 @@ function inlineHtml(nodes: DocNode[] | undefined): string {
  */
 export function buildDocument(title: string, content: DocJSON): PaperDocument {
   const seen = new Set<string>()
-  const blocks = (content.content ?? []).map((node) => {
+  const blocks = (content.content ?? []).map(cleanNode).map((node) => {
     if (node.type !== 'templatedQuestion' && node.type !== 'freeformQuestion') return node
     let id = String(node.attrs?.block_id ?? '')
     if (!id || seen.has(id)) id = newBlockId()
