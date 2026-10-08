@@ -36,7 +36,7 @@ the document; free-form questions get an empty slot there for the teacher to fil
 
 | Slice | Title | Ends in (demo) |
 |---|---|---|
-| **W1** | Document model + editor shell (first sub-slice: **W1a** param roles + `set-cosmetic`) | Blank page → **+** inserts a templated block (picked from bank or generated, cosmetic-slot edits, in-block regenerate/harder/easier) → export worksheet + answer key (key at end) as PDF. Tenant-scoped storage (`owner_id`) with stub auth. TipTap/ProseMirror with custom node views. |
+| **W1** | Document model + editor shell — sub-slices **W1a** (done), **W1b** store/API, **W1c** editor UI, **W1d** bank tab; see [`W1-plan.md`](W1-plan.md) | Blank page → **+** inserts a templated block (picked from bank or generated, cosmetic-slot edits, in-block regenerate/harder/easier) → export worksheet + answer key (key at end) as PDF. Tenant-scoped storage (`owner_id`) with stub auth. TipTap/ProseMirror with custom node views. |
 | **W2** | Free-form blocks | Free-form question with rich text, KaTeX equation node, PNG upload (object storage, size limits), marks field, empty answer slot; **Convert to free-form**; total marks across both block kinds. |
 | **W3** | Accounts + Neon | Real login (method TBD), Postgres implementation of the bank/document store, per-account export quota and rate limit. |
 | **W4** | Hardening + launch | Export concurrency cap/timeouts, backups, Cloudflare edge setup (KAN-305), launch checklist. |
