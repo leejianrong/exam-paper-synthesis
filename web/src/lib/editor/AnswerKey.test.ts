@@ -87,4 +87,22 @@ describe('AnswerKey', () => {
     render(AnswerKey, { props: { blocks: [freeformDocNode({ answer: '' })] } })
     expect(document.querySelector('.ProseMirror')).toBeInTheDocument()
   })
+
+  it('draws a free-form entry\'s figure and equation, read-only, before the answer is opened', () => {
+    const node = freeformDocNode({ id: 'ff_media' })
+    node.content = [
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'Evaluate ' },
+          { type: 'math', attrs: { latex: '\\frac{3}{4}' } },
+        ],
+      } as never,
+      { type: 'image', attrs: { asset_id: 'asset_0001', alt: 'fig', width_pct: 50 } } as never,
+    ]
+    render(AnswerKey, { props: { blocks: [node] } })
+    const q = document.querySelector('.entry.freeform .qtext') as HTMLElement
+    expect(q.querySelector('img')!.getAttribute('src')).toContain('/assets/asset_0001')
+    expect(q.querySelector('.math-host')!.shadowRoot!.textContent).toContain('\\frac{3}{4}')
+  })
 })

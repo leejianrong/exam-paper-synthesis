@@ -207,3 +207,74 @@ test('write a free-form question, set marks, write its answer, reload, preview a
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })
+
+// A real 40x30 PNG (the upload gate checks magic bytes, dimensions and the IEND trailer).
+const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAIAAADRv8uKAAAAKklEQVR4nO3NsQ0AAAgDoJ7u5/qCWxcSdrKTis4qFovFYrFYLBaLxeKXAx/uA7qKDGN/AAAAAElFTkSuQmCC'
+
+test('a free-form question with a PNG figure and an equation survives reload and prints', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '+ New paper' }).click()
+  await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
+  const id = page.url().split('/docs/')[1]
+  await page.getByLabel('Paper title').fill('Figures Paper')
+
+  await page.getByRole('button', { name: 'Add question' }).click()
+  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
+  await page.keyboard.type('Find the value of ')
+  await expect(page.locator('.ffblock .ff-body')).toContainText('Find the value of')
+
+  // Equation: typed LaTeX with a live preview, applied inline.
+  await page.getByRole('button', { name: 'Equation', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Equation' })
+  await dialog.getByLabel('LaTeX').fill('\\frac{3}{4} \\times 8')
+  await expect(dialog.locator('.preview .math-host .katex')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Apply' }).click()
+  await expect(page.locator('.ffblock .math-node .katex')).toBeVisible()
+
+  // Image: through the toolbar's file chooser.
+  await page.getByLabel('Choose image').setInputFiles({
+    name: 'figure.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(PNG_B64, 'base64'),
+  })
+  const img = page.locator('.ffblock img.doc-image-img')
+  await expect(img).toBeVisible()
+  await expect.poll(() => img.evaluate((e) => e.naturalWidth)).toBe(40)
+
+  await page.locator('.ffblock').getByLabel('Marks').fill('3')
+  await page.locator('.ffblock').getByLabel('Marks').press('Enter')
+
+  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await page.reload()
+  await expect(page.locator('.ffblock .math-node .katex')).toBeVisible()
+  await expect(page.locator('.ffblock img.doc-image-img')).toBeVisible()
+
+  // The printed copy has the figure inlined as a data URI and the formula typeset.
+  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
+  expect(student).toContain('data:image/png;base64,')
+  expect(student).toContain('\\(\\frac{3}{4} \\times 8\\)')
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Student PDF' }).click(),
+  ])
+  expect(download.suggestedFilename()).toMatch(/\.pdf$/)
+})
+
+test('uploads are validated by content and are private to their owner', async ({ request }) => {
+  const api = 'http://localhost:8000'
+  const html = Buffer.from('<html><script>alert(1)</script></html>')
+  const refused = await request.post(`${api}/assets`, { data: html, headers: { 'X-Filename': 'x.png', 'Content-Type': 'image/png' } })
+  expect(refused.status()).toBe(422)
+
+  const ok = await request.post(`${api}/assets`, {
+    data: Buffer.from(PNG_B64, 'base64'),
+    headers: { 'Content-Type': 'image/png', 'X-Dev-Owner': 'e2e-alice' },
+  })
+  expect(ok.status()).toBe(201)
+  const { id } = await ok.json()
+  const mine = await request.get(`${api}/assets/${id}`, { headers: { 'X-Dev-Owner': 'e2e-alice' } })
+  expect(mine.status()).toBe(200)
+  expect(mine.headers()['x-content-type-options']).toBe('nosniff')
+  const theirs = await request.get(`${api}/assets/${id}`, { headers: { 'X-Dev-Owner': 'e2e-bob' } })
+  expect(theirs.status()).toBe(404)
+})

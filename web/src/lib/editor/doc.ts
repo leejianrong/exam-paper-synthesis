@@ -2,8 +2,9 @@
 // deliberately loose — the server's document.schema.json is the authority.
 
 import type { Question } from '../types'
+import { assetUrl } from './assets'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.1.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.2.0'
 
 export interface DocNode {
   type: string
@@ -106,6 +107,11 @@ export function blocksToHtml(nodes: DocNode[] | undefined): string {
         const tag = n.type === 'bulletList' ? 'ul' : 'ol'
         return `<${tag}>${(n.content ?? []).map((li) => `<li>${blocksToHtml(li.content)}</li>`).join('')}</${tag}>`
       }
+      if (n.type === 'image') {
+        const a = n.attrs ?? {}
+        const width = Number(a.width_pct) || 100
+        return `<figure class="doc-image"><img src="${esc(assetUrl(String(a.asset_id)))}" alt="${esc(String(a.alt ?? ''))}" style="width:${width}%"></figure>`
+      }
       return ''
     })
     .join('')
@@ -115,6 +121,10 @@ function inlineHtml(nodes: DocNode[] | undefined): string {
   return (nodes ?? [])
     .map((n) => {
       if (n.type === 'hardBreak') return '<br>'
+      if (n.type === 'math') {
+        const latex = String(n.attrs?.latex ?? '')
+        return `<span class="math-host" data-latex="${esc(latex)}">${esc(latex)}</span>`
+      }
       let html = esc(n.text ?? '')
       for (const m of n.marks ?? []) {
         const tag = MARK_TAGS[m.type]

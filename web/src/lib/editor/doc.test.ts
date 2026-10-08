@@ -41,7 +41,7 @@ describe('document helpers', () => {
     const ids = out.content.content.filter((n) => n.type === 'templatedQuestion').map((n) => n.attrs?.block_id)
     expect(new Set(ids).size).toBe(3)
     expect(ids[0]).toBe('b_same')
-    expect(out.schema_version).toBe('1.1.0')
+    expect(out.schema_version).toBe('1.2.0')
     expect(out.title).toBe('T')
   })
 })
@@ -65,7 +65,7 @@ describe('free-form helpers (W2a)', () => {
     })
     const ids = out.content.content.map((n) => n.attrs?.block_id)
     expect(new Set(ids).size).toBe(2)
-    expect(out.schema_version).toBe('1.1.0')
+    expect(out.schema_version).toBe('1.2.0')
   })
 
   it('a new free-form node is empty, unmarked and has a valid id', () => {
@@ -91,5 +91,20 @@ describe('free-form helpers (W2a)', () => {
       },
     ])
     expect(html).toBe('<p><strong>&lt;b&gt;&amp;</strong></p><ul><li><p>a</p></li></ul>')
+  })
+
+  it('blocksToHtml draws images from their asset and keeps math for typesetting (escaped)', () => {
+    const html = blocksToHtml([
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'Find ' },
+          { type: 'math', attrs: { latex: 'a<b "q"' } },
+        ],
+      },
+      { type: 'image', attrs: { asset_id: 'asset_0001', alt: 'A "fig"', width_pct: 40 } },
+    ])
+    expect(html).toContain('<span class="math-host" data-latex="a&lt;b &quot;q&quot;">a&lt;b &quot;q&quot;</span>')
+    expect(html).toMatch(/<img src="[^"]*\/assets\/asset_0001" alt="A &quot;fig&quot;" style="width:40%">/)
   })
 })

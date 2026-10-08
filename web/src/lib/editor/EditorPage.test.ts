@@ -136,3 +136,68 @@ describe('EditorPage', () => {
     })
   })
 })
+
+describe('EditorPage images and equations (W2b)', () => {
+  const load = async (content: unknown[]) => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (String(url).endsWith('/assets') && init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({ id: 'a'.repeat(32), mime: 'image/png', width: 2, height: 3, bytes: 9 }),
+        }
+      }
+      return { ok: true, status: 200, json: async () => record(content), text: async () => '' }
+    })
+    render(EditorPage, { props: { id: 'd1' } })
+    await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
+  }
+
+  it('the Image button uploads the chosen file and puts the figure on the page', async () => {
+    await load([])
+    const input = screen.getByLabelText('Choose image') as HTMLInputElement
+    const file = new File(['png'], 'fig.png', { type: 'image/png' })
+    await fireEvent.change(input, { target: { files: [file] } })
+    await waitFor(() => expect(document.querySelector('.surface img.doc-image-img')).toBeTruthy())
+    const post = fetchMock.mock.calls.find((c) => c[1]?.method === 'POST' && String(c[0]).endsWith('/assets'))!
+    expect(post[1].headers['x-filename']).toBe('fig.png')
+    expect(post[1].body).toBe(file)
+  })
+
+  it('says why when the server refuses the image, and puts nothing on the page', async () => {
+    await load([])
+    fetchMock.mockImplementation(async () => ({
+      ok: false,
+      status: 422,
+      statusText: 'Unprocessable',
+      json: async () => ({ detail: 'only PNG and JPEG images are accepted' }),
+    }))
+    const input = screen.getByLabelText('Choose image') as HTMLInputElement
+    await fireEvent.change(input, { target: { files: [new File(['x'], 'a.gif', { type: 'image/gif' })] } })
+    expect(await screen.findByRole('alert')).toHaveTextContent('only PNG and JPEG images are accepted')
+    expect(document.querySelector('.surface img.doc-image-img')).toBeNull()
+  })
+
+  it('the Equation button opens the editor and Apply puts the formula inline', async () => {
+    await load([{ type: 'paragraph', content: [{ type: 'text', text: 'Find ' }] }])
+    await fireEvent.click(screen.getByRole('button', { name: 'Equation' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Equation' })
+    await fireEvent.input(screen.getByLabelText('LaTeX'), { target: { value: '\\frac{3}{4}' } })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled())
+    await fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    expect(dialog).not.toBeInTheDocument()
+    await waitFor(() => expect(document.querySelector('.surface .math-node')).toBeTruthy())
+  })
+
+  it('a saved paper with a figure and a formula in a free-form question loads and totals', async () => {
+    const ff = freeformDocNode({ id: 'ff_m', marks: 2, body: 'See below.' })
+    ff.content.push({ type: 'image', attrs: { asset_id: 'a'.repeat(32), alt: '', width_pct: 60 } } as never)
+    ff.content[0].content!.push({ type: 'math', attrs: { latex: 'x^{2}' } } as never)
+    await load([ff])
+    await waitFor(() => expect(document.querySelector('.ffblock img.doc-image-img')).toBeTruthy())
+    expect(document.querySelector('.ffblock .math-node')).toBeTruthy()
+    expect(screen.getByText('2 marks', { selector: '.total' })).toBeInTheDocument()
+    // the key entry shows the same figure read-only
+    expect(document.querySelector('.entry.freeform .qtext img')).toBeTruthy()
+  })
+})

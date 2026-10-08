@@ -46,7 +46,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
   name: 'freeformQuestion',
   // Its own group (not `block`) so a free-form question can only sit at the top level.
   group: 'question',
-  content: '(paragraph | bulletList | orderedList)+',
+  content: '(paragraph | bulletList | orderedList | image)+',
   isolating: true,
   defining: true,
   draggable: false,
@@ -205,5 +205,5 @@ export function insertFreeform(editor: NodeViewRendererProps['editor'], at: numb
 export const QuestionDocument = Node.create({
   name: 'doc',
   topNode: true,
-  content: '(block | question)+',
+  content: '(block | question | media)+',
 })
