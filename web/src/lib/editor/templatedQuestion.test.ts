@@ -6,7 +6,7 @@ import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { fireEvent, screen, waitFor } from '@testing-library/svelte'
 import { TemplatedQuestion, questionNode } from './templatedQuestion'
-import { makeQuestion } from './fixtures'
+import { makeBankQuestion, makeQuestion, routeFetch } from './fixtures'
 import type { DocJSON } from './doc'
 
 let editor: Editor | null = null
@@ -101,5 +101,40 @@ describe('templatedQuestion node view', () => {
     await fireEvent.click(screen.getAllByRole('button', { name: 'Make harder' })[0])
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('API 422: nope'))
     expect(texts(e)).toEqual(['a', 'b'])
+  })
+
+  it('draws a bank question as "From my bank" with no engine-only edits', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        routeFetch({
+          '/render/question.css': '.q{}',
+          '/render/katex.js': '',
+          '/render/question': { html: '<div class="frag">bank question html</div>' },
+        }),
+      ),
+    )
+    make({ type: 'doc', content: [questionNode(makeBankQuestion())] })
+    expect(screen.getByText('From my bank')).toBeInTheDocument()
+    expect(screen.getByText('Unreviewed')).toBeInTheDocument()
+    expect(screen.queryByText('engine-verified')).not.toBeInTheDocument()
+    for (const name of ['Regenerate', 'Make harder', 'Edit names']) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+    }
+    // …but it still moves, adds below and deletes like any block.
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByTestId('fragment').shadowRoot?.textContent).toContain('bank question html'),
+    )
+  })
+
+  it('a reviewed bank question drops the Unreviewed tag', () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500, text: async () => 'x' }))
+    make({
+      type: 'doc',
+      content: [questionNode(makeBankQuestion({ validation: { status: 'pass', checks: { human_reviewed: true } } }))],
+    })
+    expect(screen.getByText('From my bank')).toBeInTheDocument()
+    expect(screen.queryByText('Unreviewed')).not.toBeInTheDocument()
   })
 })

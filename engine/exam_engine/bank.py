@@ -18,9 +18,12 @@ from pathlib import Path
 from . import canonical
 from .errors import BankDuplicateId, BankObjectNotFound
 
+LOCAL_OWNER = "local"  # the CLI's owner, and every row that predates owners (W1d)
+
 _DDL = """
 CREATE TABLE IF NOT EXISTS objects (
-    id             TEXT PRIMARY KEY,
+    owner_id       TEXT NOT NULL DEFAULT 'local',
+    id             TEXT NOT NULL,
     schema_version TEXT NOT NULL,
     source_type    TEXT NOT NULL,
     topic          TEXT,
@@ -29,7 +32,8 @@ CREATE TABLE IF NOT EXISTS objects (
     created_by     TEXT NOT NULL,
     reviewed       INTEGER NOT NULL DEFAULT 0,
     imported_at    TEXT NOT NULL,
-    json           TEXT NOT NULL
+    json           TEXT NOT NULL,
+    PRIMARY KEY (owner_id, id)
 );
 CREATE INDEX IF NOT EXISTS idx_objects_topic       ON objects(topic);
 CREATE INDEX IF NOT EXISTS idx_objects_difficulty  ON objects(difficulty);
@@ -55,38 +59,74 @@ def default_path() -> Path:
     return Path.home() / ".exam_engine" / "bank.sqlite3"
 
 
-def open_bank(path: Path | None = None) -> Bank:
-    """Open (creating if needed) the bank at ``path`` (default: :func:`default_path`)."""
+def open_bank(path: Path | None = None, owner_id: str = LOCAL_OWNER) -> Bank:
+    """Open (creating if needed) the bank at ``path`` (default: :func:`default_path`)
+    as ``owner_id`` (default: the CLI's ``local`` owner)."""
     p = path if path is not None else default_path()
     p.parent.mkdir(parents=True, exist_ok=True)
-    return Bank(p)
+    return Bank(p, owner_id)
 
 
 def _reviewed_of(obj: dict) -> bool:
     return bool(obj.get("validation", {}).get("checks", {}).get("human_reviewed"))
 
 
-class Bank:
-    """A single SQLite-backed bank of canonical question objects."""
+_MIGRATE_ADD_OWNER = """
+ALTER TABLE objects RENAME TO objects_pre_owner;
+DROP INDEX IF EXISTS idx_objects_topic;
+DROP INDEX IF EXISTS idx_objects_difficulty;
+DROP INDEX IF EXISTS idx_objects_level;
+DROP INDEX IF EXISTS idx_objects_source_type;
+DROP INDEX IF EXISTS idx_objects_reviewed;
+"""
 
-    def __init__(self, path: Path):
+
+class Bank:
+    """A SQLite-backed bank of canonical question objects, scoped to one owner (W1d).
+
+    Every query filters on ``owner_id`` and ids are unique *per owner*, so two teachers can
+    each hold a question with the same id and never see each other's. The CLI and any
+    pre-owner database use the ``local`` owner.
+    """
+
+    def __init__(self, path: Path, owner_id: str = LOCAL_OWNER):
+        self.owner_id = owner_id
         self._conn = sqlite3.connect(str(path))
         self._conn.row_factory = sqlite3.Row
+        self._migrate()
         self._conn.executescript(_DDL)
         self._conn.commit()
 
+    def _migrate(self) -> None:
+        """Upgrade a pre-owner database in place: existing rows become the ``local`` owner's."""
+        cols = [r["name"] for r in self._conn.execute("PRAGMA table_info(objects)")]
+        if not cols or "owner_id" in cols:
+            return
+        self._conn.executescript(_MIGRATE_ADD_OWNER)
+        self._conn.executescript(_DDL)
+        self._conn.execute(
+            "INSERT INTO objects (owner_id, id, schema_version, source_type, topic, level, "
+            "difficulty, created_by, reviewed, imported_at, json) "
+            "SELECT 'local', id, schema_version, source_type, topic, level, difficulty, "
+            "created_by, reviewed, imported_at, json FROM objects_pre_owner"
+        )
+        self._conn.execute("DROP TABLE objects_pre_owner")
+        self._conn.commit()
+
     def _row(self, id: str) -> sqlite3.Row | None:
-        cur = self._conn.execute("SELECT * FROM objects WHERE id = ?", (id,))
+        cur = self._conn.execute(
+            "SELECT * FROM objects WHERE owner_id = ? AND id = ?", (self.owner_id, id)
+        )
         return cur.fetchone()
 
     def _upsert(self, obj: dict, imported_at: str) -> None:
         self._conn.execute(
             """
             INSERT INTO objects
-                (id, schema_version, source_type, topic, level, difficulty,
+                (owner_id, id, schema_version, source_type, topic, level, difficulty,
                  created_by, reviewed, imported_at, json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(owner_id, id) DO UPDATE SET
                 schema_version = excluded.schema_version,
                 source_type    = excluded.source_type,
                 topic          = excluded.topic,
@@ -97,6 +137,7 @@ class Bank:
                 json           = excluded.json
             """,
             (
+                self.owner_id,
                 obj["id"],
                 obj["schema_version"],
                 obj["source_type"],
@@ -166,8 +207,8 @@ class Bank:
 
         ``search()`` with no arguments IS ``list`` — one query layer for both.
         """
-        clauses = []
-        params: list[object] = []
+        clauses = ["owner_id = ?"]
+        params: list[object] = [self.owner_id]
         if topic is not None:
             clauses.append("topic = ?")
             params.append(topic)
@@ -184,10 +225,7 @@ class Bank:
             clauses.append("reviewed = ?")
             params.append(1 if reviewed else 0)
 
-        sql = "SELECT * FROM objects"
-        if clauses:
-            sql += " WHERE " + " AND ".join(clauses)
-        sql += " ORDER BY imported_at"
+        sql = "SELECT * FROM objects WHERE " + " AND ".join(clauses) + " ORDER BY imported_at"
         cur = self._conn.execute(sql, params)
         return [json.loads(row["json"]) for row in cur.fetchall()]
 

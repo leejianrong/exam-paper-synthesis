@@ -2,12 +2,16 @@
   // The "+" picker: choose how to add a question. Templated (generated) is live in W1;
   // "From my bank" arrives in W1d and "Free-form" in W2, so those tabs are shown disabled.
   import { createEventDispatcher } from 'svelte'
-  import { generate } from '../api'
+  import { generate, listBank, type BankItem } from '../api'
   import { TOPICS, DIFFICULTIES, blueprintCode } from '../topics'
   import type { Difficulty, Question } from '../types'
+  import FragmentView from './FragmentView.svelte'
   import QuestionBody from './QuestionBody.svelte'
 
   const dispatch = createEventDispatcher<{ insert: { question: Question }; close: void }>()
+
+  type Tab = 'templated' | 'bank'
+  let tab: Tab = 'templated'
 
   let prefix = 'ratio'
   let difficulty: Difficulty = 'medium'
@@ -29,6 +33,34 @@
     }
   }
 
+  // --- From my bank -----------------------------------------------------------------
+  let bankItems: BankItem[] = []
+  let bankLoaded = false
+  let bankLoading = false
+  let bankError = ''
+  let bankTopic = ''
+  let reviewedOnly = false
+
+  async function showBank() {
+    tab = 'bank'
+    if (bankLoaded || bankLoading) return
+    bankLoading = true
+    bankError = ''
+    try {
+      bankItems = await listBank()
+      bankLoaded = true
+    } catch (e) {
+      bankError = e instanceof Error ? e.message : String(e)
+    } finally {
+      bankLoading = false
+    }
+  }
+
+  $: bankTopics = [...new Set(bankItems.map((i) => i.topic).filter((t): t is string => !!t))].sort()
+  $: shownBank = bankItems.filter(
+    (i) => (!bankTopic || i.topic === bankTopic) && (!reviewedOnly || i.reviewed),
+  )
+
   function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape') dispatch('close')
   }
@@ -44,15 +76,26 @@
     </header>
 
     <div class="tabs" role="tablist">
-      <button role="tab" aria-selected="true" class="tab on">Templated</button>
-      <button role="tab" aria-selected="false" class="tab" disabled title="Coming soon"
-        >From my bank</button
+      <button
+        role="tab"
+        aria-selected={tab === 'templated'}
+        class="tab"
+        class:on={tab === 'templated'}
+        on:click={() => (tab = 'templated')}>Templated</button
+      >
+      <button
+        role="tab"
+        aria-selected={tab === 'bank'}
+        class="tab"
+        class:on={tab === 'bank'}
+        on:click={showBank}>From my bank</button
       >
       <button role="tab" aria-selected="false" class="tab" disabled title="Coming soon"
         >Free-form</button
       >
     </div>
 
+    {#if tab === 'templated'}
     <div class="selectors">
       <label
         ><span>Topic</span>
@@ -84,6 +127,48 @@
         <p class="hint">Pick a topic and difficulty, then generate a few options to choose from.</p>
       {/if}
     </div>
+    {:else}
+      <div class="selectors">
+        <label
+          ><span>Topic</span>
+          <select bind:value={bankTopic} aria-label="Bank topic">
+            <option value="">All topics</option>
+            {#each bankTopics as t (t)}<option value={t}>{t}</option>{/each}
+          </select>
+        </label>
+        <label class="check"
+          ><input type="checkbox" bind:checked={reviewedOnly} /> Reviewed only</label
+        >
+      </div>
+
+      {#if bankError}<p class="error" role="alert">{bankError}</p>{/if}
+      {#if bankLoading}<p class="hint">Loading your bank…</p>{/if}
+
+      <div class="candidates">
+        {#each shownBank as item (item.id)}
+          <article class="candidate" data-testid="bank-item">
+            <div class="origin">
+              <span class="tag">{item.topic ?? 'Untopiced'}{item.level ? ` · ${item.level}` : ''}</span>
+              <span class="tag" class:warn={!item.reviewed}
+                >{item.reviewed ? 'Reviewed' : 'Unreviewed'}</span
+              >
+            </div>
+            <FragmentView question={item.question} />
+            <button class="use" on:click={() => dispatch('insert', { question: item.question })}
+              >Use this</button
+            >
+          </article>
+        {/each}
+        {#if bankLoaded && bankItems.length === 0}
+          <p class="hint">
+            Nothing in your bank yet. Import questions with
+            <code>mathgen bank import &lt;file.json&gt;</code> and they will show up here.
+          </p>
+        {:else if bankLoaded && shownBank.length === 0}
+          <p class="hint">No bank questions match these filters.</p>
+        {/if}
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -197,6 +282,39 @@
   .hint {
     color: var(--ink-faint);
     margin: 0.5rem 0;
+  }
+  .check {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 13px;
+    padding-bottom: 0.4rem;
+  }
+  .origin {
+    display: flex;
+    gap: 0.4rem;
+    font-family: var(--mono);
+    font-size: 11.5px;
+  }
+  .tag {
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    background: var(--page);
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+  }
+  .tag.warn {
+    background: var(--mark-soft);
+    border-color: transparent;
+    color: var(--mark);
+  }
+  code {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--wash);
+    padding: 0.05rem 0.3rem;
+    border-radius: 4px;
   }
   .error {
     color: var(--mark);

@@ -306,3 +306,29 @@ def test_construction_answer_key_renders_figure_not_text():
     html = render_answer_key_html("C", [obj])
     assert 'class="diagram answer-diagram"' in html
     assert 'class="final-answer"' not in html
+
+
+# --- W1d: question fragments ---------------------------------------------------
+
+
+def test_fragment_numbering_and_modes():
+    from exam_engine.render import fragment_css, render_question_fragment
+
+    obj = generate("ratio_medium", 3)
+    plain = render_question_fragment(obj)
+    assert plain.startswith('<div class="frag unnumbered">') and "counter-reset" not in plain
+    numbered = render_question_fragment(obj, mode="key", number=7)
+    assert 'style="counter-reset: q 6"' in numbered and 'class="final-answer"' in numbered
+    assert 'class="final-answer"' not in plain and 'class="answer-space"' in plain
+    with pytest.raises(ValueError):
+        render_question_fragment(obj, mode="full")
+    css = fragment_css()
+    assert ":host {" in css and ":root {" not in css and ".frag.unnumbered .question::before" in css
+    # An unnumbered fragment must not advance the page's question counter (the editor draws
+    # its own numbers; counters cross the shadow boundary).
+    assert "counter-increment: none" in css
+
+
+def test_print_sheet_is_plain_white():
+    html = render_worksheet_html("T", [generate("ratio_medium", 1)])
+    assert "--paper-2: #ffffff" in html and "linear-gradient" not in html.split("</style>")[1]

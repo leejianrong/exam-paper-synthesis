@@ -7,6 +7,7 @@
   import { editQuestion, setCosmetic, type EditOp } from '../api'
   import type { Question } from '../types'
   import NamesPopover from './NamesPopover.svelte'
+  import FragmentView from './FragmentView.svelte'
   import QuestionBody from './QuestionBody.svelte'
 
   export let store: Readable<Question>
@@ -19,6 +20,10 @@
 
   $: q = $store
   $: part = q.question.parts[0]
+  // A sourced (bank) question is teacher-vouched: drawn by the engine's print renderer, with
+  // no engine-verified badge and none of the engine-only edits.
+  $: fromBank = q.source_type === 'sourced'
+  $: reviewed = Boolean(q.validation.checks?.human_reviewed)
   $: ops = q.available_ops ?? []
   const OP_LABELS: Array<[EditOp, string]> = [
     ['regenerate', 'Regenerate'],
@@ -57,7 +62,15 @@
 <div class="block" data-testid="question-block">
   <div class="num" aria-hidden="true"></div>
   <div class="main">
-    <QuestionBody {q} />
+    {#if fromBank}
+      <div class="origin">
+        <span class="tag">From my bank</span>
+        {#if !reviewed}<span class="tag warn">Unreviewed</span>{/if}
+      </div>
+      <FragmentView question={q} />
+    {:else}
+      <QuestionBody {q} />
+    {/if}
 
     {#if editingNames}
       <NamesPopover
@@ -111,6 +124,25 @@
     font-family: var(--mono);
     font-weight: 600;
     color: var(--ink-soft);
+  }
+  .origin {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 0.3rem;
+    font-family: var(--mono);
+    font-size: 11.5px;
+  }
+  .tag {
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    background: var(--wash);
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+  }
+  .tag.warn {
+    background: var(--mark-soft);
+    border-color: transparent;
+    color: var(--mark);
   }
   .toolbar {
     display: flex;

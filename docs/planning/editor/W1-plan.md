@@ -247,6 +247,8 @@ first task of W1c is a throwaway spike proving it, before any other UI work.
 
 ## W1d — "From my bank" in the picker
 
+> **Status: implemented** (branch `feat/w1d-bank-picker`). Built as server-rendered fragments (`POST /render/question`, embedded in a shadow root with one shared stylesheet + KaTeX), so every schema shape — MCQ options, tables, grids, constructions, stem figures — draws exactly as in the PDF with no TS mirror. Bank is owner-scoped (`owner_id`, ids unique per owner, in-place migration; the CLI and the dev stub both default to the `local` owner). No import screen: that moves to W2.
+
 The bank (E1–E3) holds sourced / hand-authored objects. For SaaS those are **private per
 owner**, so:
 

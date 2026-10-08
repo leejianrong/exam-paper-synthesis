@@ -53,7 +53,7 @@ export interface Question {
   /** The sampled parameters (generated questions); read by the Edit-names form. */
   parameters?: Record<string, unknown> | null
   question: { parts: QuestionPart[]; total_marks: number }
-  validation: { status: ValidationStatus }
+  validation: { status: ValidationStatus; checks?: Record<string, unknown> }
   cognitive?: { difficulty?: Difficulty }
   /**
    * Engine-computed set of applicable edit ops (KAN-243), attached by the API as

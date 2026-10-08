@@ -504,3 +504,45 @@ def render_document_html(title: str, doc: dict, *, mode: str) -> str:
         header_html=header,
         body_html=body,
     )
+
+
+# ---------------------------------------------------------------------------
+# Question fragments (W1d): one question as embeddable HTML + shared assets.
+# ---------------------------------------------------------------------------
+
+
+def render_question_fragment(obj: dict, *, mode: str = "student", number: int | None = None) -> str:
+    """One question as an HTML *fragment* (no ``<html>``), for embedding in the editor.
+
+    The same markup the printed sheets use, so any question the schema can hold — MCQ
+    options, tables, grids, constructions, stem figures — draws correctly without a
+    TypeScript mirror. ``mode`` is ``student`` (answer space) or ``key`` (worked solution,
+    marking scheme, correct option). ``number`` sets the question number shown; omitted,
+    the number is hidden (the editor draws its own).
+    """
+    if mode not in ("student", "key"):
+        raise ValueError(f"unknown fragment mode {mode!r}")
+    items = _render_question_item(obj, answer_key=mode == "key", tag="section")
+    if number is None:
+        return '<div class="frag unnumbered">' + "".join(items) + "</div>"
+    return f'<div class="frag" style="counter-reset: q {number - 1}">' + "".join(items) + "</div>"
+
+
+def fragment_css() -> str:
+    """KaTeX + print stylesheet for fragments rendered inside a shadow root.
+
+    ``:root`` becomes ``:host`` (the print palette must apply to the shadow host), and the
+    host gets the base text settings ``html``/``body`` give a full document.
+    """
+    base = (
+        "\n:host { display: block; font-size: 11pt; color: var(--ink); "
+        "font-family: var(--sans); line-height: 1.45; }"
+        "\n.frag.unnumbered .question { padding-left: 0; counter-increment: none; }"
+        "\n.frag.unnumbered .question::before { content: none; }\n"
+    )
+    return _KATEX_CSS + "\n" + _PRINT_CSS.replace(":root {", ":host {", 1) + base
+
+
+def fragment_js() -> str:
+    """KaTeX + auto-render, to typeset ``\\(…\\)`` math inside embedded fragments."""
+    return _KATEX_JS + "\n" + _AUTORENDER_JS

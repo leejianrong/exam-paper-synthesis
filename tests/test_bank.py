@@ -91,3 +91,82 @@ def test_reviewed_column_never_drifts(bank):
 
     assert bank.search(reviewed=True) == []
     assert bank.get(obj["id"])["validation"]["checks"].get("human_reviewed") is not True
+
+
+# --- W1d: owner scoping --------------------------------------------------------
+
+
+def test_banks_are_isolated_per_owner(tmp_path):
+    path = tmp_path / "bank.sqlite3"
+    obj = generate("ratio_medium", 1)
+    with Bank(path, "alice") as a, Bank(path, "bob") as b:
+        a.add(obj)
+        assert [o["id"] for o in a.search()] == [obj["id"]]
+        assert b.search() == []
+        with pytest.raises(BankObjectNotFound):
+            b.get(obj["id"])
+        with pytest.raises(BankObjectNotFound):
+            b.mark_reviewed(obj["id"])
+        # The same id is a different row for another owner (no cross-tenant collision).
+        b.add(obj)
+        a.mark_reviewed(obj["id"])
+        assert [o["validation"]["checks"].get("human_reviewed") for o in a.search()] == [True]
+        assert not b.get(obj["id"])["validation"]["checks"].get("human_reviewed")
+        assert len(b.search(reviewed=True)) == 0
+
+
+def test_default_owner_is_local_and_cli_compatible(tmp_path):
+    path = tmp_path / "bank.sqlite3"
+    with Bank(path) as cli_view:
+        assert cli_view.owner_id == "local"
+        cli_view.add(generate("ratio_medium", 2))
+    with Bank(path, "local") as same:
+        assert len(same.search()) == 1
+    with Bank(path, "someone-else") as other:
+        assert other.search() == []
+
+
+def test_pre_owner_database_is_migrated_to_the_local_owner(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "old.sqlite3"
+    conn = sqlite3.connect(path)
+    conn.executescript(
+        """
+        CREATE TABLE objects (
+            id TEXT PRIMARY KEY, schema_version TEXT NOT NULL, source_type TEXT NOT NULL,
+            topic TEXT, level TEXT, difficulty TEXT, created_by TEXT NOT NULL,
+            reviewed INTEGER NOT NULL DEFAULT 0, imported_at TEXT NOT NULL, json TEXT NOT NULL
+        );
+        CREATE INDEX idx_objects_topic ON objects(topic);
+        """
+    )
+    from exam_engine import canonical
+
+    obj = generate("ratio_medium", 3)
+    conn.execute(
+        "INSERT INTO objects VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (
+            obj["id"],
+            obj["schema_version"],
+            obj["source_type"],
+            "Ratio",
+            "P5",
+            "medium",
+            "engine",
+            0,
+            "2026-01-01T00:00:00+00:00",
+            canonical.to_json(obj),
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    with Bank(path) as local:
+        assert [o["id"] for o in local.search()] == [obj["id"]]
+        assert local.search(topic="Ratio")  # indexed columns survived
+    with Bank(path, "alice") as alice:
+        assert alice.search() == []
+        alice.add(obj)  # same id under another owner works after migration
+    with Bank(path) as again:  # idempotent: opening twice keeps the data
+        assert len(again.search()) == 1

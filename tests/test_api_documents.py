@@ -44,7 +44,7 @@ def test_invalid_owner_header_rejected():
     assert client.get("/documents", headers={"X-Dev-Owner": "bad owner!"}).status_code == 400
 
 
-def test_default_owner_is_dev():
+def test_default_owner_is_local():
     assert client.post("/documents", json={}).status_code == 201
     assert len(client.get("/documents").json()["documents"]) == 1
 

@@ -4,6 +4,7 @@
   // add editable slots here.
   import { fmtAnswer } from '../format'
   import type { Question } from '../types'
+  import FragmentView from './FragmentView.svelte'
 
   export let questions: Question[] = []
 </script>
@@ -16,6 +17,11 @@
   <ol>
     {#each questions as q, i (i)}
       {@const part = q.question.parts[0]}
+      {#if q.source_type === 'sourced'}
+        <!-- bank question: the engine's own key markup, so MCQ options, tables and
+             constructions are right; it carries its own number. -->
+        <li class="entry"><FragmentView question={q} mode="key" number={i + 1} /></li>
+      {:else}
       <li class="entry">
         <div class="head">
           <span class="n">{i + 1}.</span>
@@ -35,6 +41,7 @@
           </ul>
         {/if}
       </li>
+      {/if}
     {/each}
   </ol>
 </section>
