@@ -9,7 +9,7 @@ from pathlib import Path
 import yaml
 
 from ..errors import UnknownBlueprint
-from .base import BlueprintSpec, Solver
+from .base import BlueprintSpec, Solver, check_param_roles
 
 _SOLVERS: dict[str, Solver] = {}
 
@@ -56,4 +56,8 @@ def load_blueprint(code: str) -> BlueprintSpec:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if data.get("code") != code:
         raise UnknownBlueprint(code)
-    return BlueprintSpec.from_dict(data)
+    spec = BlueprintSpec.from_dict(data)
+    role_errors = check_param_roles(code, spec)
+    if role_errors:
+        raise ValueError("; ".join(role_errors))
+    return spec

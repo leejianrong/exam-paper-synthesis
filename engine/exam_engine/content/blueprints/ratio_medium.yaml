@@ -29,6 +29,12 @@ parameter_schema:                       # ADR-0014: sampled params validate agai
       type: integer
       minimum: 12
       maximum: 2000
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  names: { role: name }
+  ratio: { role: number }
+  total: { role: number }
 story_templates:
   - stem: null
     text: >

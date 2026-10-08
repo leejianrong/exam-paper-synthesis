@@ -34,6 +34,10 @@ _ORIGINAL_UNITS_MAX = 100  # ×20 -> $2000
 
 
 class PercentageMediumSolver:
+    # Curated pool a teacher may swap `context` to (W1a item role) — no free text, so
+    # the template's "a {context}" article always agrees.
+    ITEM_POOL = ITEM_POOL
+
     # ctx keys (params + intermediates) that carry money — scaled by change-to-decimals (V3).
     MONEY_KEYS = {"original", "change_amount", "new_value"}
 

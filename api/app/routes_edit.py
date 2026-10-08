@@ -9,9 +9,14 @@ from __future__ import annotations
 import random
 from datetime import UTC, datetime
 
-from exam_engine import canonical, edits
+from exam_engine import canonical, cosmetic, edits
 from exam_engine.canonical import CanonicalValidationError
-from exam_engine.errors import EditNotApplicable, InfeasibleConstraints, UnknownBlueprint
+from exam_engine.errors import (
+    EditNotApplicable,
+    InfeasibleConstraints,
+    ParamsInvalid,
+    UnknownBlueprint,
+)
 from fastapi import APIRouter, HTTPException
 
 from .models import EditRequest, EditResponse
@@ -20,6 +25,15 @@ from .ops import strip_ui_hints, with_available_ops
 router = APIRouter()
 
 _SEED_CEIL = 2**31
+
+
+@router.get("/blueprints/{code}/params")
+def get_editable_params(code: str) -> dict:
+    """The cosmetic (name/item) slots of a blueprint, for building the edit form (W1a)."""
+    try:
+        return {"code": code, "slots": cosmetic.editable_slots(code)}
+    except UnknownBlueprint as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.post("/edit/{op}", response_model=EditResponse)
@@ -39,12 +53,12 @@ def post_edit(op: str, req: EditRequest) -> EditResponse:
     seed = req.seed if req.seed is not None else random.randrange(1, _SEED_CEIL)
 
     try:
-        child = edits.apply(op, source, seed=seed)
+        child = edits.apply(op, source, seed=seed, changes=req.changes)
     except EditNotApplicable as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     except UnknownBlueprint as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
-    except InfeasibleConstraints as e:
+    except (InfeasibleConstraints, ParamsInvalid) as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
 
     # The only clock boundary (ADR-0016), mirroring routes_generate.

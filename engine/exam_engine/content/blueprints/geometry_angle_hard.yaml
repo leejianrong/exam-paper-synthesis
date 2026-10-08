@@ -26,6 +26,12 @@ parameter_schema:                       # ADR-0014: sampled params validate agai
       type: object
       additionalProperties:
         type: integer
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  template: { role: choice }
+  givens:   { role: number }
+  angles:   { role: number }
 story_templates:
   - stem: null
     text: "{question_text}"

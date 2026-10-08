@@ -15,7 +15,7 @@ from .blueprints.base import BlueprintSpec, Solver, validate_params
 from .blueprints.registry import get_solver, load_blueprint
 from .canonical import assemble
 from .diagram import check_consistency
-from .errors import DiagramInconsistent, InfeasibleConstraints
+from .errors import DiagramInconsistent, InfeasibleConstraints, ParamsInvalid
 
 MAX_ATTEMPTS = 20  # ADR-0002
 
@@ -31,6 +31,53 @@ def build_part_diagram(solver: Solver, params: dict, solution: dict) -> dict | N
     return diagram_fn(params, solution)
 
 
+def _try_build(
+    spec: BlueprintSpec, solver: Solver, seed: int, params: dict
+) -> tuple[dict | None, dict]:
+    """validate params -> solve -> validate -> diagram -> assemble.
+
+    Returns ``(object, checks)``; ``object`` is ``None`` when the params are
+    infeasible (``checks`` says why). Shared by sampling (``run_pipeline``) and by
+    edits that supply their own params (``build_from_params``), so an edited object
+    passes exactly the gates a generated one does.
+    """
+    param_errors = validate_params(params, spec.parameter_schema)
+    if param_errors:
+        return None, {"parameter_schema": "; ".join(param_errors)}
+
+    solution = solver.solve(params)
+    report = solver.validate(params, solution)
+    if not report.get("ok"):
+        return None, report.get("checks", {})
+
+    # A5: build the aid diagram (if any) and gate its consistency (R3.3).
+    # A deterministic diagram from correct values is always consistent, so a
+    # failure here is an engine bug, surfaced loudly rather than retried.
+    diagram = build_part_diagram(solver, params, solution)
+    if diagram is not None:
+        dchecks = check_consistency(diagram, params, solution)
+        report.setdefault("checks", {})["diagram_consistent"] = all(dchecks.values())
+        if not all(dchecks.values()):
+            raise DiagramInconsistent(spec.code, dchecks)
+
+    # Success: assemble + schema-validate (a failure here is an engine bug).
+    obj = assemble(
+        spec, seed=seed, params=params, solution=solution, report=report, diagram=diagram
+    )
+    return obj, report.get("checks", {})
+
+
+def build_from_params(spec: BlueprintSpec, solver: Solver, seed: int, params: dict) -> dict:
+    """Build a canonical object from explicit ``params`` (no sampling).
+
+    Raises :class:`ParamsInvalid` if the params are infeasible for the blueprint.
+    """
+    obj, checks = _try_build(spec, solver, seed, params)
+    if obj is None:
+        raise ParamsInvalid(spec.code, checks)
+    return obj
+
+
 def run_pipeline(spec: BlueprintSpec, solver: Solver, seed: int) -> dict:
     """The retry loop, decoupled from content loading so it is unit-testable."""
     rng = random.Random(seed)
@@ -39,34 +86,10 @@ def run_pipeline(spec: BlueprintSpec, solver: Solver, seed: int) -> dict:
 
     for _attempt in range(1, MAX_ATTEMPTS + 1):
         params = solver.sample(spec.parameter_schema, rng)
-
-        param_errors = validate_params(params, spec.parameter_schema)
-        if param_errors:
-            failures += 1
-            last_checks = {"parameter_schema": "; ".join(param_errors)}
-            continue
-
-        solution = solver.solve(params)
-        report = solver.validate(params, solution)
-        last_checks = report.get("checks", {})
-        if not report.get("ok"):
-            failures += 1
-            continue
-
-        # A5: build the aid diagram (if any) and gate its consistency (R3.3).
-        # A deterministic diagram from correct values is always consistent, so a
-        # failure here is an engine bug, surfaced loudly rather than retried.
-        diagram = build_part_diagram(solver, params, solution)
-        if diagram is not None:
-            dchecks = check_consistency(diagram, params, solution)
-            report.setdefault("checks", {})["diagram_consistent"] = all(dchecks.values())
-            if not all(dchecks.values()):
-                raise DiagramInconsistent(spec.code, dchecks)
-
-        # Success: assemble + schema-validate (a failure here is an engine bug).
-        return assemble(
-            spec, seed=seed, params=params, solution=solution, report=report, diagram=diagram
-        )
+        obj, last_checks = _try_build(spec, solver, seed, params)
+        if obj is not None:
+            return obj
+        failures += 1
 
     raise InfeasibleConstraints(spec.code, MAX_ATTEMPTS, failures, last_checks)
 
