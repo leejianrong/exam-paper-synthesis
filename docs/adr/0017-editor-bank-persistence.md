@@ -1,6 +1,6 @@
 # ADR-0017: Editor bank persistence — local SQLite, schema-validated rows, no new storage mechanism
 
-- Status: Accepted
+- Status: Superseded by ADR-0022 (hosted multi-teacher SaaS); remains valid for the local CLI bank
 - Deciders: project owner
 - Related: `docs/planning/editor/SHAPING.md` (R1, Shape A1–A2), ADR-0001 (access/deployment), ADR-0004 (canonical object), ADR-0011 (bank retrieval permitted)
 

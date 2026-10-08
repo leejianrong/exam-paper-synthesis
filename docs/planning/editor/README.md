@@ -5,6 +5,11 @@ the question editor land here: product description and empirical schema-fit
 work first, then shaping ([`SHAPING.md`](SHAPING.md)), slices
 ([`SLICES.md`](SLICES.md)), and ADRs (`docs/adr/0017`–`0020`).
 
+> **Reframed 2026-10-08:** the editor is now a Word-like WYSIWYG document with
+> templated + free-form question blocks, delivered as a hosted multi-teacher SaaS
+> (Fly + Neon). See [`WYSIWYG.md`](WYSIWYG.md), ADR-0021, ADR-0022. The sections below
+> record the earlier local-first, form-based framing; where they conflict, WYSIWYG.md wins.
+
 ## The vision (owner's framing)
 
 An editor where teachers customize and author questions:

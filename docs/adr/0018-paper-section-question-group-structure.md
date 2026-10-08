@@ -1,6 +1,6 @@
 # ADR-0018: Paper/section/question-group structure — a container above the canonical object, not inside it
 
-- Status: Accepted
+- Status: Accepted — amended by ADR-0021 (the container is now the WYSIWYG document model)
 - Deciders: project owner
 - Related: `docs/planning/editor/SCHEMA-FIT.md` G15/G16, `docs/planning/editor/SHAPING.md` (R3, Shape A9, Component A9), ADR-0004 (canonical object), ADR-0013 (question structure)
 

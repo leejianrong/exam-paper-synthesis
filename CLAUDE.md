@@ -154,4 +154,4 @@ a request; entropy (random seed) enters only here.
 | `docs/planning/mvp/V1-plan.md`, `V2-plan.md`, `V3-plan.md` | Per-slice implementation plans |
 | `docs/planning/editor/` | The question-editor initiative (the next milestone; product planning lands here) |
 | `docs/ROADMAP.md` | Milestones → epics → stories (mirrors the Simple Kanban board) |
-| `docs/adr/` | Numbered ADRs (0001–0016) |
+| `docs/adr/` | Numbered ADRs (0001–0022) |

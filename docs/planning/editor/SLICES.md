@@ -21,6 +21,9 @@ shaping: true
 
 ---
 
+> **Reframed (2026-10-08):** E4 and E5 are superseded by the WYSIWYG document
+> editor — see [`WYSIWYG.md`](WYSIWYG.md) (slices W1–W4), ADR-0021 and ADR-0022. E1–E3 stand.
+
 ## Slice map
 
 | Slice | Title | Ends in (demo) | Parts | Reqs |
