@@ -25,6 +25,7 @@ Math convention: ``\\(…\\)`` inline, ``\\[…\\]`` display; ``$`` is currency
 from __future__ import annotations
 
 import base64
+import hashlib
 import html
 import re
 from collections.abc import Callable
@@ -346,6 +347,21 @@ def _render_questions(questions: list[dict], *, answer_key: bool) -> str:
 def _total_marks(questions: list[dict]) -> int:
     """Sheet total = sum of each question's ``total_marks`` (settled default)."""
     return sum(obj["question"]["total_marks"] for obj in questions)
+
+
+def inline_script_hashes() -> list[str]:
+    """CSP ``'sha256-…'`` source expressions for every inline ``<script>`` the print HTML carries.
+
+    The three scripts (KaTeX, auto-render, the bootstrap) are static per engine release, so a host
+    page that embeds the print document (the editor's preview iframe inherits its parent's policy)
+    can allow exactly these by hash instead of ``'unsafe-inline'``.
+    """
+    return [
+        "'sha256-"
+        + base64.b64encode(hashlib.sha256(js.encode("utf-8")).digest()).decode("ascii")
+        + "'"
+        for js in (_KATEX_JS, _AUTORENDER_JS, _BOOTSTRAP_JS)
+    ]
 
 
 def _document(*, root_class: str, title: str, header_html: str, body_html: str) -> str:

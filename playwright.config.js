@@ -6,6 +6,9 @@ import path from 'node:path'
 // Ports for the two dev servers Playwright boots for the e2e run.
 const API_PORT = 8000
 const WEB_PORT = 5173
+// A production-shaped server for the CSP spec: the built SPA served by the API on ONE origin.
+const CSP_PORT = 8001
+const CSP_DIST = path.join(os.tmpdir(), 'exam-e2e-web-dist')
 
 // The document API (W1b) is tenant-scoped; the e2e run uses the dev identity stub and a
 // throwaway database (specs create their own papers and never assume an empty store).
@@ -60,6 +63,21 @@ export default defineConfig({
         EXAM_EXPORT_LIMIT_PER_DAY: '0',
         EXAM_EXPORT_LIMIT_PER_MINUTE: '0',
       },
+    },
+    {
+      // Built SPA + API on one origin, as in production (the Dockerfile builds with VITE_API="").
+      // Only tests/e2e/csp.spec.js uses it: the Content-Security-Policy is enforced here.
+      command:
+        `env VITE_API= npm --prefix web run build -- --outDir ${CSP_DIST} --emptyOutDir && ` +
+        `uv run uvicorn app.main:app --app-dir api --port ${CSP_PORT}`,
+      url: `http://localhost:${CSP_PORT}/health`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 240_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+      env: { ...process.env, EXAM_DEV_AUTH: '1', EXAM_WEB_DIST: CSP_DIST, EXAM_DOCS_PATH: DOCS_DB, EXAM_BANK_PATH: BANK_DB, EXAM_ASSETS_PATH: ASSETS_DB,
+        EXAM_AUTH_PATH: AUTH_DB, EXAM_USAGE_PATH: USAGE_DB,
+        EXAM_EXPORT_LIMIT_PER_DAY: '0', EXAM_EXPORT_LIMIT_PER_MINUTE: '0' },
     },
     {
       // Vite dev server for the Svelte SPA (reads VITE_API, defaults to :8000).

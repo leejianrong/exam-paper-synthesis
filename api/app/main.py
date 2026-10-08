@@ -13,6 +13,7 @@ from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
 from . import config
+from .csp import EXEMPT_PATHS, content_security_policy
 from .routes_account import router as account_router
 from .routes_assets import router as assets_router
 from .routes_auth import router as auth_router
@@ -67,6 +68,8 @@ async def _security_headers(request: Request, call_next) -> Response:
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     # The editor's print preview is a same-origin iframe; nothing else may frame the app.
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    if request.url.path not in EXEMPT_PATHS:
+        response.headers.setdefault("Content-Security-Policy", content_security_policy())
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
     if os.environ.get("EXAM_PUBLIC_URL", "").startswith("https://"):
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")

@@ -52,6 +52,5 @@ is the checklist below it. Target: October 2026, Fly.io + Neon (ADR-0022).
 
 ## Known follow-ups (not blockers)
 
-- Content-Security-Policy (the print preview iframe uses inline scripts; needs a nonce plan).
 - Rate limiting on `/auth/*` beyond what Cloudflare gives.
 - Object storage for images if Postgres size becomes a concern (the `AssetStore` protocol allows it).
