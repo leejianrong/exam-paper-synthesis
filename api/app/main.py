@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .routes_documents import router as documents_router
 from .routes_edit import router as edit_router
 from .routes_export import router as export_router
 from .routes_generate import router
@@ -22,6 +23,7 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(edit_router)
 app.include_router(export_router)
+app.include_router(documents_router)
 
 
 @app.get("/health")

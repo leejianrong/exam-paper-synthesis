@@ -120,6 +120,8 @@ classic Generate page and CLI still use them).
 
 ## W1b — Store + API (no UI)
 
+> **Status: implemented** (branch `feat/w1b-documents`).
+
 ### Tenancy seam (stub auth)
 
 `api/app/auth.py`: `current_owner(request) -> str` is a FastAPI dependency and the **only**
