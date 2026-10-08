@@ -22,6 +22,14 @@ shaping: true
 
 ---
 
+## Status
+
+W2a (#139), W2b (#140) and W2c are built. Deviations from the plan as written: `POST /assets`
+takes the image as the raw request body (`X-Filename` header) rather than multipart, to avoid a new
+dependency; the document schema ended at **1.2.0** (1.1.0 = free-form, 1.2.0 = image + math); the
+bank import request is `{ "objects": [...], "replace": bool }` (the editor flattens files and
+pasted JSON, batching at 200 objects / 1.5 MB).
+
 ## Scope
 
 **In:** the `freeformQuestion` node; `image` and equation nodes (usable anywhere in a document);

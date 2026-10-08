@@ -130,4 +130,40 @@ describe('AddQuestion picker', () => {
     expect(freeform).toHaveBeenCalledTimes(1)
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  it('the bank tab opens the import screen, and importing refreshes the list', async () => {
+    const item = (id: string) => ({
+      id,
+      topic: 'Ratio',
+      level: 'P6',
+      difficulty: 'standard',
+      source_type: 'sourced',
+      reviewed: false,
+      question: makeBankQuestion({ id }),
+    })
+    let bank = [item('sourced:a')]
+    fetchMock.mockImplementation(
+      routeFetch({
+        '/render/question.css': '.q{}',
+        '/render/katex.js': '',
+        '/render/question': { html: '<div class="frag">q</div>' },
+        '/bank/import': () => {
+          bank = [...bank, item('sourced:b')]
+          return { results: [{ index: 0, id: 'sourced:b', status: 'imported' }], imported: 1, replaced: 0, duplicate: 0, invalid: 0 }
+        },
+        '/bank': () => ({ items: bank }),
+      }),
+    )
+    render(AddQuestion, { props: {} })
+    await fireEvent.click(screen.getByRole('tab', { name: 'From my bank' }))
+    await waitFor(() => expect(screen.getAllByTestId('bank-item')).toHaveLength(1))
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Import…' }))
+    expect(screen.getByRole('region', { name: 'Import questions' })).toBeInTheDocument()
+    await fireEvent.input(screen.getByLabelText('Paste JSON'), { target: { value: '{"id":"sourced:b"}' } })
+    await fireEvent.click(screen.getByRole('button', { name: 'Import' }))
+    await screen.findByText('Imported')
+    await fireEvent.click(screen.getByRole('button', { name: 'Back to bank' }))
+    await waitFor(() => expect(screen.getAllByTestId('bank-item')).toHaveLength(2))
+  })
 })

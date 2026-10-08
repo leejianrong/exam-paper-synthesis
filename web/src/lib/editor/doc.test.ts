@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   blocksToHtml,
   buildDocument,
+  cleanNode,
   freeformNode,
   newBlockId,
   normalizeAnswer,
@@ -106,5 +107,46 @@ describe('free-form helpers (W2a)', () => {
     ])
     expect(html).toContain('<span class="math-host" data-latex="a&lt;b &quot;q&quot;">a&lt;b &quot;q&quot;</span>')
     expect(html).toMatch(/<img src="[^"]*\/assets\/asset_0001" alt="A &quot;fig&quot;" style="width:40%">/)
+  })
+})
+
+describe('cleanNode (editor-only attributes never reach the server)', () => {
+  const li = { type: 'listItem', content: [{ type: 'paragraph' }] }
+
+  it("drops TipTap's null list-style type and a default start from ordered lists", () => {
+    const out = cleanNode({ type: 'orderedList', attrs: { start: 1, type: null }, content: [li] })
+    expect(out).toEqual({ type: 'orderedList', content: [li] })
+  })
+
+  it('keeps a real start, and nothing else', () => {
+    const out = cleanNode({ type: 'orderedList', attrs: { start: 7, type: null }, content: [li] })
+    expect(out.attrs).toEqual({ start: 7 })
+  })
+
+  it('cleans lists nested in free-form bodies and answers, and through buildDocument', () => {
+    const dirty = { type: 'orderedList', attrs: { start: 3, type: null }, content: [li] }
+    const doc = buildDocument('T', {
+      type: 'doc',
+      content: [
+        dirty,
+        {
+          type: 'freeformQuestion',
+          attrs: { block_id: 'ff_c', marks: 1, answer: { type: 'doc', content: [dirty] } },
+          content: [dirty],
+        },
+      ],
+    })
+    const [top, ff] = doc.content.content
+    expect(top.attrs).toEqual({ start: 3 })
+    expect(ff.content![0].attrs).toEqual({ start: 3 })
+    expect((ff.attrs!.answer as DocJSON).content[0].attrs).toEqual({ start: 3 })
+  })
+
+  it('normalizeAnswer cleans too', () => {
+    const out = normalizeAnswer({
+      type: 'doc',
+      content: [{ type: 'orderedList', attrs: { start: 1, type: null }, content: [li] }],
+    })
+    expect(out.content[0].attrs).toBeUndefined()
   })
 })

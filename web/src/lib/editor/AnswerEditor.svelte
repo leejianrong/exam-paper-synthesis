@@ -7,6 +7,7 @@
   import { Editor } from '@tiptap/core'
   import StarterKit from '@tiptap/starter-kit'
   import { Node } from '@tiptap/core'
+  import { Selection } from '@tiptap/pm/state'
   import { IMAGE_TYPES, uploadAsset } from './assets'
   import { blocksToHtml, normalizeAnswer, type DocJSON } from './doc'
   import { ImageBlock, ImageUpload, MathNode, uploadAndInsert } from './media'
@@ -26,6 +27,21 @@
   let observer: IntersectionObserver | null = null
 
   const same = (a: DocJSON, b: DocJSON) => JSON.stringify(a) === JSON.stringify(b)
+
+  function focusEnd(e: Editor) {
+    // Synchronous (the `focus()` command defers a frame, so early keystrokes would be lost).
+    const { state, view } = e
+    view.dispatch(state.tr.setSelection(Selection.atEnd(state.doc)))
+    view.focus()
+  }
+
+  // A click on the answer box (not on the text or its buttons) puts the caret at the end —
+  // creating the editor first when it has not been made yet.
+  function onBoxClick(ev: MouseEvent) {
+    if (!editor) return create(true)
+    const target = ev.target as HTMLElement
+    if (!target.closest('.ProseMirror') && !target.closest('.atools')) focusEnd(editor)
+  }
 
   function create(focus = false) {
     if (editor || !host) return
@@ -60,7 +76,7 @@
         if (!same(answer, normalizeAnswer(value))) dispatch('change', { answer })
       },
     })
-    if (focus) editor.commands.focus('end')
+    if (focus) focusEnd(editor)
   }
 
   // A change that did not come from typing here (undo, another tab's reload) is pushed in.
@@ -109,7 +125,7 @@
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="answer" on:click={() => create(true)}>
+<div class="answer" on:click={onBoxClick}>
   {#if editor}
     <div class="atools" role="toolbar" aria-label="Answer tools">
       <button type="button" on:click={addEquation}>Equation</button>

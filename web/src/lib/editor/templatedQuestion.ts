@@ -6,13 +6,16 @@ import { Node } from '@tiptap/core'
 import type { NodeViewRendererProps } from '@tiptap/core'
 import { mount, unmount } from 'svelte'
 import { writable } from 'svelte/store'
+import { convertToFreeform } from '../api'
 import type { Question } from '../types'
 import QuestionBlock from './QuestionBlock.svelte'
-import { newBlockId } from './doc'
+import { freeformNode, newBlockId } from './doc'
 
 export interface TemplatedQuestionOptions {
   /** Open the "add question" picker to insert after the block at `pos`. */
   onAddBelow: (afterPos: number) => void
+  /** A message for the page (e.g. which figure a conversion had to drop). */
+  onNotice: (message: string) => void
 }
 
 export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
@@ -23,7 +26,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
   draggable: false,
 
   addOptions() {
-    return { onAddBelow: () => {} }
+    return { onAddBelow: () => {}, onNotice: () => {} }
   },
 
   addAttributes() {
@@ -49,6 +52,8 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
       dom.setAttribute('data-block-id', String(node.attrs.block_id))
 
       const store = writable<Question>(node.attrs.question as Question)
+      let latest = node.attrs.question as Question
+      const store_value = () => latest
       const pos = () => {
         const p = getPos()
         return typeof p === 'number' ? p : 0
@@ -69,6 +74,25 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
             },
             move: (dir: -1 | 1) => moveBlock(editor, pos(), node.nodeSize, dir),
             addBelow: () => options.onAddBelow(pos() + node.nodeSize),
+            // Tier 3 (ADR-0021): the block becomes teacher-owned text, one undo step.
+            convert: async () => {
+              const out = await convertToFreeform(store_value())
+              const block = freeformNode()
+              const json = {
+                ...block,
+                attrs: { ...block.attrs, marks: out.marks, answer: out.answer },
+                content: out.content,
+              }
+              const { tr, schema } = editor.state
+              const from = pos()
+              tr.replaceWith(from, from + node.nodeSize, schema.nodeFromJSON(json))
+              editor.view.dispatch(tr)
+              if (out.dropped.length) {
+                options.onNotice(
+                  `Converted to free-form. Not included: ${out.dropped.join('; ')}.`,
+                )
+              }
+            },
           },
         },
       })
@@ -77,7 +101,8 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
         dom,
         update(updated) {
           if (updated.type !== node.type) return false
-          store.set(updated.attrs.question as Question)
+          latest = updated.attrs.question as Question
+          store.set(latest)
           return true
         },
         // The Svelte component owns all interaction inside the block.

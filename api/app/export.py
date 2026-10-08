@@ -33,3 +33,28 @@ def html_to_pdf(html: str) -> bytes:
             return page.pdf(format="A4", print_background=True)
         finally:
             browser.close()
+
+
+def html_to_png_many(svgs: list[str], *, scale: int = 2) -> list[bytes | None]:
+    """Rasterise each SVG string to PNG bytes via headless Chromium (W2c).
+
+    One browser for the whole batch; ``None`` for any figure that fails to render, so one bad
+    diagram never loses the others. White background (print), ``scale``x for crisp edges.
+    """
+    out: list[bytes | None] = []
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        try:
+            page = browser.new_page(device_scale_factor=scale)
+            for svg in svgs:
+                try:
+                    page.set_content(
+                        f'<body style="margin:0;background:#fff;display:inline-block">{svg}</body>',
+                        wait_until="load",
+                    )
+                    out.append(page.locator("svg").first.screenshot(type="png"))
+                except Exception:
+                    out.append(None)
+        finally:
+            browser.close()
+    return out

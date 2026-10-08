@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .routes_assets import router as assets_router
 from .routes_bank import router as bank_router
+from .routes_convert import router as convert_router
 from .routes_documents import router as documents_router
 from .routes_edit import router as edit_router
 from .routes_export import router as export_router
@@ -29,6 +30,7 @@ app.include_router(export_router)
 app.include_router(documents_router)
 app.include_router(bank_router)
 app.include_router(assets_router)
+app.include_router(convert_router)
 app.include_router(render_router)
 
 
