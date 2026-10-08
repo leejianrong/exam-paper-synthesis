@@ -72,7 +72,33 @@ def _read_js(name: str) -> str:
     return text.replace("</script>", "<\\/script>")
 
 
+def _inline_font_css() -> str:
+    """The one typeface (Inter, OFL) as ``@font-face`` rules with WOFF2 inlined as data URIs.
+
+    Documents are self-contained, so the PDF and the print preview use exactly the font the
+    editor does (EXA-94) with no font request and no dependence on the host's installed fonts.
+    """
+    faces = []
+    for weight, style in ((400, "normal"), (400, "italic"), (600, "normal"), (700, "normal")):
+        raw = (_ASSETS / "fonts" / f"inter-latin-{weight}-{style}.woff2").read_bytes()
+        faces.append(
+            '@font-face{font-family:"Inter";'
+            f"font-style:{style};font-weight:{weight};font-display:block;"
+            f"src:url(data:font/woff2;base64,{base64.b64encode(raw).decode('ascii')}) "
+            'format("woff2")}'
+        )
+    return "\n".join(faces)
+
+
+_FONT_CSS = _inline_font_css()
 _KATEX_CSS = _inline_katex_css()
+
+
+def font_css() -> str:
+    """``@font-face`` rules for the document typeface (for pages the API assembles itself)."""
+    return _FONT_CSS
+
+
 _PRINT_CSS = (_ASSETS / "print.css").read_text(encoding="utf-8")
 _KATEX_JS = _read_js("katex.min.js")
 _AUTORENDER_JS = _read_js("auto-render.min.js")
@@ -110,23 +136,14 @@ def _esc(text: object) -> str:
     return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-# A ratio (``2 : 3`` / ``5 : 9 : 8``) and a currency amount (``$204``/``$3.50``)
-# are the math atoms the ratio blueprints emit; wrap each in inline delimiters so
-# KaTeX typesets them while surrounding prose stays plain text.
-_RATIO_RE = re.compile(r"\d+(?:\s*:\s*\d+)+")
-_MONEY_RE = re.compile(r"\$(\d+(?:\.\d+)?)")
-
-
 def _mathify(text: str) -> str:
-    """HTML-escape prose, then wrap math atoms in ``\\(…\\)`` (``$`` → ``\\$``)."""
-    out = _esc(text)
-    out = _RATIO_RE.sub(lambda m: rf"\({m.group(0)}\)", out)
-    out = _MONEY_RE.sub(lambda m: rf"\(\${m.group(1)}\)", out)
-    return out
+    """HTML-escape prose. Authored ``\\(…\\)`` math passes through for KaTeX; ratios and money
+    stay plain text so the page keeps one typeface (EXA-94) — only real maths is typeset."""
+    return _esc(text)
 
 
 def _fmt_answer(answer: dict) -> str:
-    """Format the typed canonical answer as a KaTeX-delimited string."""
+    """Format the typed canonical answer: plain text, except a fraction (KaTeX-delimited)."""
     atype = answer.get("type")
     if atype in ("integer", "decimal", "quantity"):
         unit = answer.get("unit") or ""
@@ -135,10 +152,10 @@ def _fmt_answer(answer: dict) -> str:
             # Money renders at exactly 2 dp when it is a decimal amount
             # (change-to-decimals, KAN-309); integer money keeps its whole form.
             shown = f"{value:.2f}" if atype == "decimal" else value
-            return rf"\(\${shown}\)"
-        if unit:
-            return rf"\({value}\ \text{{{_esc(unit)}}}\)"
-        return rf"\({value}\)"
+            return f"${shown}"
+        if unit == "%":
+            return f"{value}%"
+        return f"{value} {_esc(unit)}" if unit else f"{value}"
     if atype == "fraction":
         body = rf"\frac{{{answer['numerator']}}}{{{answer['denominator']}}}"
         unit = answer.get("unit") or ""
@@ -148,9 +165,9 @@ def _fmt_answer(answer: dict) -> str:
             return rf"\({body}\ \text{{{_esc(unit)}}}\)"
         return rf"\({body}\)"
     if atype == "ratio":
-        return r"\(" + " : ".join(str(p) for p in answer.get("parts", [])) + r"\)"
+        return " : ".join(str(p) for p in answer.get("parts", []))
     if atype == "set":
-        return r"\(" + ", ".join(_esc(v) for v in answer.get("values", [])) + r"\)"
+        return ", ".join(_esc(v) for v in answer.get("values", []))
     if atype == "text":
         return _esc(answer.get("text", ""))
     if atype == "choice":
@@ -340,6 +357,7 @@ def _document(*, root_class: str, title: str, header_html: str, body_html: str) 
         '<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         f"<title>{_esc(title)}</title>\n"
+        f"<style>{_FONT_CSS}</style>\n"
         f"<style>{_KATEX_CSS}</style>\n"
         f"<style>{_PRINT_CSS}</style>\n"
         "</head>\n"

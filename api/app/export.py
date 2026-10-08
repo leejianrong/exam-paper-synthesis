@@ -10,6 +10,7 @@ the PDF captures fully typeset math.
 
 from __future__ import annotations
 
+from exam_engine.render import font_css
 from playwright.sync_api import sync_playwright
 
 # The renderer flags typesetting completion on the root element; wait for it so
@@ -49,6 +50,7 @@ def html_to_png_many(svgs: list[str], *, scale: int = 2) -> list[bytes | None]:
             for svg in svgs:
                 try:
                     page.set_content(
+                        f"<style>{font_css()}</style>"
                         f'<body style="margin:0;background:#fff;display:inline-block">{svg}</body>',
                         wait_until="load",
                     )

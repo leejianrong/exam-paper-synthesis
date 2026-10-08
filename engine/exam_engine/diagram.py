@@ -415,7 +415,7 @@ def _render_bar_model(spec: dict) -> str:
     lines: list[str] = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
         f'width="{width}" height="{height}" role="img" '
-        f'font-family="system-ui, sans-serif" font-size="13">'
+        f'font-family="Inter, system-ui, sans-serif" font-size="13">'
     ]
 
     # --- bars ---
@@ -579,7 +579,7 @@ def _render_bar_model_before_after(spec: dict) -> str:
     lines: list[str] = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
         f'width="{width}" height="{height}" role="img" '
-        f'font-family="system-ui, sans-serif" font-size="13">'
+        f'font-family="Inter, system-ui, sans-serif" font-size="13">'
     ]
 
     # Track the vertical extent of B bars so the brace can span the last one.
@@ -706,7 +706,7 @@ def _sf_header(width: int, height: int) -> str:
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
         f'width="{width}" height="{height}" role="img" '
-        f'font-family="system-ui, sans-serif" font-size="13">'
+        f'font-family="Inter, system-ui, sans-serif" font-size="13">'
     )
 
 
@@ -846,7 +846,7 @@ def _gf_header(width: int, height: int) -> str:
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
         f'width="{width}" height="{height}" role="img" '
-        f'font-family="system-ui, sans-serif" font-size="13">'
+        f'font-family="Inter, system-ui, sans-serif" font-size="13">'
     )
 
 

@@ -217,7 +217,7 @@ function renderBarModel(spec: BarModelSpec): string {
   const out: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
       `width="${width}" height="${height}" role="img" ` +
-      `font-family="system-ui, sans-serif" font-size="13">`,
+      `font-family="Inter, system-ui, sans-serif" font-size="13">`,
   ]
 
   let y = PAD_TOP
@@ -360,7 +360,7 @@ function renderBarModelBeforeAfter(spec: BarModelBeforeAfterSpec): string {
   const out: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
       `width="${width}" height="${height}" role="img" ` +
-      `font-family="system-ui, sans-serif" font-size="13">`,
+      `font-family="Inter, system-ui, sans-serif" font-size="13">`,
   ]
 
   let lastBTop = PAD_TOP
@@ -463,7 +463,7 @@ function sfHeader(width: number, height: number): string {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
     `width="${width}" height="${height}" role="img" ` +
-    `font-family="system-ui, sans-serif" font-size="13">`
+    `font-family="Inter, system-ui, sans-serif" font-size="13">`
   )
 }
 
@@ -603,7 +603,7 @@ function gfHeader(width: number, height: number): string {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
     `width="${width}" height="${height}" role="img" ` +
-    `font-family="system-ui, sans-serif" font-size="13">`
+    `font-family="Inter, system-ui, sans-serif" font-size="13">`
   )
 }
 

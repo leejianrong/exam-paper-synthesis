@@ -5,12 +5,11 @@
  * column; questions numbered via a CSS counter; marks right-aligned.
  *
  * Design system (KAN-315): the printed deliverable IS the exam paper, so it
- * leans furthest into the shared "paper" aesthetic — serif stems, mono engine
- * data, hairline rules and a faint exercise-book grid. The palette mirrors the
+ * leans furthest into the shared "paper" aesthetic — one typeface (Inter),
+ * hairline rules and a faint exercise-book grid. The palette mirrors the
  * light-theme tokens from site/index.html / web/src/app.css; because this is a
  * standalone print document (its own <style>, no shared token layer), the
- * values are inlined here as custom properties. Voice: serif = the trusted
- * paper · mono = the exact engine. */
+ * values are inlined here as custom properties. */
 
 :root {
   --paper: #ffffff;
@@ -28,11 +27,10 @@
   --mark-soft: #fbeae5;
   --u2: #c0872b;
 
-  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia,
-    "Times New Roman", serif;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: "SF Mono", ui-monospace, "Cascadia Code", "JetBrains Mono", Menlo, Consolas,
-    "Liberation Mono", monospace;
+  /* One typeface everywhere (EXA-94); the three names stay so existing rules keep working. */
+  --serif: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --mono: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
 @page {

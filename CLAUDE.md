@@ -140,6 +140,7 @@ a request; entropy (random seed) enters only here.
   with `make py-lint` / `make py-fmt` / `make py-typecheck`; all three must be
   green (as must `uv run pytest`) before pushing.
 - **Commit messages** carry no `Co-Authored-By` trailer (or any other AI attribution line).
+- **One typeface (EXA-94)**: Inter (OFL, bundled under `engine/exam_engine/assets/fonts/` and `web/src/assets/fonts/`) for the app, editor, diagrams and PDFs; the `--serif/--sans/--mono` tokens all resolve to it, PDFs embed it as data URIs. Only real maths (fractions, authored `\(…\)`, equations) uses KaTeX's own face; ratios and money are plain text. Don't add font families.
 - **Multi-level doc consistency**: if a slice's scope shifts, update
   `docs/planning/mvp/SLICES.md` (and `SHAPING.md`).
 

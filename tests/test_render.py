@@ -11,7 +11,7 @@ import re
 
 import pytest
 from exam_engine import generate
-from exam_engine.render import render_answer_key_html, render_worksheet_html
+from exam_engine.render import _fmt_answer, render_answer_key_html, render_worksheet_html
 
 # One object per rung of the Ratio ladder; easy/medium carry a ``bar_model``
 # diagram, hard carries a ``bar_model_before_after``.
@@ -91,11 +91,19 @@ def test_total_marks_is_sum_on_both_sheets():
     assert f"Total: {total} marks" in render_answer_key_html(TITLE, ALL)
 
 
-def test_math_is_katex_delimited():
-    # Ratio + currency atoms in the question text are wrapped for KaTeX.
+def test_ratios_and_money_are_plain_text_not_katex():
+    # One typeface (EXA-94): only real maths (fractions, authored \\(…\\)) goes through KaTeX.
     html = render_worksheet_html(TITLE, ALL)
-    assert r"\(" in html
-    assert r"\(\$" in html  # currency written with an escaped dollar
+    body = html.split("<body>")[1].split("<script>")[0]
+    assert r"\(" not in body
+    assert "$" in body and " : " in body
+
+
+def test_authored_math_and_fraction_answers_still_use_katex():
+    obj = generate("ratio_easy", 1)
+    obj["question"]["parts"][0]["text"] = r"Find \(\frac{1}{2}\) of 8."
+    assert r"\(\frac{1}{2}\)" in render_worksheet_html(TITLE, [obj])
+    assert _fmt_answer({"type": "fraction", "numerator": 3, "denominator": 4}) == r"\(\frac{3}{4}\)"
 
 
 # --- diagrams ---------------------------------------------------------------
@@ -144,7 +152,7 @@ def test_answer_key_shows_typed_final_answer():
     html = render_answer_key_html(TITLE, [EASY])
     answer = EASY["question"]["parts"][0]["answer"]
     # quantity in dollars → escaped-dollar KaTeX atom.
-    assert rf"Answer: \(\${answer['value']}\)" in html
+    assert f"Answer: ${answer['value']}" in html
 
 
 def test_answer_key_renders_decimal_money_at_2dp():
@@ -157,7 +165,7 @@ def test_answer_key_renders_decimal_money_at_2dp():
     assert ans["type"] == "decimal" and ans["unit"] == "$"
 
     html = render_answer_key_html(TITLE, [obj])
-    assert rf"Answer: \(\${ans['value']:.2f}\)" in html
+    assert f"Answer: ${ans['value']:.2f}" in html
     # No 1-dp money slips through the rendered questions body (the KaTeX JS/CSS in
     # the document shell is excluded — it is not question content).
     body = html[html.index('<ol class="questions">') : html.index("</main>")]
