@@ -26,3 +26,44 @@ export function makeQuestion(over: Partial<Question> = {}, text = 'Ann, Ben and 
     ...over,
   }
 }
+
+/** A sourced (bank) question: teacher-vouched, no blueprint, unreviewed by default. */
+export function makeBankQuestion(over: Partial<Question> = {}): Question {
+  return {
+    id: 'sourced:rosyth-2023-q1',
+    seed: 0,
+    blueprint_code: '' as unknown as string,
+    source_type: 'sourced',
+    parameters: null,
+    validation: { status: 'pass', checks: {} },
+    question: {
+      total_marks: 2,
+      parts: [
+        {
+          text: 'Which shape has four equal sides and four right angles?',
+          marks: 2,
+          answer: { type: 'choice' },
+          diagram: null,
+        },
+      ],
+    },
+    ...over,
+  }
+}
+
+type Reply = unknown | ((init?: RequestInit) => unknown)
+
+/**
+ * A fetch stub that answers by URL suffix. Each reply is a JSON body (or a function of the
+ * request init); an unmatched URL fails the test loudly so a missing stub is obvious.
+ */
+export function routeFetch(routes: Record<string, Reply>) {
+  return async (url: string, init?: RequestInit) => {
+    const key = Object.keys(routes).find((k) => String(url).includes(k))
+    if (!key) throw new Error(`routeFetch: no stub for ${url}`)
+    const reply = routes[key]
+    const body = typeof reply === 'function' ? (reply as (i?: RequestInit) => unknown)(init) : reply
+    const text = typeof body === 'string'
+    return { ok: true, status: 200, json: async () => body, text: async () => (text ? body : JSON.stringify(body)) }
+  }
+}

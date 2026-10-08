@@ -6,6 +6,8 @@ do not re-describe the canonical schema.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -42,3 +44,9 @@ class CreateDocumentRequest(BaseModel):
 class SaveDocumentRequest(BaseModel):
     document: dict
     base_version: int
+
+
+class RenderQuestionRequest(BaseModel):
+    question: dict
+    mode: Literal["student", "key"] = "student"
+    number: int | None = None

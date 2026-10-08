@@ -1,4 +1,7 @@
 import { test, expect } from '@playwright/test'
+import { execFileSync } from 'node:child_process'
+import os from 'node:os'
+import path from 'node:path'
 
 /**
  * Browser acceptance for the W1 WYSIWYG editor: create a paper, add generated
@@ -90,4 +93,71 @@ test('the documents list shows, opens and deletes a paper', async ({ page }) => 
   await row.getByRole('button', { name: 'Delete' }).click()
   await row.getByRole('button', { name: 'Confirm delete' }).click()
   await expect(page.locator('li.doc', { hasText: 'Throwaway' })).toHaveCount(0)
+})
+
+test('insert questions from my bank (MCQ and table) into a paper', async ({ page }) => {
+  // Seed the bank the way a user does: the CLI, as the default `local` owner.
+  const bankDb = path.join(os.tmpdir(), 'exam-e2e-bank.sqlite3')
+  for (const name of ['psle_2023_mcq', 'psle_2023_table']) {
+    execFileSync(
+      'uv',
+      ['run', 'mathgen', 'bank', 'import', `tests/fixtures/sourced/${name}.json`, '--overwrite'],
+      { env: { ...process.env, EXAM_BANK_PATH: bankDb } },
+    )
+  }
+
+  await page.goto('/')
+  await page.getByRole('button', { name: '+ New paper' }).click()
+  await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
+  const id = page.url().split('/docs/')[1]
+  await page.getByLabel('Paper title').fill('Bank Paper')
+
+  await page.getByRole('button', { name: 'Add question' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Add question' })
+  await dialog.getByRole('tab', { name: 'From my bank' }).click()
+  await expect(dialog.getByTestId('bank-item')).toHaveCount(2)
+  // The engine's own print markup is drawn (MCQ options are real list items).
+  await expect(dialog.locator('li.option').first()).toBeVisible()
+  await dialog.getByTestId('bank-item').first().getByRole('button', { name: 'Use this' }).click()
+
+  const block = page.getByTestId('question-block')
+  await expect(block).toHaveCount(1)
+  await expect(block.getByText('From my bank')).toBeVisible()
+  await expect(block.getByText('Unreviewed')).toBeVisible()
+  await expect(block.getByRole('button', { name: 'Make harder' })).toHaveCount(0)
+  await expect(block.locator('li.option').first()).toBeVisible()
+
+  // The key region uses the engine key markup for it.
+  const key = page.getByRole('region', { name: 'Answer key' })
+  await expect(key.locator('.solution').first()).toBeVisible()
+
+  // Add the table question too. The page draws its own numbers with a CSS counter, and
+  // counters cross the shadow boundary, so an embedded question must not advance it itself
+  // (that numbered the page 1, 3, 5…). Computed counters can't be read back, so assert the
+  // cause: no embedded question increments.
+  await page.getByRole('button', { name: 'Add question' }).click()
+  await dialog.getByRole('tab', { name: 'From my bank' }).click()
+  await dialog.getByTestId('bank-item').nth(1).getByRole('button', { name: 'Use this' }).click()
+  await expect(page.getByTestId('question-block')).toHaveCount(2)
+  await expect(page.getByTestId('question-block').nth(1).locator('table')).toBeVisible()
+  const increments = await page
+    .locator('.qblock section.question')
+    .evaluateAll((els) => els.map((el) => getComputedStyle(el).counterIncrement))
+  expect(increments).toEqual(['none', 'none'])
+  const own = await page
+    .locator('.qblock')
+    .evaluateAll((els) => els.map((el) => getComputedStyle(el).counterIncrement))
+  expect(own).toEqual(['q 1', 'q 1'])
+
+  // A bank question saves, reloads, and the student copy shows its options but no answers.
+  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await page.reload()
+  await expect(page.getByTestId('question-block').getByText('From my bank')).toHaveCount(2)
+  const student = await (
+    await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)
+  ).text()
+  expect(student).toContain('class="option"')
+  expect(student).not.toContain('Answer:')
+  const full = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/full`)).text()
+  expect(full).toContain('option-correct')
 })

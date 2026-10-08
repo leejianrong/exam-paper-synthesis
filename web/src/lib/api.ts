@@ -143,3 +143,52 @@ export async function setCosmetic(
   const data = (await res.json()) as EditResponse
   return data.question
 }
+
+/** One question in the owner's bank (GET /bank). */
+export interface BankItem {
+  id: string
+  topic: string | null
+  level: string | null
+  difficulty: string | null
+  source_type: string
+  reviewed: boolean
+  question: Question
+}
+
+/** The owner's bank questions (read-only here; import is `mathgen bank import`). */
+export async function listBank(): Promise<BankItem[]> {
+  const res = await fetch(`${BASE}/bank`)
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`API ${res.status}: ${detail}`)
+  }
+  return ((await res.json()) as { items: BankItem[] }).items
+}
+
+/** Engine-rendered HTML for one question (POST /render/question): the print markup. */
+export async function renderQuestionHtml(
+  question: Question,
+  mode: 'student' | 'key' = 'student',
+  number: number | null = null,
+): Promise<string> {
+  const res = await fetch(`${BASE}/render/question`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ question, mode, number }),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`API ${res.status}: ${detail}`)
+  }
+  return ((await res.json()) as { html: string }).html
+}
+
+/** The shared stylesheet / script for embedded engine fragments. */
+export async function fetchFragmentAssets(): Promise<{ css: string; js: string }> {
+  const [css, js] = await Promise.all([
+    fetch(`${BASE}/render/question.css`),
+    fetch(`${BASE}/render/katex.js`),
+  ])
+  if (!css.ok || !js.ok) throw new Error(`API ${css.ok ? js.status : css.status}: render assets`)
+  return { css: await css.text(), js: await js.text() }
+}

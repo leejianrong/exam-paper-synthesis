@@ -13,19 +13,19 @@
  * paper · mono = the exact engine. */
 
 :root {
-  --paper: #f3f4ef;
-  --paper-2: #fbfbf8;
+  --paper: #ffffff;
+  --paper-2: #ffffff;
   --ink: #191c21;
-  --ink-soft: #565d66;
-  --ink-faint: #7b828b;
-  --line: #dcdfd5;
-  --line-soft: #e7e9e0;
-  --grid: rgba(25, 28, 33, 0.03);
+  --ink-soft: #4b535d;
+  --ink-faint: #656c76;
+  --line: #d5dae1;
+  --line-soft: #e6e9ee;
+  --grid: rgba(25, 28, 33, 0.035);
   --verify: #0f7a57;
   --verify-ink: #0b5a40;
-  --verify-soft: #e2efe9;
-  --mark: #bd4229;
-  --mark-soft: #f4e4df;
+  --verify-soft: #e3f1ea;
+  --mark: #b53a22;
+  --mark-soft: #fbeae5;
   --u2: #c0872b;
 
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia,
@@ -54,13 +54,8 @@ body {
   color: var(--ink);
   font-family: var(--sans);
   line-height: 1.45;
-  /* faint exercise-book grid — the shared signature; kept very light so print
-     stays clean. On screen (preview) it reads as paper; when printing, most
-     browsers drop background graphics by default. */
+  /* plain white paper, in the preview and in the PDF */
   background-color: var(--paper-2);
-  background-image: linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 26px 26px;
 }
 
 .sheet {
