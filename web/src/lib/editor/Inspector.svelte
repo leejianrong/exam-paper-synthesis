@@ -1,6 +1,7 @@
 <script lang="ts">
   // The right-hand inspector (EXA-93): status, provenance and metadata for the block you
   // are in, or a summary of the paper. Everything here is for the author; none of it prints.
+  import { createEventDispatcher } from 'svelte'
   import type { DocNode } from './doc'
   import { describeBlock, summarise } from './inspector'
 
@@ -8,9 +9,13 @@
   export let marks = 0
   export let selectedId: string | null = null
 
+  const dispatch = createEventDispatcher<{ remark: { blockId: string; remark: string } }>()
+  const MAX_REMARK = 2000
+
   $: index = blocks.findIndex((b) => b.attrs?.block_id === selectedId)
   $: facts = index >= 0 ? describeBlock(blocks[index], index + 1) : null
   $: summary = summarise(blocks, marks)
+  $: remark = index >= 0 ? String(blocks[index].attrs?.remark ?? '') : ''
 </script>
 
 <aside class="inspector" aria-label="Inspector">
@@ -23,6 +28,16 @@
         <dd>{value}</dd>
       {/each}
     </dl>
+    <label class="remark">
+      <span>Remarks <small>(only you see these; never printed)</small></span>
+      <textarea
+        rows="4"
+        maxlength={MAX_REMARK}
+        placeholder="A note to yourself about this question"
+        value={remark}
+        on:input={(e) => dispatch('remark', { blockId: String(selectedId), remark: e.currentTarget.value })}
+      ></textarea>
+    </label>
   {:else}
     <h2>This paper</h2>
     <dl>
@@ -33,6 +48,7 @@
       {#if summary.generated}<dt>Generated</dt><dd>{summary.generated}</dd>{/if}
       {#if summary.bank}<dt>From my bank</dt><dd>{summary.bank}</dd>{/if}
       {#if summary.freeform}<dt>Free-form</dt><dd>{summary.freeform}</dd>{/if}
+      {#if summary.remarks}<dt>Remarks</dt><dd>{summary.remarks}</dd>{/if}
     </dl>
     <p class="hint">Click a question to see where it came from and how far it can be trusted.</p>
   {/if}
@@ -84,6 +100,26 @@
   dd {
     margin: 0;
     overflow-wrap: anywhere;
+  }
+  .remark {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-top: 0.8rem;
+    color: var(--ink-soft);
+  }
+  .remark small {
+    color: var(--ink-faint);
+  }
+  textarea {
+    font: inherit;
+    font-size: 13px;
+    resize: vertical;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.4rem 0.5rem;
+    background: var(--paper);
+    color: var(--ink);
   }
   .hint {
     color: var(--ink-faint);

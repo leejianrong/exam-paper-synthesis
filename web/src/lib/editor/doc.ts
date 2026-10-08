@@ -4,7 +4,7 @@
 import type { Question } from '../types'
 import { assetUrl } from './assets'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.2.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.3.0'
 
 export interface DocNode {
   type: string
@@ -88,6 +88,12 @@ export function cleanNode(node: DocNode): DocNode {
     out = Number.isInteger(start) && start > 1 ? { ...rest, attrs: { start } } : rest
   }
   if (out.content) out = { ...out, content: out.content.map(cleanNode) }
+  if ((out.type === 'templatedQuestion' || out.type === 'freeformQuestion') && out.attrs) {
+    // The schema takes a remark only as a non-empty string; an unset or cleared one is absent.
+    const { remark, ...rest } = out.attrs
+    const text = typeof remark === 'string' ? remark.trim() : ''
+    out = { ...out, attrs: text ? { ...rest, remark: text } : rest }
+  }
   if (out.type === 'freeformQuestion' && out.attrs?.answer) {
     const answer = out.attrs.answer as DocJSON
     out = {

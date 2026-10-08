@@ -60,6 +60,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       block_id: { default: null },
       marks: jsonAttr<number | null>('data-marks', null),
       answer: jsonAttr('data-answer', EMPTY_ANSWER),
+      remark: { default: null }, // the author's private note (inspector); never printed
     }
   },
 

@@ -254,3 +254,17 @@ def test_export_pdf_with_image_and_equation():
     assert _save(rec, make_doc(ff)).status_code == 200
     resp = client.post(f"/documents/{rec['id']}/export/student", headers=ALICE)
     assert resp.status_code == 200 and resp.content.startswith(b"%PDF")
+
+
+def test_remarks_roundtrip_through_the_api_and_stay_out_of_every_preview():
+    rec = _create()
+    doc = make_doc(gen_block(), freeform_block("Find x.", answer="3"))
+    for block in doc["content"]["content"]:
+        block["attrs"]["remark"] = "private: REMARK-xyz"
+    saved = _save(rec, doc)
+    assert saved.status_code == 200
+    got = client.get(f"/documents/{rec['id']}", headers=ALICE).json()["document"]
+    assert [b["attrs"]["remark"] for b in got["content"]["content"]] == ["private: REMARK-xyz"] * 2
+    for mode in ("student", "key", "full"):
+        html = client.get(f"/documents/{rec['id']}/preview/{mode}", headers=ALICE).text
+        assert "REMARK-xyz" not in html

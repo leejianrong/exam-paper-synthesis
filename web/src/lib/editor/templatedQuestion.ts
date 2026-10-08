@@ -33,6 +33,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
     return {
       block_id: { default: null },
       question: { default: null },
+      remark: { default: null }, // the author's private note (inspector); never printed
     }
   },
 
@@ -52,6 +53,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
       dom.setAttribute('data-block-id', String(node.attrs.block_id))
 
       const store = writable<Question>(node.attrs.question as Question)
+      let current = node // the live node: attrs the inspector sets (remark) must survive edits here
       let latest = node.attrs.question as Question
       const store_value = () => latest
       const pos = () => {
@@ -66,7 +68,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
           ctx: {
             replace: (q: Question) => {
               const { tr } = editor.state
-              tr.setNodeMarkup(pos(), undefined, { ...node.attrs, question: q })
+              tr.setNodeMarkup(pos(), undefined, { ...current.attrs, question: q })
               editor.view.dispatch(tr)
             },
             remove: () => {
@@ -80,7 +82,12 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
               const block = freeformNode()
               const json = {
                 ...block,
-                attrs: { ...block.attrs, marks: out.marks, answer: out.answer },
+                attrs: {
+                  ...block.attrs,
+                  marks: out.marks,
+                  answer: out.answer,
+                  remark: current.attrs.remark ?? null,
+                },
                 content: out.content,
               }
               const { tr, schema } = editor.state
@@ -101,6 +108,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
         dom,
         update(updated) {
           if (updated.type !== node.type) return false
+          current = updated
           latest = updated.attrs.question as Question
           store.set(latest)
           return true
