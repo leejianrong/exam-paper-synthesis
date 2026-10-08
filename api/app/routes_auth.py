@@ -19,7 +19,7 @@ import httpx
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 
-from . import usage
+from . import ratelimit, usage
 from .accounts import SESSION_TTL, AccountStore, get_account_store
 from .auth import SESSION_COOKIE, current_owner
 from .oauth import (
@@ -32,7 +32,7 @@ from .oauth import (
     new_verifier,
 )
 
-router = APIRouter(prefix="/auth")
+router = APIRouter(prefix="/auth", dependencies=[Depends(ratelimit.limit_auth)])
 
 Accounts = Annotated[AccountStore, Depends(get_account_store)]
 _STATE_COOKIE = "exam_oauth_state"
@@ -61,8 +61,10 @@ def _redirect_uri(provider: str) -> str:
     return f"{public_url()}/auth/{provider}/callback"
 
 
-def _fail(code: str) -> RedirectResponse:
+def _fail(code: str, *, retry_after: int | None = None) -> RedirectResponse:
     resp = RedirectResponse(f"{web_url()}/#/login?{urlencode({'error': code})}", status_code=302)
+    if retry_after:
+        resp.headers["Retry-After"] = str(retry_after)
     resp.delete_cookie(_STATE_COOKIE, path="/auth")
     resp.delete_cookie(_VERIFIER_COOKIE, path="/auth")
     return resp
@@ -77,9 +79,11 @@ def providers() -> dict:
 
 
 @router.get("/{provider}/login")
-def login(provider: str) -> RedirectResponse:
+def login(provider: str, request: Request) -> RedirectResponse:
     if provider not in PROVIDERS:
         raise HTTPException(status_code=404, detail="unknown provider")
+    if wait := ratelimit.sign_in_wait(request):
+        return _fail("rate_limited", retry_after=wait)
     state, verifier = new_state(), new_verifier()
     try:
         url = authorization_url(
@@ -104,6 +108,7 @@ def login(provider: str) -> RedirectResponse:
 @router.get("/{provider}/callback")
 def callback(
     provider: str,
+    request: Request,
     accounts: Accounts,
     client: Annotated[httpx.Client, Depends(get_http_client)],
     code: str | None = None,
@@ -114,6 +119,8 @@ def callback(
 ) -> RedirectResponse:
     if provider not in PROVIDERS:
         raise HTTPException(status_code=404, detail="unknown provider")
+    if wait := ratelimit.sign_in_wait(request):
+        return _fail("rate_limited", retry_after=wait)
     if error:
         return _fail("denied")
     # The state must come back exactly as this browser was given it (login CSRF).
@@ -124,6 +131,7 @@ def callback(
         or not exam_oauth_verifier
         or not hmac.compare_digest(state, exam_oauth_state)
     ):
+        ratelimit.record_sign_in_failure(request)
         return _fail("state")
     try:
         profile = fetch_profile(
@@ -134,6 +142,7 @@ def callback(
             client=client,
         )
     except (OAuthError, httpx.HTTPError):
+        ratelimit.record_sign_in_failure(request)
         return _fail("provider")
 
     user = accounts.login(profile)

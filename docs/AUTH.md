@@ -55,3 +55,17 @@ Data in the SQLite files does not migrate automatically; the dev-stub owner `loc
 ## Content-Security-Policy (W5)
 
 Every API response carries a CSP (`api/app/csp.py`; `/docs` is exempt and only exists outside production). Scripts: `'self'` plus the SHA-256 of the three inline print scripts (KaTeX, auto-render, bootstrap) — no `'unsafe-inline'`, no `'unsafe-eval'`. Hashes rather than a nonce because the SPA is a static file and those scripts are identical for every document; the editor's preview iframe (`srcdoc`) and the classic page's `blob:` preview *inherit* the parent's policy, and the hashes let exactly those scripts run. Styles keep `'unsafe-inline'` (print HTML `<style>` blocks, `style` attributes); fonts and images are self/`data:`. If you change `render.py`'s inline scripts the hashes follow automatically (`inline_script_hashes()`); if you add a new inline script anywhere, `tests/test_csp.py` and `tests/e2e/csp.spec.js` fail. The e2e spec runs the built SPA and API on one origin (:8001), because the Vite dev server never sends the policy.
+
+## Rate limiting (W5)
+
+`api/app/ratelimit.py`, in-process sliding windows keyed by client address (per machine, so N machines multiply the ceilings; the per-account export allowance is separate and database-backed).
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `EXAM_AUTH_LIMIT_PER_MINUTE` | 300 | every `/auth/*` request; over it → `429` + `Retry-After` |
+| `EXAM_AUTH_ATTEMPTS_PER_MINUTE` | 30 | `login` + `callback` (each callback makes two provider calls); over it → redirect to the login page with `error=rate_limited` (+ `Retry-After`) |
+| `EXAM_AUTH_FAILURES_PER_15_MIN` | 20 | failed sign-ins (forged/missing `state`, provider rejection); then that address cannot start or finish a sign-in for the rest of the window. Cancelling at the provider does not count |
+| `EXAM_CLIENT_IP_HEADER` | unset | header the platform overwrites with the real client address (`Fly-Client-IP` is set in `fly.toml`; `CF-Connecting-IP` behind Cloudflare). Unset → the TCP peer. **Never set it where clients can reach the app directly** |
+
+`0` disables a limit. The defaults are loose on purpose: a school shares one address, and a class of teachers signing in at 8 am must not lock each other out.
+
