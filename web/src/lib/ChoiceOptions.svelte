@@ -8,7 +8,7 @@
 </script>
 
 <ol class="options" aria-label="options">
-  {#each options as o (o.label)}
+  {#each options as o, i (i)}
     <li>
       <span class="tag">{o.label}</span>
       <div class="body">

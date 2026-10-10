@@ -5,6 +5,8 @@
   import ServerDiagram from './ServerDiagram.svelte'
 
   export let spec: DiagramSpec | null | undefined
+  /** The tighter frame the editor body uses. */
+  export let compact = false
   $: svg = renderDiagram(spec)
   // Accessible label reflects the diagram kind. Older ratio cards keep "bar model".
   $: aria =
@@ -18,12 +20,12 @@
 </script>
 
 {#if isServerDiagram(spec)}
-  <div class="diagram" aria-label={aria}><ServerDiagram {spec} /></div>
+  <div class="diagram" class:compact aria-label={aria}><ServerDiagram {spec} /></div>
 {:else if svg}
   <!-- svg is built by renderDiagram from esc()-escaped, engine-derived spec values — no
        untrusted HTML reaches this sink. -->
   <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-  <div class="diagram" aria-label={aria}>{@html svg}</div>
+  <div class="diagram" class:compact aria-label={aria}>{@html svg}</div>
 {/if}
 
 <style>
@@ -34,6 +36,12 @@
     border: 1px solid var(--line-soft);
     border-radius: 9px;
     overflow-x: auto;
+  }
+  .diagram.compact {
+    margin: 0;
+    padding: 0.5rem;
+    background: var(--page);
+    border-radius: 6px;
   }
   .diagram :global(svg) {
     max-width: 100%;

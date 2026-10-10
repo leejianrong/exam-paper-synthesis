@@ -13,9 +13,9 @@
     <span class="marks">[{part.marks}]</span>
   </div>
   {#if q.question.stem}<p class="text">{q.question.stem}</p>{/if}
-  <DiagramView spec={q.question.diagram} />
+  <DiagramView compact spec={q.question.diagram} />
   <p class="text">{part.text}</p>
-  <DiagramView spec={part.diagram} />
+  <DiagramView compact spec={part.diagram} />
   {#if part.answer?.type === 'choice'}<ChoiceOptions options={part.answer.options ?? []} />{/if}
 </div>
 
