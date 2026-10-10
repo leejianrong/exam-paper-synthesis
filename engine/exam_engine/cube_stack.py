@@ -95,20 +95,19 @@ def _is_int(v: object) -> bool:
 
 def check_cube_stack_consistency(spec: dict) -> dict[str, bool]:
     """Spec-only invariants; every value is a ``bool`` (``True`` = holds)."""
-    heights = spec.get("heights")
-    rows_ok = (
-        isinstance(heights, list)
-        and 1 <= len(heights) <= _MAX_SIDE
-        and all(isinstance(r, list) for r in heights)
+    raw = spec.get("heights")
+    grid: list[list[object]] = (
+        [r for r in raw if isinstance(r, list)] if isinstance(raw, list) else []
     )
-    width = len(heights[0]) if rows_ok else 0
-    rectangular = rows_ok and 1 <= width <= _MAX_SIDE and all(len(r) == width for r in heights)
-    cells_ok = rectangular and all(_is_int(h) and 0 <= h <= _MAX_H for r in heights for h in r)
+    rows_ok = bool(grid) and len(grid) <= _MAX_SIDE and len(grid) == len(raw or [])
+    width = len(grid[0]) if rows_ok else 0
+    rectangular = rows_ok and 1 <= width <= _MAX_SIDE and all(len(r) == width for r in grid)
+    cells_ok = rectangular and all(_is_int(h) and 0 <= h <= _MAX_H for r in grid for h in r)  # type: ignore[operator]
     return {
         "view_known": spec.get("view", "iso") in _VIEWS,
-        "heights_rectangular": bool(rectangular),
-        "heights_in_range": bool(cells_ok),
-        "has_cubes": bool(cells_ok and cube_count(heights) > 0),
+        "heights_rectangular": rectangular,
+        "heights_in_range": cells_ok,
+        "has_cubes": cells_ok and any(h for r in grid for h in r),
     }
 
 
