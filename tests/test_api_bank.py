@@ -294,3 +294,13 @@ def test_render_fragment_draws_panels_server_side():
     q["question"]["diagram"]["panels"][1]["figure"]["fill"]["height"] = 99
     resp = client.post("/render/question", json={"question": q})
     assert resp.status_code == 422 and "panel2_fill_within_height" in resp.text
+
+
+def test_render_fragment_prints_expression_answers_and_rejects_uncollected_ones():
+    sourced = Path(__file__).parent / "fixtures" / "sourced"
+    q = json.loads((sourced / "standin_expression_pi.json").read_text("utf-8"))
+    html = client.post("/render/question", json={"question": q, "mode": "key"}).json()["html"]
+    assert r"\left(42\pi + 84\right)" in html and "Answer:" in html
+    q["question"]["parts"][0]["answer"]["terms"].reverse()
+    resp = client.post("/render/question", json={"question": q})
+    assert resp.status_code == 422 and "terms_in_canonical_order" in resp.text

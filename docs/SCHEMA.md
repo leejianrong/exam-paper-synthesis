@@ -231,6 +231,23 @@ side with an arrow between each pair (`arrows`, default true), e.g. a before/aft
   `panelN_<check>` (`question.diagram: panels inconsistent: panel2_fill_within_height`).
 - Server-side rendering only. MCQ options can already hold a `panels` figure.
 
+## `answer.type: "expression"` (schema 1.11.0)
+
+Additive (tier-2 slice T5); every 1.10.0 object still validates. For answers "in terms of π" or
+"in terms of n", e.g. `(42π + 84) m` or `$17n`, which previously collapsed into `text`.
+
+- `terms[{coefficient, symbol?, power?}]` (1-6 terms), `unit?`. `symbol` is `π`, a single
+  letter, or `null` for the constant; `power` 1-4 (default 1). One symbol per term, so `πr²` is
+  not expressible (deliberate; `42π` and `2n + 3` are).
+- **Collected form is the contract** (load gate, `exam_engine.expression`): non-zero finite
+  coefficients that print exactly, like terms collected, constants without a power, terms in
+  canonical order (higher power first, symbols alphabetical, constant last). So equal expressions
+  have one representation and `expressions_equal` / `evaluate` can verify them.
+- Printed as KaTeX in the key (`to_latex`: `\left(42\pi + 84\right)\ \text{m}`, `\$17n`,
+  `\$(7n - 8)`) and as a `math` node by `convert`. Like every answer it appears only in the key.
+- Web mirror: not needed (bank questions render server-side); the classic page only shows
+  generated questions, which never produce expressions yet.
+
 ## `question.table`, `geometry_figure.grid`/`polygons`, and `answer.type: "construction"` (schema 1.6.0)
 
 Three additive growths (ADR-0020, editor slice E3); every 1.5.0 object still validates.

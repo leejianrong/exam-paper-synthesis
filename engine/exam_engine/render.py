@@ -31,7 +31,7 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 
-from . import diagram
+from . import diagram, expression
 
 # ---------------------------------------------------------------------------
 # Vendored assets — read ONCE at import (no per-call I/O; keeps render_* pure).
@@ -163,8 +163,10 @@ def _fmt_answer(answer: dict) -> str:
         if unit == "$":
             return rf"\(\${body}\)"
         if unit:
-            return rf"\({body}\ \text{{{_esc(unit)}}}\)"
+            return rf"\({body}\ {expression.unit_latex(_esc(unit))}\)"
         return rf"\({body}\)"
+    if atype == "expression":
+        return rf"\({expression.to_latex(answer)}\)"
     if atype == "ratio":
         return " : ".join(str(p) for p in answer.get("parts", []))
     if atype == "set":
