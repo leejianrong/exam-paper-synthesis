@@ -10,7 +10,7 @@ must be free-form; if most fit existing blueprint shapes, it can stay
 parametric and keep the engine's correctness proof. We don't know yet — so we
 look at real questions first.
 
-Current schema: **v1.4.0** (`engine/exam_engine/schemas/canonical-question.schema.json`).
+Current schema: **v1.6.0** (the analysis below was done against v1.4.0; see [Re-bucket against v1.6.0](#re-bucket-against-v160) for the post-E1–E3 numbers) (`engine/exam_engine/schemas/canonical-question.schema.json`).
 
 ## Getting a paper in
 
@@ -453,6 +453,84 @@ worksheet/editor-level gap, not a question-object one, so it belongs in the
 editor's own requirements rather than the schema.
 
 ---
+
+## Re-bucket against v1.6.0
+
+After E1–E3 (MCQ `choice` answers, stem `diagram`, optional marks, `table`,
+`grid` + polygons, `construction` answers) every one of the 141 questions was
+re-judged against the **current** schema, one agent per paper, reading the schema
+itself rather than this document. Judgements are per question (fits / awkward /
+cannot); *awkward* means a valid object exists only by collapsing structure into
+`text` or a `raster` figure. Per-question data was not committed (it is derived
+from untracked papers); only the aggregate is recorded here.
+
+| Paper | Fits | Awkward | Cannot | Marks that fit |
+|---|---:|---:|---:|---:|
+| Ai Tong | 32 | 15 | 0 | 59 / 100 |
+| CHIJ St Nicholas | 28 | 19 | 0 | 55 / 100 |
+| Catholic High | 30 | 17 | 0 | 63 / 100 |
+| **Total** | **90 (64%)** | **51 (36%)** | **0** | **177 / 300 (59%)** |
+
+**Under v1.4.0, 17 of 47 per paper (36%) could not be represented at all. Under
+v1.6.0 none cannot.** The 36% did not vanish, it became *awkward*: those
+questions now have a valid object but lose their figure to `raster`.
+MCQs: 33 of 45 fit.
+
+### What still blocks, by question count
+
+| Blocker | Questions | Notes |
+|---|---:|---|
+| **G4 figure vocabulary** (any kind) | **33 of 51 awkward** | solids 9, context pictures 9 (incl. data-bearing ones), charts 11 (line 5, pie 4, bar 2), composite/isometric 3, number line 1 |
+| G7 `expression` answers (π, algebra) | 4–5 | all three papers |
+| G12 shaded regions with holes | 3 | Ai Tong, Catholic High |
+| G10 multi-panel figures | 3–4 | |
+| G6 selection / multi-slot answers | 3 | tick matrix; labelled answer slots |
+| G16 shared stem across numbered questions | 2–4 | CHIJ Q9/10, Q21/22 |
+| G18 north arrow / direction, G17 time of day, G8 compound qty, G11 styling, G13 unit | 1–2 each | |
+
+Only 18 of the 51 awkward questions are blocked by something other than G4.
+**Closing G4 alone would take the fit rate from 90 to about 117 of 141 (83%).**
+The figure vocabulary, not the answer or text model, is now the dominant gap, and
+it splits into three different pieces of work: charts (11), solids (9) and
+context pictures (9). The old ranking treated charts (#15) and solids (#16) as
+low priority; by question count they are now the two largest blockers.
+
+### Disagreements with the earlier analysis
+
+- Counted nouns (pages, mangoes, rods) are not a G13 blocker: integer `unit` is
+  optional. G13 bites only on real measurement units (`l/min`).
+- Segment labels suffice for most dimension arrows; G11 blocks only one fold arrow.
+- A shaded complement that decomposes into simple polygons does not need G12.
+
+### New gaps found (not in G1–G19)
+
+Each seen once, so per the rule above they are *candidates*, not yet gaps:
+
+- **Multi-table question** — `question.table` holds one table; a data table plus a
+  tick/response table in one question can't both be structured (CHIJ P2 Q8).
+- **Pictogram table cells** — cells hold only string/number/null, so icon price
+  tables lose their pictograms (Catholic High P2 Q15).
+- **Per-side symbol marks** — crescent/star/heart distinguishing congruent sides;
+  ticks only approximate (Catholic High P2 Q4).
+- **Open-ended construction acceptance** — a `construction` answer holds one
+  exemplar, with no "any valid drawing" (CHIJ P2 Q15d).
+- **Heterogeneous option diagrams** — MCQ options whose figures are different
+  shapes (Catholic High P1 Q3).
+- **Circled / emphasised table cell**, **`options_header`** row over MCQ options,
+  **combined pie + bar figure** (one each).
+- **Unverified:** whether LaTeX in MCQ option text (fractions, π) renders in the
+  engine's renderers.
+
+### Caveats
+
+- "Generatable" ratings (29 yes-today, 70 cheap, 35 need a figure vocabulary, 7 no)
+  are agent judgement and were not checked per question against the blueprints.
+  Treat them as indicative; the parametric analysis remains
+  [`PARAMETERIZATION.md`](PARAMETERIZATION.md).
+- Fit verdicts are LLM judgements against the schema, not validated objects. The
+  fixtures in `tests/fixtures/sourced/` remain the only schema-gated evidence.
+- G19 still stands: the answer keys contain errors, so nothing here validates
+  the answers themselves.
 
 ## Verdict on the authoring surface
 
