@@ -42,6 +42,8 @@ def check_consistency(spec: dict, params: dict, solution: dict) -> dict[str, boo
         return check_solid_consistency(spec)
     if dtype == "number_line":
         return check_number_line_consistency(spec)
+    if dtype == "panels":
+        return check_panels_consistency(spec)
     raise ValueError(f"no consistency check for diagram type {dtype!r}")
 
 
@@ -359,6 +361,81 @@ _DIV_HEAVY = "2"  # original-ratio boundary divider stroke width (KAN-310)
 _WORTH_GAP = 8  # gap from a grouped bar's right edge to its unit-worth label
 
 
+_PANEL_STANDALONE = {
+    "chart": check_chart_consistency,
+    "solid": check_solid_consistency,
+    "number_line": check_number_line_consistency,
+}
+
+
+def check_panels_consistency(spec: dict) -> dict[str, bool]:
+    """Panel count/titles, no nesting, vector-only, plus each panel's own checks
+    (prefixed ``panelN_``) for the figure types that can be checked from the spec alone."""
+    panels = spec.get("panels") or []
+    figures = [p.get("figure") or {} for p in panels]
+    titles = [p.get("title") for p in panels if p.get("title")]
+    checks = {
+        "panel_count_2_to_4": 2 <= len(panels) <= 4,
+        "panel_titles_unique": len(set(titles)) == len(titles),
+        "no_nested_panels": all(f.get("type") != "panels" for f in figures),
+        "panels_are_vector": all(f.get("type") not in ("raster", None) for f in figures),
+    }
+    for i, fig in enumerate(figures, 1):
+        check = _PANEL_STANDALONE.get(str(fig.get("type")))
+        if check:
+            checks.update({f"panel{i}_{k}": v for k, v in check(fig).items()})
+    return checks
+
+
+def _panel_size(svg: str) -> tuple[float, float]:
+    m = re.search(r'<svg[^>]*\swidth="([\d.]+)"[^>]*\sheight="([\d.]+)"', svg)
+    return (float(m.group(1)), float(m.group(2))) if m else (300.0, 200.0)
+
+
+def _render_panels(spec: dict) -> str:
+    """Panels side by side (children keep their own scale), title above each, an arrow
+    in each gap. Each child is embedded as a nested ``<svg>`` positioned by x/y."""
+    gap, pad, head = 44, 12, 34 if any(p.get("title") for p in spec["panels"]) else 14
+    if spec.get("title"):
+        head += 22
+    rendered = [render_svg(p["figure"]) for p in spec["panels"]]
+    sizes = [_panel_size(svg) for svg in rendered]
+    width = round(pad * 2 + sum(w for w, _ in sizes) + gap * (len(sizes) - 1))
+    height = round(head + max(h for _, h in sizes) + pad)
+    label = _esc(spec.get("title") or "panels")
+    out = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
+        f'width="{width}" height="{height}" role="img" aria-label="{label}" '
+        f'font-family="Inter, system-ui, sans-serif" font-size="13">'
+    ]
+    if spec.get("title"):
+        out.append(
+            f'<text x="{width / 2:g}" y="18" text-anchor="middle" font-weight="600" '
+            f'fill="#1f2433">{_esc(spec["title"])}</text>'
+        )
+    x = float(pad)
+    top = head
+    for i, (panel, svg, (w, _h)) in enumerate(zip(spec["panels"], rendered, sizes, strict=True)):
+        if panel.get("title"):
+            out.append(
+                f'<text x="{x + w / 2:g}" y="{top - 8}" text-anchor="middle" '
+                f'font-weight="600" fill="#1f2433">{_esc(panel["title"])}</text>'
+            )
+        out.append(svg.replace("<svg ", f'<svg x="{x:g}" y="{top}" ', 1))
+        x += w
+        if i < len(rendered) - 1:
+            if spec.get("arrows", True):
+                ay = top + max(hh for _, hh in sizes) / 2
+                out.append(
+                    f'<path d="M {x + 8:g} {ay:g} L {x + gap - 12:g} {ay:g} M {x + gap - 20:g} '
+                    f'{ay - 6:g} L {x + gap - 12:g} {ay:g} L {x + gap - 20:g} {ay + 6:g}" '
+                    f'fill="none" stroke="#1f2433" stroke-width="1.8"/>'
+                )
+            x += gap
+    out.append("</svg>")
+    return "".join(out)
+
+
 def render_svg(spec: dict, given: dict | None = None) -> str:
     """Render a diagram spec to a self-contained inline ``<svg>`` string.
 
@@ -383,6 +460,8 @@ def render_svg(spec: dict, given: dict | None = None) -> str:
         return render_solid_svg(spec)
     if dtype == "number_line":
         return render_number_line_svg(spec)
+    if dtype == "panels":
+        return _render_panels(spec)
     raise ValueError(f"no SVG renderer for diagram type {dtype!r}")
 
 

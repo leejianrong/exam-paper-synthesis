@@ -291,7 +291,8 @@
         { "$ref": "#/$defs/diagram_raster" },
         { "$ref": "#/$defs/diagram_chart" },
         { "$ref": "#/$defs/diagram_solid" },
-        { "$ref": "#/$defs/diagram_number_line" }
+        { "$ref": "#/$defs/diagram_number_line" },
+        { "$ref": "#/$defs/diagram_panels" }
       ]
     },
     "diagram_bar_model": {
@@ -639,6 +640,26 @@
               "at": { "type": "number", "minimum": -1000000, "maximum": 1000000 },
               "label": { "type": "string", "minLength": 1 },
               "known": { "type": "boolean", "default": false, "description": "True when the point's value is given, so it may sit on a labelled tick." }
+            }
+          }
+        }
+      }
+    },
+    "diagram_panels": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "panels"],
+      "$comment": "Two to four figures side by side with an arrow between each pair, e.g. before/after (added schema 1.10.0, tier-2 slice T4). Each panel holds any vector diagram; panels may not nest and may not be raster (enforced at load by exam_engine.diagram.check_panels_consistency, which also runs each panel's own consistency check).",
+      "properties": {
+        "type": { "const": "panels" },
+        "title": { "type": ["string", "null"] },
+        "arrows": { "type": "boolean", "default": true },
+        "panels": {
+          "type": "array", "minItems": 2, "maxItems": 4,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["figure"],
+            "properties": {
+              "title": { "type": ["string", "null"] },
+              "figure": { "$ref": "#/$defs/diagram" }
             }
           }
         }
