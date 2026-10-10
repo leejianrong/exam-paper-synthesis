@@ -32,13 +32,13 @@ The three agents, working independently, arrived at the same families:
 |---|---:|---|
 | **chart** (`kind: bar \| line \| pie`) | 11 | **New type. Do first.** One renderer, strong invariants, directly generatable. |
 | **solid** (`kind: cuboid \| container \| cube_stack`) | 9 (but only ~5 truly need a drawing; some are stem-sufficient) | **New type, staged.** Cuboid + fill first; unit-cube views last. |
-| grid-based draw-on / nets | ~9 | **Mostly already covered** by 1.6.0 `geometry_figure` grid+polygons and `construction` answers. Verify, then fill small gaps; no new type. |
+| grid-based draw-on / nets | ~9 | **Already covered** by 1.6.0 `geometry_figure` grid+polygons and `construction` answers. Verify, then fill small gaps; no new type. |
 | net | 3 (1/paper) | Express as polygons on a square grid. **No new type.** |
 | number line | 1 | Tiny new type (or `geometry_figure` axis). Cheap win. |
 | scale picture (graduated vessel/beaker) | 3 | Low coverage; defer. Model only the graduated vessel if it recurs. |
 | pattern / tiling | 3 | `raster` + structured counts in stem/table. |
 | decorative / context | ~9 | `raster` or omit. |
-| multi-panel / option-figures wrapper | ~6 | Small generic wrapper; **first check whether E2 already covers it** (see Open verifications). |
+| multi-panel wrapper | ~2 | Option-figures already work (verified); only a `panels` wrapper is missing. |
 
 ## Shape
 
@@ -98,8 +98,8 @@ figure, but it is the next-largest non-G4 blocker and the card names it.
 |---|---|---|---:|
 | **T1** | `chart` (bar/line/pie): schema, renderer, consistency check, fixtures, web preview | Import one pie, one bar, one line question; unknown values blank in student view, shown in key; invariant sweep green | ~11 |
 | **T2** | `solid` cuboid + container + fill | Import a tank/container question; render student + key; volume claims verified | ~4-5 |
-| **T3** | `number_line` + grid/net/overlay audit-and-fill | A net and a draw-on-grid question render with overlay in key only | ~4-6 |
-| **T4** | Option-figures + panels (if needed) | MCQ whose options are charts/solids | ~3-4 |
+| **T3** | `number_line` (+ confirm key distinguishes answer from givens on grid/net) | A number-line question and a net question render; key shows the completed net | ~2-3 |
+| **T4** | `panels` wrapper (only if a figure needs it; option-figures already work) | A two-panel before/after figure | ~2 |
 | **T5** | `expression` answers (G7) | A π-answer and an algebra-answer question validate and render | 4-5 |
 | **T6** | `cube_stack` with derived views | Heightmap → three views; "which view" question | ~2 |
 | **T7** | *Generation*: `blueprints` for chart-reading and cuboid-volume/fill | `mathgen generate` yields chart/volume questions with answer key + invariant test | new content |
@@ -110,19 +110,37 @@ papers agree is #1. T7 is what makes T1/T2 pay back the engine's actual promise
 after the sourced path works.
 
 Each slice carries: schema bump (additive, `1.7.0` onward), `diagram.py`
-consistency check, deterministic SVG renderer (Inter only), Python + TS mirror
-where the web renders it (as V7 did for `raster`), a schema-gated fixture
+consistency check, deterministic SVG renderer (Inter only), server-side rendering
+via the fragment endpoint (no TS mirror; see Verifications §3), a schema-gated fixture
 (paraphrased, with `source`/`license`), and an invariant test.
 
-## Open verifications (do before slicing, cheap)
+## Verifications (done 2026-10-10)
 
-1. **Do MCQ options already take a `diagram`?** E2 claims "MCQ with diagram
-   options"; one agent's risk list says `answer_choice` lacks it. Check the schema
-   and `tests/fixtures/sourced/psle_2023_mcq.json`. Decides whether T4 exists.
-2. **What exactly does the `construction` answer overlay already do?** Decides the
-   size of T3.
-3. **Does the TS web renderer mirror every diagram type?** Each new type costs a
-   Python and a TS renderer; confirm the mirror pattern and any golden tests.
+1. **MCQ options already take any `diagram`.** `answer_choice.options[].diagram`
+   is `oneOf null | $ref diagram` (the whole union), and
+   `psle_2023_mcq.json` exercises it with `geometry_figure` options. So chart and
+   solid option-figures come **for free** the moment those types join the union.
+   One agent's claim that `answer_choice` lacked this was wrong. **T4 shrinks to
+   the optional `panels` wrapper only** and is demoted until a figure needs it.
+2. **`construction` answers are `geometry_figure`-only and key-only.** The key
+   draws the completed figure (givens + the answer) in one diagram; there is no
+   student-overlay concept and none is needed for the grid/net/draw-on cases. It
+   cannot hold a chart or solid, which is fine (no "draw a chart" questions were
+   found). **T3 is just `number_line` plus checking the answer is visually
+   distinct from the givens in the key**; no overlay mechanism to build.
+3. **The web renderer is a hand-written TS mirror with no parity test.**
+   `web/src/lib/barModel.ts` (`renderDiagram`) re-implements every Python
+   renderer, and returns `''` for an unknown type, so a new diagram type with no
+   TS mirror **renders silently blank in the editor and tray** while the PDF is
+   fine. Python and TS are never compared against each other.
+
+   **Decision for tier 2: do not write TS mirrors for new types.** Render them
+   server-side through the existing `POST /render/question` fragment endpoint
+   (`routes_render.py`) or an equivalent `/render/diagram`, so one renderer is the
+   truth (Inter fonts and all). `renderDiagram` should, for an unmirrored type,
+   fall back to the server fragment instead of `''`. This removes a whole class of
+   drift for charts and solids, at the cost of a fetch per figure (cache by spec
+   hash). Existing types keep their mirrors; revisiting them is out of scope.
 
 ## Risks
 
@@ -139,8 +157,10 @@ where the web renders it (as V7 did for `raster`), a schema-gated fixture
 - Counts are per paper and one-year; fit numbers are agent judgements, not
   validated objects (see SCHEMA-FIT caveats).
 
-## Decisions wanted
+## Decisions
 
-- Confirm the slice order (T1 charts first) and that T7 generation is in this
-  initiative rather than a separate one.
-- Whether to bump the schema per slice (1.7.0, 1.8.0, ...) or batch T1+T2.
+- **Order:** T1 charts first. **T7 generation stays in this initiative**,
+  sequenced after the sourced path works.
+- **Versioning:** one additive schema bump per slice (1.7.0 for T1, 1.8.0 for T2,
+  ...), so each slice is independently shippable and revertable.
+- **Rendering:** server-side only for new types (above).
