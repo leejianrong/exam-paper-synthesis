@@ -34,6 +34,9 @@ shaping: true
 | **E4** | Paper/section/group container + grouped export | Assemble one full real prelim paper (47 questions, 3 sections, 2 shared-stem groups) from bank content and export a sectioned worksheet + answer-key PDF pair ⇒ **milestone acceptance** | A9, A12, A13 | R3.1–R3.5, R8.5 |
 | **E5** | Web visual editor | Author an MCQ/table/construction/group question through web forms (no hand-written JSON), saved to the same bank; build a paper through a Paper-builder UI | A11 (web stage), A13 (API wiring) | R6.1–R6.4, R1.5 |
 
+> **Tier 2 (2026-10-10):** the figure-vocabulary work that follows the schema-fit
+> re-bucket is shaped in [`TIER2-SHAPING.md`](TIER2-SHAPING.md) (slices T1–T7, charts first).
+
 **Not sliced (deferred):** **R8.3** — bank retrieval on `make-harder`/`make-easier`
 (KAN-163). Explicitly out this milestone (decided in `SHAPING.md`). Add a slice
 E6 if it's promoted back in once the bank has real content.
