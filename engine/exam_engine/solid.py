@@ -27,6 +27,8 @@ _INK = "#1f2433"
 _WATER = "#cfe0ff"
 _WATER_TOP = "#e6eeff"
 _TOP = "#f1f3f9"
+_MAX = 1_000_000
+_MIN_DIM = 0.001
 _DIMS = ("length", "width", "height")
 _DEPTH = 0.5 * math.cos(math.pi / 4)  # drawn depth per unit of width
 
@@ -47,7 +49,8 @@ def _n(v: float) -> str:
 
 
 def _is_num(v: object) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+    # Bounded so round()/formatting can never overflow and labels always fit the figure.
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and abs(v) <= _MAX
 
 
 def _prints_exactly(v: object) -> bool:
@@ -82,7 +85,7 @@ def check_solid_consistency(spec: dict) -> dict[str, bool]:
     """Spec-only invariants; every value is a ``bool`` (``True`` = holds)."""
     dims = spec.get("dims") or {}
     values = [dims.get(k) for k in _DIMS]
-    dims_ok = all(_is_num(v) and v > 0 for v in values)  # type: ignore[operator]
+    dims_ok = all(_is_num(v) and v >= _MIN_DIM for v in values)  # type: ignore[operator]
     fill = spec.get("fill")
     hidden = spec.get("hidden_dims") or []
     checks = {
@@ -96,6 +99,11 @@ def check_solid_consistency(spec: dict) -> dict[str, bool]:
         fh = fill.get("height")
         checks["fill_within_height"] = bool(dims_ok and _is_num(fh) and 0 <= fh <= dims["height"])
         checks["fill_prints_exactly"] = _prints_exactly(fh)
+        # A shown fill label equal to a hidden dimension would print the answer.
+        hidden_vals = [dims.get(k) for k in hidden if k in _DIMS]
+        checks["fill_label_does_not_reveal_hidden_dim"] = not (
+            fill.get("show_height", True) and fh in hidden_vals
+        )
     return checks
 
 
@@ -154,7 +162,8 @@ def render_solid_svg(spec: dict) -> str:
     dx = _DEPTH * width * scale  # back-face offset: right by dx, up by dx
     left, top = 64, 40
     svg_w = round(left + lw + dx + 90)
-    svg_h = round(top + hh + dx + 40)
+    thin = lw < 56  # narrow front face: stagger the width label below the length label
+    svg_h = round(top + hh + dx + (56 if thin else 40))
     x0, y0 = left, top + hh + dx  # front-bottom-left
 
     def p(x: float, y: float) -> str:
@@ -211,13 +220,14 @@ def render_solid_svg(spec: dict) -> str:
         f'stroke="{_INK}" stroke-width="1.4"/>'
     )
 
+    wy = y0 + 34 if thin else y0 - dx / 2 + 14
     # Dimension labels: length under the front edge, height left, width on the depth edge.
     out.append(
         f'<text x="{_n(x0 + lw / 2)}" y="{_n(y0 + 18)}" text-anchor="middle" fill="{_INK}">'
         f"{text(length, 'length')}</text>"
         f'<text x="{_n(x0 - 8)}" y="{_n(y0 - hh / 2 + 4)}" text-anchor="end" fill="{_INK}">'
         f"{text(height, 'height')}</text>"
-        f'<text x="{_n(x0 + lw + dx / 2 + 6)}" y="{_n(y0 - dx / 2 + 14)}" fill="{_INK}">'
+        f'<text x="{_n(x0 + lw + dx / 2 + 6)}" y="{_n(wy)}" fill="{_INK}">'
         f"{text(width, 'width')}</text>"
     )
     if fill:

@@ -170,3 +170,38 @@ def test_worksheet_and_key_render_the_solid_as_a_stem_figure(name):
     key = render_answer_key_html("Solids", [obj])
     assert '<figure class="diagram"><svg' in sheet and '<figure class="diagram"><svg' in key
     assert "Answer:" in key and "Answer:" not in sheet
+
+
+def test_huge_or_tiny_numbers_are_rejected_not_raised():
+    obj = _obj("tank")
+    obj["question"]["diagram"]["dims"]["length"] = 10**400
+    assert validate_object(obj) != []
+    spec = _spec("tank")
+    for bad in (10**400, 1e300, 1e-10):
+        spec["dims"]["length"] = bad
+        assert check_solid_consistency(spec)["dims_positive"] is False
+
+
+def test_shown_fill_equal_to_a_hidden_dim_is_rejected():
+    spec = {
+        "kind": "container",
+        "dims": {"length": 10, "width": 5, "height": 8},
+        "hidden_dims": ["height"],
+        "fill": {"height": 8, "show_height": True},
+    }
+    assert check_solid_consistency(spec)["fill_label_does_not_reveal_hidden_dim"] is False
+    spec["fill"]["show_height"] = False
+    assert all(check_solid_consistency(spec).values())
+
+
+def test_thin_solid_labels_do_not_collide():
+    spec = {
+        "type": "solid",
+        "kind": "container",
+        "unit": "cm",
+        "fill": {"height": 50},
+        "dims": {"length": 1, "width": 1, "height": 100},
+    }
+    svg = render_svg(spec)
+    ys = [float(y) for y in re.findall(r'<text x="[\d.]+" y="([\d.]+)"[^>]*>1 cm<', svg)]
+    assert len(ys) == 2 and abs(ys[0] - ys[1]) >= 14

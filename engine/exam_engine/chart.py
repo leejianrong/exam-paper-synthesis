@@ -62,7 +62,7 @@ def _is_num(v: object) -> bool:
 
 def _prints_exactly(v: object) -> bool:
     """True when ``_n`` shows ``v`` without rounding it away (<= 3 decimals)."""
-    return _is_num(v) and abs(round(v, 3) - v) < 1e-9  # type: ignore[call-overload]
+    return _is_num(v) and abs(v) < 1e12 and abs(round(v, 3) - v) < 1e-9  # type: ignore[call-overload,arg-type]
 
 
 def _ticks(axis: dict) -> list[float]:

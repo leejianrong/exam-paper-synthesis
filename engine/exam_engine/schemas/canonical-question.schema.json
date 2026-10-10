@@ -594,9 +594,9 @@
         "dims": {
           "type": "object", "additionalProperties": false, "required": ["length", "width", "height"],
           "properties": {
-            "length": { "type": "number", "exclusiveMinimum": 0 },
-            "width": { "type": "number", "exclusiveMinimum": 0 },
-            "height": { "type": "number", "exclusiveMinimum": 0 }
+            "length": { "type": "number", "minimum": 0.001, "maximum": 1000000 },
+            "width": { "type": "number", "minimum": 0.001, "maximum": 1000000 },
+            "height": { "type": "number", "minimum": 0.001, "maximum": 1000000 }
           }
         },
         "unit": { "type": ["string", "null"], "description": "e.g. \"cm\"." },
@@ -608,7 +608,7 @@
           "type": ["object", "null"], "additionalProperties": false, "required": ["height"],
           "description": "Contents depth (container only); 0 <= height <= dims.height.",
           "properties": {
-            "height": { "type": "number", "minimum": 0 },
+            "height": { "type": "number", "minimum": 0, "maximum": 1000000 },
             "show_height": { "type": "boolean", "default": true }
           }
         }
