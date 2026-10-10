@@ -1,0 +1,42 @@
+code: volume_medium
+syllabus:
+  level: P6
+  strand: "Measurement"
+  topic: "Volume"
+  subtopic: "Volume of water in a tank (litres to fill)"
+  skill_codes: ["MEAS.VOL.TANK"]        # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Multiple concepts"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [length, width, depth, empty]
+  properties:
+    length: { type: integer, minimum: 20, maximum: 50 }
+    width: { type: integer, minimum: 20, maximum: 50 }
+    depth: { type: integer, minimum: 5 }
+    empty: { type: integer, minimum: 5 }
+# Every parameter_schema property needs a role (W1a). number|choice drive the maths and are
+# not cosmetically editable.
+param_roles:
+  length: { role: number }
+  width: { role: number }
+  depth: { role: number }
+  empty: { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Finds the empty depth and the volume still needed in cm^3." }
+  - { mark: 1, type: A, description: "Converts to litres correctly." }
+answer:
+  type: integer
+  unit: "l"
+diagram: solid

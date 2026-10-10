@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte'
-  import { renderDiagram } from './barModel'
+  import { isServerDiagram, renderDiagram } from './barModel'
+  import ServerDiagram from './ServerDiagram.svelte'
   import type { EditOp } from './api'
   import type { Answer, Question } from './types'
 
@@ -18,7 +19,9 @@
       ? 'geometry figure'
       : part.diagram?.type === 'shaded_fraction'
         ? 'fraction diagram'
-        : 'bar model'
+        : isServerDiagram(part.diagram)
+          ? 'figure'
+          : 'bar model'
   // Edit ops + Approve are frozen once the question is in the worksheet.
   $: editDisabled = busy || added
 
@@ -88,7 +91,9 @@
 
   <p class="text">{part.text}</p>
 
-  {#if svg}
+  {#if isServerDiagram(part.diagram)}
+    <div class="diagram" aria-label={diagramAria}><ServerDiagram spec={part.diagram} /></div>
+  {:else if svg}
     <!-- svg is built by renderDiagram from esc()-escaped, engine-derived spec
          values — no untrusted HTML reaches this sink. -->
     <!-- eslint-disable-next-line svelte/no-at-html-tags -->

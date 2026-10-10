@@ -52,6 +52,10 @@ class RenderQuestionRequest(BaseModel):
     number: int | None = None
 
 
+class RenderDiagramRequest(BaseModel):
+    diagram: dict
+
+
 class ConvertFreeformRequest(BaseModel):
     question: dict
 

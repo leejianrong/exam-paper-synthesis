@@ -14,7 +14,7 @@ from .chart import check_chart_consistency
 from .diagram import check_panels_consistency
 from .expression import check_expression_consistency
 from .number_line import check_number_line_consistency
-from .schema import validate_object
+from .schema import validate_diagram, validate_object
 from .solid import check_solid_consistency
 
 if TYPE_CHECKING:  # avoid an import cycle at runtime
@@ -75,6 +75,18 @@ def _diagram_errors(obj: dict) -> list[str]:
         ):
             if opt.get("diagram"):
                 found.append((f"question.parts[{i}].answer.options[{j}].diagram", opt["diagram"]))
+    return _semantic_diagram_errors(found)
+
+
+def load_diagram(spec: dict) -> dict:
+    """Validate one diagram on its own (schema, then the semantic gate)."""
+    errors = validate_diagram(spec) or _semantic_diagram_errors([("diagram", spec)])
+    if errors:
+        raise CanonicalValidationError(errors)
+    return spec
+
+
+def _semantic_diagram_errors(found: list[tuple[str, dict]]) -> list[str]:
     checkers = {
         "chart": check_chart_consistency,
         "solid": check_solid_consistency,

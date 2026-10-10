@@ -1,0 +1,42 @@
+code: statistics_chart_medium
+syllabus:
+  level: P6
+  strand: "Data Analysis"
+  topic: "Statistics (Charts)"
+  subtopic: "Pie chart: missing percentage, then a percentage of the total"
+  skill_codes: ["DATA.PIE.READ"]        # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Multiple concepts"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [context, total, percents, hidden]
+  properties:
+    context: { type: string, enum: [fruit, sport, transport] }
+    total: { type: integer, minimum: 100, maximum: 400 }
+    percents: { type: array, minItems: 4, maxItems: 4, items: { type: integer, minimum: 10 } }
+    hidden: { type: integer, minimum: 0, maximum: 3 }
+# Every parameter_schema property needs a role (W1a). number|choice drive the maths and are
+# not cosmetically editable.
+param_roles:
+  context: { role: choice }
+  total: { role: number }
+  percents: { role: number }
+  hidden: { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Finds the missing percentage (100% minus the others)." }
+  - { mark: 1, type: A, description: "Takes that percentage of the total to give the number of pupils." }
+answer:
+  type: integer
+  unit: ""
+diagram: chart

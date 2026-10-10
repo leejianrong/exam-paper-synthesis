@@ -11,11 +11,12 @@ from typing import Literal
 
 from exam_engine import canonical
 from exam_engine.canonical import CanonicalValidationError
+from exam_engine.diagram import render_svg
 from exam_engine.render import fragment_css, fragment_js, render_question_fragment
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
-from .models import RenderQuestionRequest
+from .models import RenderDiagramRequest, RenderQuestionRequest
 from .ops import strip_ui_hints
 
 router = APIRouter(prefix="/render")
@@ -32,6 +33,17 @@ def render_question(req: RenderQuestionRequest) -> dict:
         raise HTTPException(status_code=422, detail=f"invalid question: {e}") from e
     mode: Literal["student", "key"] = req.mode
     return {"html": render_question_fragment(question, mode=mode, number=req.number)}
+
+
+@router.post("/diagram")
+def render_diagram(req: RenderDiagramRequest) -> dict:
+    """One diagram's inline SVG (the engine renderer). The web app uses this for the
+    figure types it has no TypeScript mirror for (chart, solid, number_line, panels)."""
+    try:
+        spec = canonical.load_diagram(req.diagram)
+    except CanonicalValidationError as e:
+        raise HTTPException(status_code=422, detail=f"invalid diagram: {e}") from e
+    return {"svg": render_svg(spec)}
 
 
 @router.get("/question.css")

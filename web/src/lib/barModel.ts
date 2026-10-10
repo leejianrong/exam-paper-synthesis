@@ -156,7 +156,15 @@ export interface RasterSpec {
   alt_text: string
 }
 
+/** Figure types drawn only by the engine (no TypeScript mirror): the web fetches their SVG
+ * from POST /render/diagram. The spec is opaque to the client. */
+export interface ServerSpec {
+  type: 'chart' | 'solid' | 'number_line' | 'panels'
+  [key: string]: unknown
+}
+
 export type DiagramSpec =
+  | ServerSpec
   | BarModelSpec
   | BarModelBeforeAfterSpec
   | ShadedFractionSpec
@@ -171,7 +179,19 @@ function esc(text: string): string {
     .replaceAll('"', '&quot;')
 }
 
-/** Render a diagram spec to an inline <svg> string. Returns '' for unknowns. */
+/** True for the figure types the engine alone renders (see ServerSpec). */
+export function isServerDiagram(spec: DiagramSpec | null | undefined): spec is ServerSpec {
+  return (
+    !!spec &&
+    (spec.type === 'chart' ||
+      spec.type === 'solid' ||
+      spec.type === 'number_line' ||
+      spec.type === 'panels')
+  )
+}
+
+/** Render a diagram spec to an inline <svg> string. Returns '' for unknowns (and for
+ * the server-rendered types, which ServerDiagram.svelte draws). */
 export function renderDiagram(spec: DiagramSpec | null | undefined): string {
   if (!spec) return ''
   if (spec.type === 'bar_model') return renderBarModel(spec)

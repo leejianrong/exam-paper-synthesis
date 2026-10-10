@@ -1,0 +1,43 @@
+code: statistics_chart_easy
+syllabus:
+  level: P5
+  strand: "Data Analysis"
+  topic: "Statistics (Charts)"
+  subtopic: "Reading a bar graph (difference of two bars)"
+  skill_codes: ["DATA.BAR.READ"]        # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Reasoning depth"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [context, step, values, a, b]
+  properties:
+    context: { type: string, enum: [books, cans, cones, stickers] }
+    step: { type: integer, enum: [5, 10, 20, 50] }
+    values: { type: array, minItems: 5, maxItems: 5, items: { type: integer, minimum: 1 } }
+    a: { type: integer, minimum: 0, maximum: 4 }
+    b: { type: integer, minimum: 0, maximum: 4 }
+# Every parameter_schema property needs a role (W1a). number|choice drive the maths and are
+# not cosmetically editable.
+param_roles:
+  context: { role: choice }
+  step: { role: number }
+  values: { role: number }
+  a: { role: number }
+  b: { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+marking_scheme:
+  - { mark: 1, type: A, description: "Reads both bars correctly and subtracts to give the difference." }
+answer:
+  type: integer
+  unit: ""
+diagram: chart

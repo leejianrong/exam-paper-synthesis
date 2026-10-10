@@ -304,3 +304,23 @@ def test_render_fragment_prints_expression_answers_and_rejects_uncollected_ones(
     q["question"]["parts"][0]["answer"]["terms"].reverse()
     resp = client.post("/render/question", json={"question": q})
     assert resp.status_code == 422 and "terms_in_canonical_order" in resp.text
+
+
+def test_render_diagram_endpoint_draws_each_server_side_figure_and_gates_it():
+    sourced = Path(__file__).parent / "fixtures" / "sourced"
+    for name in (
+        "standin_chart_pie",
+        "standin_solid_tank",
+        "standin_numberline_decimal",
+        "standin_panels_before_after",
+    ):
+        spec = json.loads((sourced / f"{name}.json").read_text("utf-8"))["question"]["diagram"]
+        resp = client.post("/render/diagram", json={"diagram": spec})
+        assert resp.status_code == 200 and resp.json()["svg"].startswith("<svg"), name
+    spec = json.loads((sourced / "standin_solid_tank.json").read_text("utf-8"))["question"][
+        "diagram"
+    ]
+    spec["fill"]["height"] = 99  # semantic gate
+    assert client.post("/render/diagram", json={"diagram": spec}).status_code == 422
+    assert client.post("/render/diagram", json={"diagram": {"type": "nope"}}).status_code == 422
+    assert client.post("/render/diagram", json={}).status_code == 422
