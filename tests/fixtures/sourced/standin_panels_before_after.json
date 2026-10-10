@@ -1,0 +1,122 @@
+{
+  "schema_version": "1.10.0",
+  "id": "sourced:standin-panels-before-after",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Measurement",
+    "topic": "Volume",
+    "subtopic": "Volume of a cuboid (water displacement)",
+    "skill_codes": [
+      "P6.MEAS.VOLUME"
+    ]
+  },
+  "cognitive": {
+    "difficulty": "easy",
+    "cognitive_level": "routine_procedural",
+    "heuristics": [],
+    "representations": [
+      "diagram"
+    ],
+    "difficulty_levers": []
+  },
+  "question": {
+    "stem": "A rectangular tank is 40 cm long, 25 cm wide and 30 cm tall. A solid metal block is then lowered into the water until it is completely under the water.",
+    "diagram": {
+      "type": "panels",
+      "panels": [
+        {
+          "title": "Before",
+          "figure": {
+            "type": "solid",
+            "kind": "container",
+            "dims": {
+              "length": 40,
+              "width": 25,
+              "height": 30
+            },
+            "unit": "cm",
+            "fill": {
+              "height": 12
+            }
+          }
+        },
+        {
+          "title": "After",
+          "figure": {
+            "type": "solid",
+            "kind": "container",
+            "dims": {
+              "length": 40,
+              "width": 25,
+              "height": 30
+            },
+            "unit": "cm",
+            "fill": {
+              "height": 15
+            }
+          }
+        }
+      ]
+    },
+    "parts": [
+      {
+        "label": "",
+        "text": "Find the volume of the metal block, in cm^3.",
+        "marks": 2,
+        "answer": {
+          "type": "integer",
+          "value": 3000,
+          "unit": "cm^3"
+        },
+        "marking_scheme": [
+          {
+            "mark": 1,
+            "type": "M",
+            "description": "Volume of block = rise in water level x base area."
+          },
+          {
+            "mark": 1,
+            "type": "A",
+            "description": "3000."
+          }
+        ],
+        "solution_steps": [
+          {
+            "text": "Rise in water level = 15 - 12 = 3 cm.",
+            "expr": null
+          },
+          {
+            "text": "Volume of block = 40 x 25 x 3 = 3000 cm^3.",
+            "expr": null
+          }
+        ],
+        "diagram": null
+      }
+    ],
+    "total_marks": 2
+  },
+  "source": {
+    "origin": "Structural stand-in for a P6 Preliminary Examination chart question (paraphrased; not the original figure or text)",
+    "year": 2025,
+    "paper": "Paper 2",
+    "reference": "Stand-in 8 (before/after panels)"
+  },
+  "license": "Original stand-in written for schema-fit testing; no third-party text or artwork reproduced.",
+  "validation": {
+    "status": "unverified",
+    "checks": {
+      "answer_verified": "hand-checked on ingest"
+    }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}

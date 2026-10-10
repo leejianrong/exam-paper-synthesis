@@ -219,6 +219,18 @@ A `construction` answer's completed figure is rendered with the part's (or stem'
 `given`: segments, grid cells and point labels that were **not** in the figure the student was
 handed are drawn in an accent colour and heavier, so the key shows what to add.
 
+## `diagram.type: "panels"` (schema 1.10.0)
+
+Additive (tier-2 slice T4); every 1.9.0 object still validates. Two to four figures side by
+side with an arrow between each pair (`arrows`, default true), e.g. a before/after tank.
+
+- `panels[{title?, figure}]`; each `figure` is any vector diagram (titles ≤ 40 chars), drawn at its own scale as a
+  nested `<svg>`. Panels may not nest and may not be `raster`.
+- Load gate (`exam_engine.diagram.check_panels_consistency`): count, unique titles, no nesting,
+  vector only (the schema enforces both via `diagram_vector`, which also bounds validation depth), plus each `chart`/`solid`/`number_line` panel's own checks, reported as
+  `panelN_<check>` (`question.diagram: panels inconsistent: panel2_fill_within_height`).
+- Server-side rendering only. MCQ options can already hold a `panels` figure.
+
 ## `question.table`, `geometry_figure.grid`/`polygons`, and `answer.type: "construction"` (schema 1.6.0)
 
 Three additive growths (ADR-0020, editor slice E3); every 1.5.0 object still validates.

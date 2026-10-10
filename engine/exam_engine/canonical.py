@@ -11,6 +11,7 @@ import json
 from typing import TYPE_CHECKING
 
 from .chart import check_chart_consistency
+from .diagram import check_panels_consistency
 from .number_line import check_number_line_consistency
 from .schema import validate_object
 from .solid import check_solid_consistency
@@ -18,7 +19,7 @@ from .solid import check_solid_consistency
 if TYPE_CHECKING:  # avoid an import cycle at runtime
     from .blueprints.base import BlueprintSpec
 
-SCHEMA_VERSION = "1.9.0"
+SCHEMA_VERSION = "1.10.0"
 
 
 class CanonicalValidationError(Exception):
@@ -59,6 +60,7 @@ def _diagram_errors(obj: dict) -> list[str]:
         "chart": check_chart_consistency,
         "solid": check_solid_consistency,
         "number_line": check_number_line_consistency,
+        "panels": check_panels_consistency,
     }
     errors = []
     for path, spec in found:

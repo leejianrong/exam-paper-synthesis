@@ -284,3 +284,13 @@ def test_render_fragment_draws_number_lines_server_side():
     bad["question"]["diagram"]["marked_points"][0]["at"] = 0.5
     resp = client.post("/render/question", json={"question": bad})
     assert resp.status_code == 422 and "unknown_points_not_on_labelled_ticks" in resp.text
+
+
+def test_render_fragment_draws_panels_server_side():
+    sourced = Path(__file__).parent / "fixtures" / "sourced"
+    q = json.loads((sourced / "standin_panels_before_after.json").read_text("utf-8"))
+    html = client.post("/render/question", json={"question": q}).json()["html"]
+    assert '<figure class="diagram"><svg' in html and "Before" in html
+    q["question"]["diagram"]["panels"][1]["figure"]["fill"]["height"] = 99
+    resp = client.post("/render/question", json={"question": q})
+    assert resp.status_code == 422 and "panel2_fill_within_height" in resp.text
