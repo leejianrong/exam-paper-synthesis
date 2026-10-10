@@ -22,7 +22,7 @@ def test_generate_is_schema_valid_and_tagged(seed: int):
     obj = generate("speed_medium", seed)
 
     assert validate_object(obj) == []
-    assert obj["schema_version"] == "1.11.0"
+    assert obj["schema_version"] == "1.12.0"
     assert obj["id"] == f"speed_medium:{seed}"
     assert obj["source_type"] == "generated"
     assert obj["blueprint_code"] == "speed_medium"

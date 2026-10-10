@@ -441,3 +441,18 @@ both) and `tests/fixtures/sourced/psle_2023_stem_diagram.json` (a two-part
 question sharing one stem-level `geometry_figure` `diagram`, with two angles
 each bound to its own part via `part_label`, where one part also omits
 `marks`/`marking_scheme`).
+
+## `diagram.type: "cube_stack"` (schema 1.12.0)
+
+Additive (tier-2 slice T6); every 1.11.0 object still validates. A stack of unit cubes given as
+a heightmap, plus the views of it.
+
+- `heights[row][col]` = cubes on each cell (rows back to front, columns left to right; at most
+  6 x 6, at most 8 high). `view`: `iso` (default, drawn from the front-right above), `front`,
+  `side` (from the right: front row on the left) or `top`.
+- Views are **derived** from the heightmap, never authored, so a "which view" answer is right by
+  construction and hidden cubes are never ambiguous. `exam_engine.cube_stack` exposes
+  `front_view` / `side_view` / `top_view` / `view_key` / `cube_count` for blueprints and tests
+  (`view_key` makes distinct MCQ options provable).
+- Load gate (`check_cube_stack_consistency`): rectangular grid, cells are integers in range, at
+  least one cube, known view. Valid in MCQ options and `panels`. Server-side rendering only.
