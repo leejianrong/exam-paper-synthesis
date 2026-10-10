@@ -96,7 +96,7 @@ figure, but it is the next-largest non-G4 blocker and the card names it.
 
 | Slice | Title | Ends in (demo) | Questions unlocked |
 |---|---|---|---:|
-| **T1** | `chart` (bar/line/pie): schema, renderer, consistency check, fixtures, web preview | Import one pie, one bar, one line question; unknown values blank in student view, shown in key; invariant sweep green | ~11 |
+| **T1** ✅ | `chart` (bar/line/pie): schema 1.7.0, server-side renderer, load-gate consistency check, leak guard, fixtures | Import one pie, one bar, one line question; unknown values blank in student view, shown in key; invariant sweep green | ~11 |
 | **T2** | `solid` cuboid + container + fill | Import a tank/container question; render student + key; volume claims verified | ~4-5 |
 | **T3** | `number_line` (+ confirm key distinguishes answer from givens on grid/net) | A number-line question and a net question render; key shows the completed net | ~2-3 |
 | **T4** | `panels` wrapper (only if a figure needs it; option-figures already work) | A two-panel before/after figure | ~2 |
@@ -133,6 +133,10 @@ via the fragment endpoint (no TS mirror; see Verifications §3), a schema-gated 
    renderer, and returns `''` for an unknown type, so a new diagram type with no
    TS mirror **renders silently blank in the editor and tray** while the PDF is
    fine. Python and TS are never compared against each other.
+
+   *(Refinement, found building T1: the editor already renders bank/sourced questions
+   through `POST /render/question`, so this only bites the generated-card path
+   (`QuestionCard`, `QuestionBody`), which no blueprint feeds a chart until T7.)*
 
    **Decision for tier 2: do not write TS mirrors for new types.** Render them
    server-side through the existing `POST /render/question` fragment endpoint

@@ -1,0 +1,142 @@
+{
+  "schema_version": "1.7.0",
+  "id": "sourced:standin-chart-bar",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Data Analysis",
+    "topic": "Statistics",
+    "subtopic": "Bar graphs",
+    "skill_codes": [
+      "P6.DATA.CHARTS"
+    ]
+  },
+  "cognitive": {
+    "difficulty": "easy",
+    "cognitive_level": "routine_procedural",
+    "heuristics": [],
+    "representations": [
+      "chart"
+    ],
+    "difficulty_levers": []
+  },
+  "question": {
+    "stem": "The bar graph shows the number of books borrowed from a school library from Monday to Friday.",
+    "diagram": {
+      "type": "chart",
+      "kind": "bar",
+      "title": "Books borrowed",
+      "x_axis": {
+        "title": "Day",
+        "categories": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ]
+      },
+      "y_axis": {
+        "title": "Number of books",
+        "min": 0,
+        "max": 40,
+        "step": 10
+      },
+      "series": [
+        {
+          "name": "Books",
+          "values": [
+            24,
+            18,
+            30,
+            12,
+            36
+          ]
+        }
+      ]
+    },
+    "parts": [
+      {
+        "label": "a",
+        "text": "How many more books were borrowed on Friday than on Thursday?",
+        "marks": 1,
+        "answer": {
+          "type": "integer",
+          "value": 24,
+          "unit": ""
+        },
+        "marking_scheme": [
+          {
+            "mark": 1,
+            "type": "A",
+            "description": "36 - 12 = 24."
+          }
+        ],
+        "solution_steps": [
+          {
+            "text": "Friday 36, Thursday 12.",
+            "expr": null
+          },
+          {
+            "text": "36 - 12 = 24.",
+            "expr": "36-12"
+          }
+        ],
+        "diagram": null
+      },
+      {
+        "label": "b",
+        "text": "How many books were borrowed in the five days altogether?",
+        "marks": 2,
+        "answer": {
+          "type": "integer",
+          "value": 120,
+          "unit": ""
+        },
+        "marking_scheme": [
+          {
+            "mark": 1,
+            "type": "M",
+            "description": "Adds all five values."
+          },
+          {
+            "mark": 1,
+            "type": "A",
+            "description": "Total = 120."
+          }
+        ],
+        "solution_steps": [
+          {
+            "text": "24 + 18 + 30 + 12 + 36 = 120.",
+            "expr": "24+18+30+12+36"
+          }
+        ],
+        "diagram": null
+      }
+    ],
+    "total_marks": 3
+  },
+  "source": {
+    "origin": "Structural stand-in for a P6 Preliminary Examination chart question (paraphrased; not the original figure or text)",
+    "year": 2025,
+    "paper": "Paper 2",
+    "reference": "Stand-in 2 (bar, read-off)"
+  },
+  "license": "Original stand-in written for schema-fit testing; no third-party text or artwork reproduced.",
+  "validation": {
+    "status": "unverified",
+    "checks": {
+      "answer_verified": "hand-checked on ingest"
+    }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}

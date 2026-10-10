@@ -1,0 +1,129 @@
+{
+  "schema_version": "1.7.0",
+  "id": "sourced:standin-chart-line",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Data Analysis",
+    "topic": "Statistics",
+    "subtopic": "Line graphs",
+    "skill_codes": [
+      "P6.DATA.CHARTS"
+    ]
+  },
+  "cognitive": {
+    "difficulty": "easy",
+    "cognitive_level": "routine_procedural",
+    "heuristics": [],
+    "representations": [
+      "chart"
+    ],
+    "difficulty_levers": []
+  },
+  "question": {
+    "stem": "The line graph shows the height of two plants, A and B, measured at the end of each week for 5 weeks.",
+    "diagram": {
+      "type": "chart",
+      "kind": "line",
+      "title": "Height of plants",
+      "x_axis": {
+        "title": "Week",
+        "categories": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ]
+      },
+      "y_axis": {
+        "title": "Height",
+        "unit": "cm",
+        "min": 0,
+        "max": 20,
+        "step": 5
+      },
+      "series": [
+        {
+          "name": "Plant A",
+          "values": [
+            2,
+            5,
+            9,
+            14,
+            18
+          ]
+        },
+        {
+          "name": "Plant B",
+          "values": [
+            3,
+            4,
+            8,
+            10,
+            13
+          ]
+        }
+      ]
+    },
+    "parts": [
+      {
+        "label": "a",
+        "text": "How much taller was Plant A than Plant B at the end of Week 5?",
+        "marks": 2,
+        "answer": {
+          "type": "integer",
+          "value": 5,
+          "unit": "cm"
+        },
+        "marking_scheme": [
+          {
+            "mark": 1,
+            "type": "M",
+            "description": "Reads both values at Week 5."
+          },
+          {
+            "mark": 1,
+            "type": "A",
+            "description": "5 cm."
+          }
+        ],
+        "solution_steps": [
+          {
+            "text": "Plant A is 18 cm and Plant B is 13 cm.",
+            "expr": null
+          },
+          {
+            "text": "18 - 13 = 5 cm.",
+            "expr": "18-13"
+          }
+        ],
+        "diagram": null
+      }
+    ],
+    "total_marks": 2
+  },
+  "source": {
+    "origin": "Structural stand-in for a P6 Preliminary Examination chart question (paraphrased; not the original figure or text)",
+    "year": 2025,
+    "paper": "Paper 2",
+    "reference": "Stand-in 3 (line, two series)"
+  },
+  "license": "Original stand-in written for schema-fit testing; no third-party text or artwork reproduced.",
+  "validation": {
+    "status": "unverified",
+    "checks": {
+      "answer_verified": "hand-checked on ingest"
+    }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}
