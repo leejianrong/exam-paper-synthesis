@@ -15,6 +15,8 @@ import math
 import re
 from collections.abc import Callable
 
+from .chart import check_chart_consistency, render_chart_svg
+
 # ---------------------------------------------------------------------------
 # Consistency check (R3.3): every label/dimension in the diagram must equal the
 # corresponding parameter or solved value. A deliberately corrupted spec fails.
@@ -32,6 +34,8 @@ def check_consistency(spec: dict, params: dict, solution: dict) -> dict[str, boo
         return check_shaded_fraction_consistency(spec, params, solution)
     if dtype == "geometry_figure":
         return check_geometry_figure_consistency(spec, params, solution)
+    if dtype == "chart":
+        return check_chart_consistency(spec)
     raise ValueError(f"no consistency check for diagram type {dtype!r}")
 
 
@@ -362,6 +366,8 @@ def render_svg(spec: dict) -> str:
         return _render_geometry_figure(spec)
     if dtype == "raster":
         return _render_raster(spec)
+    if dtype == "chart":
+        return render_chart_svg(spec)
     raise ValueError(f"no SVG renderer for diagram type {dtype!r}")
 
 

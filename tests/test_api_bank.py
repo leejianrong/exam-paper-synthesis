@@ -233,3 +233,24 @@ def test_generated_questions_are_not_part_of_the_review_gate():
     bank.close()
     resp = _review(obj["id"], True)
     assert resp.status_code == 422 and "sourced" in resp.json()["detail"]
+
+
+def test_render_fragment_draws_charts_server_side_and_rejects_inconsistent_ones():
+    """T1: a chart goes through the same engine markup as the PDF (no TS mirror), and
+    the hidden pie value never reaches the student fragment's text."""
+    from pathlib import Path
+
+    from exam_engine.chart import leaked_hidden_values
+
+    sourced = Path(__file__).parent / "fixtures" / "sourced"
+    for kind in ("pie", "bar", "line"):
+        q = json.loads((sourced / f"standin_chart_{kind}.json").read_text("utf-8"))
+        html = client.post("/render/question", json={"question": q}).json()["html"]
+        assert '<figure class="diagram"><svg' in html, kind
+        if kind == "pie":
+            assert leaked_hidden_values(q["question"]["diagram"], html) == []
+
+    bad = json.loads((sourced / "standin_chart_bar.json").read_text("utf-8"))
+    bad["question"]["diagram"]["series"][0]["values"][0] = 99
+    resp = client.post("/render/question", json={"question": bad})
+    assert resp.status_code == 422 and "values_within_axis" in resp.text

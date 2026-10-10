@@ -10,12 +10,13 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+from .chart import check_chart_consistency
 from .schema import validate_object
 
 if TYPE_CHECKING:  # avoid an import cycle at runtime
     from .blueprints.base import BlueprintSpec
 
-SCHEMA_VERSION = "1.6.0"
+SCHEMA_VERSION = "1.7.0"
 
 
 class CanonicalValidationError(Exception):
@@ -28,10 +29,39 @@ class CanonicalValidationError(Exception):
 
 def load(obj: dict) -> dict:
     """Validate on entry; reject invalid objects (R6.1/R6.2). Returns the object."""
-    errors = validate_object(obj)
+    errors = validate_object(obj) or _chart_errors(obj)
     if errors:
         raise CanonicalValidationError(errors)
     return obj
+
+
+def _chart_errors(obj: dict) -> list[str]:
+    """Semantic gate for ``chart`` diagrams (schema 1.7.0), run once the object is
+    schema-valid: the numbers must agree with the chart's own axis/categories.
+    Path-pointed like the schema errors."""
+    q = obj["question"]
+    found: list[tuple[str, dict]] = []
+    if q.get("diagram"):
+        found.append(("question.diagram", q["diagram"]))
+    for i, part in enumerate(q["parts"]):
+        if part.get("diagram"):
+            found.append((f"question.parts[{i}].diagram", part["diagram"]))
+        answer = part.get("answer") or {}
+        for j, opt in enumerate(
+            answer.get("options", []) if answer.get("type") == "choice" else []
+        ):
+            if opt.get("diagram"):
+                found.append((f"question.parts[{i}].answer.options[{j}].diagram", opt["diagram"]))
+    errors = []
+    for path, spec in found:
+        if spec.get("type") != "chart":
+            continue
+        errors += [
+            f"{path}: chart inconsistent: {name}"
+            for name, ok in check_chart_consistency(spec).items()
+            if not ok
+        ]
+    return errors
 
 
 def to_json(obj: dict, *, indent: int | None = None) -> str:

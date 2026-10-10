@@ -21,7 +21,7 @@ Related decisions: ADR-0004 (object), ADR-0012 (diagram union), ADR-0013 (multi-
 
 | Field | Notes |
 |---|---|
-| `schema_version` | semver, e.g. `"1.6.0"` |
+| `schema_version` | semver, e.g. `"1.7.0"` |
 | `id` | unique instance id |
 | `source_type` | `generated` \| `sourced` (drives conditional requirements) |
 | `blueprint_code` | required for `generated`; `null` for `sourced` |
@@ -156,6 +156,29 @@ enforce that `correct` names an existing `options[].label`, or that every
 option carries at least one of `text`/`diagram` — left to human review
 (ADR-0019), the same standing as other sourced-content correctness properties
 the schema doesn't structurally enforce.
+
+## `diagram.type: "chart"` (schema 1.7.0)
+
+One additive growth (tier-2 slice T1, `docs/planning/editor/TIER2-SHAPING.md`); every
+1.6.0 object still validates. A statistical figure whose **data is the figure**: the
+renderer derives the drawing from the spec, so what prints is provably what is described.
+It is valid anywhere a `diagram` is (stem, part, MCQ option).
+
+- **`kind: "bar" | "line"`** — `x_axis{title?, categories[]}`, `y_axis{title?, unit?, min, max,
+  step}`, `series[{name, values[], show_values?}]`. `values` has one entry per category
+  (`null` = no bar/point; a line breaks there). Several series draw as grouped bars, or as
+  lines told apart by dash style as well as colour (greyscale-safe), with a legend.
+- **`kind: "pie"`** — `sectors[{label, value, show_value?}]`, optional `value_unit` (a `"%"`
+  pie must sum to 100). `show_value: false` draws the sector at its true size and labels it,
+  but **never prints its number** — the usual "find the missing percentage" shape. This hides the *text* only: the wedge's angle and the 100% total still determine the value, exactly as on the printed paper, so it is not a secrecy mechanism.
+- A **bar** chart's axis must start at 0 (a truncated or negative axis misleads); a line axis may not. Every number must print exactly (≤ 3 decimals) and be finite.
+- Mixing the two shapes (a pie with `series`, a bar with `sectors`) is a schema error.
+- **Consistency is a load-gate check, not schema**: `exam_engine.chart.check_chart_consistency`
+  (series align with categories, values lie on the axis, `step` divides the span, a percent
+  pie sums to 100) runs inside `canonical.load`, so a chart whose numbers contradict its own
+  axis is rejected with a path-pointed error (`question.diagram: chart inconsistent: …`).
+- Rendering is Python only (`render_chart_svg`; Inter, one font declaration); the editor shows
+  bank questions through `POST /render/question`, so no TypeScript mirror is needed.
 
 ## `question.table`, `geometry_figure.grid`/`polygons`, and `answer.type: "construction"` (schema 1.6.0)
 

@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.7.0",
+  "id": "sourced:standin-chart-pie",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Data Analysis",
+    "topic": "Statistics",
+    "subtopic": "Pie charts",
+    "skill_codes": [
+      "P6.DATA.CHARTS"
+    ]
+  },
+  "cognitive": {
+    "difficulty": "easy",
+    "cognitive_level": "routine_procedural",
+    "heuristics": [],
+    "representations": [
+      "chart"
+    ],
+    "difficulty_levers": []
+  },
+  "question": {
+    "stem": "The pie chart shows the favourite fruit of 80 pupils. Each pupil chose one fruit. The percentage for oranges is not shown.",
+    "diagram": {
+      "type": "chart",
+      "kind": "pie",
+      "title": "Favourite fruit",
+      "value_unit": "%",
+      "sectors": [
+        {
+          "label": "Apples",
+          "value": 35
+        },
+        {
+          "label": "Bananas",
+          "value": 25
+        },
+        {
+          "label": "Grapes",
+          "value": 15
+        },
+        {
+          "label": "Oranges",
+          "value": 25,
+          "show_value": false
+        }
+      ]
+    },
+    "parts": [
+      {
+        "label": "a",
+        "text": "How many pupils chose oranges?",
+        "marks": 2,
+        "answer": {
+          "type": "integer",
+          "value": 20,
+          "unit": ""
+        },
+        "marking_scheme": [
+          {
+            "mark": 1,
+            "type": "M",
+            "description": "Finds the missing percentage from the total of 100%."
+          },
+          {
+            "mark": 1,
+            "type": "A",
+            "description": "25% of 80 = 20."
+          }
+        ],
+        "solution_steps": [
+          {
+            "text": "Oranges = 100% - 35% - 25% - 15% = 25%.",
+            "expr": "100-35-25-15"
+          },
+          {
+            "text": "25% of 80 = 20 pupils.",
+            "expr": "80*25/100"
+          }
+        ],
+        "diagram": null
+      }
+    ],
+    "total_marks": 2
+  },
+  "source": {
+    "origin": "Structural stand-in for a P6 Preliminary Examination chart question (paraphrased; not the original figure or text)",
+    "year": 2025,
+    "paper": "Paper 2",
+    "reference": "Stand-in 1 (pie, hidden sector value)"
+  },
+  "license": "Original stand-in written for schema-fit testing; no third-party text or artwork reproduced.",
+  "validation": {
+    "status": "unverified",
+    "checks": {
+      "answer_verified": "hand-checked on ingest"
+    }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}
