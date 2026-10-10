@@ -236,7 +236,7 @@ def _render_part_head(part: dict, *, multipart: bool, answer_key: bool) -> list[
     return out
 
 
-def _render_solution(part: dict) -> list[str]:
+def _render_solution(part: dict, q_diagram: dict | None = None) -> list[str]:
     """Answer-key-only: worked steps + final answer + M/A/B marking scheme."""
     out: list[str] = ['<div class="solution">']
 
@@ -248,7 +248,8 @@ def _render_solution(part: dict) -> list[str]:
     answer = part["answer"]
     if answer["type"] == "construction":
         # The answer *is* a figure: draw the completed construction.
-        svg = diagram.render_svg(answer["diagram"])
+        # Anything the student had to add is drawn in the answer accent.
+        svg = diagram.render_svg(answer["diagram"], given=part.get("diagram") or q_diagram)
         out.append(f'<figure class="diagram answer-diagram">{svg}</figure>')
     else:
         out.append(f'<p class="final-answer">Answer: {_fmt_answer(answer)}</p>')
@@ -321,7 +322,7 @@ def _render_question_item(obj: dict, *, answer_key: bool, tag: str = "li") -> li
     for part in parts:
         out.extend(_render_part_head(part, multipart=multipart, answer_key=answer_key))
         if answer_key:
-            out.extend(_render_solution(part))
+            out.extend(_render_solution(part, q_diagram))
         elif (part.get("answer") or {}).get("type") != "choice":
             # MCQ parts have nothing to hand-write beyond circling a letter
             # (the options themselves were already rendered by
