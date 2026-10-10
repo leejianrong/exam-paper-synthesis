@@ -400,7 +400,13 @@ def _render_panels(spec: dict) -> str:
         head += 22
     rendered = [render_svg(p["figure"]) for p in spec["panels"]]
     sizes = [_panel_size(svg) for svg in rendered]
-    width = round(pad * 2 + sum(w for w, _ in sizes) + gap * (len(sizes) - 1))
+    # A column is as wide as its figure or its title (~8 px/char), whichever is larger.
+    cols = [
+        max(w, 8 * len(p.get("title") or "") + 8)
+        for p, (w, _) in zip(spec["panels"], sizes, strict=True)
+    ]
+    title_w = 8 * len(spec.get("title") or "") + 8
+    width = round(max(pad * 2 + sum(cols) + gap * (len(cols) - 1), title_w))
     height = round(head + max(h for _, h in sizes) + pad)
     label = _esc(spec.get("title") or "panels")
     out = [
@@ -413,19 +419,22 @@ def _render_panels(spec: dict) -> str:
             f'<text x="{width / 2:g}" y="18" text-anchor="middle" font-weight="600" '
             f'fill="#1f2433">{_esc(spec["title"])}</text>'
         )
-    x = float(pad)
-    top = head
-    for i, (panel, svg, (w, _h)) in enumerate(zip(spec["panels"], rendered, sizes, strict=True)):
+    x = float(pad + (width - (pad * 2 + sum(cols) + gap * (len(cols) - 1))) / 2)
+    tallest = max(h for _, h in sizes)
+    for i, (panel, svg, (w, h), col) in enumerate(
+        zip(spec["panels"], rendered, sizes, cols, strict=True)
+    ):
         if panel.get("title"):
             out.append(
-                f'<text x="{x + w / 2:g}" y="{top - 8}" text-anchor="middle" '
+                f'<text x="{x + col / 2:g}" y="{head - 8}" text-anchor="middle" '
                 f'font-weight="600" fill="#1f2433">{_esc(panel["title"])}</text>'
             )
-        out.append(svg.replace("<svg ", f'<svg x="{x:g}" y="{top}" ', 1))
-        x += w
+        cy = head + (tallest - h) / 2  # centre shorter figures against the tallest
+        out.append(svg.replace("<svg ", f'<svg x="{x + (col - w) / 2:g}" y="{cy:g}" ', 1))
+        x += col
         if i < len(rendered) - 1:
             if spec.get("arrows", True):
-                ay = top + max(hh for _, hh in sizes) / 2
+                ay = head + tallest / 2
                 out.append(
                     f'<path d="M {x + 8:g} {ay:g} L {x + gap - 12:g} {ay:g} M {x + gap - 20:g} '
                     f'{ay - 6:g} L {x + gap - 12:g} {ay:g} L {x + gap - 20:g} {ay + 6:g}" '

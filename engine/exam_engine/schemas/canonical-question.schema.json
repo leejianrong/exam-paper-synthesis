@@ -648,7 +648,7 @@
     "diagram_panels": {
       "type": "object", "additionalProperties": false,
       "required": ["type", "panels"],
-      "$comment": "Two to four figures side by side with an arrow between each pair, e.g. before/after (added schema 1.10.0, tier-2 slice T4). Each panel holds any vector diagram; panels may not nest and may not be raster (enforced at load by exam_engine.diagram.check_panels_consistency, which also runs each panel's own consistency check).",
+      "$comment": "Two to four figures side by side with an arrow between each pair, e.g. before/after (added schema 1.10.0, tier-2 slice T4). Each panel holds any vector diagram (schema: diagram_vector, so no nesting and no raster); exam_engine.diagram.check_panels_consistency runs each panel's own consistency check at load.",
       "properties": {
         "type": { "const": "panels" },
         "title": { "type": ["string", "null"] },
@@ -658,12 +658,24 @@
           "items": {
             "type": "object", "additionalProperties": false, "required": ["figure"],
             "properties": {
-              "title": { "type": ["string", "null"] },
-              "figure": { "$ref": "#/$defs/diagram" }
+              "title": { "type": ["string", "null"], "maxLength": 40 },
+              "figure": { "$ref": "#/$defs/diagram_vector" }
             }
           }
         }
       }
+    },
+    "diagram_vector": {
+      "$comment": "Any diagram that renders as an <svg>: the union minus `raster` and `panels` (so panels cannot nest and validation depth stays bounded).",
+      "oneOf": [
+        { "$ref": "#/$defs/diagram_bar_model" },
+        { "$ref": "#/$defs/diagram_bar_model_before_after" },
+        { "$ref": "#/$defs/diagram_geometry_figure" },
+        { "$ref": "#/$defs/diagram_shaded_fraction" },
+        { "$ref": "#/$defs/diagram_chart" },
+        { "$ref": "#/$defs/diagram_solid" },
+        { "$ref": "#/$defs/diagram_number_line" }
+      ]
     },
     "diagram_raster": {
       "type": "object", "additionalProperties": false,

@@ -70,22 +70,30 @@ def test_schema_rejects_malformed_panels():
     assert bad(extra=1) != [] and bad() == []
 
 
+def test_nesting_and_raster_are_schema_errors_and_deep_nesting_cannot_recurse():
+    obj = _obj()
+    leaf = obj["question"]["diagram"]["panels"][0]["figure"]
+    obj["question"]["diagram"]["panels"][1]["figure"] = {
+        "type": "panels",
+        "panels": [{"figure": leaf}] * 2,
+    }
+    assert validate_object(obj) != []
+    raster = {"type": "raster", "asset_ref": "data:image/png;base64,AA", "alt_text": "x"}
+    obj = _obj()
+    obj["question"]["diagram"]["panels"][1]["figure"] = raster
+    assert validate_object(obj) != []
+    deep = leaf
+    for _ in range(300):
+        deep = {"type": "panels", "panels": [{"figure": deep}, {"figure": leaf}]}
+    obj = _obj()
+    obj["question"]["diagram"] = deep
+    assert validate_object(obj) != []  # an error, not a RecursionError
+
+
 @pytest.mark.parametrize(
     ("mutate", "failing"),
     [
         (lambda s: s["panels"][1].update(title="Before"), "panel_titles_unique"),
-        (
-            lambda s: s["panels"][1].update(
-                figure={"type": "panels", "panels": copy.deepcopy(s["panels"])}
-            ),
-            "no_nested_panels",
-        ),
-        (
-            lambda s: s["panels"][1].update(
-                figure={"type": "raster", "asset_ref": "data:image/png;base64,AA", "alt_text": "x"}
-            ),
-            "panels_are_vector",
-        ),
         (lambda s: s["panels"][1]["figure"]["fill"].update(height=99), "panel2_fill_within_height"),
     ],
 )
@@ -96,6 +104,25 @@ def test_corruptions_are_caught_and_gate_points_at_the_panel(mutate, failing):
     with pytest.raises(CanonicalValidationError) as exc:
         canonical.load(obj)
     assert f"panels inconsistent: {failing}" in str(exc.value)
+
+
+def test_long_titles_widen_their_column_and_stay_inside_the_viewbox():
+    spec = _spec()
+    spec["panels"][0]["title"] = "Before the school fair started"
+    spec["panels"][1]["title"] = "After the school fair ended"
+    spec["title"] = "A very long overall heading for these two panels of the figure"
+    svg = render_svg(spec)
+    w = int(re.match(r'<svg[^>]*viewBox="0 0 (\d+) ', svg).group(1))
+    for x in re.findall(r'<text x="([\d.]+)" y="\d+" text-anchor="middle"', svg):
+        assert 0 < float(x) < w
+    xs = [float(x) for x in re.findall(r'<text x="([\d.]+)" y="48" text-anchor="middle"', svg)]
+    assert len(xs) == 2 and xs[1] - xs[0] > 8 * len("Before the school fair started") / 2
+
+
+def test_title_length_is_bounded():
+    obj = _obj()
+    obj["question"]["diagram"]["panels"][0]["title"] = "x" * 41
+    assert validate_object(obj) != []
 
 
 def test_worksheet_and_key_render_the_panels():
