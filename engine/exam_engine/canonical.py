@@ -39,10 +39,17 @@ def load(obj: dict) -> dict:
     return obj
 
 
+_ORDER_HINT = (
+    " (write higher powers first, then symbols in code-point order: capitals, then"
+    " lowercase, then π; constant last)"
+)
+
+
 def _answer_errors(obj: dict) -> list[str]:
     """Semantic gate for ``expression`` answers (schema 1.11.0)."""
     return [
         f"question.parts[{i}].answer: expression inconsistent: {name}"
+        + (_ORDER_HINT if name == "terms_in_canonical_order" else "")
         for i, part in enumerate(obj["question"]["parts"])
         if (part.get("answer") or {}).get("type") == "expression"
         for name, ok in check_expression_consistency(part["answer"]).items()

@@ -19,7 +19,7 @@ import math
 import re
 from fractions import Fraction
 
-_SYMBOL = re.compile(r"^(π|[A-Za-z])$")
+_SYMBOL = re.compile(r"(π|[A-Za-z])")
 _MAX = 1_000_000
 
 
@@ -43,12 +43,19 @@ def check_expression_consistency(answer: dict) -> dict[str, bool]:
         "coefficients_print_exactly": all(
             _is_num(c) and abs(round(c, 3) - c) < 1e-9 for c in coeffs
         ),
-        "symbols_valid": all(s is None or bool(_SYMBOL.match(str(s))) for s in syms),
+        "symbols_valid": all(s is None or bool(_SYMBOL.fullmatch(str(s))) for s in syms),
         "constant_has_no_power": all(t.get("symbol") or (t.get("power") or 1) == 1 for t in terms),
         "like_terms_collected": len(set(keys)) == len(keys),
         "terms_in_canonical_order": [_order_key(t) for t in terms]
         == sorted(_order_key(t) for t in terms),
     }
+
+
+def unit_latex(unit: str) -> str:
+    """A unit as KaTeX text, with ``cm^2`` / ``m^3`` as a real superscript (a caret
+    inside ``\\text`` is a KaTeX error)."""
+    base, _, exp = unit.partition("^")
+    return rf"\text{{{base}}}^{{{exp}}}" if exp else rf"\text{{{unit}}}"
 
 
 def _num(c: float) -> str:
@@ -66,7 +73,7 @@ def _term_latex(term: dict, *, first: bool) -> str:
     else:
         body = (mag if mag != "1" else "") + ("\\pi" if sym == "π" else sym)
         if power != 1:
-            body += f"^{{{power}}}"
+            body += f"^{{{int(power)}}}"
     if first:
         return f"{sign}{body}"
     return f"{sign or '+'} {body}" if sign != "-" else f"- {body}"
@@ -80,12 +87,14 @@ def to_latex(answer: dict) -> str:
     body = " ".join(parts)
     unit = answer.get("unit") or ""
     if unit == "$":
-        return rf"\${'(' + body + ')' if len(terms) > 1 else body}"
+        if len(terms) > 1:
+            return rf"\$({body})"
+        return rf"-\${body[1:]}" if body.startswith("-") else rf"\${body}"
     if unit == "%":
         return rf"{'(' + body + ')' if len(terms) > 1 else body}\%"
     if unit:
         shown = rf"\left({body}\right)" if len(terms) > 1 else body
-        return rf"{shown}\ \text{{{unit}}}"
+        return rf"{shown}\ {unit_latex(unit)}"
     return body
 
 

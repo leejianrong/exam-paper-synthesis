@@ -133,3 +133,34 @@ def test_equality_is_exact_and_order_insensitive():
     }
     assert expressions_equal(a, split)  # like terms collect
     assert not expressions_equal(a, dict(a, unit="cm"))
+
+
+def test_area_and_volume_units_use_a_real_superscript():
+    area = {
+        "type": "expression",
+        "unit": "cm^2",
+        "terms": [{"coefficient": 3, "symbol": "π"}, {"coefficient": 4, "symbol": None}],
+    }
+    assert to_latex(area) == r"\left(3\pi + 4\right)\ \text{cm}^{2}"
+    assert "text{cm^" not in to_latex(area)
+
+
+def test_float_power_and_trailing_newline_symbol_are_not_accepted_quietly():
+    ans = {"type": "expression", "terms": [{"coefficient": 1, "symbol": "n", "power": 2.0}]}
+    assert to_latex(ans) == "n^{2}"
+    obj = _obj("algebra")
+    obj["question"]["parts"][0]["answer"]["terms"][0]["symbol"] = "n\n"
+    assert validate_object(obj) != []
+
+
+def test_order_error_states_the_rule():
+    obj = _obj("pi")
+    obj["question"]["parts"][0]["answer"]["terms"].reverse()
+    with pytest.raises(CanonicalValidationError) as exc:
+        canonical.load(obj)
+    assert "higher powers first" in str(exc.value)
+
+
+def test_negative_money_prints_the_sign_first():
+    ans = {"type": "expression", "unit": "$", "terms": [{"coefficient": -5, "symbol": "n"}]}
+    assert to_latex(ans) == r"-\$5n"
