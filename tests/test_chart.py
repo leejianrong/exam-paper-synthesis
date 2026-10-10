@@ -231,3 +231,88 @@ def test_pie_answer_is_not_printed_on_the_student_sheet():
     obj = canonical.load(_obj("pie"))
     sheet = render_worksheet_html("Charts", [obj])
     assert "25% of 80" not in sheet  # working is key-only
+
+
+# ---------------------------------------------------------------------------
+# Review hardening (PR #156)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("bad", [float("inf"), float("nan")])
+def test_non_finite_numbers_fail_checks_instead_of_raising(bad):
+    bar = _spec("bar")
+    bar["y_axis"]["max"] = bad
+    assert check_chart_consistency(bar)["axis_range_valid"] is False
+    bar = _spec("bar")
+    bar["series"][0]["values"][0] = bad
+    assert check_chart_consistency(bar)["values_within_axis"] is False
+    pie = _spec("pie")
+    pie["sectors"][0]["value"] = bad
+    assert check_chart_consistency(pie)["values_positive"] is False
+
+
+def test_load_gate_gives_a_422_style_error_for_infinity():
+    obj = json.loads(json.dumps(_obj("bar")).replace("40,", "Infinity,", 1))
+    assert obj["question"]["diagram"]["y_axis"]["max"] == float("inf")
+    with pytest.raises(CanonicalValidationError):
+        canonical.load(obj)
+
+
+def test_bar_axis_must_start_at_zero_but_a_line_axis_may_not():
+    bar = _spec("bar")
+    bar["y_axis"].update(min=10, max=40, step=10)
+    bar["series"][0]["values"] = [24, 18, 30, 12, 36]
+    assert check_chart_consistency(bar)["bar_axis_starts_at_zero"] is False
+    line = _spec("line")
+    line["y_axis"].update(min=0)
+    assert "bar_axis_starts_at_zero" not in check_chart_consistency(line)
+    line["y_axis"].update(min=-5, max=20, step=5)
+    assert all(check_chart_consistency(line).values())  # a line may use a negative range
+
+
+def test_values_must_print_exactly():
+    pie = _spec("pie")
+    pie["value_unit"] = None
+    pie["sectors"][0]["value"] = 33.3333  # would print as 33.333
+    assert check_chart_consistency(pie)["values_print_exactly"] is False
+    pie["sectors"][0]["value"] = 33.333
+    assert check_chart_consistency(pie)["values_print_exactly"] is True
+
+
+def _viewbox_width(svg: str) -> float:
+    return float(svg.split('viewBox="0 0 ')[1].split()[0])
+
+
+def test_long_legend_wraps_inside_the_figure():
+    spec = _spec("line")
+    spec["series"] = [{"name": f"Series number {i}", "values": [1, 2, 3, 4, 5]} for i in range(6)]
+    svg = render_svg(spec)
+    width = _viewbox_width(svg)
+    import re
+
+    # every legend swatch sits inside the figure, and the figure grew to hold a second row
+    xs = [float(x) for x in re.findall(r'<rect x="([\d.]+)" y="[\d.]+" width="12"', svg)]
+    assert len(xs) == 6 and max(xs) + 12 <= width
+    assert float(svg.split('viewBox="0 0 ')[1].split()[1].rstrip('"')) > 320
+
+
+def test_pie_labels_fit_in_the_viewbox():
+    spec = _spec("pie")
+    spec["sectors"] = [
+        {"label": "Mathematics homework", "value": 25},
+        {"label": "Science projects", "value": 25},
+        {"label": "Mother Tongue", "value": 25},
+        {"label": "English compositions", "value": 25},
+    ]
+    svg = render_svg(spec)
+    width = _viewbox_width(svg)
+    import re
+
+    for x, anchor, text in re.findall(
+        r'<text x="([\d.]+)" y="[\d.]+" text-anchor="(\w+)" fill="[^"]+">([^<]+)</text>', svg
+    ):
+        x, est = float(x), 7.0 * len(text)  # generous Inter 12px average glyph width
+        if anchor == "start":
+            assert x + est <= width, text
+        elif anchor == "end":
+            assert x - est >= 0, text

@@ -170,7 +170,8 @@ It is valid anywhere a `diagram` is (stem, part, MCQ option).
   lines told apart by dash style as well as colour (greyscale-safe), with a legend.
 - **`kind: "pie"`** — `sectors[{label, value, show_value?}]`, optional `value_unit` (a `"%"`
   pie must sum to 100). `show_value: false` draws the sector at its true size and labels it,
-  but **never prints its number** — the usual "find the missing percentage" shape.
+  but **never prints its number** — the usual "find the missing percentage" shape. This hides the *text* only: the wedge's angle and the 100% total still determine the value, exactly as on the printed paper, so it is not a secrecy mechanism.
+- A **bar** chart's axis must start at 0 (a truncated or negative axis misleads); a line axis may not. Every number must print exactly (≤ 3 decimals) and be finite.
 - Mixing the two shapes (a pie with `series`, a bar with `sectors`) is a schema error.
 - **Consistency is a load-gate check, not schema**: `exam_engine.chart.check_chart_consistency`
   (series align with categories, values lie on the axis, `step` divides the span, a percent

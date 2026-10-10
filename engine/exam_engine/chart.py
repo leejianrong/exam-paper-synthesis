@@ -56,7 +56,13 @@ def _n(v: float) -> str:
 
 
 def _is_num(v: object) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
+    """A real, finite number (``Infinity``/``NaN`` pass JSON Schema's ``number``)."""
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def _prints_exactly(v: object) -> bool:
+    """True when ``_n`` shows ``v`` without rounding it away (<= 3 decimals)."""
+    return _is_num(v) and abs(round(v, 3) - v) < 1e-9  # type: ignore[call-overload]
 
 
 def _ticks(axis: dict) -> list[float]:
@@ -89,6 +95,7 @@ def _check_pie(spec: dict) -> dict[str, bool]:
         "has_sectors": len(sectors) >= 2,
         "values_positive": positive,
         "labels_unique": len(set(labels)) == len(labels),
+        "values_print_exactly": all(_prints_exactly(v) for v in values),
     }
     if spec.get("value_unit") == "%":
         checks["percent_sums_to_100"] = positive and abs(sum(values) - 100) < 1e-6
@@ -109,7 +116,7 @@ def _check_axes_chart(spec: dict) -> dict[str, bool]:
         span_ok = abs(n - round(n)) < 1e-6 and round(n) <= _MAX_TICKS
     values = [v for s in series for v in s.get("values", []) if v is not None]
     names = [s.get("name") for s in series]
-    return {
+    checks = {
         "has_categories": len(cats) >= 1,
         "categories_unique": len(set(cats)) == len(cats),
         "series_align_with_categories": bool(series)
@@ -118,7 +125,13 @@ def _check_axes_chart(spec: dict) -> dict[str, bool]:
         "step_divides_span": span_ok,
         "values_within_axis": axis_ok and all(_is_num(v) and lo <= v <= hi for v in values),
         "series_names_unique": len(set(names)) == len(names),
+        "values_print_exactly": all(_prints_exactly(v) for v in (*raw, *values) if v is not None),
     }
+    if spec.get("kind") == "bar":
+        # A bar's length is its value only from a zero baseline; a truncated or
+        # negative axis would draw a misleading bar.
+        checks["bar_axis_starts_at_zero"] = axis_ok and lo == 0
+    return checks
 
 
 # ---------------------------------------------------------------------------
@@ -194,9 +207,18 @@ def _render_axes_chart(spec: dict) -> str:
     axis = spec["y_axis"]
     series = spec["series"]
     legend = len(series) > 1
-    width, height = 460, 320
+    width = 460
     left, right, top = 62, 18, 34
-    bottom = 64 + (22 if legend else 0)
+    legend_rows = 1
+    if legend:
+        x = left
+        for s in series:
+            entry = 17 + 8 * len(str(s["name"])) + 18
+            if x > left and x + entry > width - right:
+                legend_rows, x = legend_rows + 1, left
+            x += entry
+    height = 320 + (legend_rows - 1) * 20
+    bottom = 64 + (22 + (legend_rows - 1) * 20 if legend else 0)
     pw, ph = width - left - right, height - top - bottom
     lo, hi = axis["min"], axis["max"]
 
@@ -286,15 +308,18 @@ def _render_axes_chart(spec: dict) -> str:
                     )
 
     if legend:
-        lx = left
-        ly = height - 14
+        lx, row = left, 0
         for si, s in enumerate(series):
+            entry = 17 + 8 * len(str(s["name"])) + 18
+            if lx > left and lx + entry > width - right:
+                lx, row = left, row + 1  # wrap rather than run off the figure
+            ly = height - 14 - (legend_rows - 1 - row) * 20
             out.append(
                 f'<rect x="{lx}" y="{ly - 9}" width="12" height="12" '
                 f'fill="{_FILLS[si % len(_FILLS)]}" stroke="{_INK}" stroke-width="0.8"/>'
                 f'<text x="{lx + 17}" y="{ly + 1}" fill="{_INK}">{_esc(s["name"])}</text>'
             )
-            lx += 17 + 8 * len(str(s["name"])) + 18
+            lx += entry
     out.append("</svg>")
     return "".join(out)
 
@@ -302,7 +327,7 @@ def _render_axes_chart(spec: dict) -> str:
 def _render_pie(spec: dict) -> str:
     sectors = spec["sectors"]
     unit = spec.get("value_unit") or ""
-    width, height, r = 420, 320, 100
+    width, height, r = 560, 320, 100
     cx, cy = width / 2, 172
     total = sum(s["value"] for s in sectors)
     out = [_header(width, height, spec), _title(spec, width)]
