@@ -97,7 +97,7 @@ figure, but it is the next-largest non-G4 blocker and the card names it.
 | Slice | Title | Ends in (demo) | Questions unlocked |
 |---|---|---|---:|
 | **T1** ✅ | `chart` (bar/line/pie): schema 1.7.0, server-side renderer, load-gate consistency check, leak guard, fixtures | Import one pie, one bar, one line question; unknown values blank in student view, shown in key; invariant sweep green | ~11 |
-| **T2** | `solid` cuboid + container + fill | Import a tank/container question; render student + key; volume claims verified | ~4-5 |
+| **T2** ✅ | `solid` cuboid + container + fill | Import a tank/container question; render student + key; volume claims verified | ~4-5 |
 | **T3** | `number_line` (+ confirm key distinguishes answer from givens on grid/net) | A number-line question and a net question render; key shows the completed net | ~2-3 |
 | **T4** | `panels` wrapper (only if a figure needs it; option-figures already work) | A two-panel before/after figure | ~2 |
 | **T5** | `expression` answers (G7) | A π-answer and an algebra-answer question validate and render | 4-5 |

@@ -12,11 +12,12 @@ from typing import TYPE_CHECKING
 
 from .chart import check_chart_consistency
 from .schema import validate_object
+from .solid import check_solid_consistency
 
 if TYPE_CHECKING:  # avoid an import cycle at runtime
     from .blueprints.base import BlueprintSpec
 
-SCHEMA_VERSION = "1.7.0"
+SCHEMA_VERSION = "1.8.0"
 
 
 class CanonicalValidationError(Exception):
@@ -29,15 +30,15 @@ class CanonicalValidationError(Exception):
 
 def load(obj: dict) -> dict:
     """Validate on entry; reject invalid objects (R6.1/R6.2). Returns the object."""
-    errors = validate_object(obj) or _chart_errors(obj)
+    errors = validate_object(obj) or _diagram_errors(obj)
     if errors:
         raise CanonicalValidationError(errors)
     return obj
 
 
-def _chart_errors(obj: dict) -> list[str]:
-    """Semantic gate for ``chart`` diagrams (schema 1.7.0), run once the object is
-    schema-valid: the numbers must agree with the chart's own axis/categories.
+def _diagram_errors(obj: dict) -> list[str]:
+    """Semantic gate for ``chart`` (1.7.0) and ``solid`` (1.8.0) diagrams, run once the
+    object is schema-valid: the numbers must agree with the figure's own axis/dims.
     Path-pointed like the schema errors."""
     q = obj["question"]
     found: list[tuple[str, dict]] = []
@@ -52,15 +53,16 @@ def _chart_errors(obj: dict) -> list[str]:
         ):
             if opt.get("diagram"):
                 found.append((f"question.parts[{i}].answer.options[{j}].diagram", opt["diagram"]))
+    checkers = {"chart": check_chart_consistency, "solid": check_solid_consistency}
     errors = []
     for path, spec in found:
-        if spec.get("type") != "chart":
-            continue
-        errors += [
-            f"{path}: chart inconsistent: {name}"
-            for name, ok in check_chart_consistency(spec).items()
-            if not ok
-        ]
+        check = checkers.get(str(spec.get("type")))
+        if check:
+            errors += [
+                f"{path}: {spec['type']} inconsistent: {name}"
+                for name, ok in check(spec).items()
+                if not ok
+            ]
     return errors
 
 

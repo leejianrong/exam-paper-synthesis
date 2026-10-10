@@ -180,6 +180,25 @@ It is valid anywhere a `diagram` is (stem, part, MCQ option).
 - Rendering is Python only (`render_chart_svg`; Inter, one font declaration); the editor shows
   bank questions through `POST /render/question`, so no TypeScript mirror is needed.
 
+## `diagram.type: "solid"` (schema 1.8.0)
+
+One additive growth (tier-2 slice T2); every 1.7.0 object still validates. A cuboid or an
+open-top container with an optional fill level, valid anywhere a `diagram` is (stem, part,
+MCQ option). As with `chart`, the data is the figure.
+
+- **`kind: "cuboid" | "container"`**, `dims{length, width, height}` (all > 0), `unit?`,
+  `title?`, `hidden_dims[]` (any of `length|width|height`), `fill{height, show_height?}`
+  (container only, `0 <= height <= dims.height`).
+- Drawn in a **fixed oblique projection** (front face to scale, depth at half length, no
+  perspective); the hidden back-bottom-left edges are dashed. A hidden dimension, or a fill
+  with `show_height: false`, is drawn true to scale but printed as `?`. As with pie sectors
+  this hides the *text* only; the proportions still show the value.
+- **Consistency is a load-gate check, not schema**: `exam_engine.solid.check_solid_consistency`
+  (positive finite dims, exact printing, fill within the height, no fill on a plain cuboid)
+  runs inside `canonical.load` (`question.diagram: solid inconsistent: …`).
+- `solid_volume` / `fill_volume` derive volume claims from the dims for blueprints/tests.
+- Server-side rendering only (`render_solid_svg`; Inter); no TS mirror.
+
 ## `question.table`, `geometry_figure.grid`/`polygons`, and `answer.type: "construction"` (schema 1.6.0)
 
 Three additive growths (ADR-0020, editor slice E3); every 1.5.0 object still validates.
