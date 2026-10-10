@@ -313,7 +313,8 @@
         { "$ref": "#/$defs/diagram_chart" },
         { "$ref": "#/$defs/diagram_solid" },
         { "$ref": "#/$defs/diagram_number_line" },
-        { "$ref": "#/$defs/diagram_panels" }
+        { "$ref": "#/$defs/diagram_panels" },
+        { "$ref": "#/$defs/diagram_cube_stack" }
       ]
     },
     "diagram_bar_model": {
@@ -695,8 +696,26 @@
         { "$ref": "#/$defs/diagram_shaded_fraction" },
         { "$ref": "#/$defs/diagram_chart" },
         { "$ref": "#/$defs/diagram_solid" },
-        { "$ref": "#/$defs/diagram_number_line" }
+        { "$ref": "#/$defs/diagram_number_line" },
+        { "$ref": "#/$defs/diagram_cube_stack" }
       ]
+    },
+    "diagram_cube_stack": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "heights"],
+      "$comment": "A stack of unit cubes given as a heightmap (added schema 1.12.0, tier-2 slice T6). `heights[row][col]` is the cube count on each cell, rows back to front, columns left to right (at most 6 x 6, at most 8 high). `view` picks the picture: iso (default) or the derived front / side (from the right) / top view. Views are always derived from the heightmap, never authored. Rectangularity and at-least-one-cube are enforced at load by exam_engine.cube_stack.check_cube_stack_consistency.",
+      "properties": {
+        "type": { "const": "cube_stack" },
+        "title": { "type": ["string", "null"] },
+        "view": { "enum": ["iso", "front", "side", "top"], "default": "iso" },
+        "heights": {
+          "type": "array", "minItems": 1, "maxItems": 6,
+          "items": {
+            "type": "array", "minItems": 1, "maxItems": 6,
+            "items": { "type": "integer", "minimum": 0, "maximum": 8 }
+          }
+        }
+      }
     },
     "diagram_raster": {
       "type": "object", "additionalProperties": false,

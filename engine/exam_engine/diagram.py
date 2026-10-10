@@ -16,6 +16,7 @@ import re
 from collections.abc import Callable
 
 from .chart import check_chart_consistency, render_chart_svg
+from .cube_stack import check_cube_stack_consistency, render_cube_stack_svg
 from .number_line import check_number_line_consistency, render_number_line_svg
 from .solid import check_solid_consistency, render_solid_svg
 
@@ -44,6 +45,8 @@ def check_consistency(spec: dict, params: dict, solution: dict) -> dict[str, boo
         return check_number_line_consistency(spec)
     if dtype == "panels":
         return check_panels_consistency(spec)
+    if dtype == "cube_stack":
+        return check_cube_stack_consistency(spec)
     raise ValueError(f"no consistency check for diagram type {dtype!r}")
 
 
@@ -365,6 +368,7 @@ _PANEL_STANDALONE = {
     "chart": check_chart_consistency,
     "solid": check_solid_consistency,
     "number_line": check_number_line_consistency,
+    "cube_stack": check_cube_stack_consistency,
 }
 
 
@@ -471,6 +475,8 @@ def render_svg(spec: dict, given: dict | None = None) -> str:
         return render_number_line_svg(spec)
     if dtype == "panels":
         return _render_panels(spec)
+    if dtype == "cube_stack":
+        return render_cube_stack_svg(spec)
     raise ValueError(f"no SVG renderer for diagram type {dtype!r}")
 
 

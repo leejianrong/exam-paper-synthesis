@@ -101,7 +101,7 @@ figure, but it is the next-largest non-G4 blocker and the card names it.
 | **T3** ✅ | `number_line` (+ confirm key distinguishes answer from givens on grid/net) | A number-line question and a net question render; key shows the completed net | ~2-3 |
 | **T4** ✅ | `panels` wrapper (only if a figure needs it; option-figures already work) | A two-panel before/after figure | ~2 |
 | **T5** ✅ | `expression` answers (G7) | A π-answer and an algebra-answer question validate and render | 4-5 |
-| **T6** | `cube_stack` with derived views | Heightmap → three views; "which view" question | ~2 |
+| **T6** ✅ | `cube_stack` with derived views | Heightmap → three views; "which view" question | ~2 |
 | **T7** ✅ | *Generation*: `blueprints` for chart-reading and cuboid-volume/fill | `mathgen generate` yields chart/volume questions with answer key + invariant test | new content |
 
 T1 first: most questions, cleanest invariants, and the only family all three

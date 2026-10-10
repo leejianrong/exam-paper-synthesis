@@ -16,7 +16,7 @@
 </script>
 
 <script lang="ts">
-  // A figure the engine draws and the web has no mirror for (chart, solid, number_line,
+  // A figure the engine draws and the web has no mirror for (chart, solid, number_line, cube_stack,
   // panels): fetch the SVG from POST /render/diagram.
   export let spec: ServerSpec
 </script>

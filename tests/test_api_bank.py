@@ -313,6 +313,7 @@ def test_render_diagram_endpoint_draws_each_server_side_figure_and_gates_it():
         "standin_solid_tank",
         "standin_numberline_decimal",
         "standin_panels_before_after",
+        "standin_cubestack_count",
     ):
         spec = json.loads((sourced / f"{name}.json").read_text("utf-8"))["question"]["diagram"]
         resp = client.post("/render/diagram", json={"diagram": spec})

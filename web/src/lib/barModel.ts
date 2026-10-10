@@ -159,7 +159,7 @@ export interface RasterSpec {
 /** Figure types drawn only by the engine (no TypeScript mirror): the web fetches their SVG
  * from POST /render/diagram. The spec is opaque to the client. */
 export interface ServerSpec {
-  type: 'chart' | 'solid' | 'number_line' | 'panels'
+  type: 'chart' | 'solid' | 'number_line' | 'panels' | 'cube_stack'
   [key: string]: unknown
 }
 
@@ -186,7 +186,8 @@ export function isServerDiagram(spec: DiagramSpec | null | undefined): spec is S
     (spec.type === 'chart' ||
       spec.type === 'solid' ||
       spec.type === 'number_line' ||
-      spec.type === 'panels')
+      spec.type === 'panels' ||
+      spec.type === 'cube_stack')
   )
 }
 
