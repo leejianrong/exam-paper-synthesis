@@ -160,7 +160,8 @@
         { "$ref": "#/$defs/answer_set" },
         { "$ref": "#/$defs/answer_text" },
         { "$ref": "#/$defs/answer_choice" },
-        { "$ref": "#/$defs/answer_construction" }
+        { "$ref": "#/$defs/answer_construction" },
+        { "$ref": "#/$defs/answer_expression" }
       ]
     },
     "table": {
@@ -193,6 +194,26 @@
       "properties": {
         "type": { "const": "construction" },
         "diagram": { "$ref": "#/$defs/diagram_geometry_figure" }
+      }
+    },
+    "answer_expression": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "terms"],
+      "$comment": "Answer 'in terms of' a symbol (added schema 1.11.0, tier-2 slice T5): a collected sum of coefficient*symbol^power terms, symbol null = constant, e.g. (42π + 84) m or $17n. One symbol per term (no πr²). Collected form and term order are enforced at load by exam_engine.expression.check_expression_consistency.",
+      "properties": {
+        "type": { "const": "expression" },
+        "terms": {
+          "type": "array", "minItems": 1, "maxItems": 6,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["coefficient"],
+            "properties": {
+              "coefficient": { "type": "number", "minimum": -1000000, "maximum": 1000000 },
+              "symbol": { "type": ["string", "null"], "pattern": "^(π|[A-Za-z])$" },
+              "power": { "type": "integer", "minimum": 1, "maximum": 4, "default": 1 }
+            }
+          }
+        },
+        "unit": { "$ref": "#/$defs/unit" }
       }
     },
     "answer_integer": {

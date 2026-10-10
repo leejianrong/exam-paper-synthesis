@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import expression
+
 Node = dict[str, Any]
 
 
@@ -71,6 +73,8 @@ def answer_inline(answer: dict) -> list[Node]:
         if unit:
             out.append(_text(f" {unit}"))
         return out
+    if atype == "expression":
+        return [{"type": "math", "attrs": {"latex": expression.to_latex(answer)}}]
     if atype == "ratio":
         return [_text(" : ".join(str(p) for p in answer.get("parts", [])))]
     if atype == "set":

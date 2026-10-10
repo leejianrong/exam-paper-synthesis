@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.11.0",
+  "id": "sourced:standin-expr-linear",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Number and Algebra",
+    "topic": "Fractions and Decimals",
+    "subtopic": "Algebraic expressions",
+    "skill_codes": [
+      "P6.NUM.EXPRESSION"
+    ]
+  },
+  "cognitive": {
+    "difficulty": "easy",
+    "cognitive_level": "routine_procedural",
+    "heuristics": [],
+    "representations": [
+      "symbolic"
+    ],
+    "difficulty_levers": []
+  },
+  "question": {
+    "stem": "A notebook costs $n and a pen costs $2 less than a notebook.",
+    "diagram": null,
+    "parts": [
+      {
+        "label": "",
+        "text": "Find the cost of 3 notebooks and 4 pens in terms of n.",
+        "marks": 2,
+        "answer": {
+          "type": "expression",
+          "terms": [
+            {
+              "coefficient": 7,
+              "symbol": "n"
+            },
+            {
+              "coefficient": -8,
+              "symbol": null
+            }
+          ],
+          "unit": "$"
+        },
+        "marking_scheme": [
+          {
+            "mark": 1,
+            "type": "M",
+            "description": "A pen costs $(n - 2)."
+          },
+          {
+            "mark": 1,
+            "type": "A",
+            "description": "3n + 4(n - 2) = 7n - 8, so the cost is $(7n - 8)."
+          }
+        ],
+        "solution_steps": [
+          {
+            "text": "A pen costs $(n - 2).",
+            "expr": null
+          },
+          {
+            "text": "3n + 4(n - 2) = 7n - 8, so the cost is $(7n - 8).",
+            "expr": null
+          }
+        ],
+        "diagram": null
+      }
+    ],
+    "total_marks": 2
+  },
+  "source": {
+    "origin": "Structural stand-in for a P6 Preliminary Examination chart question (paraphrased; not the original figure or text)",
+    "year": 2025,
+    "paper": "Paper 2",
+    "reference": "Stand-in 11 (two-term algebra)"
+  },
+  "license": "Original stand-in written for schema-fit testing; no third-party text or artwork reproduced.",
+  "validation": {
+    "status": "unverified",
+    "checks": {
+      "answer_verified": "hand-checked on ingest"
+    }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}

@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from .chart import check_chart_consistency
 from .diagram import check_panels_consistency
+from .expression import check_expression_consistency
 from .number_line import check_number_line_consistency
 from .schema import validate_object
 from .solid import check_solid_consistency
@@ -19,7 +20,7 @@ from .solid import check_solid_consistency
 if TYPE_CHECKING:  # avoid an import cycle at runtime
     from .blueprints.base import BlueprintSpec
 
-SCHEMA_VERSION = "1.10.0"
+SCHEMA_VERSION = "1.11.0"
 
 
 class CanonicalValidationError(Exception):
@@ -32,10 +33,21 @@ class CanonicalValidationError(Exception):
 
 def load(obj: dict) -> dict:
     """Validate on entry; reject invalid objects (R6.1/R6.2). Returns the object."""
-    errors = validate_object(obj) or _diagram_errors(obj)
+    errors = validate_object(obj) or _diagram_errors(obj) + _answer_errors(obj)
     if errors:
         raise CanonicalValidationError(errors)
     return obj
+
+
+def _answer_errors(obj: dict) -> list[str]:
+    """Semantic gate for ``expression`` answers (schema 1.11.0)."""
+    return [
+        f"question.parts[{i}].answer: expression inconsistent: {name}"
+        for i, part in enumerate(obj["question"]["parts"])
+        if (part.get("answer") or {}).get("type") == "expression"
+        for name, ok in check_expression_consistency(part["answer"]).items()
+        if not ok
+    ]
 
 
 def _diagram_errors(obj: dict) -> list[str]:
