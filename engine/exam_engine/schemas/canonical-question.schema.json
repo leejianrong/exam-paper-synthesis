@@ -289,7 +289,8 @@
         { "$ref": "#/$defs/diagram_geometry_figure" },
         { "$ref": "#/$defs/diagram_shaded_fraction" },
         { "$ref": "#/$defs/diagram_raster" },
-        { "$ref": "#/$defs/diagram_chart" }
+        { "$ref": "#/$defs/diagram_chart" },
+        { "$ref": "#/$defs/diagram_solid" }
       ]
     },
     "diagram_bar_model": {
@@ -581,6 +582,37 @@
           "else": { "required": ["x_axis", "y_axis", "series"], "not": { "anyOf": [ { "required": ["sectors"] }, { "required": ["value_unit"] } ] } }
         }
       ]
+    },
+    "diagram_solid": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "kind", "dims"],
+      "$comment": "Cuboid or open-top container with an optional fill level (added schema 1.8.0, tier-2 slice T2; docs/planning/editor/TIER2-SHAPING.md). Fixed oblique projection, dashed hidden edges. A dimension named in `hidden_dims` (or a fill with `show_height: false`) is drawn true to scale but printed as '?'. Cross-field consistency (fill within height, fill only on a container, exact printing) is enforced at load by exam_engine.solid.check_solid_consistency, not by this schema.",
+      "properties": {
+        "type": { "const": "solid" },
+        "kind": { "enum": ["cuboid", "container"] },
+        "title": { "type": ["string", "null"] },
+        "dims": {
+          "type": "object", "additionalProperties": false, "required": ["length", "width", "height"],
+          "properties": {
+            "length": { "type": "number", "minimum": 0.001, "maximum": 1000000 },
+            "width": { "type": "number", "minimum": 0.001, "maximum": 1000000 },
+            "height": { "type": "number", "minimum": 0.001, "maximum": 1000000 }
+          }
+        },
+        "unit": { "type": ["string", "null"], "description": "e.g. \"cm\"." },
+        "hidden_dims": {
+          "type": "array", "uniqueItems": true,
+          "items": { "enum": ["length", "width", "height"] }
+        },
+        "fill": {
+          "type": ["object", "null"], "additionalProperties": false, "required": ["height"],
+          "description": "Contents depth (container only); 0 <= height <= dims.height.",
+          "properties": {
+            "height": { "type": "number", "minimum": 0, "maximum": 1000000 },
+            "show_height": { "type": "boolean", "default": true }
+          }
+        }
+      }
     },
     "diagram_raster": {
       "type": "object", "additionalProperties": false,

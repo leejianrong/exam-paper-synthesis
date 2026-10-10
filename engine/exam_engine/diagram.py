@@ -16,6 +16,7 @@ import re
 from collections.abc import Callable
 
 from .chart import check_chart_consistency, render_chart_svg
+from .solid import check_solid_consistency, render_solid_svg
 
 # ---------------------------------------------------------------------------
 # Consistency check (R3.3): every label/dimension in the diagram must equal the
@@ -36,6 +37,8 @@ def check_consistency(spec: dict, params: dict, solution: dict) -> dict[str, boo
         return check_geometry_figure_consistency(spec, params, solution)
     if dtype == "chart":
         return check_chart_consistency(spec)
+    if dtype == "solid":
+        return check_solid_consistency(spec)
     raise ValueError(f"no consistency check for diagram type {dtype!r}")
 
 
@@ -368,6 +371,8 @@ def render_svg(spec: dict) -> str:
         return _render_raster(spec)
     if dtype == "chart":
         return render_chart_svg(spec)
+    if dtype == "solid":
+        return render_solid_svg(spec)
     raise ValueError(f"no SVG renderer for diagram type {dtype!r}")
 
 

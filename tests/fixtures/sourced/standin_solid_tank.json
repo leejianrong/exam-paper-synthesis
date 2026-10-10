@@ -1,0 +1,131 @@
+{
+  "schema_version": "1.8.0",
+  "id": "sourced:standin-solid-tank",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Measurement",
+    "topic": "Volume",
+    "subtopic": "Volume of a cuboid",
+    "skill_codes": [
+      "P6.MEAS.VOLUME"
+    ]
+  },
+  "cognitive": {
+    "difficulty": "easy",
+    "cognitive_level": "routine_procedural",
+    "heuristics": [],
+    "representations": [
+      "diagram"
+    ],
+    "difficulty_levers": []
+  },
+  "question": {
+    "stem": "A rectangular tank is 40 cm long, 25 cm wide and 30 cm tall. It contains water to a depth of 12 cm.",
+    "diagram": {
+      "type": "solid",
+      "kind": "container",
+      "dims": {
+        "length": 40,
+        "width": 25,
+        "height": 30
+      },
+      "unit": "cm",
+      "fill": {
+        "height": 12
+      }
+    },
+    "parts": [
+      {
+        "label": "a",
+        "text": "Find the volume of water in the tank, in litres.",
+        "marks": 2,
+        "answer": {
+          "type": "integer",
+          "value": 12,
+          "unit": "l"
+        },
+        "marking_scheme": [
+          {
+            "mark": 1,
+            "type": "M",
+            "description": "40 x 25 x 12 = 12 000 cm3."
+          },
+          {
+            "mark": 1,
+            "type": "A",
+            "description": "12 000 cm3 = 12 L."
+          }
+        ],
+        "solution_steps": [
+          {
+            "text": "40 x 25 x 12 = 12 000 cm3.",
+            "expr": null
+          },
+          {
+            "text": "12 000 cm3 = 12 L.",
+            "expr": null
+          }
+        ],
+        "diagram": null
+      },
+      {
+        "label": "b",
+        "text": "How many more litres of water are needed to fill the tank?",
+        "marks": 2,
+        "answer": {
+          "type": "integer",
+          "value": 18,
+          "unit": "l"
+        },
+        "marking_scheme": [
+          {
+            "mark": 1,
+            "type": "M",
+            "description": "40 x 25 x (30 - 12) = 18 000 cm3."
+          },
+          {
+            "mark": 1,
+            "type": "A",
+            "description": "18 000 cm3 = 18 L."
+          }
+        ],
+        "solution_steps": [
+          {
+            "text": "40 x 25 x (30 - 12) = 18 000 cm3.",
+            "expr": null
+          },
+          {
+            "text": "18 000 cm3 = 18 L.",
+            "expr": null
+          }
+        ],
+        "diagram": null
+      }
+    ],
+    "total_marks": 4
+  },
+  "source": {
+    "origin": "Structural stand-in for a P6 Preliminary Examination chart question (paraphrased; not the original figure or text)",
+    "year": 2025,
+    "paper": "Paper 2",
+    "reference": "Stand-in 3 (container, water level)"
+  },
+  "license": "Original stand-in written for schema-fit testing; no third-party text or artwork reproduced.",
+  "validation": {
+    "status": "unverified",
+    "checks": {
+      "answer_verified": "hand-checked on ingest"
+    }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}

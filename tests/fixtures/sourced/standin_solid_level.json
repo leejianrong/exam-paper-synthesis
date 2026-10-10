@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.8.0",
+  "id": "sourced:standin-solid-level_hidden",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Measurement",
+    "topic": "Volume",
+    "subtopic": "Volume of a cuboid",
+    "skill_codes": [
+      "P6.MEAS.VOLUME"
+    ]
+  },
+  "cognitive": {
+    "difficulty": "easy",
+    "cognitive_level": "routine_procedural",
+    "heuristics": [],
+    "representations": [
+      "diagram"
+    ],
+    "difficulty_levers": []
+  },
+  "question": {
+    "stem": "An open tank is 30 cm long, 20 cm wide and 25 cm tall. It holds 9 litres of water.",
+    "diagram": {
+      "type": "solid",
+      "kind": "container",
+      "dims": {
+        "length": 30,
+        "width": 20,
+        "height": 25
+      },
+      "unit": "cm",
+      "fill": {
+        "height": 15,
+        "show_height": false
+      }
+    },
+    "parts": [
+      {
+        "label": "",
+        "text": "Find the depth of the water, in cm.",
+        "marks": 2,
+        "answer": {
+          "type": "integer",
+          "value": 15,
+          "unit": "cm"
+        },
+        "marking_scheme": [
+          {
+            "mark": 1,
+            "type": "M",
+            "description": "9 L = 9 000 cm3; base area = 30 x 20 = 600 cm2."
+          },
+          {
+            "mark": 1,
+            "type": "A",
+            "description": "9 000 / 600 = 15 cm."
+          }
+        ],
+        "solution_steps": [
+          {
+            "text": "9 L = 9 000 cm3; base area = 30 x 20 = 600 cm2.",
+            "expr": null
+          },
+          {
+            "text": "9 000 / 600 = 15 cm.",
+            "expr": null
+          }
+        ],
+        "diagram": null
+      }
+    ],
+    "total_marks": 2
+  },
+  "source": {
+    "origin": "Structural stand-in for a P6 Preliminary Examination chart question (paraphrased; not the original figure or text)",
+    "year": 2025,
+    "paper": "Paper 2",
+    "reference": "Stand-in 5 (container, hidden water level)"
+  },
+  "license": "Original stand-in written for schema-fit testing; no third-party text or artwork reproduced.",
+  "validation": {
+    "status": "unverified",
+    "checks": {
+      "answer_verified": "hand-checked on ingest"
+    }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.8.0",
+  "id": "sourced:standin-solid-cuboid_height",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Measurement",
+    "topic": "Volume",
+    "subtopic": "Volume of a cuboid",
+    "skill_codes": [
+      "P6.MEAS.VOLUME"
+    ]
+  },
+  "cognitive": {
+    "difficulty": "easy",
+    "cognitive_level": "routine_procedural",
+    "heuristics": [],
+    "representations": [
+      "diagram"
+    ],
+    "difficulty_levers": []
+  },
+  "question": {
+    "stem": "The solid cuboid has a volume of 1 800 cm3.",
+    "diagram": {
+      "type": "solid",
+      "kind": "cuboid",
+      "dims": {
+        "length": 15,
+        "width": 12,
+        "height": 10
+      },
+      "unit": "cm",
+      "hidden_dims": [
+        "height"
+      ]
+    },
+    "parts": [
+      {
+        "label": "",
+        "text": "Find the height of the cuboid, in cm.",
+        "marks": 2,
+        "answer": {
+          "type": "integer",
+          "value": 10,
+          "unit": "cm"
+        },
+        "marking_scheme": [
+          {
+            "mark": 1,
+            "type": "M",
+            "description": "15 x 12 = 180 cm2 is the base area."
+          },
+          {
+            "mark": 1,
+            "type": "A",
+            "description": "1 800 / 180 = 10 cm."
+          }
+        ],
+        "solution_steps": [
+          {
+            "text": "15 x 12 = 180 cm2 is the base area.",
+            "expr": null
+          },
+          {
+            "text": "1 800 / 180 = 10 cm.",
+            "expr": null
+          }
+        ],
+        "diagram": null
+      }
+    ],
+    "total_marks": 2
+  },
+  "source": {
+    "origin": "Structural stand-in for a P6 Preliminary Examination chart question (paraphrased; not the original figure or text)",
+    "year": 2025,
+    "paper": "Paper 2",
+    "reference": "Stand-in 4 (cuboid, hidden height)"
+  },
+  "license": "Original stand-in written for schema-fit testing; no third-party text or artwork reproduced.",
+  "validation": {
+    "status": "unverified",
+    "checks": {
+      "answer_verified": "hand-checked on ingest"
+    }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}
