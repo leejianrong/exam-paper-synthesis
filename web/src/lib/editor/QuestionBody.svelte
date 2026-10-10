@@ -1,34 +1,22 @@
 <script lang="ts">
   // The presentational body of a question (no edit/approve chrome): marks, question text and diagram. Used by the editor's question block and the picker.
-  import { isServerDiagram, renderDiagram } from '../barModel'
-  import ServerDiagram from '../ServerDiagram.svelte'
+  import ChoiceOptions from '../ChoiceOptions.svelte'
+  import DiagramView from '../DiagramView.svelte'
   import type { Question } from '../types'
 
   export let q: Question
   $: part = q.question.parts[0]
-  $: svg = renderDiagram(part.diagram)
-  $: diagramAria =
-    part.diagram?.type === 'geometry_figure'
-      ? 'geometry figure'
-      : part.diagram?.type === 'shaded_fraction'
-        ? 'fraction diagram'
-        : isServerDiagram(part.diagram)
-          ? 'figure'
-          : 'bar model'
 </script>
 
 <div class="qbody">
   <div class="meta">
     <span class="marks">[{part.marks}]</span>
   </div>
+  {#if q.question.stem}<p class="text">{q.question.stem}</p>{/if}
+  <DiagramView spec={q.question.diagram} />
   <p class="text">{part.text}</p>
-  {#if isServerDiagram(part.diagram)}
-    <div class="diagram" aria-label={diagramAria}><ServerDiagram spec={part.diagram} /></div>
-  {:else if svg}
-    <!-- svg is built by renderDiagram from esc()-escaped, engine-derived spec values. -->
-    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-    <div class="diagram" aria-label={diagramAria}>{@html svg}</div>
-  {/if}
+  <DiagramView spec={part.diagram} />
+  {#if part.answer?.type === 'choice'}<ChoiceOptions options={part.answer.options ?? []} />{/if}
 </div>
 
 <style>
@@ -52,16 +40,5 @@
     line-height: 1.5;
     margin: 0 0 0.5rem;
     color: var(--ink);
-  }
-  .diagram {
-    background: var(--page);
-    border: 1px solid var(--line-soft);
-    border-radius: 6px;
-    padding: 0.5rem;
-    overflow-x: auto;
-  }
-  .diagram :global(svg) {
-    max-width: 100%;
-    height: auto;
   }
 </style>
