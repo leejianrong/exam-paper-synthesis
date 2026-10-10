@@ -21,6 +21,23 @@ export interface Answer {
   parts?: Array<number | string>
   values?: Array<number | string>
   text?: string
+  /** `choice` answers: every option is question content; only `correct` is the key. */
+  options?: ChoiceOption[]
+  correct?: string
+  /** `expression` answers: a collected sum of coefficient * symbol^power terms. */
+  terms?: ExpressionTerm[]
+}
+
+export interface ChoiceOption {
+  label: string
+  text?: string | null
+  diagram?: DiagramSpec | null
+}
+
+export interface ExpressionTerm {
+  coefficient: number
+  symbol?: string | null
+  power?: number
 }
 
 export interface SolutionStep {
@@ -52,7 +69,12 @@ export interface Question {
   parent_id?: string | null
   /** The sampled parameters (generated questions); read by the Edit-names form. */
   parameters?: Record<string, unknown> | null
-  question: { parts: QuestionPart[]; total_marks: number }
+  question: {
+    stem?: string | null
+    diagram?: DiagramSpec | null
+    parts: QuestionPart[]
+    total_marks: number
+  }
   validation: { status: ValidationStatus; checks?: Record<string, unknown> }
   cognitive?: { difficulty?: Difficulty }
   /**

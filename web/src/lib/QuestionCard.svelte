@@ -1,9 +1,10 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte'
-  import { isServerDiagram, renderDiagram } from './barModel'
-  import ServerDiagram from './ServerDiagram.svelte'
+  import ChoiceOptions from './ChoiceOptions.svelte'
+  import DiagramView from './DiagramView.svelte'
+  import { fmtAnswer } from './format'
   import type { EditOp } from './api'
-  import type { Answer, Question } from './types'
+  import type { Question } from './types'
 
   export let q: Question
   export let busy = false
@@ -11,17 +12,6 @@
   $: part = q.question.parts[0]
   $: steps = part.solution_steps ?? []
   $: scheme = part.marking_scheme ?? []
-  $: svg = renderDiagram(part.diagram)
-  // Accessible label reflects the diagram kind (a geometry figure is not a bar
-  // model). Older ratio cards keep the "bar model" label.
-  $: diagramAria =
-    part.diagram?.type === 'geometry_figure'
-      ? 'geometry figure'
-      : part.diagram?.type === 'shaded_fraction'
-        ? 'fraction diagram'
-        : isServerDiagram(part.diagram)
-          ? 'figure'
-          : 'bar model'
   // Edit ops + Approve are frozen once the question is in the worksheet.
   $: editDisabled = busy || added
 
@@ -51,32 +41,6 @@
   $: barViewLabel = barViewMode === 'sliced' ? 'Group segments' : 'Slice into units'
 
   let showKey = false
-
-  function fmtAnswer(a: Answer | undefined): string {
-    if (!a) return ''
-    switch (a.type) {
-      case 'quantity':
-      case 'decimal':
-      case 'integer': {
-        const u = a.unit ?? ''
-        // Money renders at exactly 2 dp when it is a decimal amount
-        // (change-to-decimals, KAN-309); integer money keeps its whole form.
-        const shown = u === '$' && a.type === 'decimal' ? Number(a.value).toFixed(2) : `${a.value}`
-        if (u === '$') return `$${shown}`
-        return u ? `${shown} ${u}` : `${shown}`
-      }
-      case 'fraction':
-        return `${a.numerator}/${a.denominator}`
-      case 'ratio':
-        return (a.parts ?? []).join(' : ')
-      case 'set':
-        return (a.values ?? []).join(', ')
-      case 'text':
-        return a.text ?? ''
-      default:
-        return JSON.stringify(a)
-    }
-  }
 </script>
 
 <article class="card">
@@ -89,16 +53,11 @@
     >
   </header>
 
+  {#if q.question.stem}<p class="text">{q.question.stem}</p>{/if}
+  <DiagramView spec={q.question.diagram} />
   <p class="text">{part.text}</p>
-
-  {#if isServerDiagram(part.diagram)}
-    <div class="diagram" aria-label={diagramAria}><ServerDiagram spec={part.diagram} /></div>
-  {:else if svg}
-    <!-- svg is built by renderDiagram from esc()-escaped, engine-derived spec
-         values — no untrusted HTML reaches this sink. -->
-    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-    <div class="diagram" aria-label={diagramAria}>{@html svg}</div>
-  {/if}
+  <DiagramView spec={part.diagram} />
+  {#if part.answer?.type === 'choice'}<ChoiceOptions options={part.answer.options ?? []} />{/if}
 
   <p class="answer">
     <span class="label">Answer</span> <span class="val">{fmtAnswer(part.answer)}</span>
@@ -269,14 +228,6 @@
     color: var(--ink);
     margin: 0 0 1rem;
     text-wrap: pretty;
-  }
-  .diagram {
-    margin: 0 0 1rem;
-    padding: 0.85rem 0.75rem 0.5rem;
-    background: var(--paper);
-    border: 1px solid var(--line-soft);
-    border-radius: 9px;
-    overflow-x: auto;
   }
   /* answer value = serif, in a verify-tinted box */
   .answer {
