@@ -41,6 +41,10 @@ if ! uv run pytest -q; then
 	exit 1
 fi
 
+# node_modules is untracked and goes stale when a pull adds a dependency; heal it
+# before the web gates so "Cannot find module" never masquerades as a code error.
+./scripts/ensure-web-deps.sh
+
 if ! npm --prefix web run lint; then
 	echo ""
 	echo "!! pre-push aborted: web lint (eslint) failed."

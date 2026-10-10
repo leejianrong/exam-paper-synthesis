@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# After a branch switch, resync web deps if the lockfile differs (see scripts/ensure-web-deps.sh).
+# $3 == 1 means a branch checkout (not a file checkout).
+[ "${3:-0}" = "1" ] || exit 0
+exec "$(git rev-parse --show-toplevel)/scripts/ensure-web-deps.sh"

@@ -6,7 +6,7 @@
 # Ports the dev servers bind to (API, Vite). `make stop` frees these.
 DEV_PORTS := 8000 5173
 
-.PHONY: help install dev stop api web web-lint web-typecheck web-test py-lint py-fmt py-typecheck test e2e build health hooks
+.PHONY: help web-deps install dev stop api web web-lint web-typecheck web-test py-lint py-fmt py-typecheck test e2e build health hooks
 
 help: ## List available targets
 	@echo "Targets:"
@@ -29,7 +29,11 @@ help: ## List available targets
 
 install: ## Sync Python deps and install web deps
 	uv sync
-	npm --prefix web ci
+	@rm -f web/node_modules/.lock.sha256
+	./scripts/ensure-web-deps.sh
+
+web-deps: ## Reinstall web deps only if package-lock.json changed since the last install
+	./scripts/ensure-web-deps.sh
 
 dev: ## Boot API + Vite together; Ctrl-C stops both cleanly
 	@echo "Starting API (8000) and web (5173). Press Ctrl-C to stop both (or 'make stop' from another shell)."
@@ -92,13 +96,13 @@ api: ## Run just the API dev server
 web: ## Run just the Vite dev server
 	npm --prefix web run dev
 
-web-lint: ## Lint the web app (eslint)
+web-lint: web-deps ## Lint the web app (eslint)
 	npm --prefix web run lint
 
-web-typecheck: ## Type-check the web app (svelte-check)
+web-typecheck: web-deps ## Type-check the web app (svelte-check)
 	npm --prefix web run check
 
-web-test: ## Run the web unit tests (vitest)
+web-test: web-deps ## Run the web unit tests (vitest)
 	npm --prefix web run test:unit
 
 test: ## Run the pytest suite
@@ -116,7 +120,7 @@ py-typecheck: ## Type-check Python with mypy
 e2e: ## Run the root Playwright e2e tests
 	npm run e2e
 
-build: ## Build the web app
+build: web-deps ## Build the web app
 	npm --prefix web run build
 
 health: ## Curl the API health endpoint
