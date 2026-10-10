@@ -1,0 +1,41 @@
+code: volume_easy
+syllabus:
+  level: P5
+  strand: "Measurement"
+  topic: "Volume"
+  subtopic: "Volume of a cuboid"
+  skill_codes: ["MEAS.VOL.CUBOID"]        # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Reasoning depth"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [length, width, height, template]
+  properties:
+    length: { type: integer, minimum: 3, maximum: 20 }
+    width: { type: integer, minimum: 3, maximum: 20 }
+    height: { type: integer, minimum: 3, maximum: 20 }
+    template: { type: string, enum: [box, block] }
+# Every parameter_schema property needs a role (W1a). number|choice drive the maths and are
+# not cosmetically editable.
+param_roles:
+  length: { role: number }
+  width: { role: number }
+  height: { role: number }
+  template: { role: choice }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+marking_scheme:
+  - { mark: 1, type: A, description: "Correct volume with the unit cm^3." }
+answer:
+  type: integer
+  unit: "cm^3"
+diagram: solid

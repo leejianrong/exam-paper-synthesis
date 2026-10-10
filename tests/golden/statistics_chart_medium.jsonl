@@ -1,0 +1,3 @@
+{"params": {"context": "fruit", "total": 200, "percents": [40, 30, 10, 20], "hidden": 3}, "expected": {"answer": {"type": "integer", "value": 40, "unit": ""}, "total_marks": 2}}
+{"params": {"context": "sport", "total": 180, "percents": [40, 30, 10, 20], "hidden": 0}, "expected": {"answer": {"type": "integer", "value": 72, "unit": ""}, "total_marks": 2}}
+{"params": {"context": "transport", "total": 120, "percents": [25, 25, 30, 20], "hidden": 2}, "expected": {"answer": {"type": "integer", "value": 36, "unit": ""}, "total_marks": 2}}

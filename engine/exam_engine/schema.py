@@ -40,6 +40,21 @@ def _validator() -> Draft202012Validator:
     return Draft202012Validator(schema)
 
 
+@lru_cache(maxsize=1)
+def _diagram_validator() -> Draft202012Validator:
+    root = json.loads(schema_path().read_text(encoding="utf-8"))
+    return Draft202012Validator({"$ref": "#/$defs/diagram", "$defs": root["$defs"]})
+
+
+def validate_diagram(spec: object) -> list[str]:
+    """Schema-validate one ``diagram`` spec on its own (path-pointed errors)."""
+    errors: list[str] = []
+    for err in sorted(_diagram_validator().iter_errors(spec), key=lambda e: list(e.absolute_path)):
+        loc = "/".join(str(p) for p in err.absolute_path) or "<root>"
+        errors.append(f"{loc}: {err.message}")
+    return errors
+
+
 def validate_object(obj: dict) -> list[str]:
     """Return a list of path-pointed error strings; empty means valid."""
     errors: list[str] = []

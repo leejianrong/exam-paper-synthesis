@@ -561,7 +561,7 @@
           "type": "object", "additionalProperties": false, "required": ["categories"],
           "properties": {
             "title": { "type": ["string", "null"] },
-            "categories": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+            "categories": { "type": "array", "minItems": 1, "maxItems": 30, "items": { "type": "string", "minLength": 1 } }
           }
         },
         "y_axis": {
@@ -575,18 +575,18 @@
           }
         },
         "series": {
-          "type": "array", "minItems": 1,
+          "type": "array", "minItems": 1, "maxItems": 6,
           "items": {
             "type": "object", "additionalProperties": false, "required": ["name", "values"],
             "properties": {
               "name": { "type": "string", "minLength": 1 },
-              "values": { "type": "array", "items": { "type": ["number", "null"] }, "description": "One entry per x_axis category; null = no bar/point." },
+              "values": { "type": "array", "maxItems": 30, "items": { "type": ["number", "null"] }, "description": "One entry per x_axis category; null = no bar/point." },
               "show_values": { "type": "boolean", "default": false }
             }
           }
         },
         "sectors": {
-          "type": "array", "minItems": 2,
+          "type": "array", "minItems": 2, "maxItems": 12,
           "items": {
             "type": "object", "additionalProperties": false, "required": ["label", "value"],
             "properties": {

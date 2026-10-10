@@ -1,0 +1,3 @@
+{"params": {"context": "books", "step": 10, "values": [40, 10, 30, 20, 50], "a": 0, "b": 1}, "expected": {"answer": {"type": "integer", "value": 30, "unit": ""}, "total_marks": 1}}
+{"params": {"context": "cans", "step": 20, "values": [60, 100, 20, 80, 40], "a": 1, "b": 2}, "expected": {"answer": {"type": "integer", "value": 80, "unit": ""}, "total_marks": 1}}
+{"params": {"context": "stickers", "step": 5, "values": [15, 5, 25, 10, 30], "a": 4, "b": 0}, "expected": {"answer": {"type": "integer", "value": 15, "unit": ""}, "total_marks": 1}}

@@ -273,3 +273,17 @@ export async function fetchFragmentAssets(): Promise<{ css: string; js: string }
   if (!css.ok || !js.ok) throw new Error(`API ${css.ok ? js.status : css.status}: render assets`)
   return { css: await css.text(), js: await js.text() }
 }
+
+/** The engine's inline SVG for one diagram (POST /render/diagram). */
+export async function renderDiagramSvg(diagram: unknown): Promise<string> {
+  const res = await apiFetch(`${BASE}/render/diagram`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ diagram }),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`API ${res.status}: ${detail}`)
+  }
+  return ((await res.json()) as { svg: string }).svg
+}

@@ -316,3 +316,17 @@ def test_pie_labels_fit_in_the_viewbox():
             assert x + est <= width, text
         elif anchor == "end":
             assert x - est >= 0, text
+
+
+def test_chart_size_is_bounded_so_a_request_cannot_ask_for_a_huge_figure():
+    obj = _obj("bar")
+    d = obj["question"]["diagram"]
+    d["x_axis"]["categories"] = [f"c{i}" for i in range(31)]
+    d["series"][0]["values"] = [1] * 31
+    assert validate_object(obj) != []
+    pie = _obj("pie")
+    pie["question"]["diagram"]["sectors"] = [{"label": f"s{i}", "value": 1} for i in range(13)]
+    assert validate_object(pie) != []
+    many = _obj("bar")
+    many["question"]["diagram"]["series"] = [{"name": f"n{i}", "values": [1] * 5} for i in range(7)]
+    assert validate_object(many) != []

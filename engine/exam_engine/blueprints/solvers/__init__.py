@@ -19,6 +19,8 @@ from . import (
     speed_easy,  # noqa: F401
     speed_hard,  # noqa: F401
     speed_medium,  # noqa: F401
+    statistics_chart,  # noqa: F401
+    volume,  # noqa: F401
 )
 
 __all__ = [
@@ -40,4 +42,6 @@ __all__ = [
     "speed_easy",
     "speed_hard",
     "speed_medium",
+    "statistics_chart",
+    "volume",
 ]

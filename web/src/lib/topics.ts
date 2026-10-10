@@ -19,6 +19,8 @@ export const TOPICS: readonly Topic[] = [
   { label: 'Speed', prefix: 'speed' },
   { label: 'Geometry (Angles)', prefix: 'geometry_angle' },
   { label: 'Geometry (Area & Perimeter)', prefix: 'geometry_area' },
+  { label: 'Statistics (Charts)', prefix: 'statistics_chart' },
+  { label: 'Volume', prefix: 'volume' },
 ]
 
 export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'medium', 'hard']

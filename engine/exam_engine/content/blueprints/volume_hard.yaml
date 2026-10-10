@@ -1,0 +1,45 @@
+code: volume_hard
+syllabus:
+  level: P6
+  strand: "Measurement"
+  topic: "Volume"
+  subtopic: "Volume of an object from water displacement"
+  skill_codes: ["MEAS.VOL.DISPLACE"]        # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Hidden structure", "Reasoning depth"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [length, width, before, rise, room]
+  properties:
+    length: { type: integer, minimum: 20, maximum: 50 }
+    width: { type: integer, minimum: 15, maximum: 40 }
+    before: { type: integer, minimum: 8, maximum: 30 }
+    rise: { type: integer, minimum: 2, maximum: 9 }
+    room: { type: integer, minimum: 1, maximum: 10 }
+# Every parameter_schema property needs a role (W1a). number|choice drive the maths and are
+# not cosmetically editable.
+param_roles:
+  length: { role: number }
+  width: { role: number }
+  before: { role: number }
+  rise: { role: number }
+  room: { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Recognises the rise in water level is the volume of the block spread over the base." }
+  - { mark: 1, type: M, description: "Finds the rise (after minus before)." }
+  - { mark: 1, type: A, description: "Volume of block = base area x rise, in cm^3." }
+answer:
+  type: integer
+  unit: "cm^3"
+diagram: panels

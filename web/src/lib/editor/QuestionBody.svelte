@@ -1,6 +1,7 @@
 <script lang="ts">
   // The presentational body of a question (no edit/approve chrome): marks, question text and diagram. Used by the editor's question block and the picker.
-  import { renderDiagram } from '../barModel'
+  import { isServerDiagram, renderDiagram } from '../barModel'
+  import ServerDiagram from '../ServerDiagram.svelte'
   import type { Question } from '../types'
 
   export let q: Question
@@ -11,7 +12,9 @@
       ? 'geometry figure'
       : part.diagram?.type === 'shaded_fraction'
         ? 'fraction diagram'
-        : 'bar model'
+        : isServerDiagram(part.diagram)
+          ? 'figure'
+          : 'bar model'
 </script>
 
 <div class="qbody">
@@ -19,7 +22,9 @@
     <span class="marks">[{part.marks}]</span>
   </div>
   <p class="text">{part.text}</p>
-  {#if svg}
+  {#if isServerDiagram(part.diagram)}
+    <div class="diagram" aria-label={diagramAria}><ServerDiagram spec={part.diagram} /></div>
+  {:else if svg}
     <!-- svg is built by renderDiagram from esc()-escaped, engine-derived spec values. -->
     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
     <div class="diagram" aria-label={diagramAria}>{@html svg}</div>

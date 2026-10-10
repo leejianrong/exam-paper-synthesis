@@ -1,0 +1,43 @@
+code: statistics_chart_hard
+syllabus:
+  level: P6
+  strand: "Data Analysis"
+  topic: "Statistics (Charts)"
+  subtopic: "Line graph and the mean: finding a missing value"
+  skill_codes: ["DATA.LINE.MEAN"]        # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Hidden structure", "Reasoning depth"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [context, step, known, mean]
+  properties:
+    context: { type: string, enum: [vases, tickets, plants] }
+    step: { type: integer, enum: [10, 20, 50] }
+    known: { type: array, minItems: 4, maxItems: 4, items: { type: integer, minimum: 1 } }
+    mean: { type: integer, minimum: 1 }
+# Every parameter_schema property needs a role (W1a). number|choice drive the maths and are
+# not cosmetically editable.
+param_roles:
+  context: { role: choice }
+  step: { role: number }
+  known: { role: number }
+  mean: { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Finds the total for the five months (5 x mean)." }
+  - { mark: 1, type: M, description: "Reads the four plotted values and adds them." }
+  - { mark: 1, type: A, description: "Subtracts to find the missing month." }
+answer:
+  type: integer
+  unit: ""
+diagram: chart
