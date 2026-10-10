@@ -23,6 +23,8 @@ _INK = "#1f2433"
 _ACCENT = "#2f5fe0"
 _MAX = 1_000_000
 _MAX_DIVISIONS = 100
+_SPAN = 480  # drawn line length (px)
+_POINT_GAP = 16  # minimum px between two marked points
 
 
 def _esc(text: object) -> str:
@@ -49,6 +51,18 @@ def _frac(v: float | int) -> Fraction:
     return Fraction(str(v))
 
 
+def _snap(spec: dict, at: float) -> Fraction:
+    """A marked point's exact value: the nearest tick when within float noise of one
+    (so 1/3 written as 0.3333333333333333 still lands on the third), else the decimal."""
+    v = _frac(at)
+    div = spec["divisions"]
+    for i in range(div + 1):
+        t = tick_value(spec, i)
+        if abs(float(v - t)) < 1e-9:
+            return t
+    return v
+
+
 def tick_value(spec: dict, i: int) -> Fraction:
     lo, hi = _frac(spec["start"]), _frac(spec["end"])
     return lo + i * (hi - lo) / spec["divisions"]
@@ -56,11 +70,17 @@ def tick_value(spec: dict, i: int) -> Fraction:
 
 def _tick_text(spec: dict, i: int) -> str:
     v = tick_value(spec, i)
-    if spec.get("label_style") == "fraction" and v.denominator != 1:
-        whole, rem = divmod(abs(v), 1)
-        sign = "-" if v < 0 else ""
-        return f"{sign}{int(whole) or ''} {rem.numerator}/{rem.denominator}".replace("  ", " ")
     return _n(float(v)) if v.denominator != 1 else str(int(v))
+
+
+def _label_width(spec: dict, i: int) -> int:
+    """Rough printed width (px) of tick ``i``'s label, for the spacing check."""
+    v = tick_value(spec, i)
+    if spec.get("label_style") == "fraction" and v.denominator != 1:
+        whole = int(abs(v)) or 0
+        frac = max(len(str(abs(v).numerator % v.denominator or 0)), len(str(v.denominator)))
+        return 8 * ((len(str(whole)) + 1 if whole or v < 0 else 0) + frac) + 10
+    return 8 * len(_tick_text(spec, i)) + 10
 
 
 def check_number_line_consistency(spec: dict) -> dict[str, bool]:
@@ -77,26 +97,41 @@ def check_number_line_consistency(spec: dict) -> dict[str, bool]:
         and all(isinstance(i, int) and 0 <= i <= div for i in labelled),  # type: ignore[operator]
         "point_labels_unique": len({p.get("label") for p in points}) == len(points),
     }
-    prints = False
+    prints = spaced = points_spaced = False
     on_ticks = within = no_leak = False
     if range_ok and div_ok:
         spec_ok = {**spec, "labelled": []}
         # a decimal label must print without rounding away digits
+        lab = [i for i in labelled if isinstance(i, int) and 0 <= i <= div]  # type: ignore[operator]
         prints = spec.get("label_style") == "fraction" or all(
             abs(float(tick_value(spec_ok, i)) - round(float(tick_value(spec_ok, i)), 3)) < 1e-9
-            for i in range(div + 1)  # type: ignore[operator]
+            for i in lab
+        )
+        gap = _SPAN / div  # type: ignore[operator]
+        srt = sorted(lab)
+        spaced = all(
+            (b - a) * gap >= (_label_width(spec_ok, a) + _label_width(spec_ok, b)) / 2
+            for a, b in zip(srt, srt[1:], strict=False)
         )
         ticks = [tick_value(spec_ok, i) for i in range(div + 1)]  # type: ignore[operator]
-        vals = [_frac(p["at"]) for p in points if _is_num(p.get("at"))]
+        vals = [_snap(spec_ok, p["at"]) for p in points if _is_num(p.get("at"))]
         within = len(vals) == len(points) and all(ticks[0] <= v <= ticks[-1] for v in vals)
         on_ticks = within and all(v in ticks for v in vals)
         shown = {ticks[i] for i in labelled if isinstance(i, int) and 0 <= i <= div}  # type: ignore[operator]
         no_leak = within and all(
-            p.get("known", False) or _frac(p["at"]) not in shown for p in points
+            p.get("known", False) or v not in shown for p, v in zip(points, vals, strict=True)
+        )
+        step = (ticks[-1] - ticks[0]) / div  # type: ignore[operator]
+        ordered = sorted(float(v) for v in vals)
+        points_spaced = within and all(
+            (b - a) / float(step) * gap >= _POINT_GAP
+            for a, b in zip(ordered, ordered[1:], strict=False)
         )
     checks.update(
         {
             "labels_print_exactly": prints,
+            "labels_do_not_overlap": spaced,
+            "points_do_not_overlap": points_spaced,
             "points_within_range": within,
             "points_on_ticks": on_ticks,
             "unknown_points_not_on_labelled_ticks": no_leak,

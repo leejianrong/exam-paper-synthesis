@@ -84,7 +84,10 @@ def test_ticks_are_evenly_spaced():
             lambda s: s["marked_points"].append(dict(s["marked_points"][0], at=0.2)),
             "point_labels_unique",
         ),
-        (lambda s: s.update(end=0.0005, divisions=1), "labels_print_exactly"),
+        (
+            lambda s: s.update(end=0.0005, divisions=1, labelled=[0, 1], marked_points=[]),
+            "labels_print_exactly",
+        ),
     ],
 )
 def test_corruptions_are_caught(mutate, failing):
@@ -171,3 +174,55 @@ def test_a_figure_with_no_given_is_not_restyled():
         "parts"
     ][0]["answer"]["diagram"]
     assert "#d6336c" not in diagram.render_svg(spec)
+
+
+def test_crowded_labels_and_points_are_rejected():
+    crowded = {
+        "type": "number_line",
+        "start": 0,
+        "end": 1,
+        "divisions": 100,
+        "labelled": list(range(101)),
+    }
+    assert check_number_line_consistency(crowded)["labels_do_not_overlap"] is False
+    sparse = dict(crowded, labelled=[0, 50, 100])
+    assert check_number_line_consistency(sparse)["labels_do_not_overlap"] is True
+    mixed = {
+        "type": "number_line",
+        "start": 0,
+        "end": 2,
+        "divisions": 24,
+        "label_style": "fraction",
+        "labelled": list(range(25)),
+    }
+    assert check_number_line_consistency(mixed)["labels_do_not_overlap"] is False
+    close = dict(sparse, marked_points=[{"at": 0.01, "label": "A"}, {"at": 0.02, "label": "B"}])
+    assert check_number_line_consistency(close)["points_do_not_overlap"] is False
+
+
+def test_thirds_can_be_marked_and_unprinted_ticks_need_not_be_exact():
+    spec = {
+        "type": "number_line",
+        "start": 0,
+        "end": 1,
+        "divisions": 3,
+        "label_style": "fraction",
+        "labelled": [0, 3],
+        "marked_points": [{"at": 1 / 3, "label": "A"}],
+    }
+    assert all(check_number_line_consistency(spec).values())
+    decimal = dict(spec, label_style="decimal", marked_points=[])
+    assert all(check_number_line_consistency(decimal).values())  # 0.333.. never printed
+
+
+def test_accent_matching_tolerates_float_noise():
+    from exam_engine import diagram
+
+    given = {
+        "type": "geometry_figure",
+        "points": [{"id": "A", "x": 0.3, "y": 0}, {"id": "B", "x": 1, "y": 0}],
+        "segments": [{"from": "A", "to": "B"}],
+    }
+    answer = copy.deepcopy(given)
+    answer["points"][0]["x"] = 0.1 + 0.2
+    assert "#d6336c" not in diagram.render_svg(answer, given=given)

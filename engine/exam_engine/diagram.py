@@ -961,9 +961,13 @@ def _gf_draw_polygons(
             )
 
 
+def _gf_q(pt: tuple[float, float]) -> tuple[float, float]:
+    return (round(pt[0], 6), round(pt[1], 6))
+
+
 def _gf_edge_key(spec: dict, seg: dict) -> frozenset:
     pm = {p["id"]: (float(p["x"]), float(p["y"])) for p in spec.get("points") or []}
-    return frozenset((pm[seg["from"]], pm[seg["to"]]))
+    return frozenset((_gf_q(pm[seg["from"]]), _gf_q(pm[seg["to"]])))
 
 
 def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
@@ -971,7 +975,7 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
     given_edges = given_cells = given_points = None
     if given is not None and given.get("type") == "geometry_figure":
         given_edges = {_gf_edge_key(given, g) for g in given.get("segments") or []}
-        given_points = {(float(p["x"]), float(p["y"])) for p in given.get("points") or []}
+        given_points = {_gf_q((float(p["x"]), float(p["y"]))) for p in given.get("points") or []}
         given_cells = {(c[0], c[1]) for poly in given.get("polygons") or [] for c in poly["cells"]}
     points = spec.get("points") or []
     pmap: dict = {p["id"]: (float(p["x"]), float(p["y"])) for p in points}
@@ -1169,7 +1173,11 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
     for lab in labels:
         px, py = pmap[lab["at"]]
         text = vmap.get(lab["at"], lab["text"])
-        fill = _GF_ANSWER if given_points is not None and (px, py) not in given_points else _GF_TEXT
+        fill = (
+            _GF_ANSWER
+            if given_points is not None and _gf_q((px, py)) not in given_points
+            else _GF_TEXT
+        )
         lines.append(f'<text x="{tx(px) + 6}" y="{ty(py) - 6}" fill="{fill}">{_esc(text)}</text>')
 
     lines.append("</svg>")
