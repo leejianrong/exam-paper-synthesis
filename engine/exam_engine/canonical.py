@@ -59,9 +59,9 @@ def _answer_errors(obj: dict) -> list[str]:
 
 
 def _diagram_errors(obj: dict) -> list[str]:
-    """Semantic gate for ``chart`` (1.7.0), ``solid`` (1.8.0) and ``number_line`` (1.9.0)
-    diagrams, run once the object is schema-valid: the numbers must agree with the figure's
-    own axis/dims.
+    """Semantic gate for ``chart`` (1.7.0), ``solid`` (1.8.0), ``number_line`` (1.9.0),
+    ``panels`` (1.10.0) and ``cube_stack`` (1.12.0) diagrams, run once the object is
+    schema-valid: the numbers must agree with the figure's own axis/dims.
     Path-pointed like the schema errors."""
     q = obj["question"]
     found: list[tuple[str, dict]] = []

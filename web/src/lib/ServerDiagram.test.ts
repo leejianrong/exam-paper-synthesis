@@ -22,7 +22,7 @@ const chart: ServerSpec = {
 
 describe('server-rendered figures', () => {
   it('identifies the types the web cannot draw itself', () => {
-    for (const type of ['chart', 'solid', 'number_line', 'panels'] as const) {
+    for (const type of ['chart', 'solid', 'number_line', 'panels', 'cube_stack'] as const) {
       expect(isServerDiagram({ type })).toBe(true)
       expect(renderDiagram({ type })).toBe('') // no TS mirror, by design
     }
