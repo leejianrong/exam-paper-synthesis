@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# After a pull/merge, resync web deps if the lockfile moved (see scripts/ensure-web-deps.sh).
+exec "$(git rev-parse --show-toplevel)/scripts/ensure-web-deps.sh"

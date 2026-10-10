@@ -135,6 +135,10 @@ a request; entropy (random seed) enters only here.
   `mypy`, `pytest -q`) then the web quality gates (`npm --prefix web run lint`,
   `check`, `test:unit`) and the web build — and blocks the push if any step
   fails. Bypass with `git push --no-verify` (escape hatch).
+  `web/node_modules` self-heals: `scripts/ensure-web-deps.sh` (called by pre-push,
+  post-merge, post-checkout and the `make web-*` targets) re-runs `npm ci` whenever
+  `web/package-lock.json` differs from the last install, so a pull that adds a
+  dependency never leaves stale "Cannot find module" type errors.
 - **Ruff + mypy gate Python** (enforced in CI's `Python quality` job and in the
   pre-push hook). Lint/format with ruff (rules `E,F,I,UP,B,SIM`, line length 100)
   and type-check with mypy (Python 3.12, over `exam_engine` + `app`). Run locally
