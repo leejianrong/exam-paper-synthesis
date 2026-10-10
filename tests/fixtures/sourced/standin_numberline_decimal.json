@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.9.0",
+  "id": "sourced:standin-numberline-decimal",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Number and Algebra",
+    "topic": "Fractions and Decimals",
+    "subtopic": "Decimals on a number line",
+    "skill_codes": [
+      "P6.NUM.NUMBERLINE"
+    ]
+  },
+  "cognitive": {
+    "difficulty": "easy",
+    "cognitive_level": "routine_procedural",
+    "heuristics": [],
+    "representations": [
+      "number_line"
+    ],
+    "difficulty_levers": []
+  },
+  "question": {
+    "stem": "The number line from 0 to 1 is divided into 10 equal parts.",
+    "diagram": {
+      "type": "number_line",
+      "start": 0,
+      "end": 1,
+      "divisions": 10,
+      "labelled": [
+        0,
+        5,
+        10
+      ],
+      "marked_points": [
+        {
+          "at": 0.7,
+          "label": "A"
+        }
+      ]
+    },
+    "parts": [
+      {
+        "label": "",
+        "text": "What number does A represent?",
+        "marks": 1,
+        "answer": {
+          "type": "decimal",
+          "value": 0.7,
+          "dp": 1
+        },
+        "marking_scheme": [
+          {
+            "mark": 1,
+            "type": "A",
+            "description": "A is 2 intervals after 0.5, so A = 0.7."
+          }
+        ],
+        "solution_steps": [
+          {
+            "text": "Each interval is 0.1.",
+            "expr": null
+          },
+          {
+            "text": "A is 2 intervals after 0.5, so A = 0.7.",
+            "expr": null
+          }
+        ],
+        "diagram": null
+      }
+    ],
+    "total_marks": 1
+  },
+  "source": {
+    "origin": "Structural stand-in for a P6 Preliminary Examination chart question (paraphrased; not the original figure or text)",
+    "year": 2025,
+    "paper": "Paper 2",
+    "reference": "Stand-in 7 (number line, decimal)"
+  },
+  "license": "Original stand-in written for schema-fit testing; no third-party text or artwork reproduced.",
+  "validation": {
+    "status": "unverified",
+    "checks": {
+      "answer_verified": "hand-checked on ingest"
+    }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}

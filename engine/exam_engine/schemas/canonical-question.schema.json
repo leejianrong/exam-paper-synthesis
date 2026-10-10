@@ -290,7 +290,8 @@
         { "$ref": "#/$defs/diagram_shaded_fraction" },
         { "$ref": "#/$defs/diagram_raster" },
         { "$ref": "#/$defs/diagram_chart" },
-        { "$ref": "#/$defs/diagram_solid" }
+        { "$ref": "#/$defs/diagram_solid" },
+        { "$ref": "#/$defs/diagram_number_line" }
       ]
     },
     "diagram_bar_model": {
@@ -610,6 +611,35 @@
           "properties": {
             "height": { "type": "number", "minimum": 0, "maximum": 1000000 },
             "show_height": { "type": "boolean", "default": true }
+          }
+        }
+      }
+    },
+    "diagram_number_line": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "start", "end", "divisions"],
+      "$comment": "Number line (added schema 1.9.0, tier-2 slice T3; docs/planning/editor/TIER2-SHAPING.md). `divisions` equal intervals from start to end; tick labels print only at the indices in `labelled`; `marked_points` are lettered arrows the student reads. Cross-field consistency (marked points on a tick and never on a labelled tick unless `known`) is enforced at load by exam_engine.number_line.check_number_line_consistency, not by this schema.",
+      "properties": {
+        "type": { "const": "number_line" },
+        "title": { "type": ["string", "null"] },
+        "start": { "type": "number", "minimum": -1000000, "maximum": 1000000 },
+        "end": { "type": "number", "minimum": -1000000, "maximum": 1000000 },
+        "divisions": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "label_style": { "enum": ["decimal", "fraction"], "default": "decimal" },
+        "labelled": {
+          "type": "array", "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 0 },
+          "description": "Tick indices (0..divisions) whose value is printed."
+        },
+        "marked_points": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["at", "label"],
+            "properties": {
+              "at": { "type": "number", "minimum": -1000000, "maximum": 1000000 },
+              "label": { "type": "string", "minLength": 1 },
+              "known": { "type": "boolean", "default": false, "description": "True when the point's value is given, so it may sit on a labelled tick." }
+            }
           }
         }
       }

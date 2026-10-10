@@ -199,6 +199,26 @@ MCQ option). As with `chart`, the data is the figure.
 - `solid_volume` / `fill_volume` derive volume claims from the dims for blueprints/tests.
 - Server-side rendering only (`render_solid_svg`; Inter); no TS mirror.
 
+## `diagram.type: "number_line"` (schema 1.9.0)
+
+Additive (tier-2 slice T3); every 1.8.0 object still validates. Valid anywhere a `diagram` is.
+
+- `start`, `end`, `divisions` (equal intervals, 1-100), `label_style: "decimal" | "fraction"`
+  (fractions print stacked, mixed numbers as whole + stacked part), `labelled[]` (tick indices
+  whose value is printed; every other tick is a plain mark), `marked_points[{at, label, known?}]`
+  (lettered arrows). Tick positions and values are derived, never authored.
+- Load-gate checks (`exam_engine.number_line.check_number_line_consistency`): valid bounded
+  range, labelled ticks exist, labels print exactly, points lie inside the range **and on a
+  tick**, and an unknown point (`known` false, the default) never sits on a labelled tick,
+  because the tick label beside it would print its value.
+- Server-side rendering only.
+
+### Answer-vs-givens in the key (no schema change)
+
+A `construction` answer's completed figure is rendered with the part's (or stem's) figure as
+`given`: segments, grid cells and point labels that were **not** in the figure the student was
+handed are drawn in an accent colour and heavier, so the key shows what to add.
+
 ## `question.table`, `geometry_figure.grid`/`polygons`, and `answer.type: "construction"` (schema 1.6.0)
 
 Three additive growths (ADR-0020, editor slice E3); every 1.5.0 object still validates.

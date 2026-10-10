@@ -272,3 +272,15 @@ def test_render_fragment_draws_solids_server_side_and_rejects_inconsistent_ones(
     bad["question"]["diagram"]["fill"]["height"] = 99
     resp = client.post("/render/question", json={"question": bad})
     assert resp.status_code == 422 and "fill_within_height" in resp.text
+
+
+def test_render_fragment_draws_number_lines_server_side():
+    sourced = Path(__file__).parent / "fixtures" / "sourced"
+    for name in ("fraction", "decimal"):
+        q = json.loads((sourced / f"standin_numberline_{name}.json").read_text("utf-8"))
+        html = client.post("/render/question", json={"question": q}).json()["html"]
+        assert '<figure class="diagram"><svg' in html, name
+    bad = json.loads((sourced / "standin_numberline_decimal.json").read_text("utf-8"))
+    bad["question"]["diagram"]["marked_points"][0]["at"] = 0.5
+    resp = client.post("/render/question", json={"question": bad})
+    assert resp.status_code == 422 and "unknown_points_not_on_labelled_ticks" in resp.text

@@ -11,13 +11,14 @@ import json
 from typing import TYPE_CHECKING
 
 from .chart import check_chart_consistency
+from .number_line import check_number_line_consistency
 from .schema import validate_object
 from .solid import check_solid_consistency
 
 if TYPE_CHECKING:  # avoid an import cycle at runtime
     from .blueprints.base import BlueprintSpec
 
-SCHEMA_VERSION = "1.8.0"
+SCHEMA_VERSION = "1.9.0"
 
 
 class CanonicalValidationError(Exception):
@@ -37,8 +38,9 @@ def load(obj: dict) -> dict:
 
 
 def _diagram_errors(obj: dict) -> list[str]:
-    """Semantic gate for ``chart`` (1.7.0) and ``solid`` (1.8.0) diagrams, run once the
-    object is schema-valid: the numbers must agree with the figure's own axis/dims.
+    """Semantic gate for ``chart`` (1.7.0), ``solid`` (1.8.0) and ``number_line`` (1.9.0)
+    diagrams, run once the object is schema-valid: the numbers must agree with the figure's
+    own axis/dims.
     Path-pointed like the schema errors."""
     q = obj["question"]
     found: list[tuple[str, dict]] = []
@@ -53,7 +55,11 @@ def _diagram_errors(obj: dict) -> list[str]:
         ):
             if opt.get("diagram"):
                 found.append((f"question.parts[{i}].answer.options[{j}].diagram", opt["diagram"]))
-    checkers = {"chart": check_chart_consistency, "solid": check_solid_consistency}
+    checkers = {
+        "chart": check_chart_consistency,
+        "solid": check_solid_consistency,
+        "number_line": check_number_line_consistency,
+    }
     errors = []
     for path, spec in found:
         check = checkers.get(str(spec.get("type")))

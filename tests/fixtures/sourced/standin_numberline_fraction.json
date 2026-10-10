@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.9.0",
+  "id": "sourced:standin-numberline-fraction",
+  "source_type": "sourced",
+  "blueprint_code": null,
+  "seed": null,
+  "parameters": null,
+  "syllabus": {
+    "level": "P6",
+    "strand": "Number and Algebra",
+    "topic": "Fractions and Decimals",
+    "subtopic": "Fractions on a number line",
+    "skill_codes": [
+      "P6.NUM.NUMBERLINE"
+    ]
+  },
+  "cognitive": {
+    "difficulty": "easy",
+    "cognitive_level": "routine_procedural",
+    "heuristics": [],
+    "representations": [
+      "number_line"
+    ],
+    "difficulty_levers": []
+  },
+  "question": {
+    "stem": "The number line is divided into equal parts.",
+    "diagram": {
+      "type": "number_line",
+      "start": 0,
+      "end": 2,
+      "divisions": 8,
+      "label_style": "fraction",
+      "labelled": [
+        0,
+        4,
+        8
+      ],
+      "marked_points": [
+        {
+          "at": 1.25,
+          "label": "P"
+        }
+      ]
+    },
+    "parts": [
+      {
+        "label": "",
+        "text": "What fraction does P represent? Give your answer as a mixed number.",
+        "marks": 1,
+        "answer": {
+          "type": "fraction",
+          "numerator": 5,
+          "denominator": 4,
+          "mixed": true
+        },
+        "marking_scheme": [
+          {
+            "mark": 1,
+            "type": "A",
+            "description": "P is 1 interval after 1, so P = 1 1/4."
+          }
+        ],
+        "solution_steps": [
+          {
+            "text": "Each interval is 2 / 8 = 1/4.",
+            "expr": null
+          },
+          {
+            "text": "P is 1 interval after 1, so P = 1 1/4.",
+            "expr": null
+          }
+        ],
+        "diagram": null
+      }
+    ],
+    "total_marks": 1
+  },
+  "source": {
+    "origin": "Structural stand-in for a P6 Preliminary Examination chart question (paraphrased; not the original figure or text)",
+    "year": 2025,
+    "paper": "Paper 2",
+    "reference": "Stand-in 6 (number line, fraction)"
+  },
+  "license": "Original stand-in written for schema-fit testing; no third-party text or artwork reproduced.",
+  "validation": {
+    "status": "unverified",
+    "checks": {
+      "answer_verified": "hand-checked on ingest"
+    }
+  },
+  "provenance": {
+    "created_by": "ingested",
+    "llm_used": false,
+    "created_at": null,
+    "parent_id": null,
+    "version": 1
+  }
+}

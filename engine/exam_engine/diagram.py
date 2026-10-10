@@ -16,6 +16,7 @@ import re
 from collections.abc import Callable
 
 from .chart import check_chart_consistency, render_chart_svg
+from .number_line import check_number_line_consistency, render_number_line_svg
 from .solid import check_solid_consistency, render_solid_svg
 
 # ---------------------------------------------------------------------------
@@ -39,6 +40,8 @@ def check_consistency(spec: dict, params: dict, solution: dict) -> dict[str, boo
         return check_chart_consistency(spec)
     if dtype == "solid":
         return check_solid_consistency(spec)
+    if dtype == "number_line":
+        return check_number_line_consistency(spec)
     raise ValueError(f"no consistency check for diagram type {dtype!r}")
 
 
@@ -356,8 +359,13 @@ _DIV_HEAVY = "2"  # original-ratio boundary divider stroke width (KAN-310)
 _WORTH_GAP = 8  # gap from a grouped bar's right edge to its unit-worth label
 
 
-def render_svg(spec: dict) -> str:
-    """Render a diagram spec to a self-contained inline ``<svg>`` string."""
+def render_svg(spec: dict, given: dict | None = None) -> str:
+    """Render a diagram spec to a self-contained inline ``<svg>`` string.
+
+    ``given`` (answer-key figures only): the figure the student was handed. In a
+    completed ``geometry_figure`` everything *not* already in ``given`` is drawn in
+    the answer accent, so the key shows what the student had to add.
+    """
     dtype = spec.get("type")
     if dtype == "bar_model":
         return _render_bar_model(spec)
@@ -366,13 +374,15 @@ def render_svg(spec: dict) -> str:
     if dtype == "shaded_fraction":
         return _render_shaded_fraction(spec)
     if dtype == "geometry_figure":
-        return _render_geometry_figure(spec)
+        return _render_geometry_figure(spec, given)
     if dtype == "raster":
         return _render_raster(spec)
     if dtype == "chart":
         return render_chart_svg(spec)
     if dtype == "solid":
         return render_solid_svg(spec)
+    if dtype == "number_line":
+        return render_number_line_svg(spec)
     raise ValueError(f"no SVG renderer for diagram type {dtype!r}")
 
 
@@ -804,6 +814,7 @@ _GF_TICK_SP = 4  # spacing between adjacent tick marks
 _GF_LABEL_OFF = 13  # perpendicular offset of a segment length label
 _GF_STROKE = "#2f5fe0"  # figure edges / arcs
 _GF_FILL = "#dbe4fb"  # shaded region fill
+_GF_ANSWER = "#d6336c"  # what the student must add (answer-key completed figures)
 _GF_TEXT = "#334155"  # text labels
 _GF_DASH = "4 3"  # stroke-dasharray for dashed dimension lines (KAN-314)
 _GF_DIM_CAP = 5  # dimension-line end-cap half-length (canvas px, KAN-314)
@@ -926,7 +937,12 @@ def _gf_draw_grid(lines: list[str], grid: dict, tx: Callable, ty: Callable) -> N
 
 
 def _gf_draw_polygons(
-    lines: list[str], polygons: list[dict], grid: dict, tx: Callable, ty: Callable
+    lines: list[str],
+    polygons: list[dict],
+    grid: dict,
+    tx: Callable,
+    ty: Callable,
+    given_cells: set[tuple[int, int]] | None = None,
 ) -> None:
     """One bordered unit square per cell (not a traced outline): the lines
     between adjacent cells are content (net folds, countable rod squares)."""
@@ -937,14 +953,26 @@ def _gf_draw_polygons(
         for col, row in poly["cells"]:
             ax, ay = tx(x0 + col * size), ty(y0 + row * size)
             bx, by = tx(x0 + (col + 1) * size), ty(y0 + (row + 1) * size)
+            added = given_cells is not None and (col, row) not in given_cells
+            stroke, sw = (_GF_ANSWER, 2.5) if added else (_GF_STROKE, 1.5)
             lines.append(
                 f'<rect x="{ax}" y="{ay}" width="{bx - ax}" height="{by - ay}" '
-                f'fill="{fill}" stroke="{_GF_STROKE}" stroke-width="1.5"/>'
+                f'fill="{fill}" stroke="{stroke}" stroke-width="{sw}"/>'
             )
 
 
-def _render_geometry_figure(spec: dict) -> str:
+def _gf_edge_key(spec: dict, seg: dict) -> frozenset:
+    pm = {p["id"]: (float(p["x"]), float(p["y"])) for p in spec.get("points") or []}
+    return frozenset((pm[seg["from"]], pm[seg["to"]]))
+
+
+def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
     """Render a ``geometry_figure`` spec to a self-contained inline ``<svg>``."""
+    given_edges = given_cells = given_points = None
+    if given is not None and given.get("type") == "geometry_figure":
+        given_edges = {_gf_edge_key(given, g) for g in given.get("segments") or []}
+        given_points = {(float(p["x"]), float(p["y"])) for p in given.get("points") or []}
+        given_cells = {(c[0], c[1]) for poly in given.get("polygons") or [] for c in poly["cells"]}
     points = spec.get("points") or []
     pmap: dict = {p["id"]: (float(p["x"]), float(p["y"])) for p in points}
     segments = spec.get("segments") or []
@@ -995,7 +1023,7 @@ def _render_geometry_figure(spec: dict) -> str:
     # --- grid backdrop + polygon cells (drawn first, behind everything) -----
     if grid:
         _gf_draw_grid(lines, grid, tx, ty)
-        _gf_draw_polygons(lines, polygons, grid, tx, ty)
+        _gf_draw_polygons(lines, polygons, grid, tx, ty, given_cells)
 
     # --- shaded regions (drawn first, behind the strokes) -------------------
     # Trace each region's boundary as a single closed <path>. Edges are straight
@@ -1043,9 +1071,11 @@ def _render_geometry_figure(spec: dict) -> str:
                 f'stroke="{_GF_STROKE}" stroke-width="1.5" stroke-dasharray="{_GF_DASH}"/>'
             )
         else:
+            added = given_edges is not None and _gf_edge_key(spec, seg) not in given_edges
+            stroke, sw = (_GF_ANSWER, 3) if added else (_GF_STROKE, 2)
             lines.append(
                 f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-                f'stroke="{_GF_STROKE}" stroke-width="2"/>'
+                f'stroke="{stroke}" stroke-width="{sw}"/>'
             )
         ticks = seg.get("ticks") or 0
         for i in range(ticks):
@@ -1139,9 +1169,8 @@ def _render_geometry_figure(spec: dict) -> str:
     for lab in labels:
         px, py = pmap[lab["at"]]
         text = vmap.get(lab["at"], lab["text"])
-        lines.append(
-            f'<text x="{tx(px) + 6}" y="{ty(py) - 6}" fill="{_GF_TEXT}">{_esc(text)}</text>'
-        )
+        fill = _GF_ANSWER if given_points is not None and (px, py) not in given_points else _GF_TEXT
+        lines.append(f'<text x="{tx(px) + 6}" y="{ty(py) - 6}" fill="{fill}">{_esc(text)}</text>')
 
     lines.append("</svg>")
     return "".join(lines)
