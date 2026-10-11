@@ -180,6 +180,28 @@ body {
   min-height: calc(18px + 16px * var(--marks, 1));
 }
 
+/* --- paper: the Ans: line (unit printed so students need not choose one) --- */
+.answer-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.9rem;
+  font-family: var(--serif);
+  break-inside: avoid;
+}
+.answer-line .ans-label,
+.answer-line .ans-part {
+  font-weight: 600;
+}
+.answer-line .ans-blank {
+  flex: 1 1 auto;
+  min-width: 4rem;
+  border-bottom: 1px solid var(--ink);
+}
+.answer-line .ans-unit {
+  white-space: nowrap;
+}
+
 /* --- answer key: worked solution --- */
 .solution {
   background: color-mix(in srgb, var(--verify) 5%, var(--paper-2));

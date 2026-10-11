@@ -52,6 +52,7 @@ export interface MarkingSchemeRow {
 }
 
 export interface QuestionPart {
+  label?: string
   text: string
   marks: number
   answer?: Answer

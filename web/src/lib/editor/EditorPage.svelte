@@ -1,4 +1,7 @@
 <script lang="ts">
+  import ToolIcon from './ToolIcon.svelte'
+  import { paperSettings } from './paperSettings'
+  import { DEFAULT_PLACEMENT, type MarksPlacement } from './layout'
   // The WYSIWYG page (W1c): an A4-width column of rich text and question blocks, a "+"
   // to add questions, the answer key below, autosave, and the export/preview menu.
   import { onDestroy, onMount } from 'svelte'
@@ -48,6 +51,7 @@
   let quota: Quota | null = null
   let selectedId: string | null = null // the block the author is in (for the inspector)
   let previewHtml: string | null = null
+  let barH = 0 // the sticky top bar's height: the formatting toolbar sticks just below it
   let tick = 0 // bumps on every editor transaction so toolbar state re-reads
 
   $: blocks = numberedNodes(content)
@@ -60,9 +64,15 @@
     error: 'Save failed — will retry',
   }[status]
 
+  function setPlacement(e: Event) {
+    const marks_placement = (e.currentTarget as HTMLSelectElement).value as MarksPlacement
+    paperSettings.update((s) => ({ ...s, marks_placement }))
+    scheduleSave()
+  }
+
   function scheduleSave() {
     if (!editor || !autosaver) return
-    autosaver.schedule(buildDocument(title, editor.getJSON() as DocJSON))
+    autosaver.schedule(buildDocument(title, editor.getJSON() as DocJSON, $paperSettings))
   }
 
   onMount(async () => {
@@ -70,6 +80,10 @@
     try {
       const rec = await getDocument(id)
       title = rec.document.title
+      paperSettings.set({
+        marks_placement: DEFAULT_PLACEMENT,
+        ...(rec.document.settings ?? {}),
+      })
       content = rec.document.content
       autosaver = createAutosaver({
         initialVersion: rec.version,
@@ -274,10 +288,22 @@
 
 <svelte:window on:beforeunload={onBeforeUnload} />
 
-<div class="bar">
+<div class="bar" bind:clientHeight={barH}>
   <a class="back" href="#/">← Papers</a>
   <span class="chip {status}" role="status" aria-live="polite">{statusLabel}</span>
   <span class="total">{marks} marks</span>
+  <label class="placement">
+    Marks shown
+    <select
+      aria-label="Marks shown"
+      value={$paperSettings.marks_placement ?? DEFAULT_PLACEMENT}
+      on:change={setPlacement}
+    >
+      <option value="answer">beside the answer line</option>
+      <option value="question">beside the question</option>
+      <option value="both">both</option>
+    </select>
+  </label>
   <span class="spacer"></span>
   {#if quota && typeof quota.left_day === 'number'}
     <span class="quota" title="PDF exports left in the last 24 hours">{quota.left_day} exports left today</span>
@@ -312,18 +338,25 @@
   <p class="banner err" role="alert">{loadError} <a href="#/">Back to papers</a></p>
 {/if}
 
-<div class="desk" class:hidden={loading || !!loadError}>
+<div class="desk" class:hidden={loading || !!loadError} style="--bar-h:{barH}px">
 <div class="main">
+  <div class="toolstrip">
   <div class="tools" role="toolbar" aria-label="Formatting">
     <button
+      aria-label="Bold"
+      title="Bold"
       aria-pressed={act.bold}
       on:click={() => editor?.chain().focus().toggleBold().run()}><b>B</b></button
     >
     <button
+      aria-label="Italic"
+      title="Italic"
       aria-pressed={act.italic}
       on:click={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button
     >
     <button
+      aria-label="Underline"
+      title="Underline"
       aria-pressed={act.underline}
       on:click={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></button
     >
@@ -338,18 +371,34 @@
     <span class="sep"></span>
     <button
       aria-pressed={act.bullet}
-      on:click={() => editor?.chain().focus().toggleBulletList().run()}>• List</button
+      aria-label="Bulleted list"
+      title="Bulleted list"
+      on:click={() => editor?.chain().focus().toggleBulletList().run()}
+      ><ToolIcon name="bullet" /></button
     >
     <button
       aria-pressed={act.ordered}
-      on:click={() => editor?.chain().focus().toggleOrderedList().run()}>1. List</button
+      aria-label="Numbered list"
+      title="Numbered list"
+      on:click={() => editor?.chain().focus().toggleOrderedList().run()}
+      ><ToolIcon name="ordered" /></button
     >
-    <button on:click={() => editor?.chain().focus().insertContent({ type: 'pageBreak' }).run()}
-      >Page break</button
+    <button
+      aria-label="Page break"
+      title="Page break"
+      on:click={() => editor?.chain().focus().insertContent({ type: 'pageBreak' }).run()}
+      ><ToolIcon name="pagebreak" /></button
     >
     <span class="sep"></span>
-    <button disabled={!act.inText} on:click={addEquation}>Equation</button>
-    <button on:click={() => fileInput.click()}>Image</button>
+    <button
+      aria-label="Equation"
+      title="Equation"
+      disabled={!act.inText}
+      on:click={addEquation}><ToolIcon name="equation" /></button
+    >
+    <button aria-label="Image" title="Insert image" on:click={() => fileInput.click()}
+      ><ToolIcon name="image" /></button
+    >
     <input
       bind:this={fileInput}
       type="file"
@@ -360,8 +409,17 @@
       on:change={onPickImages}
     />
     <span class="sep"></span>
-    <button aria-label="Undo" on:click={() => editor?.chain().focus().undo().run()}>↶</button>
-    <button aria-label="Redo" on:click={() => editor?.chain().focus().redo().run()}>↷</button>
+    <button
+      aria-label="Undo"
+      title="Undo"
+      on:click={() => editor?.chain().focus().undo().run()}><ToolIcon name="undo" /></button
+    >
+    <button
+      aria-label="Redo"
+      title="Redo"
+      on:click={() => editor?.chain().focus().redo().run()}><ToolIcon name="redo" /></button
+    >
+  </div>
   </div>
 
   <div class="page">
@@ -435,6 +493,20 @@
     background: var(--paper-2);
     border-bottom: 1px solid var(--line);
     font-size: 13px;
+  }
+  .placement {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--ink-soft);
+  }
+  .placement select {
+    font: inherit;
+    font-size: 12.5px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--ink);
   }
   .back {
     color: var(--ink-soft);
@@ -527,14 +599,33 @@
       flex-direction: column;
     }
   }
+  /* Stays in view while the paper scrolls: sticks just under the (also sticky) top bar. The
+     opaque strip hides the page sliding underneath. */
+  .toolstrip {
+    position: sticky;
+    top: var(--bar-h, 0px);
+    z-index: 9;
+    margin: -1rem -1rem 0.6rem;
+    padding: 0.5rem 1rem;
+    background: var(--desk);
+    border-bottom: 1px solid var(--line-soft);
+  }
   .tools {
     width: 210mm;
     max-width: 100%;
-    margin: 0 auto 0.6rem;
+    margin: 0 auto;
     display: flex;
     flex-wrap: wrap;
     gap: 0.3rem;
     align-items: center;
+  }
+  .tools button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.9rem;
+    height: 1.9rem;
+    padding: 0 0.4rem;
   }
   .sep {
     width: 1px;

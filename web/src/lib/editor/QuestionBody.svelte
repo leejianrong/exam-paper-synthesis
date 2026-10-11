@@ -3,15 +3,20 @@
   import ChoiceOptions from '../ChoiceOptions.svelte'
   import DiagramView from '../DiagramView.svelte'
   import type { Question } from '../types'
+  import { paperSettings } from './paperSettings'
+  import { DEFAULT_PLACEMENT } from './layout'
 
   export let q: Question
   $: part = q.question.parts[0]
+  $: placement = $paperSettings.marks_placement ?? DEFAULT_PLACEMENT
 </script>
 
 <div class="qbody">
-  <div class="meta">
-    <span class="marks">[{part.marks}]</span>
-  </div>
+  {#if placement !== 'answer'}
+    <div class="meta">
+      <span class="marks">[{part.marks}]</span>
+    </div>
+  {/if}
   {#if q.question.stem}<p class="text">{q.question.stem}</p>{/if}
   <DiagramView compact spec={q.question.diagram} />
   <p class="text">{part.text}</p>

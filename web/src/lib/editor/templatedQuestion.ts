@@ -10,6 +10,7 @@ import { convertToFreeform } from '../api'
 import type { Question } from '../types'
 import QuestionBlock from './QuestionBlock.svelte'
 import { freeformNode, newBlockId } from './doc'
+import { layoutOf, type BlockLayout } from './layout'
 
 export interface TemplatedQuestionOptions {
   /** Open the "add question" picker to insert after the block at `pos`. */
@@ -34,6 +35,8 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
       block_id: { default: null },
       question: { default: null },
       remark: { default: null }, // the author's private note (inspector); never printed
+      space_mm: { default: null }, // blank working space (mm); null = the default for its marks
+      ans_unit: { default: null }, // unit printed after Ans:; null = the answer's own
     }
   },
 
@@ -53,6 +56,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
       dom.setAttribute('data-block-id', String(node.attrs.block_id))
 
       const store = writable<Question>(node.attrs.question as Question)
+      const layout = writable<BlockLayout>(layoutOf(node.attrs))
       let current = node // the live node: attrs the inspector sets (remark) must survive edits here
       let latest = node.attrs.question as Question
       const store_value = () => latest
@@ -65,14 +69,30 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
         target: dom,
         props: {
           store: { subscribe: store.subscribe },
+          layout: { subscribe: layout.subscribe },
           ctx: {
             replace: (q: Question) => {
               const { tr } = editor.state
-              tr.setNodeMarkup(pos(), undefined, { ...current.attrs, question: q })
+              tr.setNodeMarkup(pos(), undefined, {
+                ...current.attrs,
+                question: q,
+              })
+              editor.view.dispatch(tr)
+            },
+            setLayout: (patch: Partial<BlockLayout>) => {
+              const { tr } = editor.state
+              tr.setNodeMarkup(pos(), undefined, {
+                ...current.attrs,
+                ...patch,
+              })
               editor.view.dispatch(tr)
             },
             remove: () => {
-              editor.chain().focus().deleteRange({ from: pos(), to: pos() + node.nodeSize }).run()
+              editor
+                .chain()
+                .focus()
+                .deleteRange({ from: pos(), to: pos() + node.nodeSize })
+                .run()
             },
             move: (dir: -1 | 1) => moveBlock(editor, pos(), node.nodeSize, dir),
             addBelow: () => options.onAddBelow(pos() + node.nodeSize),
@@ -95,9 +115,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
               tr.replaceWith(from, from + node.nodeSize, schema.nodeFromJSON(json))
               editor.view.dispatch(tr)
               if (out.dropped.length) {
-                options.onNotice(
-                  `Converted to free-form. Not included: ${out.dropped.join('; ')}.`,
-                )
+                options.onNotice(`Converted to free-form. Not included: ${out.dropped.join('; ')}.`)
               }
             },
           },
@@ -111,6 +129,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
           current = updated
           latest = updated.attrs.question as Question
           store.set(latest)
+          layout.set(layoutOf(updated.attrs))
           return true
         },
         // The Svelte component owns all interaction inside the block.
@@ -125,7 +144,12 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
 })
 
 /** Swap a block with its previous/next sibling. */
-export function moveBlock(editor: NodeViewRendererProps['editor'], pos: number, size: number, dir: -1 | 1) {
+export function moveBlock(
+  editor: NodeViewRendererProps['editor'],
+  pos: number,
+  size: number,
+  dir: -1 | 1,
+) {
   const { doc, tr } = editor.state
   const $pos = doc.resolve(pos)
   const index = $pos.index()
@@ -145,5 +169,8 @@ export function moveBlock(editor: NodeViewRendererProps['editor'], pos: number, 
 
 /** Build the node JSON for a freshly inserted question. */
 export function questionNode(question: Question) {
-  return { type: 'templatedQuestion', attrs: { block_id: newBlockId(), question } }
+  return {
+    type: 'templatedQuestion',
+    attrs: { block_id: newBlockId(), question },
+  }
 }

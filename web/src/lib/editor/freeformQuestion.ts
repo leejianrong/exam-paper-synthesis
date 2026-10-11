@@ -8,6 +8,11 @@ import { Node } from '@tiptap/core'
 import type { NodeViewRendererProps } from '@tiptap/core'
 import { EMPTY_ANSWER } from './doc'
 import { moveBlock } from './templatedQuestion'
+import { mount, unmount } from 'svelte'
+import { get } from 'svelte/store'
+import AnswerArea from './AnswerArea.svelte'
+import { DEFAULT_PLACEMENT, layoutOf } from './layout'
+import { paperSettings } from './paperSettings'
 
 export interface FreeformQuestionOptions {
   onAddBelow: (afterPos: number) => void
@@ -61,6 +66,8 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       marks: jsonAttr<number | null>('data-marks', null),
       answer: jsonAttr('data-answer', EMPTY_ANSWER),
       remark: { default: null }, // the author's private note (inspector); never printed
+      space_mm: { default: null }, // blank working space (mm); null = the default for its marks
+      ans_unit: { default: null }, // unit printed after Ans:
     }
   },
 
@@ -162,25 +169,66 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         editor.view.dispatch(tr)
       })
 
-      main.append(row, bar)
+      const areaHost = el('div', 'ff-area')
+      areaHost.contentEditable = 'false'
+      main.append(row, areaHost, bar)
       dom.append(num, main)
 
+      const setLayout = (patch: Record<string, unknown>) => {
+        const { tr } = editor.state
+        tr.setNodeMarkup(pos(), undefined, { ...current.attrs, ...patch })
+        editor.view.dispatch(tr)
+      }
+      let area: ReturnType<typeof mount> | null = null
+      const drawArea = () => {
+        if (area) void unmount(area)
+        const marks = (current.attrs.marks as number | null) ?? null
+        const l = layoutOf(current.attrs)
+        area = mount(AnswerArea, {
+          target: areaHost,
+          props: {
+            marks,
+            spaceMm: l.space_mm,
+            unit: l.ans_unit,
+            placement: get(paperSettings).marks_placement ?? DEFAULT_PLACEMENT,
+            onSpace: (mm: number | null) => setLayout({ space_mm: mm }),
+            onUnit: (u: string) => setLayout({ ans_unit: u }),
+          },
+        })
+      }
       const sync = () => {
         const marks = current.attrs.marks as number | null
-        marksEl.textContent = marks === null || marks === undefined ? '' : `[${marks}]`
+        const placement = get(paperSettings).marks_placement ?? DEFAULT_PLACEMENT
+        marksEl.textContent =
+          marks === null || marks === undefined || placement === 'answer' ? '' : `[${marks}]`
         if (document.activeElement !== input) input.value = marks === null ? '' : String(marks)
       }
       sync()
+      const unsubscribe = paperSettings.subscribe(() => {
+        sync()
+        drawArea()
+      })
 
       return {
         dom,
         contentDOM,
         update(updated) {
           if (updated.type !== node.type) return false
+          const before = current
           current = updated
           dom.setAttribute('data-block-id', String(updated.attrs.block_id))
           sync()
+          if (
+            before.attrs.marks !== updated.attrs.marks ||
+            before.attrs.space_mm !== updated.attrs.space_mm ||
+            before.attrs.ans_unit !== updated.attrs.ans_unit
+          )
+            drawArea()
           return true
+        },
+        destroy() {
+          unsubscribe()
+          if (area) void unmount(area)
         },
         // Clicks and typing in the toolbar are ours; the body is ProseMirror's.
         stopEvent: (event) => bar.contains(event.target as globalThis.Node),

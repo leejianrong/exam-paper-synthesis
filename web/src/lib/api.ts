@@ -1,4 +1,5 @@
 import { apiFetch } from './http'
+import type { MarksPlacement } from './editor/layout'
 import type { Question } from './types'
 
 const BASE: string = import.meta.env.VITE_API ?? 'http://localhost:8000'
@@ -251,11 +252,22 @@ export async function renderQuestionHtml(
   question: Question,
   mode: 'student' | 'key' = 'student',
   number: number | null = null,
+  paper?: { placement: MarksPlacement; answerArea: boolean },
 ): Promise<string> {
   const res = await apiFetch(`${BASE}/render/question`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ question, mode, number }),
+    body: JSON.stringify(
+      paper
+        ? {
+            question,
+            mode,
+            number,
+            placement: paper.placement,
+            answer_area: paper.answerArea,
+          }
+        : { question, mode, number },
+    ),
   })
   if (!res.ok) {
     const detail = await res.text()
@@ -265,7 +277,10 @@ export async function renderQuestionHtml(
 }
 
 /** The shared stylesheet / script for embedded engine fragments. */
-export async function fetchFragmentAssets(): Promise<{ css: string; js: string }> {
+export async function fetchFragmentAssets(): Promise<{
+  css: string
+  js: string
+}> {
   const [css, js] = await Promise.all([
     apiFetch(`${BASE}/render/question.css`),
     apiFetch(`${BASE}/render/katex.js`),

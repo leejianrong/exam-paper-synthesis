@@ -208,11 +208,88 @@ def _render_options(answer: dict, *, reveal_correct: bool) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Paper layout (P2): working space, the Ans: line and where the marks print.
+# ---------------------------------------------------------------------------
+
+
+class Layout:
+    """How a question prints on a *paper* (document): marks placement, working space and the
+    answer line. ``None`` everywhere else (the classic worksheet keeps its old look)."""
+
+    def __init__(
+        self,
+        placement: str = "answer",
+        space_mm: int | None = None,
+        ans_unit: str | None = None,
+    ) -> None:
+        self.placement = placement if placement in ("question", "answer", "both") else "answer"
+        self.space_mm = space_mm
+        self.ans_unit = ans_unit
+
+
+def default_space_mm(marks: int | None) -> int:
+    """Blank working space for a question worth ``marks``: 20 mm plus 15 mm a mark."""
+    return 20 + 15 * max(marks if marks is not None else 2, 1)
+
+
+_UNIT_SUP = {
+    "cm^2": "cm<sup>2</sup>",
+    "m^2": "m<sup>2</sup>",
+    "cm^3": "cm<sup>3</sup>",
+    "m^3": "m<sup>3</sup>",
+}
+
+
+def unit_parts(unit: str | None) -> tuple[str, str]:
+    """``(before, after)`` the blank on the Ans: line for ``unit``: ``$`` goes before, a
+    degree sign, ``%`` and words go after, area/volume units get a real superscript."""
+    if not unit:
+        return "", ""
+    if unit == "$":
+        return "$", ""
+    if unit == "degrees":
+        return "", "°"
+    if unit == "%":
+        return "", "%"
+    return "", _UNIT_SUP.get(unit, _esc(unit))
+
+
+def _answer_line(
+    layout: Layout, unit: str | None, label: str, marks: int | None, fallback: str = ""
+) -> str:
+    """``Ans: (a) $ ______ cm [2]`` — the unit is printed so students need not choose one."""
+    before, after = unit_parts(layout.ans_unit if layout.ans_unit is not None else unit or fallback)
+    show_marks = marks is not None and layout.placement in ("answer", "both")
+    tag = f"({_esc(label)}) " if label else ""
+    return (
+        '<div class="answer-line"><span class="ans-label">Ans:</span>'
+        + (f'<span class="ans-part">{tag.strip()}</span>' if tag else "")
+        + (f'<span class="ans-pre">{before}</span>' if before else "")
+        + '<span class="ans-blank"></span>'
+        + (f'<span class="ans-unit">{after}</span>' if after else "")
+        + (f'<span class="marks">[{marks}]</span>' if show_marks else "")
+        + "</div>"
+    )
+
+
+def _answer_space(layout: Layout | None, marks: int | None) -> str:
+    if layout is None:
+        return (
+            '<div class="answer-space" aria-hidden="true" '
+            f'style="--marks:{marks if marks is not None else 1}"></div>'
+        )
+    mm = layout.space_mm if layout.space_mm is not None else default_space_mm(marks)
+    return f'<div class="answer-space" aria-hidden="true" style="height:{mm}mm"></div>'
+
+
+# ---------------------------------------------------------------------------
 # Fragment builders (pure).
 # ---------------------------------------------------------------------------
 
 
-def _render_part_head(part: dict, *, multipart: bool, answer_key: bool) -> list[str]:
+def _render_part_head(
+    part: dict, *, multipart: bool, answer_key: bool, layout: Layout | None = None
+) -> list[str]:
     """The ``.part`` block (optional label, text, right-aligned marks) + diagram.
 
     ``marks`` is optional (A5): the ``[n]`` bracket is emitted only when present,
@@ -224,7 +301,8 @@ def _render_part_head(part: dict, *, multipart: bool, answer_key: bool) -> list[
         out.append(f'<span class="part-label">({_esc(part["label"])})</span>')
     out.append(f'<div class="part-text">{_mathify(part["text"])}</div>')
     marks = part.get("marks")
-    if marks is not None:
+    # On a paper the [n] sits beside the question and/or the Ans: line (the key always has it).
+    if marks is not None and (layout is None or answer_key or layout.placement != "answer"):
         out.append(f'<span class="marks">[{marks}]</span>')
     out.append("</div>")
 
@@ -302,7 +380,14 @@ def _render_table(table: dict, parts: list[dict], *, answer_key: bool) -> str:
     return "".join(out)
 
 
-def _render_question_item(obj: dict, *, answer_key: bool, tag: str = "li") -> list[str]:
+def _render_question_item(
+    obj: dict,
+    *,
+    answer_key: bool,
+    tag: str = "li",
+    layout: Layout | None = None,
+    answer_area: bool = True,
+) -> list[str]:
     """One question's markup (stem, shared figure/table, parts, answer space or solution).
 
     ``tag`` is ``li`` inside a flat ``<ol class="questions">`` list, or ``section`` when a
@@ -322,18 +407,30 @@ def _render_question_item(obj: dict, *, answer_key: bool, tag: str = "li") -> li
     if q_table is not None:
         out.append(_render_table(q_table, parts, answer_key=answer_key))
     for part in parts:
-        out.extend(_render_part_head(part, multipart=multipart, answer_key=answer_key))
+        out.extend(
+            _render_part_head(part, multipart=multipart, answer_key=answer_key, layout=layout)
+        )
         if answer_key:
             out.extend(_render_solution(part, q_diagram))
-        elif (part.get("answer") or {}).get("type") != "choice":
+        elif answer_area and (part.get("answer") or {}).get("type") not in (
+            "choice",
+            "construction",
+        ):
             # MCQ parts have nothing to hand-write beyond circling a letter
             # (the options themselves were already rendered by
             # _render_part_head) — only constructed-response parts get a
-            # blank answer-space filler.
-            out.append(
-                '<div class="answer-space" aria-hidden="true" '
-                f'style="--marks:{part.get("marks", 1)}"></div>'
-            )
+            # blank answer-space filler (and, on a paper, the Ans: line).
+            out.append(_answer_space(layout, part.get("marks", 1)))
+            if layout is not None:
+                answer = part.get("answer") or {}
+                out.append(
+                    _answer_line(
+                        layout,
+                        answer.get("unit"),
+                        part.get("label") if multipart else "",
+                        part.get("marks"),
+                    )
+                )
     out.append(f"</{tag}>")
     return out
 
@@ -508,6 +605,7 @@ def _render_freeform_item(
     answer_key: bool,
     tag: str = "section",
     assets: AssetResolver | None = None,
+    layout: Layout | None = None,
 ) -> list[str]:
     """A teacher-written question (W2a): body + ``[marks]``, then answer space or key answer.
 
@@ -519,7 +617,7 @@ def _render_freeform_item(
     body = "".join(_render_rich_block(b, assets) for b in node["content"])
     out = [f'<{tag} class="question freeform">', '<div class="part">']
     out.append(f'<div class="part-text">{body}</div>')
-    if marks is not None:
+    if marks is not None and (layout is None or answer_key or layout.placement != "answer"):
         out.append(f'<span class="marks">[{marks}]</span>')
     out.append("</div>")
     if answer_key:
@@ -530,23 +628,50 @@ def _render_freeform_item(
         else:
             out.append('<p class="no-answer">No answer written yet</p>')
     else:
-        out.append(
-            f'<div class="answer-space" aria-hidden="true" style="--marks:{marks or 2}"></div>'
-        )
+        out.append(_answer_space(layout, marks if marks is not None else 2))
+        if layout is not None:
+            out.append(_answer_line(layout, None, "", marks))
     out.append(f"</{tag}>")
     return out
 
 
+def _block_layout(node: dict, placement: str) -> Layout:
+    attrs = node["attrs"]
+    return Layout(placement, attrs.get("space_mm"), attrs.get("ans_unit"))
+
+
+def _placement(doc: dict) -> str:
+    return (doc.get("settings") or {}).get("marks_placement", "answer")
+
+
 def _render_numbered_blocks(
-    blocks: list[dict], *, answer_key: bool, assets: AssetResolver | None = None
+    blocks: list[dict],
+    *,
+    answer_key: bool,
+    assets: AssetResolver | None = None,
+    placement: str = "answer",
 ) -> str:
     """The ``<ol class="questions">`` body for document question blocks (both kinds)."""
     out: list[str] = ['<ol class="questions">']
     for node in blocks:
         if node["type"] == "freeformQuestion":
-            out.extend(_render_freeform_item(node, answer_key=answer_key, tag="li", assets=assets))
+            out.extend(
+                _render_freeform_item(
+                    node,
+                    answer_key=answer_key,
+                    tag="li",
+                    assets=assets,
+                    layout=_block_layout(node, placement),
+                )
+            )
         else:
-            out.extend(_render_question_item(node["attrs"]["question"], answer_key=answer_key))
+            out.extend(
+                _render_question_item(
+                    node["attrs"]["question"],
+                    answer_key=answer_key,
+                    layout=_block_layout(node, placement),
+                )
+            )
     out.append("</ol>")
     return "".join(out)
 
@@ -563,15 +688,26 @@ def _doc_total_marks(blocks: list[dict]) -> int:
 def _render_document_body(
     doc: dict, *, answer_key: bool, assets: AssetResolver | None = None
 ) -> str:
+    placement = _placement(doc)
     """Document blocks in order; questions and rich text share one numbering counter."""
     out: list[str] = ['<div class="doc-body questions">']
     for node in doc["content"]["content"]:
         if node["type"] == "freeformQuestion":
-            out.extend(_render_freeform_item(node, answer_key=answer_key, assets=assets))
+            out.extend(
+                _render_freeform_item(
+                    node,
+                    answer_key=answer_key,
+                    assets=assets,
+                    layout=_block_layout(node, placement),
+                )
+            )
         elif node["type"] == "templatedQuestion":
             out.extend(
                 _render_question_item(
-                    node["attrs"]["question"], answer_key=answer_key, tag="section"
+                    node["attrs"]["question"],
+                    answer_key=answer_key,
+                    tag="section",
+                    layout=_block_layout(node, placement),
                 )
             )
         else:
@@ -608,7 +744,9 @@ def render_document_html(
             f'<p class="sheet-meta"><span class="field-marks">Total: {marks} marks</span></p>'
             "</header>"
         )
-        body = _render_numbered_blocks(blocks, answer_key=True, assets=assets)
+        body = _render_numbered_blocks(
+            blocks, answer_key=True, assets=assets, placement=_placement(doc)
+        )
         return _document(
             root_class="sheet answer-key", title=title, header_html=header, body_html=body
         )
@@ -624,12 +762,13 @@ def render_document_html(
     )
     body = _render_document_body(doc, answer_key=False, assets=assets)
     if mode == "full":
-        body += (
-            '<section class="key-section">'
-            '<h2 class="key-heading">Answer Key</h2>'
-            f"{_render_numbered_blocks(blocks, answer_key=True, assets=assets)}"
-            "</section>"
+        key = _render_numbered_blocks(
+            blocks, answer_key=True, assets=assets, placement=_placement(doc)
         )
+        body += (
+            f'<section class="key-section"><h2 class="key-heading">Answer Key</h2>{key}</section>'
+        )
+
     return _document(
         root_class="sheet worksheet" + (" with-key" if mode == "full" else ""),
         title=title,
@@ -643,18 +782,33 @@ def render_document_html(
 # ---------------------------------------------------------------------------
 
 
-def render_question_fragment(obj: dict, *, mode: str = "student", number: int | None = None) -> str:
+def render_question_fragment(
+    obj: dict,
+    *,
+    mode: str = "student",
+    number: int | None = None,
+    placement: str | None = None,
+    answer_area: bool = True,
+) -> str:
     """One question as an HTML *fragment* (no ``<html>``), for embedding in the editor.
 
     The same markup the printed sheets use, so any question the schema can hold — MCQ
     options, tables, grids, constructions, stem figures — draws correctly without a
     TypeScript mirror. ``mode`` is ``student`` (answer space) or ``key`` (worked solution,
     marking scheme, correct option). ``number`` sets the question number shown; omitted,
-    the number is hidden (the editor draws its own).
+    the number is hidden (the editor draws its own). ``placement`` (question / answer / both)
+    prints the question the way a paper does (marks per the setting); ``answer_area=False``
+    leaves out the working space and Ans: line for a caller that draws its own, editable one.
     """
     if mode not in ("student", "key"):
         raise ValueError(f"unknown fragment mode {mode!r}")
-    items = _render_question_item(obj, answer_key=mode == "key", tag="section")
+    items = _render_question_item(
+        obj,
+        answer_key=mode == "key",
+        tag="section",
+        layout=Layout(placement) if placement else None,
+        answer_area=answer_area,
+    )
     if number is None:
         return '<div class="frag unnumbered">' + "".join(items) + "</div>"
     return f'<div class="frag" style="counter-reset: q {number - 1}">' + "".join(items) + "</div>"

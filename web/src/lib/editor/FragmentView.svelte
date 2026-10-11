@@ -6,10 +6,13 @@
   import { onDestroy } from 'svelte'
   import type { Question } from '../types'
   import { loadFragmentAssets, renderQuestion, typeset } from './fragments'
+  import type { MarksPlacement } from './layout'
 
   export let question: Question
   export let mode: 'student' | 'key' = 'student'
   export let number: number | null = null
+  /** Print the way a paper does (marks per the setting), the editor drawing the answer area. */
+  export let paper: { placement: MarksPlacement; answerArea: boolean } | undefined = undefined
 
   let host: HTMLDivElement | undefined
   let mountPoint: HTMLDivElement | null = null
@@ -18,10 +21,15 @@
   let alive = true
   onDestroy(() => (alive = false))
 
-  async function draw(q: Question, m: 'student' | 'key', n: number | null) {
+  async function draw(
+    q: Question,
+    m: 'student' | 'key',
+    n: number | null,
+    pp: typeof paper,
+  ) {
     const ticket = ++latest
     try {
-      const [html, assets] = await Promise.all([renderQuestion(q, m, n), loadFragmentAssets()])
+      const [html, assets] = await Promise.all([renderQuestion(q, m, n, pp), loadFragmentAssets()])
       if (!alive || ticket !== latest || !host) return // superseded or gone
       if (!mountPoint) {
         const root = host.attachShadow({ mode: 'open' })
@@ -38,7 +46,7 @@
     }
   }
 
-  $: if (host) void draw(question, mode, number)
+  $: if (host) void draw(question, mode, number, paper)
 </script>
 
 <div class="fragment" bind:this={host} data-testid="fragment"></div>

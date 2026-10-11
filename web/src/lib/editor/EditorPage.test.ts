@@ -84,7 +84,7 @@ describe('EditorPage', () => {
         return b
       })
       expect(block).toHaveTextContent('Typed on the page.')
-      expect(block.querySelector('.ff-marks')).toHaveTextContent('[4]')
+      expect(block.querySelector('.ff-area .marks')).toHaveTextContent('[4]')
       expect(screen.getByText('7 marks', { selector: '.total' })).toBeInTheDocument()
       expect(document.querySelectorAll('.entry')).toHaveLength(2)
       expect(screen.getByRole('button', { name: 'Answer key PDF' })).toBeEnabled()
@@ -97,11 +97,11 @@ describe('EditorPage', () => {
       input.value = '5'
       await fireEvent.change(input)
       await waitFor(() => expect(screen.getByText('5 marks', { selector: '.total' })).toBeInTheDocument())
-      expect(document.querySelector('.ff-marks')).toHaveTextContent('[5]')
+      expect(document.querySelector('.ff-area .marks')).toHaveTextContent('[5]')
       input.value = ''
       await fireEvent.change(input)
       await waitFor(() => expect(screen.getByText('0 marks', { selector: '.total' })).toBeInTheDocument())
-      expect(document.querySelector('.ff-marks')).toHaveTextContent('')
+      expect(document.querySelector('.ff-area .marks')).toBeNull()
     })
 
     it('"Add question → Free-form" inserts an empty block', async () => {
@@ -237,7 +237,7 @@ describe('EditorPage convert to free-form (W2c)', () => {
     await waitFor(() => expect(document.querySelector('.ffblock')).toBeTruthy())
     expect(screen.queryByTestId('question-block')).toBeNull()
     expect(document.querySelector('.ffblock')).toHaveTextContent('Converted question text.')
-    expect(document.querySelector('.ffblock .ff-marks')).toHaveTextContent('[3]')
+    expect(document.querySelector('.ffblock .ff-area .marks')).toHaveTextContent('[3]')
     expect(document.querySelector('.ffblock img.doc-image-img')).toBeTruthy()
     expect(document.querySelector('.entry.freeform .ProseMirror')).toHaveTextContent('Answer: $40')
     expect(screen.getByText('3 marks', { selector: '.total' })).toBeInTheDocument()
@@ -318,5 +318,80 @@ describe('EditorPage export allowance (W3c)', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'Student PDF' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Try again in 42 seconds.')
     expect(screen.getByRole('alert')).not.toHaveTextContent('API 429')
+  })
+})
+
+describe('toolbar (P1)', () => {
+  function renderEmpty() {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => record([]),
+    })
+    return render(EditorPage, { props: { id: 'd1' } })
+  }
+
+  it('uses labelled icon buttons for lists, page break, equation, image, undo and redo', async () => {
+    renderEmpty()
+    for (const name of [
+      'Bulleted list',
+      'Numbered list',
+      'Page break',
+      'Equation',
+      'Image',
+      'Undo',
+      'Redo',
+    ]) {
+      const b = await screen.findByRole('button', { name })
+      expect(b.querySelector('svg')).not.toBeNull()
+      expect(b).toHaveAttribute('title')
+    }
+  })
+
+  it('sits in a sticky strip below the top bar so it stays visible while scrolling', async () => {
+    const { container } = renderEmpty()
+    await screen.findByRole('toolbar', { name: 'Formatting' })
+    expect(container.querySelector('.toolstrip .tools')).not.toBeNull()
+  })
+})
+
+describe('paper layout (P2)', () => {
+  function renderWith(settings?: object) {
+    const q = makeQuestion({ id: 'a' }, 'Find x.')
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...record([questionNode(q), freeformDocNode({ marks: 2 })]),
+        document: {
+          schema_version: '1.4.0',
+          title: 'Ratio Review',
+          content: {
+            type: 'doc',
+            content: [questionNode(q), freeformDocNode({ marks: 2 })],
+          },
+          ...(settings ? { settings } : {}),
+        },
+      }),
+    })
+    return render(EditorPage, { props: { id: 'd1' } })
+  }
+
+  it('draws the working space and the Ans: line under every written question', async () => {
+    renderWith()
+    await screen.findByText('Find x.')
+    await waitFor(() => expect(screen.getAllByTestId('answer-area')).toHaveLength(2))
+    expect(screen.getByLabelText('Marks shown')).toHaveValue('answer')
+  })
+
+  it('moves the marks when the setting changes, and remembers a saved setting', async () => {
+    renderWith({ marks_placement: 'question' })
+    await screen.findByText('Find x.')
+    const select = screen.getByLabelText('Marks shown') as HTMLSelectElement
+    await waitFor(() => expect(select.value).toBe('question'))
+    expect(document.querySelector('.ffblock .ff-marks')).toHaveTextContent('[2]')
+    await fireEvent.change(select, { target: { value: 'answer' } })
+    await waitFor(() => expect(document.querySelector('.ffblock .ff-marks')).toHaveTextContent(''))
+    expect(document.querySelector('.ff-area .marks')).toHaveTextContent('[2]')
   })
 })
