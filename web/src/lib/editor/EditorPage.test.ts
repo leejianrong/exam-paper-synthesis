@@ -448,7 +448,7 @@ describe('multi-part free-form questions (P3)', () => {
     expect(document.querySelectorAll('.ffpart [data-testid=answer-area]')).toHaveLength(2)
     // The question's own marks and answer area give way to the parts'.
     expect(document.querySelector('.ffblock > .ff-main > .ff-area')).toHaveProperty('hidden', true)
-    await waitFor(() => expect(screen.getByText('2 parts · 2 marks')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('2 parts · 3 marks')).toBeInTheDocument())
     const inputs = screen.getAllByLabelText('Part marks') as HTMLInputElement[]
     inputs[0].value = '3'
     await fireEvent.change(inputs[0])

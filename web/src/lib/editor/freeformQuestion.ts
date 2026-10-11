@@ -5,10 +5,11 @@
 // toolbar that never prints; `[n]` shows on the page exactly as it prints.
 
 import { Node } from '@tiptap/core'
+import { Plugin } from '@tiptap/pm/state'
 import type { NodeViewRendererProps } from '@tiptap/core'
 import { EMPTY_ANSWER } from './doc'
 import { moveBlock } from './templatedQuestion'
-import { FreeformPart, MAX_PARTS, PART_NODE, partLetter } from './freeformPart'
+import { FreeformPart, MAX_PARTS, PART_NODE, jsonAttr, partLetter } from './freeformPart'
 import { mount, unmount } from 'svelte'
 import { get, writable } from 'svelte/store'
 import FreeformArea from './FreeformArea.svelte'
@@ -18,21 +19,6 @@ import { paperSettings } from './paperSettings'
 export interface FreeformQuestionOptions {
   onAddBelow: (afterPos: number) => void
 }
-
-const jsonAttr = <T>(name: string, fallback: T) => ({
-  default: fallback,
-  parseHTML: (el: HTMLElement): T => {
-    try {
-      const raw = el.getAttribute(name)
-      return raw === null ? fallback : (JSON.parse(raw) as T)
-    } catch {
-      return fallback
-    }
-  },
-  renderHTML: (attrs: Record<string, unknown>) => ({
-    [name]: JSON.stringify(attrs[name.replace('data-', '')] ?? fallback),
-  }),
-})
 
 function clampMarks(raw: string): number | null {
   if (raw.trim() === '') return null
@@ -74,8 +60,8 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       marks: jsonAttr<number | null>('data-marks', null),
       answer: jsonAttr('data-answer', EMPTY_ANSWER),
       remark: { default: null }, // the author's private note (inspector); never printed
-      space_mm: { default: null }, // blank working space (mm); null = the default for its marks
-      ans_unit: { default: null }, // unit printed after Ans:
+      space_mm: jsonAttr<number | null>('data-space_mm', null), // blank working space (mm)
+      ans_unit: jsonAttr<string | null>('data-ans_unit', null), // unit printed after Ans:
     }
   },
 
@@ -85,6 +71,28 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
 
   renderHTML({ HTMLAttributes }) {
     return ['div', { 'data-freeform-question': '', ...HTMLAttributes }, 0]
+  },
+
+  addProseMirrorPlugins() {
+    // A pasted question with more than MAX_PARTS parts would save fine in the editor and be
+    // refused by the server; refuse it here instead.
+    return [
+      new Plugin({
+        filterTransaction: (tr) => {
+          if (!tr.docChanged) return true
+          let ok = true
+          tr.doc.forEach((n) => {
+            if (n.type.name !== this.name) return
+            let parts = 0
+            n.forEach((c) => {
+              if (c.type.name === PART_NODE) parts++
+            })
+            if (parts > MAX_PARTS) ok = false
+          })
+          return ok
+        },
+      }),
+    ]
   },
 
   addKeyboardShortcuts() {
@@ -186,10 +194,18 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         if (parts().length >= MAX_PARTS) return
         const { tr, schema } = editor.state
         const at = pos() + current.nodeSize - 1 // the end of the question's content
-        const part = schema.nodes[PART_NODE].create({ marks: 1 }, [schema.nodes.paragraph.create()])
+        // The first part takes over the question's marks and written answer (nothing is lost);
+        // later parts start at one mark.
+        const first = parts().length === 0
+        const part = schema.nodes[PART_NODE].create(
+          first
+            ? { marks: current.attrs.marks ?? 1, answer: current.attrs.answer }
+            : { marks: 1 },
+          [schema.nodes.paragraph.create()],
+        )
         tr.insert(at, part)
-        if (current.attrs.marks !== null) {
-          tr.setNodeMarkup(pos(), undefined, { ...current.attrs, marks: null })
+        if (first) {
+          tr.setNodeMarkup(pos(), undefined, { ...current.attrs, marks: null, answer: EMPTY_ANSWER })
         }
         editor.view.dispatch(tr)
         editor.commands.focus(at + 2)

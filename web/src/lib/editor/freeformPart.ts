@@ -19,6 +19,22 @@ export const MAX_PARTS = 10
 /** "a" for the first part, "b" for the second… */
 export const partLetter = (index: number): string => String.fromCharCode(97 + index)
 
+/** An attribute carried as JSON in an HTML attribute, so copy/paste round-trips objects and numbers. */
+export const jsonAttr = <T>(name: string, fallback: T) => ({
+  default: fallback,
+  parseHTML: (el: HTMLElement): T => {
+    try {
+      const raw = el.getAttribute(name)
+      return raw === null ? fallback : (JSON.parse(raw) as T)
+    } catch {
+      return fallback
+    }
+  },
+  renderHTML: (attrs: Record<string, unknown>) => ({
+    [name]: JSON.stringify(attrs[name.replace('data-', '')] ?? fallback),
+  }),
+})
+
 function clampMarks(raw: string): number | null {
   if (raw.trim() === '') return null
   const n = Math.round(Number(raw))
@@ -51,10 +67,10 @@ export const FreeformPart = Node.create({
 
   addAttributes() {
     return {
-      marks: { default: 1 },
-      answer: { default: EMPTY_ANSWER },
-      space_mm: { default: null },
-      ans_unit: { default: null },
+      marks: jsonAttr<number | null>('data-marks', 1),
+      answer: jsonAttr('data-answer', EMPTY_ANSWER),
+      space_mm: jsonAttr<number | null>('data-space_mm', null),
+      ans_unit: jsonAttr<string | null>('data-ans_unit', null),
     }
   },
 
@@ -101,13 +117,28 @@ export const FreeformPart = Node.create({
       field.append(input)
       const del = el('button', 'danger', 'Delete part')
       del.type = 'button'
-      del.addEventListener('click', () =>
-        editor
-          .chain()
-          .focus()
-          .deleteRange({ from: pos(), to: pos() + current.nodeSize })
-          .run(),
-      )
+      del.addEventListener('click', () => {
+        const { tr, doc } = editor.state
+        const $pos = doc.resolve(pos())
+        const parent = $pos.parent
+        let parts = 0
+        parent.forEach((c) => {
+          if (c.type.name === PART_NODE) parts++
+        })
+        tr.delete(pos(), pos() + current.nodeSize)
+        // Deleting the only part makes the question single-part again: it takes the part's
+        // marks and answer back, so nothing the teacher wrote is lost.
+        if (parts === 1) {
+          const qPos = $pos.before($pos.depth)
+          tr.setNodeMarkup(qPos, undefined, {
+            ...parent.attrs,
+            marks: current.attrs.marks ?? null,
+            answer: current.attrs.answer ?? EMPTY_ANSWER,
+          })
+        }
+        editor.view.dispatch(tr)
+        editor.view.focus()
+      })
       bar.append(field, el('span', 'ff-spacer'), del)
 
       const patch = (attrs: Record<string, unknown>) => {
