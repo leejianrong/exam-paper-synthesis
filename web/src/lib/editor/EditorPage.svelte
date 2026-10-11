@@ -582,6 +582,10 @@
     display: none;
   }
 
+  .desk :global(.qblock),
+  .desk :global(.ffblock) {
+    scroll-margin-top: calc(var(--bar-h, 0px) + 5rem); /* clear the sticky bars */
+  }
   .desk {
     display: flex;
     justify-content: center;
