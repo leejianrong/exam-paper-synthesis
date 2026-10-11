@@ -22,6 +22,15 @@ async function addQuestion(page, { topic = 'Ratio', difficulty = 'Medium' } = {}
   await expect(dialog).toBeHidden()
 }
 
+// The top bar and formatting toolbar stay pinned while the paper scrolls; put a block's top
+// edge just below them before clicking near it, so they never cover the click (a block can be
+// taller than the window, so centring it is not enough).
+const centre = (locator) =>
+  locator.evaluate((el) => {
+    el.scrollIntoView({ block: 'start' })
+    window.scrollBy(0, -170)
+  })
+
 test('build a paper, edit questions, reload, preview and export', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Your papers' })).toBeVisible()
@@ -127,6 +136,7 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
   // Status is in the inspector, never on the page.
   await expect(block.getByText('From my bank')).toHaveCount(0)
   await expect(block.getByText('Unreviewed')).toHaveCount(0)
+  await centre(block)
   await block.click({ position: { x: 12, y: 60 } })
   const inspector = page.getByRole('complementary', { name: 'Inspector' })
   await expect(inspector).toContainText('From my bank')
@@ -187,7 +197,7 @@ test('write a free-form question, set marks, write its answer, reload, preview a
   await expect(block.locator('.ff-body')).toHaveText('Ann has 12 sweets and gives away 5. How many are left?')
   await block.getByLabel('Marks').fill('3')
   await block.getByLabel('Marks').press('Enter')
-  await expect(block.locator('.ff-marks')).toHaveText('[3]')
+  await expect(block.locator('.ff-area .marks')).toHaveText('[3]')
 
   // The answer is written in the key region (entry 2: numbering is shared).
   const entry = page.getByRole('region', { name: 'Answer key' }).locator('.entry.freeform')
@@ -198,7 +208,7 @@ test('write a free-form question, set marks, write its answer, reload, preview a
   await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
   await page.reload()
   await expect(page.locator('.ffblock')).toContainText('How many are left?')
-  await expect(page.locator('.ffblock .ff-marks')).toHaveText('[3]')
+  await expect(page.locator('.ffblock .ff-area .marks')).toHaveText('[3]')
   await expect(page.locator('.entry.freeform .answer')).toContainText('Ann has 7 sweets left.')
 
   const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
@@ -305,7 +315,7 @@ test('convert a generated question to free-form: text, answer and its figure as 
   const img = ff.locator('img.doc-image-img')
   await expect(img).toBeVisible()
   await expect.poll(() => img.evaluate((e) => e.naturalWidth)).toBeGreaterThan(100)
-  await expect(ff.locator('.ff-marks')).toHaveText(/\[\d+\]/)
+  await expect(ff.locator('.ff-area .marks')).toHaveText(/\[\d+\]/)
   const entry = page.getByRole('region', { name: 'Answer key' }).locator('.entry.freeform')
   await expect(entry.locator('.answer')).toContainText('Answer:')
   if (original) await expect(ff.locator('.ff-body')).toContainText(original.slice(0, 20))
@@ -400,6 +410,7 @@ test('a remark is private: kept through edits and reloads, never in a preview or
   const block = page.getByTestId('question-block').first()
 
   // Select the question (click in it) and write a remark in the inspector.
+  await centre(block)
   await block.click({ position: { x: 5, y: 5 } })
   const remark = page.getByLabel(/^Remarks/)
   await remark.fill(SECRET)
@@ -412,7 +423,8 @@ test('a remark is private: kept through edits and reloads, never in a preview or
 
   await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
   await page.reload()
-  await page.getByTestId('question-block').first().click({ position: { x: 5, y: 5 } })
+  await centre(block)
+  await block.click({ position: { x: 5, y: 5 } })
   await expect(page.getByLabel(/^Remarks/)).toHaveValue(SECRET)
 
   for (const mode of ['student', 'key', 'full']) {
@@ -453,6 +465,7 @@ test('reviewing a bank question is a deliberate act: confirm to mark, one click 
   // The copy a paper takes carries the review; the inspector says so and can withdraw it.
   await item.getByRole('button', { name: 'Use this' }).click()
   const block = page.getByTestId('question-block')
+  await centre(block)
   await block.click({ position: { x: 12, y: 60 } })
   const inspector = page.getByRole('complementary', { name: 'Inspector' })
   await expect(inspector).toContainText('reviewed by you')
@@ -463,6 +476,7 @@ test('reviewing a bank question is a deliberate act: confirm to mark, one click 
   // …and the paper remembers, across a reload.
   await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
   await page.reload()
+  await centre(page.getByTestId('question-block'))
   await page.getByTestId('question-block').click({ position: { x: 12, y: 60 } })
   await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText('not yet reviewed')
 })

@@ -32,7 +32,15 @@ def render_question(req: RenderQuestionRequest) -> dict:
     except CanonicalValidationError as e:
         raise HTTPException(status_code=422, detail=f"invalid question: {e}") from e
     mode: Literal["student", "key"] = req.mode
-    return {"html": render_question_fragment(question, mode=mode, number=req.number)}
+    return {
+        "html": render_question_fragment(
+            question,
+            mode=mode,
+            number=req.number,
+            placement=req.placement,
+            answer_area=req.answer_area,
+        )
+    }
 
 
 @router.post("/diagram")

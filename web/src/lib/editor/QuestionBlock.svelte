@@ -9,18 +9,29 @@
   import NamesPopover from './NamesPopover.svelte'
   import FragmentView from './FragmentView.svelte'
   import QuestionBody from './QuestionBody.svelte'
+  import AnswerArea from './AnswerArea.svelte'
+  import { DEFAULT_PLACEMENT, type BlockLayout } from './layout'
+  import { paperSettings } from './paperSettings'
 
   export let store: Readable<Question>
+  export let layout: Readable<BlockLayout>
   export let ctx: {
     replace: (q: Question) => void
     remove: () => void
     move: (dir: -1 | 1) => void
     addBelow: () => void
     convert: () => Promise<void>
+    setLayout: (patch: Partial<BlockLayout>) => void
   }
 
   $: q = $store
   $: part = q.question.parts[0]
+  $: placement = $paperSettings.marks_placement ?? DEFAULT_PLACEMENT
+  $: multipart = q.question.parts.length > 1
+  // Only written answers get working space and an Ans: line (not MCQ, not a construction).
+  $: writtenParts = q.question.parts.filter(
+    (p) => !['choice', 'construction'].includes(p.answer?.type ?? ''),
+  )
   // A sourced (bank) question is teacher-vouched: drawn by the engine's print renderer, with
   // none of the engine-only edits. Its status lives in the inspector, not on the page.
   $: fromBank = q.source_type === 'sourced'
@@ -64,10 +75,22 @@
   <div class="num" aria-hidden="true"></div>
   <div class="main">
     {#if fromBank}
-      <FragmentView question={q} />
+      <FragmentView question={q} paper={{ placement, answerArea: false }} />
     {:else}
       <QuestionBody {q} />
     {/if}
+
+    {#each writtenParts as p, i (i)}
+      <AnswerArea
+        marks={p.marks ?? null}
+        label={multipart ? (p.label ?? '') : ''}
+        {placement}
+        spaceMm={$layout.space_mm}
+        unit={$layout.ans_unit ?? p.answer?.unit ?? null}
+        onSpace={(mm) => ctx.setLayout({ space_mm: mm })}
+        onUnit={(u) => ctx.setLayout({ ans_unit: u })}
+      />
+    {/each}
 
     {#if editingNames}
       <NamesPopover

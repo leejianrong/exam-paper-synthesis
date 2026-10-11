@@ -3,8 +3,9 @@
 
 import type { Question } from '../types'
 import { assetUrl } from './assets'
+import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.3.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.4.0'
 
 export interface DocNode {
   type: string
@@ -24,6 +25,7 @@ export interface PaperDocument {
   schema_version: string
   title: string
   content: DocJSON
+  settings?: PaperSettings
 }
 
 export interface DocumentRecord {
@@ -93,12 +95,20 @@ export function cleanNode(node: DocNode): DocNode {
     const { remark, ...rest } = out.attrs
     const text = typeof remark === 'string' ? remark.trim() : ''
     out = { ...out, attrs: text ? { ...rest, remark: text } : rest }
+    // Layout overrides are optional: an unset one is absent (null/undefined), never a guess.
+    const attrs = { ...(out.attrs as Record<string, unknown>) }
+    if (attrs.space_mm === null || attrs.space_mm === undefined) delete attrs.space_mm
+    if (attrs.ans_unit === null || attrs.ans_unit === undefined) delete attrs.ans_unit
+    out = { ...out, attrs }
   }
   if (out.type === 'freeformQuestion' && out.attrs?.answer) {
     const answer = out.attrs.answer as DocJSON
     out = {
       ...out,
-      attrs: { ...out.attrs, answer: { ...answer, content: (answer.content ?? []).map(cleanNode) } },
+      attrs: {
+        ...out.attrs,
+        answer: { ...answer, content: (answer.content ?? []).map(cleanNode) },
+      },
     }
   }
   return out
@@ -109,7 +119,7 @@ export function normalizeAnswer(answer: DocJSON | undefined | null): DocJSON {
   const content = (answer?.content ?? []).map(cleanNode)
   while (content.length) {
     const last = content[content.length - 1]
-    if (last.type === 'paragraph' && !(last.content?.length)) content.pop()
+    if (last.type === 'paragraph' && !last.content?.length) content.pop()
     else break
   }
   return { type: 'doc', content }
@@ -126,7 +136,11 @@ export function freeformNode(): DocNode {
 
 const esc = (t: string): string =>
   t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-const MARK_TAGS: Record<string, string> = { bold: 'strong', italic: 'em', underline: 'u' }
+const MARK_TAGS: Record<string, string> = {
+  bold: 'strong',
+  italic: 'em',
+  underline: 'u',
+}
 
 /** Escaped HTML for a restricted text block list (read-only views of free-form text). */
 export function blocksToHtml(nodes: DocNode[] | undefined): string {
@@ -169,7 +183,11 @@ function inlineHtml(nodes: DocNode[] | undefined): string {
  * Wrap editor content in the stored envelope. Copy/paste can duplicate a question
  * block (and its block_id); the server rejects duplicates, so repeats get a fresh id.
  */
-export function buildDocument(title: string, content: DocJSON): PaperDocument {
+export function buildDocument(
+  title: string,
+  content: DocJSON,
+  settings?: PaperSettings,
+): PaperDocument {
   const seen = new Set<string>()
   const blocks = (content.content ?? []).map(cleanNode).map((node) => {
     if (node.type !== 'templatedQuestion' && node.type !== 'freeformQuestion') return node
@@ -182,5 +200,6 @@ export function buildDocument(title: string, content: DocJSON): PaperDocument {
     schema_version: DOCUMENT_SCHEMA_VERSION,
     title,
     content: { type: 'doc', content: blocks },
+    ...(settings && Object.keys(settings).length ? { settings } : {}),
   }
 }

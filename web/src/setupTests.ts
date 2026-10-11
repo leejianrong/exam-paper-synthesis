@@ -13,3 +13,12 @@ if (typeof Range !== 'undefined') {
 if (typeof document !== 'undefined' && !document.elementFromPoint) {
   document.elementFromPoint = () => null
 }
+
+// jsdom has no ResizeObserver (Svelte's bind:clientHeight uses it); a no-op is enough.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}

@@ -9,9 +9,17 @@
   "properties": {
     "schema_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
     "title": { "type": "string", "maxLength": 200 },
-    "content": { "$ref": "#/$defs/doc" }
+    "content": { "$ref": "#/$defs/doc" },
+    "settings": { "$ref": "#/$defs/settings" }
   },
   "$defs": {
+    "settings": {
+      "type": "object", "additionalProperties": false,
+      "$comment": "Per-question `space_mm` (blank working space, mm; null = default for its marks) and `ans_unit` (unit printed after the Ans: line; null = from the answer) were added with this. Paper-wide print settings (added 1.4.0). marks_placement: where each question's [n] prints; default 'answer' (beside the Ans: line).",
+      "properties": {
+        "marks_placement": { "enum": ["question", "answer", "both"], "default": "answer" }
+      }
+    },
     "doc": {
       "type": "object", "additionalProperties": false,
       "required": ["type", "content"],
@@ -166,6 +174,8 @@
           "properties": {
             "block_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{4,64}$" },
             "question": { "type": "object", "description": "Frozen snapshot of a canonical question object (validated by the canonical schema)." },
+            "space_mm": { "type": ["integer", "null"], "minimum": 0, "maximum": 250 },
+            "ans_unit": { "type": ["string", "null"], "maxLength": 12 },
             "remark": { "$ref": "#/$defs/remark" }
           }
         }
@@ -182,6 +192,8 @@
           "properties": {
             "block_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{4,64}$" },
             "marks": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+            "space_mm": { "type": ["integer", "null"], "minimum": 0, "maximum": 250 },
+            "ans_unit": { "type": ["string", "null"], "maxLength": 12 },
             "answer": { "$ref": "#/$defs/answer_doc" },
             "remark": { "$ref": "#/$defs/remark" }
           }
