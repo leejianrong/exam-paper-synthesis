@@ -8,11 +8,12 @@
 
   export let q: Question
   $: part = q.question.parts[0]
+  $: hasLine = !['choice', 'construction'].includes(part.answer?.type ?? '')
   $: placement = $paperSettings.marks_placement ?? DEFAULT_PLACEMENT
 </script>
 
 <div class="qbody">
-  {#if placement !== 'answer'}
+  {#if placement !== 'answer' || !hasLine}
     <div class="meta">
       <span class="marks">[{part.marks}]</span>
     </div>

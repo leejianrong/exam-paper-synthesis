@@ -183,3 +183,20 @@ def test_schema_rejects_bad_layout_values(mutate):
     doc = make_doc(freeform_block("q"))
     mutate(doc)
     assert validate_document(doc)
+
+
+def test_a_part_with_no_answer_line_keeps_its_marks_beside_the_question():
+    import json
+    from pathlib import Path
+
+    src = Path(__file__).parent / "fixtures" / "sourced" / "standin_cubestack_view.json"
+    q = json.loads(src.read_text("utf-8"))
+    q["question"]["parts"][0]["marks"] = 3
+    q["question"]["total_marks"] = 3
+    block = {"type": "templatedQuestion", "attrs": {"block_id": "t_0001", "question": q}}
+    for placement in ("answer", "question", "both"):
+        doc = make_doc(copy.deepcopy(block))
+        doc["settings"] = {"marks_placement": placement}
+        assert _html(doc).count('<span class="marks">[3]</span>') == 1, placement
+    frag = render_question_fragment(q, placement="answer", answer_area=False)
+    assert frag.count('<span class="marks">[3]</span>') == 1

@@ -9,8 +9,8 @@ import type { NodeViewRendererProps } from '@tiptap/core'
 import { EMPTY_ANSWER } from './doc'
 import { moveBlock } from './templatedQuestion'
 import { mount, unmount } from 'svelte'
-import { get } from 'svelte/store'
-import AnswerArea from './AnswerArea.svelte'
+import { get, writable } from 'svelte/store'
+import FreeformArea from './FreeformArea.svelte'
 import { DEFAULT_PLACEMENT, layoutOf } from './layout'
 import { paperSettings } from './paperSettings'
 
@@ -179,23 +179,25 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         tr.setNodeMarkup(pos(), undefined, { ...current.attrs, ...patch })
         editor.view.dispatch(tr)
       }
-      let area: ReturnType<typeof mount> | null = null
-      const drawArea = () => {
-        if (area) void unmount(area)
-        const marks = (current.attrs.marks as number | null) ?? null
+      const areaState = writable(areaProps())
+      const area = mount(FreeformArea, {
+        target: areaHost,
+        props: {
+          state: { subscribe: areaState.subscribe },
+          onSpace: (mm: number | null) => setLayout({ space_mm: mm }),
+          onUnit: (u: string) => setLayout({ ans_unit: u }),
+        },
+      })
+      function areaProps() {
         const l = layoutOf(current.attrs)
-        area = mount(AnswerArea, {
-          target: areaHost,
-          props: {
-            marks,
-            spaceMm: l.space_mm,
-            unit: l.ans_unit,
-            placement: get(paperSettings).marks_placement ?? DEFAULT_PLACEMENT,
-            onSpace: (mm: number | null) => setLayout({ space_mm: mm }),
-            onUnit: (u: string) => setLayout({ ans_unit: u }),
-          },
-        })
+        return {
+          marks: (current.attrs.marks as number | null) ?? null,
+          spaceMm: l.space_mm,
+          unit: l.ans_unit,
+          placement: get(paperSettings).marks_placement ?? DEFAULT_PLACEMENT,
+        }
       }
+
       const sync = () => {
         const marks = current.attrs.marks as number | null
         const placement = get(paperSettings).marks_placement ?? DEFAULT_PLACEMENT
@@ -206,7 +208,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       sync()
       const unsubscribe = paperSettings.subscribe(() => {
         sync()
-        drawArea()
+        areaState.set(areaProps())
       })
 
       return {
@@ -214,21 +216,15 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         contentDOM,
         update(updated) {
           if (updated.type !== node.type) return false
-          const before = current
           current = updated
           dom.setAttribute('data-block-id', String(updated.attrs.block_id))
           sync()
-          if (
-            before.attrs.marks !== updated.attrs.marks ||
-            before.attrs.space_mm !== updated.attrs.space_mm ||
-            before.attrs.ans_unit !== updated.attrs.ans_unit
-          )
-            drawArea()
+          areaState.set(areaProps())
           return true
         },
         destroy() {
           unsubscribe()
-          if (area) void unmount(area)
+          void unmount(area)
         },
         // Clicks and typing in the toolbar are ours; the body is ProseMirror's.
         stopEvent: (event) => bar.contains(event.target as globalThis.Node),

@@ -394,4 +394,19 @@ describe('paper layout (P2)', () => {
     await waitFor(() => expect(document.querySelector('.ffblock .ff-marks')).toHaveTextContent(''))
     expect(document.querySelector('.ff-area .marks')).toHaveTextContent('[2]')
   })
+
+  it('resizes a free-form block in place: the handle survives so a drag or key run continues', async () => {
+    renderWith()
+    await screen.findByText('Find x.')
+    await waitFor(() => expect(document.querySelectorAll('.ffblock [role=slider]')).toHaveLength(1))
+    const grip = document.querySelector('.ffblock [role=slider]') as HTMLElement
+    grip.focus()
+    await fireEvent.keyDown(grip, { key: 'ArrowDown' })
+    await waitFor(() => expect(grip).toHaveAttribute('aria-valuenow', '55'))
+    expect(grip.isConnected).toBe(true)
+    expect(document.activeElement).toBe(grip)
+    await fireEvent.keyDown(grip, { key: 'ArrowDown' })
+    await waitFor(() => expect(grip).toHaveAttribute('aria-valuenow', '60'))
+    expect(document.querySelector('.ffblock [role=slider]')).toBe(grip)
+  })
 })

@@ -302,7 +302,11 @@ def _render_part_head(
     out.append(f'<div class="part-text">{_mathify(part["text"])}</div>')
     marks = part.get("marks")
     # On a paper the [n] sits beside the question and/or the Ans: line (the key always has it).
-    if marks is not None and (layout is None or answer_key or layout.placement != "answer"):
+    # A part with no Ans: line (MCQ, construction) has nowhere else, so it keeps it here.
+    has_line = (part.get("answer") or {}).get("type") not in ("choice", "construction")
+    if marks is not None and (
+        layout is None or answer_key or layout.placement != "answer" or not has_line
+    ):
         out.append(f'<span class="marks">[{marks}]</span>')
     out.append("</div>")
 
@@ -688,8 +692,8 @@ def _doc_total_marks(blocks: list[dict]) -> int:
 def _render_document_body(
     doc: dict, *, answer_key: bool, assets: AssetResolver | None = None
 ) -> str:
-    placement = _placement(doc)
     """Document blocks in order; questions and rich text share one numbering counter."""
+    placement = _placement(doc)
     out: list[str] = ['<div class="doc-body questions">']
     for node in doc["content"]["content"]:
         if node["type"] == "freeformQuestion":
