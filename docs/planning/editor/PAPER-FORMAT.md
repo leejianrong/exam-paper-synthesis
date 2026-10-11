@@ -60,10 +60,61 @@ count on the page where its answer line falls. The editor can only approximate p
 the WYSIWYG view shows the margin and an indicative box; the PDF is authoritative. Spike this
 before committing to the slice.
 
-## Decisions to confirm (recommended defaults in bold)
+## Decisions (confirmed by the owner, 2026-10-11)
 
-1. Space unit: **presets (S/M/L/XL) + drag in the editor, stored as millimetres**, versus lines.
-2. Default marks placement: **beside the answer line**, switchable per paper.
-3. Tally box and margin: **on by default for sections marked "working", off for MCQ**.
-4. Pagination in the editor: **indicative page frames; the PDF is the source of truth**.
-5. Starter paper templates ship as editable presets: **yes**; the totals are targets that warn, not hard limits.
+1. Space unit: presets (S/M/L/XL) plus a drag handle in the editor, stored as millimetres.
+2. Default marks placement: beside the answer line, switchable per paper (question / answer line / both).
+3. Tally box and margin: on by default for sections marked "working", off for MCQ.
+4. Pagination in the editor: indicative page frames; the PDF is the source of truth.
+5. Starter paper templates ship as editable presets; mark totals are targets that warn, not hard limits.
+
+## Added later the same day
+
+| # | Slice | What | Size |
+|---|---|---|---|
+| **P7** | Cover, title and blank pages | A title/cover page block (school, paper, level, time, candidate name/class/date fields, instructions) and an explicit blank page (e.g. "This page is intentionally left blank", or rough-work space). To be discussed and shaped separately; captured here so it is not lost. | S–M, later |
+| **P8** | One-click full paper generation | See below. | L, its own shaping |
+
+### P8 — generate an entire paper with one click
+
+**Workflow (owner).** A teacher presses one button and gets a whole paper, built to the real
+composition: **Paper 1** (Booklet A: 15 MCQ, 20 marks; Booklet B: 15 short-answer, 25 marks;
+45 marks, 1 hour) and **Paper 2** (calculator allowed: Section A short answer, about Q1–5 at 2 marks
+each = 10 marks; Section B multi-part questions, about Q6–17 = 45 marks). Roughly 50 questions
+across the exam, which is too slow to add one at a time. Sensible default mixes of question types
+per section, and the totals per paper and per section are respected. Then the teacher reviews:
+**keep** the questions they like, **swap** the ones they do not for another from the templated
+blueprints, or **replace with their own** free-form question.
+
+**Shape.**
+- A **paper template** (the P4 starter, now with a composition: per section, a list of slots of
+  `{marks, kind, topic weights, difficulty}`) plus `generate_paper(template, seed)` — pure and
+  deterministic like `generate()`, so the same seed gives the same paper; a different seed is a
+  different paper.
+- Slot filling is a small constraint solve: choose, per slot, a blueprint whose marks and kind
+  match, spread topics (no topic over-represented, no repeated question within a paper), and hit
+  each section's mark total exactly. Failure to fill a slot falls back to a placeholder the teacher
+  fills (never a silent short paper).
+- **Swap** is per-question: "another like this" (same slot, new seed or sibling blueprint),
+  "another topic" and "write my own" (a free-form question that keeps the slot's marks and answer
+  line). Keep/lock a question so a later "regenerate paper" leaves it alone.
+- The UI is a generate-paper dialog (choose paper, level, calculator or not, total/section marks,
+  optionally topic emphasis), which creates a document; everything after that is the ordinary
+  editor.
+
+**Hard dependency — content coverage.** The engine today has 8 ladders of constructed-response
+questions (ratio, fractions, percentage, speed, geometry angle and area, chart reading, volume).
+A real paper needs far more:
+- **MCQ for Booklet A**: none of our blueprints produce multiple choice yet. The schema supports
+  `choice` answers, so this needs a way to turn a constructed-response question into an MCQ
+  (deterministic distractors from common wrong answers) or new MCQ blueprints.
+- **Multi-part structured questions for Paper 2 Section B**: blueprints emit a single part.
+  Needs multi-part blueprints (a shared stem with (a)/(b)/(c)), which also depends on P3.
+- **Topic breadth**: P5/P6 syllabus topics beyond the eight we have (whole numbers, decimals,
+  area and perimeter of composite figures, average, algebra, rate, circles, data tables, and so on).
+  Until coverage grows, generation must honestly report which slots it could fill from blueprints
+  and which are left for the teacher, rather than padding with irrelevant questions.
+
+So P8 is a programme, not one slice: P8a paper templates + generator on the existing blueprints,
+P8b MCQ conversion, P8c multi-part blueprints, P8d keep/swap/lock UI, P8e coverage growth. It sits
+after P2–P4, because a paper needs sections, answer lines and multi-part questions to land in.
