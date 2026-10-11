@@ -198,6 +198,28 @@
             "remark": { "$ref": "#/$defs/remark" }
           }
         },
+        "content": {
+          "type": "array", "minItems": 1,
+          "$comment": "The body (text blocks), then optionally the parts (a), (b)... (added 1.5.0). Parts come last and at most 10; with parts, the marks live on the parts and the question-level marks/answer are unused. Order and limits are enforced by exam_engine.document.validate_document.",
+          "items": { "oneOf": [ { "$ref": "#/$defs/text_block" }, { "$ref": "#/$defs/freeform_part" } ] }
+        }
+      }
+    },
+    "freeform_part": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "attrs", "content"],
+      "$comment": "One lettered part of a multi-part free-form question. The label (a), (b)... is its position, never stored.",
+      "properties": {
+        "type": { "const": "freeformPart" },
+        "attrs": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "marks": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+            "space_mm": { "type": ["integer", "null"], "minimum": 0, "maximum": 250 },
+            "ans_unit": { "type": ["string", "null"], "maxLength": 12 },
+            "answer": { "$ref": "#/$defs/answer_doc" }
+          }
+        },
         "content": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/text_block" } }
       }
     },

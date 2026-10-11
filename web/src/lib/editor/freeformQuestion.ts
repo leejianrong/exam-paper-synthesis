@@ -8,6 +8,7 @@ import { Node } from '@tiptap/core'
 import type { NodeViewRendererProps } from '@tiptap/core'
 import { EMPTY_ANSWER } from './doc'
 import { moveBlock } from './templatedQuestion'
+import { FreeformPart, MAX_PARTS, PART_NODE, partLetter } from './freeformPart'
 import { mount, unmount } from 'svelte'
 import { get, writable } from 'svelte/store'
 import FreeformArea from './FreeformArea.svelte'
@@ -51,10 +52,17 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
   name: 'freeformQuestion',
   // Its own group (not `block`) so a free-form question can only sit at the top level.
   group: 'question',
-  content: '(paragraph | bulletList | orderedList | image)+',
+  // The body, then optionally the lettered parts (P3).
+  content: '(paragraph | bulletList | orderedList | image)+ freeformPart*',
   isolating: true,
   defining: true,
   draggable: false,
+
+  // The lettered parts are part of this node's vocabulary: anything that registers a
+  // free-form question gets them.
+  addExtensions() {
+    return [FreeformPart]
+  },
 
   addOptions() {
     return { onAddBelow: () => {} }
@@ -144,11 +152,15 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         return b
       }
       const spacer = el('span', 'ff-spacer')
+      const totalEl = el('span', 'ff-total')
+      const addPartBtn = button('+ Add part', () => addPart(), '', 'Add a lettered part')
       bar.append(
         label,
+        totalEl,
         spacer,
         button('↑', () => moveBlock(editor, pos(), current.nodeSize, -1), '', 'Move up'),
         button('↓', () => moveBlock(editor, pos(), current.nodeSize, 1), '', 'Move down'),
+        addPartBtn,
         button('+ Add below', () => options.onAddBelow(pos() + current.nodeSize)),
         button(
           'Delete',
@@ -161,6 +173,27 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
           'danger',
         ),
       )
+
+      const parts = () => {
+        const out: Array<{ marks: number }> = []
+        current.forEach((c) => {
+          if (c.type.name === PART_NODE) out.push({ marks: (c.attrs.marks as number | null) ?? 0 })
+        })
+        return out
+      }
+      // Adding the first part moves the marks onto the parts: one undoable step.
+      function addPart() {
+        if (parts().length >= MAX_PARTS) return
+        const { tr, schema } = editor.state
+        const at = pos() + current.nodeSize - 1 // the end of the question's content
+        const part = schema.nodes[PART_NODE].create({ marks: 1 }, [schema.nodes.paragraph.create()])
+        tr.insert(at, part)
+        if (current.attrs.marks !== null) {
+          tr.setNodeMarkup(pos(), undefined, { ...current.attrs, marks: null })
+        }
+        editor.view.dispatch(tr)
+        editor.commands.focus(at + 2)
+      }
 
       input.addEventListener('change', () => {
         const marks = clampMarks(input.value)
@@ -199,6 +232,22 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       }
 
       const sync = () => {
+        const ps = parts()
+        const multi = ps.length > 0
+        dom.classList.toggle('multipart', multi)
+        // With parts the marks are the parts' sum and the question has no answer area of its own.
+        label.hidden = multi
+        areaHost.hidden = multi
+        marksEl.hidden = multi
+        totalEl.textContent = multi
+          ? `${ps.length} part${ps.length === 1 ? '' : 's'} · ${ps.reduce((n, p) => n + p.marks, 0)} marks`
+          : ''
+        addPartBtn.disabled = ps.length >= MAX_PARTS
+        // Parts are lettered by position: relabel after any change to the siblings.
+        // (After ProseMirror has patched the parts' DOM, which happens once update() returns.)
+        queueMicrotask(() =>
+          dom.querySelectorAll('.ffp-label').forEach((n, i) => (n.textContent = `(${partLetter(i)})`)),
+        )
         const marks = current.attrs.marks as number | null
         const placement = get(paperSettings).marks_placement ?? DEFAULT_PLACEMENT
         marksEl.textContent =

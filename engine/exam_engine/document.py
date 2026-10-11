@@ -21,15 +21,17 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
+# 1.5.0 (P3): + freeformPart (lettered parts of a free-form question).
 # 1.4.0 (P2): + settings.marks_placement, per-question space_mm / ans_unit.
 # 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math; 1.3.0 (W5): + question `remark`.
 # Older documents stay valid (every addition is optional).
-DOCUMENT_SCHEMA_VERSION = "1.4.0"
+DOCUMENT_SCHEMA_VERSION = "1.5.0"
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000
 MAX_BLOCK_TEXT_CHARS = 20_000
 MAX_IMAGES = 40
+MAX_PARTS = 10
 
 QUESTION_TYPES = ("templatedQuestion", "freeformQuestion")
 
@@ -71,10 +73,28 @@ def numbered_blocks(doc: dict) -> list[dict]:
     return [n for n in doc["content"]["content"] if n.get("type") in QUESTION_TYPES]
 
 
+def freeform_parts(node: dict) -> list[dict]:
+    """The lettered ``freeformPart`` children of a free-form question (P3), in order."""
+    return [c for c in node.get("content", []) if c.get("type") == "freeformPart"]
+
+
+def freeform_body(node: dict) -> list[dict]:
+    """A free-form question's body blocks (everything that is not a part)."""
+    return [c for c in node.get("content", []) if c.get("type") != "freeformPart"]
+
+
+def freeform_marks(node: dict) -> int:
+    """Marks of a free-form question: the sum over its parts, else its own marks."""
+    parts = freeform_parts(node)
+    if parts:
+        return sum(p["attrs"].get("marks") or 0 for p in parts)
+    return node["attrs"].get("marks") or 0
+
+
 def total_marks(doc: dict) -> int:
     """Templated totals plus the marks teachers gave their free-form questions."""
     return sum(q["question"]["total_marks"] for q in questions_in_order(doc)) + sum(
-        n["attrs"].get("marks") or 0 for n in freeform_blocks(doc)
+        freeform_marks(n) for n in freeform_blocks(doc)
     )
 
 
@@ -97,6 +117,29 @@ def referenced_assets(doc: dict) -> list[str]:
         if n.get("type") == "image":
             seen.setdefault(n["attrs"]["asset_id"], None)
     return list(seen)
+
+
+def _part_answer(part: dict) -> list[dict]:
+    return (part["attrs"].get("answer") or {}).get("content", [])
+
+
+def _check_parts(node: dict, where: str) -> list[str]:
+    """Structure rules the JSON schema cannot express for a multi-part free-form question."""
+    content = node["content"]
+    parts = freeform_parts(node)
+    if not parts:
+        return []
+    errors = []
+    first = next(i for i, c in enumerate(content) if c.get("type") == "freeformPart")
+    if first == 0:
+        errors.append(f"{where}/content: a multi-part question needs a body before its parts")
+    if any(c.get("type") != "freeformPart" for c in content[first:]):
+        errors.append(f"{where}/content: parts must come after the body, with nothing between")
+    if len(parts) > MAX_PARTS:
+        errors.append(f"{where}/content: {len(parts)} parts; the limit is {MAX_PARTS}")
+    if node["attrs"].get("marks") is not None:
+        errors.append(f"{where}/attrs/marks: with parts, marks belong on the parts")
+    return errors
 
 
 def text_length(nodes: list[dict]) -> int:
@@ -144,17 +187,21 @@ def validate_document(doc: object) -> list[str]:
         seen.add(block_id)
 
         if node["type"] == "freeformQuestion":
+            where = f"content/content/{i}"
+            errors += _check_parts(node, where)
             for label, nodes in (
                 ("content", node["content"]),
                 ("answer", node["attrs"].get("answer", {}).get("content", [])),
+                (
+                    "part answers",
+                    [a for p in freeform_parts(node) for a in _part_answer(p)],
+                ),
             ):
                 chars = text_length(nodes)
                 if chars > MAX_BLOCK_TEXT_CHARS:
-                    where = f"content/content/{i}/" + (
-                        "content" if label == "content" else "attrs/answer"
-                    )
+                    loc = f"{where}/" + ("attrs/answer" if label != "content" else "content")
                     errors.append(
-                        f"{where}: {chars} characters of text; the limit is {MAX_BLOCK_TEXT_CHARS}"
+                        f"{loc}: {chars} characters of text; the limit is {MAX_BLOCK_TEXT_CHARS}"
                     )
             continue
 
