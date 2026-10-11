@@ -6,7 +6,8 @@
   import { createEventDispatcher } from 'svelte'
   import { fmtAnswer } from '../format'
   import type { Question } from '../types'
-  import { blocksToHtml, type DocJSON, type DocNode } from './doc'
+  import { blocksToHtml, freeformMarks, freeformParts, type DocJSON, type DocNode } from './doc'
+  import { partLetter } from './freeformPart'
   import AnswerEditor from './AnswerEditor.svelte'
   import { typesetMath } from './math'
   import FragmentView from './FragmentView.svelte'
@@ -15,6 +16,7 @@
 
   const dispatch = createEventDispatcher<{
     answer: { blockId: string; answer: DocJSON }
+    partanswer: { blockId: string; index: number; answer: DocJSON }
     error: string
   }>()
 </script>
@@ -27,17 +29,46 @@
   <ol>
     {#each blocks as block, i (block.attrs?.block_id ?? i)}
       {#if block.type === 'freeformQuestion'}
-        {@const marks = block.attrs?.marks as number | null | undefined}
+        {@const parts = freeformParts(block)}
+        {@const body = (block.content ?? []).filter((c) => c.type !== 'freeformPart')}
+        {@const marks = parts.length ? freeformMarks(block) : (block.attrs?.marks as number | null | undefined)}
         <li class="entry freeform" data-block-id={block.attrs?.block_id}>
           <div class="head">
             <span class="n">{i + 1}.</span>
             <span class="label">Answer</span>
             {#if marks !== null && marks !== undefined}<span class="marks">[{marks}]</span>{/if}
           </div>
-          <div class="qtext" use:typesetMath={blocksToHtml(block.content)}>
+          <div class="qtext" use:typesetMath={blocksToHtml(body)}>
             <!-- eslint-disable-next-line svelte/no-at-html-tags -- escaped by blocksToHtml -->
-            {@html blocksToHtml(block.content)}
+            {@html blocksToHtml(body)}
           </div>
+          {#if parts.length}
+            {#each parts as part, pi (pi)}
+              {@const pmarks = part.attrs?.marks as number | null | undefined}
+              <div class="part" data-part={partLetter(pi)}>
+                <div class="head">
+                  <span class="n">({partLetter(pi)})</span>
+                  <span class="label">Answer</span>
+                  {#if pmarks !== null && pmarks !== undefined}<span class="marks">[{pmarks}]</span>{/if}
+                </div>
+                <div class="qtext" use:typesetMath={blocksToHtml(part.content)}>
+                  <!-- eslint-disable-next-line svelte/no-at-html-tags -- escaped by blocksToHtml -->
+                  {@html blocksToHtml(part.content)}
+                </div>
+                <AnswerEditor
+                  value={(part.attrs?.answer as DocJSON) ?? { type: 'doc', content: [] }}
+                  label={`Answer to question ${i + 1} part (${partLetter(pi)})`}
+                  on:error={(e) => dispatch('error', e.detail)}
+                  on:change={(e) =>
+                    dispatch('partanswer', {
+                      blockId: String(block.attrs?.block_id),
+                      index: pi,
+                      answer: e.detail.answer,
+                    })}
+                />
+              </div>
+            {/each}
+          {:else}
           <AnswerEditor
             value={(block.attrs?.answer as DocJSON) ?? { type: 'doc', content: [] }}
             label={`Answer to question ${i + 1}`}
@@ -45,6 +76,7 @@
             on:change={(e) =>
               dispatch('answer', { blockId: String(block.attrs?.block_id), answer: e.detail.answer })}
           />
+          {/if}
         </li>
       {:else}
       {@const q = block.attrs?.question as Question}

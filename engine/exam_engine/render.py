@@ -617,24 +617,71 @@ def _render_freeform_item(
     answer prints a quiet placeholder, so a blank is never mistaken for a written answer.
     """
     attrs = node["attrs"]
+    parts = [c for c in node["content"] if c.get("type") == "freeformPart"]
+    body = "".join(
+        _render_rich_block(b, assets) for b in node["content"] if b.get("type") != "freeformPart"
+    )
+    if parts:
+        return _render_freeform_parts(node, parts, body, answer_key, tag, assets, layout)
     marks = attrs.get("marks")
-    body = "".join(_render_rich_block(b, assets) for b in node["content"])
     out = [f'<{tag} class="question freeform">', '<div class="part">']
     out.append(f'<div class="part-text">{body}</div>')
     if marks is not None and (layout is None or answer_key or layout.placement != "answer"):
         out.append(f'<span class="marks">[{marks}]</span>')
     out.append("</div>")
+    out.extend(_freeform_answer(attrs, marks, answer_key, assets, layout, ""))
+    out.append(f"</{tag}>")
+    return out
+
+
+def _freeform_answer(
+    attrs: dict,
+    marks: int | None,
+    answer_key: bool,
+    assets: AssetResolver | None,
+    layout: Layout | None,
+    label: str,
+) -> list[str]:
+    """The key's written answer (or a placeholder), or the student's space + Ans: line."""
     if answer_key:
-        answer = attrs.get("answer", {}).get("content", [])
+        answer = (attrs.get("answer") or {}).get("content", [])
         if answer:
             inner = "".join(_render_rich_block(b, assets) for b in answer)
-            out.append(f'<div class="solution teacher-answer">{inner}</div>')
-        else:
-            out.append('<p class="no-answer">No answer written yet</p>')
-    else:
-        out.append(_answer_space(layout, marks if marks is not None else 2))
-        if layout is not None:
-            out.append(_answer_line(layout, None, "", marks))
+            return [f'<div class="solution teacher-answer">{inner}</div>']
+        return ['<p class="no-answer">No answer written yet</p>']
+    out = [_answer_space(layout, marks if marks is not None else 2)]
+    if layout is not None:
+        out.append(_answer_line(layout, None, label, marks))
+    return out
+
+
+def _render_freeform_parts(
+    node: dict,
+    parts: list[dict],
+    body: str,
+    answer_key: bool,
+    tag: str,
+    assets: AssetResolver | None,
+    layout: Layout | None,
+) -> list[str]:
+    """A multi-part free-form question (P3): the stem, then (a), (b)… each with its own
+    working space, Ans: line and marks. The label is the part's position."""
+    out = [f'<{tag} class="question freeform multipart">']
+    out.append(f'<div class="part"><div class="part-text">{body}</div></div>')
+    placement = layout.placement if layout else "question"
+    for i, part in enumerate(parts):
+        letter = chr(ord("a") + i)
+        pattrs = part["attrs"]
+        marks = pattrs.get("marks")
+        text = "".join(_render_rich_block(b, assets) for b in part["content"])
+        out.append('<div class="part">')
+        out.append(f'<span class="part-label">({letter})</span>')
+        out.append(f'<div class="part-text">{text}</div>')
+        if marks is not None and (layout is None or answer_key or placement != "answer"):
+            out.append(f'<span class="marks">[{marks}]</span>')
+        out.append("</div>")
+        part_layout = Layout(placement, pattrs.get("space_mm"), pattrs.get("ans_unit"))
+        out.extend(_freeform_answer(pattrs, marks, answer_key, assets, part_layout, letter))
     out.append(f"</{tag}>")
     return out
 
@@ -682,11 +729,18 @@ def _render_numbered_blocks(
 
 def _doc_total_marks(blocks: list[dict]) -> int:
     return sum(
-        n["attrs"].get("marks") or 0
+        _freeform_marks(n)
         if n["type"] == "freeformQuestion"
         else n["attrs"]["question"]["question"]["total_marks"]
         for n in blocks
     )
+
+
+def _freeform_marks(node: dict) -> int:
+    parts = [c for c in node["content"] if c.get("type") == "freeformPart"]
+    if parts:
+        return sum(p["attrs"].get("marks") or 0 for p in parts)
+    return node["attrs"].get("marks") or 0
 
 
 def _render_document_body(

@@ -11,6 +11,7 @@
     spaceMm: number | null
     unit: string | null
     placement: MarksPlacement
+    label?: string
   }>
   export let onSpace: (mm: number | null) => void
   export let onUnit: (unit: string) => void
@@ -21,6 +22,7 @@
   spaceMm={$state.spaceMm}
   unit={$state.unit}
   placement={$state.placement}
+  label={$state.label ?? ''}
   {onSpace}
   {onUnit}
 />

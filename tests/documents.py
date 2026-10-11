@@ -65,3 +65,30 @@ def image_node(asset_id: str = "asset_0001", *, alt: str | None = "A figure", wi
 
 def math_node(latex: str = r"\frac{3}{4}") -> dict:
     return {"type": "math", "attrs": {"latex": latex}}
+
+
+def part_node(
+    body: str = "Part text.",
+    *,
+    marks: int | None = 1,
+    answer: str | None = None,
+    space_mm: int | None = None,
+    ans_unit: str | None = None,
+) -> dict:
+    """A lettered ``freeformPart`` (P3); its label is its position, never stored."""
+    attrs: dict = {"marks": marks}
+    if answer is not None:
+        attrs["answer"] = {"type": "doc", "content": [para(answer)]}
+    if space_mm is not None:
+        attrs["space_mm"] = space_mm
+    if ans_unit is not None:
+        attrs["ans_unit"] = ans_unit
+    return {"type": "freeformPart", "attrs": attrs, "content": [para(body)]}
+
+
+def multipart_block(*parts: dict, stem: str = "A tank holds water.", block_id=None) -> dict:
+    return {
+        "type": "freeformQuestion",
+        "attrs": {"block_id": block_id or f"ffm_{next(_ids):04d}", "marks": None},
+        "content": [para(stem), *parts],
+    }

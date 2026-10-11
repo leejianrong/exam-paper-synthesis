@@ -410,3 +410,75 @@ describe('paper layout (P2)', () => {
     expect(document.querySelector('.ffblock [role=slider]')).toBe(grip)
   })
 })
+
+describe('multi-part free-form questions (P3)', () => {
+  function renderFreeform(content?: object[]) {
+    const node = freeformDocNode({ id: 'ff_multi', marks: 2, body: 'A tank holds water.' })
+    const doc = { ...node, ...(content ? { content } : {}) }
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...record([doc]),
+        document: {
+          schema_version: '1.5.0',
+          title: 'Ratio Review',
+          content: { type: 'doc', content: [doc] },
+        },
+      }),
+    })
+    return render(EditorPage, { props: { id: 'd1' } })
+  }
+  const para = (t: string) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })
+  const part = (t: string, marks: number) => ({
+    type: 'freeformPart',
+    attrs: { marks, answer: { type: 'doc', content: [] } },
+    content: [para(t)],
+  })
+  const labels = () =>
+    Array.from(document.querySelectorAll('.ffp-label')).map((n) => n.textContent)
+
+  it('adds lettered parts, each with its own marks and answer area; the total is their sum', async () => {
+    renderFreeform()
+    await waitFor(() => expect(document.querySelector('.ff-body')).not.toBeNull())
+    const add = await screen.findByRole('button', { name: 'Add a lettered part' })
+    await fireEvent.click(add)
+    await fireEvent.click(add)
+    await waitFor(() => expect(labels()).toEqual(['(a)', '(b)']))
+    expect(document.querySelectorAll('.ffpart [data-testid=answer-area]')).toHaveLength(2)
+    // The question's own marks and answer area give way to the parts'.
+    expect(document.querySelector('.ffblock > .ff-main > .ff-area')).toHaveProperty('hidden', true)
+    await waitFor(() => expect(screen.getByText('2 parts · 3 marks')).toBeInTheDocument())
+    const inputs = screen.getAllByLabelText('Part marks') as HTMLInputElement[]
+    inputs[0].value = '3'
+    await fireEvent.change(inputs[0])
+    await waitFor(() => expect(screen.getByText('4 marks', { selector: '.total' })).toBeInTheDocument())
+  })
+
+  it('labels follow position: deleting (a) makes (b) the new (a)', async () => {
+    renderFreeform([para('Stem.'), part('first', 1), part('second', 2)] as never)
+    await waitFor(() => expect(labels()).toEqual(['(a)', '(b)']))
+    const del = screen.getAllByRole('button', { name: 'Delete part' })[0]
+    await fireEvent.click(del)
+    await waitFor(() => expect(labels()).toEqual(['(a)']))
+    const page = document.querySelector('.ff-body') as HTMLElement
+    expect(page).toHaveTextContent('second')
+    expect(page).not.toHaveTextContent('first')
+  })
+
+  it('the answer key has an entry per part, written back to that part', async () => {
+    renderFreeform([para('Stem.'), part('first', 1), part('second', 2)] as never)
+    await waitFor(() => expect(labels()).toEqual(['(a)', '(b)']))
+    const key = screen.getByRole('region', { name: 'Answer key' })
+    expect(key.querySelectorAll('.part')).toHaveLength(2)
+    expect(key.querySelector('[data-part=b] .marks')).toHaveTextContent('[2]')
+    expect(key.querySelectorAll('.entry.freeform > .head .marks')[0]).toHaveTextContent('[3]')
+  })
+
+  it('a question with no parts is exactly as before', async () => {
+    renderFreeform()
+    await waitFor(() => expect(document.querySelector('.ff-body')).not.toBeNull())
+    expect(document.querySelectorAll('.ffpart')).toHaveLength(0)
+    expect(screen.getByText('2 marks', { selector: '.total' })).toBeInTheDocument()
+  })
+})

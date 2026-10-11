@@ -225,6 +225,59 @@ test('write a free-form question, set marks, write its answer, reload, preview a
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })
 
+test('a multi-part free-form question: lettered parts with marks, answers, reload, preview', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '+ New paper' }).click()
+  await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
+  const id = page.url().split('/docs/')[1]
+  await page.getByLabel('Paper title').fill('Multi-part Paper')
+
+  await page.getByRole('button', { name: 'Add question' }).click()
+  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
+  const block = page.locator('.ffblock')
+  await expect(block).toHaveCount(1)
+  await page.keyboard.type('A tank is 40 cm by 25 cm by 30 cm.')
+
+  // Two parts; the caret lands in each new part, so type its question straight away.
+  await block.getByRole('button', { name: 'Add a lettered part' }).click()
+  await page.keyboard.type('Find its volume.')
+  await block.getByRole('button', { name: 'Add a lettered part' }).click()
+  await page.keyboard.type('How much water fills it?')
+  await expect(block.locator('.ffp-label')).toHaveText(['(a)', '(b)'])
+  const marks = block.getByLabel('Part marks')
+  await marks.nth(0).fill('2')
+  await marks.nth(0).press('Enter')
+  await expect(page.locator('.bar .total')).toHaveText('3 marks')
+
+  // Each part has its own answer in the key region.
+  const key = page.getByRole('region', { name: 'Answer key' })
+  await key.locator('[data-part=a] .answer').click()
+  await page.keyboard.type('30 000 cm3')
+  await key.locator('[data-part=b] .answer').click()
+  await page.keyboard.type('30 l')
+
+  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await page.reload()
+  await expect(block.locator('.ffp-label')).toHaveText(['(a)', '(b)'])
+  await expect(page.locator('.bar .total')).toHaveText('3 marks')
+
+  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
+  const answerKey = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
+  expect(student).toContain('(a)')
+  expect(student).toContain('(b)')
+  expect(student).toContain('Find its volume.')
+  expect(student.match(/class="answer-line"/g)).toHaveLength(2)
+  expect(student).not.toContain('30 000 cm3')
+  expect(answerKey).toContain('30 000 cm3')
+  expect(answerKey).toContain('30 l')
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Student PDF' }).click(),
+  ])
+  expect(download.suggestedFilename()).toMatch(/\.pdf$/)
+})
+
 // A real 40x30 PNG (the upload gate checks magic bytes, dimensions and the IEND trailer).
 const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAIAAADRv8uKAAAAKklEQVR4nO3NsQ0AAAgDoJ7u5/qCWxcSdrKTis4qFovFYrFYLBaLxeKXAx/uA7qKDGN/AAAAAElFTkSuQmCC'
 

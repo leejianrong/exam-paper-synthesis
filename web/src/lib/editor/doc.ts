@@ -5,7 +5,7 @@ import type { Question } from '../types'
 import { assetUrl } from './assets'
 import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.4.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.5.0'
 
 export interface DocNode {
   type: string
@@ -63,12 +63,24 @@ export function numberedNodes(doc: DocJSON): DocNode[] {
   )
 }
 
+/** The lettered parts of a free-form question (P3), in order. */
+export function freeformParts(node: DocNode): DocNode[] {
+  return (node.content ?? []).filter((c) => c.type === 'freeformPart')
+}
+
+/** A free-form question's marks: the sum over its parts when it has any, else its own. */
+export function freeformMarks(node: DocNode): number {
+  const parts = freeformParts(node)
+  if (parts.length) return parts.reduce((n, p) => n + ((p.attrs?.marks as number | null) ?? 0), 0)
+  return (node.attrs?.marks as number | null | undefined) ?? 0
+}
+
 export function totalMarks(doc: DocJSON): number {
   return numberedNodes(doc).reduce(
     (sum, n) =>
       sum +
       (n.type === 'freeformQuestion'
-        ? ((n.attrs?.marks as number | null | undefined) ?? 0)
+        ? freeformMarks(n)
         : ((n.attrs?.question as Question | undefined)?.question?.total_marks ?? 0)),
     0,
   )
@@ -99,6 +111,14 @@ export function cleanNode(node: DocNode): DocNode {
     const attrs = { ...(out.attrs as Record<string, unknown>) }
     if (attrs.space_mm === null || attrs.space_mm === undefined) delete attrs.space_mm
     if (attrs.ans_unit === null || attrs.ans_unit === undefined) delete attrs.ans_unit
+    out = { ...out, attrs }
+  }
+  if (out.type === 'freeformPart' && out.attrs) {
+    const attrs = { ...(out.attrs as Record<string, unknown>) }
+    if (attrs.space_mm === null || attrs.space_mm === undefined) delete attrs.space_mm
+    if (attrs.ans_unit === null || attrs.ans_unit === undefined) delete attrs.ans_unit
+    const answer = attrs.answer as DocJSON | undefined
+    if (answer) attrs.answer = { ...answer, content: (answer.content ?? []).map(cleanNode) }
     out = { ...out, attrs }
   }
   if (out.type === 'freeformQuestion' && out.attrs?.answer) {

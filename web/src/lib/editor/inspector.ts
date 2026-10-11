@@ -2,7 +2,7 @@
 // live here, beside the page — never on it — so the page shows only what prints.
 
 import type { Question } from '../types'
-import type { DocNode } from './doc'
+import { freeformMarks, freeformParts, type DocNode } from './doc'
 
 export interface Facts {
   heading: string
@@ -15,14 +15,21 @@ const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 
 export function describeBlock(node: DocNode, number: number): Facts {
   if (node.type === 'freeformQuestion') {
+    const parts = freeformParts(node)
     const marks = node.attrs?.marks as number | null | undefined
     return {
       heading: `Question ${number}`,
       status: { text: 'Free-form — written by you, not checked by the engine', tone: 'plain' },
-      rows: [
-        ['Type', 'Free-form'],
-        ['Marks', marks === null || marks === undefined ? 'Not set' : String(marks)],
-      ],
+      rows: parts.length
+        ? [
+            ['Type', 'Free-form, multi-part'],
+            ['Parts', String(parts.length)],
+            ['Marks', String(freeformMarks(node))],
+          ]
+        : [
+            ['Type', 'Free-form'],
+            ['Marks', marks === null || marks === undefined ? 'Not set' : String(marks)],
+          ],
     }
   }
   const q = node.attrs?.question as Question

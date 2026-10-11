@@ -196,6 +196,27 @@
   const setAnswer = (blockId: string, answer: DocJSON) =>
     setBlockAttrs(blockId, ['freeformQuestion'], { answer })
 
+  // A part's written answer: the nth freeformPart inside the question with this id.
+  function setPartAnswer(blockId: string, index: number, answer: DocJSON) {
+    if (!editor) return
+    const { doc, tr } = editor.state
+    let target: number | null = null
+    doc.descendants((node, pos) => {
+      if (node.type.name !== 'freeformQuestion' || node.attrs.block_id !== blockId) return true
+      let n = 0
+      node.forEach((child, offset) => {
+        if (child.type.name !== 'freeformPart') return
+        if (n++ === index) target = pos + 1 + offset
+      })
+      return false
+    })
+    if (target === null) return
+    const node = doc.nodeAt(target)
+    if (!node) return
+    tr.setNodeMarkup(target, undefined, { ...node.attrs, answer })
+    editor.view.dispatch(tr)
+  }
+
   // Review (ADR-0019) is stored on the paper's own copy of a bank question as well as in the bank.
   function setReviewed(blockId: string, reviewed: boolean) {
     const node = blocks.find((b) => b.attrs?.block_id === blockId)
@@ -448,6 +469,7 @@
   <AnswerKey
     {blocks}
     on:answer={(e) => setAnswer(e.detail.blockId, e.detail.answer)}
+    on:partanswer={(e) => setPartAnswer(e.detail.blockId, e.detail.index, e.detail.answer)}
     on:error={(e) => (actionError = e.detail)}
   />
 </div>

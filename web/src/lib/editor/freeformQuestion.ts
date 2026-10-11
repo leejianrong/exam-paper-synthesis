@@ -5,9 +5,11 @@
 // toolbar that never prints; `[n]` shows on the page exactly as it prints.
 
 import { Node } from '@tiptap/core'
+import { Plugin } from '@tiptap/pm/state'
 import type { NodeViewRendererProps } from '@tiptap/core'
 import { EMPTY_ANSWER } from './doc'
 import { moveBlock } from './templatedQuestion'
+import { FreeformPart, MAX_PARTS, PART_NODE, jsonAttr, partLetter } from './freeformPart'
 import { mount, unmount } from 'svelte'
 import { get, writable } from 'svelte/store'
 import FreeformArea from './FreeformArea.svelte'
@@ -17,21 +19,6 @@ import { paperSettings } from './paperSettings'
 export interface FreeformQuestionOptions {
   onAddBelow: (afterPos: number) => void
 }
-
-const jsonAttr = <T>(name: string, fallback: T) => ({
-  default: fallback,
-  parseHTML: (el: HTMLElement): T => {
-    try {
-      const raw = el.getAttribute(name)
-      return raw === null ? fallback : (JSON.parse(raw) as T)
-    } catch {
-      return fallback
-    }
-  },
-  renderHTML: (attrs: Record<string, unknown>) => ({
-    [name]: JSON.stringify(attrs[name.replace('data-', '')] ?? fallback),
-  }),
-})
 
 function clampMarks(raw: string): number | null {
   if (raw.trim() === '') return null
@@ -51,10 +38,17 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
   name: 'freeformQuestion',
   // Its own group (not `block`) so a free-form question can only sit at the top level.
   group: 'question',
-  content: '(paragraph | bulletList | orderedList | image)+',
+  // The body, then optionally the lettered parts (P3).
+  content: '(paragraph | bulletList | orderedList | image)+ freeformPart*',
   isolating: true,
   defining: true,
   draggable: false,
+
+  // The lettered parts are part of this node's vocabulary: anything that registers a
+  // free-form question gets them.
+  addExtensions() {
+    return [FreeformPart]
+  },
 
   addOptions() {
     return { onAddBelow: () => {} }
@@ -66,8 +60,8 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       marks: jsonAttr<number | null>('data-marks', null),
       answer: jsonAttr('data-answer', EMPTY_ANSWER),
       remark: { default: null }, // the author's private note (inspector); never printed
-      space_mm: { default: null }, // blank working space (mm); null = the default for its marks
-      ans_unit: { default: null }, // unit printed after Ans:
+      space_mm: jsonAttr<number | null>('data-space_mm', null), // blank working space (mm)
+      ans_unit: jsonAttr<string | null>('data-ans_unit', null), // unit printed after Ans:
     }
   },
 
@@ -77,6 +71,28 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
 
   renderHTML({ HTMLAttributes }) {
     return ['div', { 'data-freeform-question': '', ...HTMLAttributes }, 0]
+  },
+
+  addProseMirrorPlugins() {
+    // A pasted question with more than MAX_PARTS parts would save fine in the editor and be
+    // refused by the server; refuse it here instead.
+    return [
+      new Plugin({
+        filterTransaction: (tr) => {
+          if (!tr.docChanged) return true
+          let ok = true
+          tr.doc.forEach((n) => {
+            if (n.type.name !== this.name) return
+            let parts = 0
+            n.forEach((c) => {
+              if (c.type.name === PART_NODE) parts++
+            })
+            if (parts > MAX_PARTS) ok = false
+          })
+          return ok
+        },
+      }),
+    ]
   },
 
   addKeyboardShortcuts() {
@@ -144,11 +160,15 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         return b
       }
       const spacer = el('span', 'ff-spacer')
+      const totalEl = el('span', 'ff-total')
+      const addPartBtn = button('+ Add part', () => addPart(), '', 'Add a lettered part')
       bar.append(
         label,
+        totalEl,
         spacer,
         button('↑', () => moveBlock(editor, pos(), current.nodeSize, -1), '', 'Move up'),
         button('↓', () => moveBlock(editor, pos(), current.nodeSize, 1), '', 'Move down'),
+        addPartBtn,
         button('+ Add below', () => options.onAddBelow(pos() + current.nodeSize)),
         button(
           'Delete',
@@ -161,6 +181,35 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
           'danger',
         ),
       )
+
+      const parts = () => {
+        const out: Array<{ marks: number }> = []
+        current.forEach((c) => {
+          if (c.type.name === PART_NODE) out.push({ marks: (c.attrs.marks as number | null) ?? 0 })
+        })
+        return out
+      }
+      // Adding the first part moves the marks onto the parts: one undoable step.
+      function addPart() {
+        if (parts().length >= MAX_PARTS) return
+        const { tr, schema } = editor.state
+        const at = pos() + current.nodeSize - 1 // the end of the question's content
+        // The first part takes over the question's marks and written answer (nothing is lost);
+        // later parts start at one mark.
+        const first = parts().length === 0
+        const part = schema.nodes[PART_NODE].create(
+          first
+            ? { marks: current.attrs.marks ?? 1, answer: current.attrs.answer }
+            : { marks: 1 },
+          [schema.nodes.paragraph.create()],
+        )
+        tr.insert(at, part)
+        if (first) {
+          tr.setNodeMarkup(pos(), undefined, { ...current.attrs, marks: null, answer: EMPTY_ANSWER })
+        }
+        editor.view.dispatch(tr)
+        editor.commands.focus(at + 2)
+      }
 
       input.addEventListener('change', () => {
         const marks = clampMarks(input.value)
@@ -199,6 +248,22 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       }
 
       const sync = () => {
+        const ps = parts()
+        const multi = ps.length > 0
+        dom.classList.toggle('multipart', multi)
+        // With parts the marks are the parts' sum and the question has no answer area of its own.
+        label.hidden = multi
+        areaHost.hidden = multi
+        marksEl.hidden = multi
+        totalEl.textContent = multi
+          ? `${ps.length} part${ps.length === 1 ? '' : 's'} · ${ps.reduce((n, p) => n + p.marks, 0)} marks`
+          : ''
+        addPartBtn.disabled = ps.length >= MAX_PARTS
+        // Parts are lettered by position: relabel after any change to the siblings.
+        // (After ProseMirror has patched the parts' DOM, which happens once update() returns.)
+        queueMicrotask(() =>
+          dom.querySelectorAll('.ffp-label').forEach((n, i) => (n.textContent = `(${partLetter(i)})`)),
+        )
         const marks = current.attrs.marks as number | null
         const placement = get(paperSettings).marks_placement ?? DEFAULT_PLACEMENT
         marksEl.textContent =
