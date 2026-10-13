@@ -1,6 +1,7 @@
 # Editor initiative — question editor + persistent bank
 
-The next initiative after the **v0.1.0** MVP checkpoint. Planning artifacts for
+The initiative that followed the **v0.1.0** MVP checkpoint (shipped through W1–W4;
+the live strand is now paper format, [`PAPER-FORMAT.md`](PAPER-FORMAT.md)). Planning artifacts for
 the question editor land here: product description and empirical schema-fit
 work first, then shaping ([`SHAPING.md`](SHAPING.md)), slices
 ([`SLICES.md`](SLICES.md)), and ADRs (`docs/adr/0017`–`0020`).

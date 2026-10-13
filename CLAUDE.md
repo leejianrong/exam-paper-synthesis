@@ -11,30 +11,21 @@ comes from deterministic Python solvers, so a printed answer key is provably the
 solution to the printed question. The **canonical question object** (a plain
 `dict`, gated by JSON Schema) is the single source of truth.
 
-Currently through slice **V7** (V1 = end-to-end `ratio_medium` generation;
-V2 = bar-model diagrams / worked solutions; V3 = full Ratio ladder
-`ratio_easy`/`medium`/`hard` + in-place edit operations; V4 = review gate +
-client-side current-worksheet tray: Approve/Discard on cards, approved questions
-collect in a titled tray with total marks — the store is client-side/ephemeral,
-no server state; V5 = preview + export both PDFs: pure engine HTML renderers with
-vendored self-contained KaTeX + print CSS, headless-Chromium PDF generation at the
-API boundary, `POST /export/{preview,worksheet,answer-key}`, and web
-Preview/Export buttons — completing L3 acceptance for Ratio; V6 = the remaining
-topic ladders — Fractions, Percentage, Speed — plus the `shaded_fraction`
-mandatory figure and a fully live topic×difficulty selector; V6b = PSLE figure
-geometry: two ladders `geometry_angle`/`geometry_area` on a general
-`geometry_figure` diagram system, strictly-PSLE curated parametric templates with
-auto-selected π, schema **v1.3.0**; V7 = the final MVP slice: a headless
-`mathgen` CLI (`generate`/`edit`/`export`) driving the pure engine with no
-web/API — proving the engine is UI/HTTP-agnostic — plus sourced-object
-interchange (a hand-authored past-paper object, `source_type:"sourced"` +
-`source`/`license` + `created_by:"ingested"` + a `raster` data-URI figure,
-validates against the same schema and renders in a mixed worksheet/answer-key
-alongside generated questions; V7 wired the `raster` renderer branch — Python +
-TS mirror — that this exercises). Every blueprint now ships an independent
-seed-sweep **invariant test** (the correctness authority; goldens are regression
-anchors). All six topics × three rungs generate schema-valid end-to-end; **T7** (EXA-104) adds two more ladders — `statistics_chart` (bar/pie/line reading) and `volume` (cuboid, tank, displacement) — whose figures are the data and are drawn server-side: the web fetches them from `POST /render/diagram`). See
-`docs/planning/mvp/SLICES.md`.
+**Status:** the MVP slices **V1–V7** are shipped (Ratio/Fractions/Percentage/Speed
+ladders, PSLE geometry, bar-model and `geometry_figure` diagrams, review gate,
+preview + PDF export, headless `mathgen` CLI, sourced-object interchange incl. the
+`raster` figure; see `docs/planning/mvp/SLICES.md`). Every blueprint ships an
+independent seed-sweep **invariant test** (the correctness authority; goldens are
+regression anchors). Beyond the MVP: the **editor + SaaS** (W1–W4: WYSIWYG
+document editor, bank, accounts/OAuth, Postgres, Fly deploy), the **T-series**
+server-drawn diagrams and answer types (chart, solid, number_line, cube_stack,
+expression, `panels`; ladders `statistics_chart` and `volume`; the web fetches
+these figures from `POST /render/diagram`), and the current **paper-format
+initiative (EXA-E15)**: P1–P3 shipped (icon toolbar, working space / `Ans:` lines /
+marks placement, multi-part free-form questions; document schema 1.5.0); P4–P8
+(sections, answer-key options, marking margin, cover pages, one-click paper
+generation) are planned in `docs/planning/editor/PAPER-FORMAT.md`. Live status is
+the Pandan board (EXA, board 8) and `docs/ROADMAP.md`.
 
 ## Repo layout
 
@@ -81,7 +72,7 @@ All commands verified from repo root.
 | Task | Command |
 |------|---------|
 | Install / sync deps | `uv sync` |
-| Run tests (~504) | `uv run pytest` (root `tests/` + `cli/tests/`) |
+| Run tests (~1300, ~4 min) | `uv run pytest` (root `tests/` + `cli/tests/`) |
 | API dev server | `uv run uvicorn app.main:app --app-dir api --reload --port 8000` |
 | Health check | `curl -s http://localhost:8000/health` → `{"status":"ok"}` |
 | Generate (no web) | `curl -X POST http://localhost:8000/generate -H 'content-type: application/json' -d '{"blueprint_code":"ratio_medium","count":3}'` |
@@ -165,6 +156,6 @@ a request; entropy (random seed) enters only here.
 | `docs/planning/mvp/SHAPING.md` | Requirements, shape, fit check, breadboard |
 | `docs/planning/mvp/SLICES.md` | Vertical slice roadmap (V1–V7) |
 | `docs/planning/mvp/V1-plan.md`, `V2-plan.md`, `V3-plan.md` | Per-slice implementation plans |
-| `docs/planning/editor/` | The question-editor initiative (the next milestone; product planning lands here) |
+| `docs/planning/editor/` | The editor + paper-format initiative (shaping, slices, `PAPER-FORMAT.md` = P1–P8) |
 | `docs/ROADMAP.md` | Milestones → epics → stories (mirrors the Simple Kanban board) |
 | `docs/adr/` | Numbered ADRs (0001–0022) |

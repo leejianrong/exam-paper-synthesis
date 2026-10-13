@@ -3,6 +3,9 @@
 What the code does for you is listed first; what only **you** can do (accounts, secrets, DNS)
 is the checklist below it. Target: October 2026, Fly.io + Neon (ADR-0022).
 
+> A migration off Fly + Neon to a self-hosted k8s homelab is planned (Pandan PAN-130,
+> with Cloudflare edge setup in PAN-105). This checklist describes the current Fly path.
+
 ## Already in the repo
 
 - **One production image** (`Dockerfile`): builds the web app, installs the API and headless
