@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
+
+### Added
+
+- **Editor + SaaS (W1–W4)** — WYSIWYG document editor (ProseMirror-style document
+  model, schema `1.5.0`), templated and free-form question blocks, question bank,
+  assets, owner-scoped accounts with Google/Microsoft/GitHub OAuth, Postgres
+  stores, per-account export quotas, production image and Fly launch config.
+- **Server-drawn diagrams and answer types (T1–T7)** — `chart`, `solid`,
+  `number_line`, `panels`, `expression` answers, `cube_stack`, and the
+  `statistics_chart` and `volume` ladders (canonical schema now `1.12.0`).
+- **Paper format (P1–P3)** — icon toolbar, working space and `Ans: ____ unit`
+  lines, marks placement, multi-part free-form questions.
+
 ## [0.1.0] — 2026-07-25
 
 First tagged checkpoint: the **MVP is complete**. A deterministic,

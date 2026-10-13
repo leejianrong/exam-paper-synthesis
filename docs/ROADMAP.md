@@ -23,6 +23,12 @@ Status is evidence-based (git history, open PRs via `gh`, and the code on `main`
 
 Ongoing (un-prefixed) epics: **Foundation & CI/CD**, **Product shaping & docs**, **Marketing site**.
 
+Post-MVP epics on the board (not yet itemised below; the board is the live source):
+**M8** diagram & difficulty polish (E12, done), **Editor: bank + schema v2** (E13, done),
+**Editor: WYSIWYG document editor + SaaS** (E14, deferred stories remain: EXA-33, 89, 90),
+and **Paper format** (E15, P1–P3 done; P4–P8 todo — see
+[`planning/editor/PAPER-FORMAT.md`](planning/editor/PAPER-FORMAT.md)).
+
 ---
 
 ## M1: Generate one Ratio question (V1, shipped)
