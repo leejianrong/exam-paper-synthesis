@@ -28,7 +28,7 @@
     );
   }
 
-  function measure(kids, sheetTop) {
+  function measure(kids) {
     return kids.map(function (el) {
       var r = el.getBoundingClientRect();
       var cs = getComputedStyle(el);
@@ -118,7 +118,7 @@
     return box;
   }
 
-  function run() {
+  function build() {
     var main = document.querySelector("main[data-tally]");
     var body = main && main.querySelector(".doc-body");
     var template = document.getElementById("tally-template");
@@ -129,10 +129,10 @@
     var avail = PAGE_H - TALLY_H;
     var warnings = [];
 
-    var items = measure(kids, sheetTop);
+    var items = measure(kids);
     // The header sits above the first block on page 1, so that page has less room.
     var head = items[0].top - sheetTop;
-    if (clamp(items, sheetTop, avail, warnings)) items = measure(kids, sheetTop);
+    if (clamp(items, sheetTop, avail, warnings)) items = measure(kids);
 
     var pageOf = paginate(items, sheetTop, avail);
     var pages = [];
@@ -153,8 +153,21 @@
         pg.appendChild(el);
       });
       if (p.marks > 0) pg.appendChild(tallyBox(template, p.marks));
+      // Whatever could not be made to fit is printed in full (Chromium splits it) rather than cut.
+      if (pg.scrollHeight > pg.clientHeight + 1) {
+        pg.style.height = "auto";
+        pg.style.overflow = "visible";
+      }
     });
     done(warnings);
+  }
+
+  function run() {
+    try {
+      build();
+    } catch (e) {
+      done([{ error: String(e) }]); // never leave the export waiting for the flag
+    }
   }
 
   function start() {
