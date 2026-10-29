@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { settled } from './helpers.js'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -64,7 +65,7 @@ test('build a paper, edit questions, reload, preview and export', async ({ page 
   await expect(key.locator('.entry')).toHaveCount(2)
 
   // Autosave settles, and everything survives a reload.
-  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await settled(page)
   await page.reload()
   await expect(page.getByLabel('Paper title')).toHaveValue('E2E Ratio Paper')
   await expect(page.getByTestId('question-block')).toHaveCount(2)
@@ -96,7 +97,7 @@ test('the documents list shows, opens and deletes a paper', async ({ page }) => 
   await page.goto('/')
   await page.getByRole('button', { name: '+ New paper' }).click()
   await page.getByLabel('Paper title').fill('Throwaway')
-  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await settled(page)
   await page.getByRole('link', { name: '← Papers' }).click()
   const row = page.locator('li.doc', { hasText: 'Throwaway' })
   await expect(row).toBeVisible()
@@ -167,7 +168,7 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
   expect(own).toEqual(['q 1', 'q 1'])
 
   // A bank question saves, reloads, and the student copy shows its options but no answers.
-  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await settled(page)
   await page.reload()
   await expect(page.getByTestId('question-block')).toHaveCount(2)
   const student = await (
@@ -205,7 +206,7 @@ test('write a free-form question, set marks, write its answer, reload, preview a
   await entry.locator('.answer').click()
   await page.keyboard.type('12 - 5 = 7. Ann has 7 sweets left.')
 
-  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await settled(page)
   await page.reload()
   await expect(page.locator('.ffblock')).toContainText('How many are left?')
   await expect(page.locator('.ffblock .ff-area .marks')).toHaveText('[3]')
@@ -256,7 +257,7 @@ test('a multi-part free-form question: lettered parts with marks, answers, reloa
   await key.locator('[data-part=b] .answer').click()
   await page.keyboard.type('30 l')
 
-  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await settled(page)
   await page.reload()
   await expect(block.locator('.ffp-label')).toHaveText(['(a)', '(b)'])
   await expect(page.locator('.bar .total')).toHaveText('3 marks')
@@ -314,7 +315,7 @@ test('a free-form question with a PNG figure and an equation survives reload and
   await page.locator('.ffblock').getByLabel('Marks').fill('3')
   await page.locator('.ffblock').getByLabel('Marks').press('Enter')
 
-  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await settled(page)
   await page.reload()
   await expect(page.locator('.ffblock .math-node .katex')).toBeVisible()
   await expect(page.locator('.ffblock img.doc-image-img')).toBeVisible()
@@ -379,7 +380,7 @@ test('convert a generated question to free-form: text, answer and its figure as 
   await page.keyboard.type(' (edited)')
   await expect(ff.locator('.ff-body')).toContainText('(edited)')
 
-  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await settled(page)
   const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
   expect(student).toContain('(edited)')
   expect(student).toContain('data:image/png;base64,')
@@ -450,7 +451,7 @@ test('typing "1. " makes a numbered list that still saves (editor-only attribute
   await entry.locator('.answer').click()
   await page.keyboard.type('7. Seven')
   await expect(entry.locator('.answer ol')).toBeVisible()
-  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await settled(page)
 })
 
 test('a remark is private: kept through edits and reloads, never in a preview or export', async ({ page }) => {
@@ -474,7 +475,7 @@ test('a remark is private: kept through edits and reloads, never in a preview or
   await block.getByRole('button', { name: 'Make harder' }).click()
   await expect(remark).toHaveValue(SECRET)
 
-  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await settled(page)
   await page.reload()
   await centre(block)
   await block.click({ position: { x: 5, y: 5 } })
@@ -527,7 +528,7 @@ test('reviewing a bank question is a deliberate act: confirm to mark, one click 
   expect((await inBank()).reviewed).toBe(false)
 
   // …and the paper remembers, across a reload.
-  await expect(page.getByRole('status')).toHaveText('Saved', { timeout: 10_000 })
+  await settled(page)
   await page.reload()
   await centre(page.getByTestId('question-block'))
   await page.getByTestId('question-block').click({ position: { x: 12, y: 60 } })

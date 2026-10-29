@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { settled } from './helpers.js'
 
 /**
  * Browser acceptance for P4 paper structure: start from the Paper 2 template, see its sections
@@ -44,7 +45,7 @@ test('start from the Paper 2 template, structure the paper, reload, preview and 
   await page.getByRole('button', { name: 'Section', exact: true }).click()
   await expect(sections).toHaveCount(3)
 
-  await expect(page.getByRole('status').first()).toHaveText('Saved', { timeout: 10_000 })
+  await settled(page)
   await page.reload()
   await expect(sections).toHaveCount(3)
   await expect(sections.nth(0).getByLabel('Section title')).toHaveValue('Part One')
