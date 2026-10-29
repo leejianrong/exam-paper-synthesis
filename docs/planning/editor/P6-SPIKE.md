@@ -77,7 +77,7 @@ editor. It must never clip silently.
 | # | Slice | Size |
 |---|---|---|
 | P6a ✅ | Marking margin ("Do not write in this space") and tally markup in `render`, per-section toggle, on by default for working sections | S–M |
-| P6b | Paginator script + `data-marks`, PDF and preview, oversize clamp, seed-sweep test | M |
+| P6b ✅ | Paginator script + `data-marks`, PDF and preview, oversize clamp, seed-sweep test | M |
 | P6c | Multi-part split between parts | S |
 | P6d | Editor indicative page frames + tally preview | M |
 
@@ -91,6 +91,27 @@ editor. It must never clip silently.
 - **Tally box**: a 20 mm square with a 1.2 px border, a diagonal from bottom-left to
   top-right, the upper-left triangle blank for the marks awarded and the page's total
   available marks in the lower-right in 11 pt semibold. It sits bottom-right of the page,
-  under the margin strip. `render.render_tally_box(total)` produces it; placing one per page
-  with the right total is P6b.
+  under the margin strip. `render.render_tally_box(total)` produces it; the P6b paginator places one per page.
 - Every question in a marking section carries `data-marks`, which is what the paginator sums.
+
+## As built in P6b
+
+- `engine/exam_engine/assets/paginate.js` is the fourth inline script (CSP-hashed). It runs only
+  on a paper the renderer flagged with `data-tally` on `<main>`: the student and full papers
+  with at least one marking section. It waits for fonts, KaTeX and images, measures the blocks
+  of `.doc-body`, simulates the page breaks, wraps each page in a fixed-height `.pg` box and
+  adds a `.tally` box (cloned from `<template id="tally-template">`) when the page holds any
+  marks. It always ends by setting `<html data-paginated="true">`; `export.html_to_pdf` and the
+  CLI's `_pdf.py` wait for it.
+- Every page keeps 22 mm clear at its foot for the tally box, so the pages are a little shorter
+  than the plain PDF's. Papers without a marking section are not wrapped at all.
+- Oversize: a block (with the heading kept before it) taller than the room is shortened by
+  trimming its blank working space, never below 10 mm, and `data-pagination-warnings` is set
+  on `<html>`. The sweep found the first version only looked at the question, not the heading
+  kept with it, and clipped the tail of the question; that is fixed and covered.
+- `tests/test_paginator.py` prints seeded random papers (free-form, multi-part, generated
+  questions, an oversize one) and checks, from the PDF read page by page, that every question
+  is on the page the paginator put it on, the page count matches, each tally equals the sum of
+  its page's marks, and no word is lost against the plain print. `pypdf` is a dev dependency.
+- Not yet: surfacing the warning in the editor (P6d), splitting a multi-part question between
+  parts (P6c).

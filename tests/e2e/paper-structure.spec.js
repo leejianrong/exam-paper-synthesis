@@ -89,11 +89,13 @@ test('the marking margin follows the section mode and can be switched per sectio
   const preview = async () =>
     (await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()).split('</style>').pop()
   expect(await preview()).toMatch(/<section data-marks="2" class="question marked freeform"/)
+  expect(await preview()).toMatch(/<main [^>]*data-tally/) // the paginator gives each page a tally box
 
   // Switch it off: no margin. Change the mode to multiple choice: still off. Choose it on: margin.
   await section.getByLabel('Marking margin').uncheck()
   await settled(page)
   expect(await preview()).not.toContain('question marked')
+  expect(await preview()).not.toMatch(/<main [^>]*data-tally/)
   await section.getByLabel('Mode').selectOption('mcq')
   await expect(section.getByLabel('Marking margin')).not.toBeChecked()
   await section.getByLabel('Marking margin').check()

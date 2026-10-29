@@ -18,6 +18,7 @@ from playwright.sync_api import sync_playwright
 # The renderer flags typesetting completion on the root element; wait for it so
 # the PDF is taken only after KaTeX has finished laying out every math atom.
 _KATEX_DONE_SELECTOR = "html[data-katex-rendered='true']"
+_PAGINATED_SELECTOR = "html[data-paginated='true']"
 
 
 def _timeout_ms() -> int:
@@ -49,6 +50,7 @@ def html_to_pdf(html: str) -> bytes:
             page.set_default_timeout(_timeout_ms())
             page.set_content(html, wait_until="load")
             page.wait_for_selector(_KATEX_DONE_SELECTOR, state="attached")
+            page.wait_for_selector(_PAGINATED_SELECTOR, state="attached")
             return page.pdf(format="A4", print_background=True)
         finally:
             browser.close()

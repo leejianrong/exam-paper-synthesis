@@ -105,6 +105,10 @@ def font_css() -> str:
 _PRINT_CSS = (_ASSETS / "print.css").read_text(encoding="utf-8")
 _KATEX_JS = _read_js("katex.min.js")
 _AUTORENDER_JS = _read_js("auto-render.min.js")
+# P6b: gives each printed page its own tally box (a no-op unless <main data-tally>).
+_PAGINATE_JS = (
+    (_ASSETS / "paginate.js").read_text(encoding="utf-8").replace("</script>", "<\\/script>")
+)
 
 # Inline bootstrap: run KaTeX auto-render over the body once the DOM is parsed,
 # then flag completion so the PDF step (KAN-147) can wait for typesetting.
@@ -496,20 +500,24 @@ def _total_marks(questions: list[dict]) -> int:
 def inline_script_hashes() -> list[str]:
     """CSP ``'sha256-…'`` source expressions for every inline ``<script>`` the print HTML carries.
 
-    The three scripts (KaTeX, auto-render, the bootstrap) are static per engine release, so a host
-    page that embeds the print document (the editor's preview iframe inherits its parent's policy)
-    can allow exactly these by hash instead of ``'unsafe-inline'``.
+    The four scripts (KaTeX, auto-render, the bootstrap, the P6b paginator) are static per engine
+    release, so a host page that embeds the print document (the editor's preview iframe inherits
+    its parent's policy) can allow exactly these by hash instead of ``'unsafe-inline'``.
     """
     return [
         "'sha256-"
         + base64.b64encode(hashlib.sha256(js.encode("utf-8")).digest()).decode("ascii")
         + "'"
-        for js in (_KATEX_JS, _AUTORENDER_JS, _BOOTSTRAP_JS)
+        for js in (_KATEX_JS, _AUTORENDER_JS, _BOOTSTRAP_JS, _PAGINATE_JS)
     ]
 
 
-def _document(*, root_class: str, title: str, header_html: str, body_html: str) -> str:
-    """Assemble the shared self-contained HTML shell around a rendered body."""
+def _document(
+    *, root_class: str, title: str, header_html: str, body_html: str, tally: bool = False
+) -> str:
+    """Assemble the shared self-contained HTML shell around a rendered body.
+
+    ``tally`` marks the paper for the P6b paginator, which prints a tally box on every page."""
     return (
         "<!doctype html>\n"
         '<html lang="en">\n'
@@ -522,13 +530,15 @@ def _document(*, root_class: str, title: str, header_html: str, body_html: str) 
         f"<style>{_PRINT_CSS}</style>\n"
         "</head>\n"
         "<body>\n"
-        f'<main class="{root_class}">\n'
+        f'<main class="{root_class}"{" data-tally" if tally else ""}>\n'
         f"{header_html}\n"
         f"{body_html}\n"
         "</main>\n"
+        f"{_TALLY_TEMPLATE if tally else ''}"
         f"<script>{_KATEX_JS}</script>\n"
         f"<script>{_AUTORENDER_JS}</script>\n"
         f"<script>{_BOOTSTRAP_JS}</script>\n"
+        f"<script>{_PAGINATE_JS}</script>\n"
         "</body>\n"
         "</html>\n"
     )
@@ -858,6 +868,9 @@ def render_tally_box(total: int) -> str:
     )
 
 
+_TALLY_TEMPLATE = f'<template id="tally-template">{render_tally_box(0)}</template>\n'
+
+
 def _render_document_body(
     doc: dict, *, answer_key: bool, assets: AssetResolver | None = None
 ) -> str:
@@ -977,6 +990,8 @@ def render_document_html(
         title=title,
         header_html=header,
         body_html=body,
+        # a paper with a marking section prints a tally box on every page it fills with those
+        tally=any(s["marking"] for s in paper_outline(doc)),
     )
 
 
