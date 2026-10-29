@@ -36,6 +36,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
       question: { default: null },
       remark: { default: null }, // the author's private note (inspector); never printed
       space_mm: { default: null }, // blank working space (mm); null = the default for its marks
+      in_key: { default: true }, // false leaves it out of the answer key (P5)
       ans_unit: { default: null }, // unit printed after Ans:; null = the answer's own
     }
   },

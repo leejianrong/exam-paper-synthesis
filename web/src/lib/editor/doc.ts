@@ -5,7 +5,7 @@ import type { Question } from '../types'
 import { assetUrl } from './assets'
 import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.6.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.7.0'
 
 export interface DocNode {
   type: string
@@ -160,6 +160,8 @@ export function cleanNode(node: DocNode): DocNode {
     const attrs = { ...(out.attrs as Record<string, unknown>) }
     if (attrs.space_mm === null || attrs.space_mm === undefined) delete attrs.space_mm
     if (attrs.ans_unit === null || attrs.ans_unit === undefined) delete attrs.ans_unit
+    // Included in the answer key unless set false: only the exception is stored.
+    if (attrs.in_key !== false) delete attrs.in_key
     out = { ...out, attrs }
   }
   if (out.type === 'section' && out.attrs) {

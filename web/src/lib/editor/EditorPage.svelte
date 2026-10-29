@@ -1,7 +1,7 @@
 <script lang="ts">
   import ToolIcon from './ToolIcon.svelte'
   import { paperSettings } from './paperSettings'
-  import { DEFAULT_PLACEMENT, type MarksPlacement } from './layout'
+  import { DEFAULT_PLACEMENT, keyOptionsOf, type KeyOptions, type MarksPlacement } from './layout'
   // The WYSIWYG page (W1c): an A4-width column of rich text and question blocks, a "+"
   // to add questions, the answer key below, autosave, and the export/preview menu.
   import { onDestroy, onMount } from 'svelte'
@@ -65,6 +65,7 @@
   $: blocks = numberedNodes(content)
   $: marks = totalMarks(content)
   $: outline.set(paperOutline(content))
+  $: keyOpts = keyOptionsOf($paperSettings)
   $: statusLabel = {
     saved: 'Saved',
     dirty: 'Unsaved changes',
@@ -78,6 +79,14 @@
     paperSettings.update((s) => ({ ...s, marks_placement }))
     scheduleSave()
   }
+
+  function setKeyOption(name: keyof KeyOptions, value: boolean) {
+    paperSettings.update((s) => ({ ...s, key_options: { ...s.key_options, [name]: value } }))
+    scheduleSave()
+  }
+
+  const setInKey = (blockId: string, included: boolean) =>
+    setBlockAttrs(blockId, ['templatedQuestion', 'freeformQuestion'], { in_key: included })
 
   function setTime(e: Event) {
     const raw = (e.currentTarget as HTMLInputElement).value
@@ -354,6 +363,27 @@
       on:input={setTime}
     />
   </label>
+  <fieldset class="keyopts">
+    <legend>Answer key</legend>
+    <label>
+      <input
+        type="checkbox"
+        aria-label="Answer key repeats each question"
+        checked={keyOpts.show_question}
+        on:change={(e) => setKeyOption('show_question', e.currentTarget.checked)}
+      />
+      question
+    </label>
+    <label>
+      <input
+        type="checkbox"
+        aria-label="Answer key shows the M/A marking breakdown"
+        checked={keyOpts.show_scheme}
+        on:change={(e) => setKeyOption('show_scheme', e.currentTarget.checked)}
+      />
+      M/A marks
+    </label>
+  </fieldset>
   <span class="spacer"></span>
   {#if quota && typeof quota.left_day === 'number'}
     <span class="quota" title="PDF exports left in the last 24 hours">{quota.left_day} exports left today</span>
@@ -508,6 +538,8 @@
 
   <AnswerKey
     {blocks}
+    options={keyOpts}
+    on:include={(e) => setInKey(e.detail.blockId, e.detail.included)}
     on:answer={(e) => setAnswer(e.detail.blockId, e.detail.answer)}
     on:partanswer={(e) => setPartAnswer(e.detail.blockId, e.detail.index, e.detail.answer)}
     on:error={(e) => (actionError = e.detail)}
@@ -561,6 +593,25 @@
     align-items: center;
     gap: 0.35rem;
     color: var(--ink-soft);
+  }
+  .keyopts {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: var(--ink-soft);
+  }
+  .keyopts legend {
+    float: left;
+    padding: 0;
+    margin-right: 0.4rem;
+  }
+  .keyopts label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
   }
   .placement .time {
     width: 4.5rem;

@@ -6,13 +6,19 @@
   import { onDestroy } from 'svelte'
   import type { Question } from '../types'
   import { loadFragmentAssets, renderQuestion, typeset } from './fragments'
-  import type { MarksPlacement } from './layout'
+  import type { KeyOptions, MarksPlacement } from './layout'
 
   export let question: Question
   export let mode: 'student' | 'key' = 'student'
   export let number: number | null = null
   /** Print the way a paper does (marks per the setting), the editor drawing the answer area. */
+  /** Answer-key options (P5), mirrored by CSS in the shadow root; the engine's PDF is authoritative. */
+  export let keyOptions: KeyOptions | undefined = undefined
   export let paper: { placement: MarksPlacement; answerArea: boolean } | undefined = undefined
+
+  const KEY_CSS =
+    '.hide-q .question-stem,.hide-q .part-text,.hide-q .options,.hide-q .content-table,' +
+    '.hide-q figure.diagram:not(.answer-diagram){display:none}.hide-scheme .marking-scheme{display:none}'
 
   let host: HTMLDivElement | undefined
   let mountPoint: HTMLDivElement | null = null
@@ -35,8 +41,11 @@
         const root = host.attachShadow({ mode: 'open' })
         assets.applyTo(root)
         mountPoint = document.createElement('div')
-        root.appendChild(mountPoint)
+        const style = document.createElement('style')
+        style.textContent = KEY_CSS
+        root.append(style, mountPoint)
       }
+      applyKey(keyOptions)
       // `html` is the engine's own escaped print markup (same as the PDF), not user HTML.
       mountPoint.innerHTML = html
       typeset(mountPoint)
@@ -47,6 +56,13 @@
   }
 
   $: if (host) void draw(question, mode, number, paper)
+
+  // Option changes re-class the live fragment; no re-render is needed.
+  function applyKey(ko: typeof keyOptions) {
+    mountPoint?.classList.toggle('hide-q', ko?.show_question === false)
+    mountPoint?.classList.toggle('hide-scheme', ko?.show_scheme === false)
+  }
+  $: applyKey(keyOptions)
 </script>
 
 <div class="fragment" bind:this={host} data-testid="fragment"></div>
