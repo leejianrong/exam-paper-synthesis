@@ -42,7 +42,7 @@ marking furniture a teacher expects.
 | **P3** ✅ | Multi-part free-form questions | A `freeformQuestion` can hold parts (a), (b)… each with text, marks, space, answer line and answer. Templated parts already exist; they gain the same space and answer line. Schema `document` 1.4.0. | M |
 | **P4** ✅ | Paper structure | `section` blocks (title, instructions, marks target, mode MCQ / short answer / structured), continuing question numbers, running and target totals, paper time. Starter templates: Paper 1 Booklet A, Paper 1 Booklet B, Paper 2 (editable, not hard-coded). | M |
 | **P5** ✅ | Answer-key options | Key export options: hide question text (steps and answer only), include or omit the M/A marks breakdown, include or exclude chosen questions; the editor's answer-key view mirrors them. Two-column is deferred. | S–M |
-| **P6** | Marking page furniture | Right margin with "Do not write in this space" and the per-page tally box with total available marks, per section toggle. | L, spike first |
+| **P6** | Marking page furniture | Right margin with "Do not write in this space" and the per-page tally box with total available marks, per section toggle. | L; spike done, see [`P6-SPIKE.md`](P6-SPIKE.md) |
 
 **Why this order.** P1 is independent and cheap. P2 precedes P3 because part-level answer lines
 reuse its space and answer-line model. P4 needs P3 for numbering and totals to be meaningful.
@@ -57,8 +57,9 @@ pagination, which only the print engine knows. Plan: render the paper in headles
 then inject the boxes in a second pass. Questions are kept whole (`break-inside: avoid`);
 a multi-part question that cannot fit splits between parts, never inside one. A part's marks
 count on the page where its answer line falls. The editor can only approximate pagination, so
-the WYSIWYG view shows the margin and an indicative box; the PDF is authoritative. Spike this
-before committing to the slice.
+the WYSIWYG view shows the margin and an indicative box; the PDF is authoritative. The spike
+(`P6-SPIKE.md`) is done: explicit pages built from a measuring pass gave exact pages and tallies
+on 12 / 12 test papers; it also found a clipping hazard for taller-than-page questions.
 
 ## Decisions (confirmed by the owner, 2026-10-11)
 
