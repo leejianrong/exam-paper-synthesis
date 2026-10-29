@@ -1,5 +1,6 @@
 <script lang="ts">
   import ToolIcon from './ToolIcon.svelte'
+  import { describePage, summarisePages, type PageSummary } from './pageSummary'
   import { paperSettings } from './paperSettings'
   import { DEFAULT_PLACEMENT, keyOptionsOf, type KeyOptions, type MarksPlacement } from './layout'
   // The WYSIWYG page (W1c): an A4-width column of rich text and question blocks, a "+"
@@ -59,6 +60,8 @@
   let quota: Quota | null = null
   let selectedId: string | null = null // the block the author is in (for the inspector)
   let previewHtml: string | null = null
+  let readToken = 0
+  let pageSummary: PageSummary | null = null // the paginated preview's pages and tallies (P6d)
   let barH = 0 // the sticky top bar's height: the formatting toolbar sticks just below it
   let tick = 0 // bumps on every editor transaction so toolbar state re-reads
 
@@ -319,9 +322,28 @@
     }
   }
 
+  // The preview paginates itself after it loads (fonts, maths); read what it decided once it has.
+  function readPages(e: Event) {
+    const frame = e.currentTarget as HTMLIFrameElement
+    const mine = ++readToken // a newer load (or a closed preview) cancels this poll
+    pageSummary = null
+    let tries = 0
+    const look = () => {
+      const d = frame.contentDocument
+      if (mine !== readToken || !d || previewHtml === null) return
+      if (d.documentElement.getAttribute('data-paginated') === 'true') {
+        const s = summarisePages(d)
+        pageSummary = s.paginated ? s : null
+      } else if (tries++ < 200) setTimeout(look, 150) // heavy papers can take a while
+    }
+    look()
+  }
+
   async function preview(mode: ExportMode) {
     busy = 'preview'
     actionError = ''
+    pageSummary = null
+    readToken++
     try {
       await autosaver?.flush()
       previewHtml = await previewDocument(id, mode)
@@ -570,7 +592,21 @@
       <button class="close" aria-label="Close preview" on:click={() => (previewHtml = null)}
         >×</button
       >
-      <iframe title="Print preview" srcdoc={previewHtml}></iframe>
+      {#if pageSummary}
+        <div class="pagesum" aria-label="Pages">
+          <strong>{pageSummary.pages.length} page{pageSummary.pages.length === 1 ? '' : 's'}</strong>
+          {#each pageSummary.pages as p (p.page)}
+            <span>p{p.page}: {describePage(p)}</span>
+          {/each}
+          {#if pageSummary.warnings}
+            <span class="warn" role="alert"
+              >{pageSummary.warnings} question{pageSummary.warnings === 1 ? '' : 's'} had working
+              space trimmed to fit a page</span
+            >
+          {/if}
+        </div>
+      {/if}
+      <iframe title="Print preview" srcdoc={previewHtml} on:load={readPages}></iframe>
     </div>
   </div>
 {/if}
@@ -1055,10 +1091,31 @@
     border-radius: 10px;
     overflow: hidden;
   }
+  .preview {
+    display: flex;
+    flex-direction: column;
+  }
   .preview iframe {
+    flex: 1 1 auto;
     width: 100%;
-    height: 100%;
+    min-height: 0;
     border: none;
+  }
+  .pagesum {
+    max-height: 5.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.9rem;
+    padding: 0.45rem 2.6rem 0.45rem 0.9rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper-2);
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .pagesum .warn {
+    color: var(--mark);
+    font-weight: 600;
   }
   .close {
     position: absolute;

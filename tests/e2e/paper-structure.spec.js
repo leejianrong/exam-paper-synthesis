@@ -91,6 +91,13 @@ test('the marking margin follows the section mode and can be switched per sectio
   expect(await preview()).toMatch(/<section data-marks="2" class="question marked freeform"/)
   expect(await preview()).toMatch(/<main [^>]*data-tally/) // the paginator gives each page a tally box
 
+  // The editor's Preview reads what the paginator decided: pages, their questions and tallies.
+  await page.getByRole('button', { name: 'Preview' }).click()
+  const pages = page.getByLabel('Pages')
+  await expect(pages).toContainText('1 page')
+  await expect(pages).toContainText('Q1 · 2 marks')
+  await page.getByRole('button', { name: 'Close preview' }).click()
+
   // Switch it off: no margin. Change the mode to multiple choice: still off. Choose it on: margin.
   await section.getByLabel('Marking margin').uncheck()
   await settled(page)
