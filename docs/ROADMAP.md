@@ -26,7 +26,7 @@ Ongoing (un-prefixed) epics: **Foundation & CI/CD**, **Product shaping & docs**,
 Post-MVP epics on the board (not yet itemised below; the board is the live source):
 **M8** diagram & difficulty polish (E12, done), **Editor: bank + schema v2** (E13, done),
 **Editor: WYSIWYG document editor + SaaS** (E14, deferred stories remain: EXA-33, 89, 90),
-and **Paper format** (E15, P1–P5 and P6a–c done; P6d, P7, P8 todo — see
+and **Paper format** (E15, P1–P5 and P6 done; P7, P8 todo — see
 [`planning/editor/PAPER-FORMAT.md`](planning/editor/PAPER-FORMAT.md)).
 
 ---
