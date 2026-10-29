@@ -409,3 +409,6 @@ main[data-tally] { width: 178mm; max-width: none; }
   main[data-tally] { margin: 0 auto; }
   .pg { margin-bottom: 8mm; outline: 1px solid var(--line); }
 }
+/* the later page(s) of a multi-part question that broke between its parts (P6c): no new number */
+.question.cont { counter-increment: none; }
+.question.cont::before { content: none; }

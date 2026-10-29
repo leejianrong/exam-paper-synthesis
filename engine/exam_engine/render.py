@@ -725,6 +725,8 @@ def _render_freeform_parts(
     """A multi-part free-form question (P3): the stem, then (a), (b)… each with its own
     working space, Ans: line and marks. The label is the part's position."""
     out = [f'<{tag} class="question freeform multipart{" key-only" if hide_question else ""}">']
+    # Each part is a unit the paginator may break between (P6c): the stem travels with part (a).
+    out.append(f'<div class="part-unit" data-pm="{_part_marks(parts[0])}">' if parts else "")
     if not hide_question:
         out.append(f'<div class="part"><div class="part-text">{body}</div></div>')
     placement = layout.placement if layout else "question"
@@ -732,6 +734,8 @@ def _render_freeform_parts(
         letter = chr(ord("a") + i)
         pattrs = part["attrs"]
         marks = pattrs.get("marks")
+        if i:
+            out.append(f'<div class="part-unit" data-pm="{_part_marks(part)}">')
         if hide_question:
             out.append(_key_only_head(letter, marks))
         else:
@@ -744,8 +748,13 @@ def _render_freeform_parts(
             out.append("</div>")
         part_layout = Layout(placement, pattrs.get("space_mm"), pattrs.get("ans_unit"))
         out.extend(_freeform_answer(pattrs, marks, answer_key, assets, part_layout, letter))
+        out.append("</div>")
     out.append(f"</{tag}>")
     return out
+
+
+def _part_marks(part: dict) -> int:
+    return int(part["attrs"].get("marks") or 0)
 
 
 def _block_layout(node: dict, placement: str) -> Layout:
@@ -848,10 +857,19 @@ def _mark_unit(item: list[str], marks: int, marked: bool) -> list[str]:
     """Inside a marking section, tag a rendered question with the ``marked`` class (draws the
     margin, "Do not write in this space") and its marks (the paginator's input, P6b). Questions
     elsewhere are left exactly as they were."""
+    # a multi-part question is counted part by part (it may split between parts), the rest as one
+    multipart = 'class="question freeform multipart' in item[0]
+    item[:] = [
+        re.sub(r' data-pm="(\d+)"', r' data-marks="\1"' if marked else "", x)
+        if "data-pm" in x
+        else x
+        for x in item
+    ]
     if marked:
+        tag = "" if multipart else f' data-marks="{marks}"'
         item[0] = re.sub(
             r'^<(\w+) class="question',
-            rf'<\1 data-marks="{marks}" class="question marked',
+            rf'<\1{tag} class="question marked',
             item[0],
             count=1,
         )

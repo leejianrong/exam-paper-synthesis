@@ -78,7 +78,7 @@ editor. It must never clip silently.
 |---|---|---|
 | P6a ✅ | Marking margin ("Do not write in this space") and tally markup in `render`, per-section toggle, on by default for working sections | S–M |
 | P6b ✅ | Paginator script + `data-marks`, PDF and preview, oversize clamp, seed-sweep test | M |
-| P6c | Multi-part split between parts | S |
+| P6c ✅ | Multi-part split between parts | S |
 | P6d | Editor indicative page frames + tally preview | M |
 
 ## Design chosen for P6a (tweakable; all in `print.css`)
@@ -113,5 +113,8 @@ editor. It must never clip silently.
   questions, an oversize one) and checks, from the PDF read page by page, that every question
   is on the page the paginator put it on, the page count matches, each tally equals the sum of
   its page's marks, and no word is lost against the plain print. `pypdf` is a dev dependency.
-- Not yet: surfacing the warning in the editor (P6d), splitting a multi-part question between
-  parts (P6c).
+- P6c: a multi-part free-form question in a marking section is wrapped part by part
+  (`.part-unit`, the stem travels with part (a), each carrying its `data-marks`); the paginator
+  may break between parts, giving the later page a numberless copy of the question wrapper
+  (`.question.cont`), so a question taller than a page continues instead of being trimmed.
+  Generated multi-part questions stay whole. Not yet: surfacing the warning in the editor (P6d).

@@ -17,7 +17,7 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 - **Server-drawn diagrams and answer types (T1–T7)** — `chart`, `solid`,
   `number_line`, `panels`, `expression` answers, `cube_stack`, and the
   `statistics_chart` and `volume` ladders (canonical schema now `1.12.0`).
-- **Paper format (P1–P6b)** — icon toolbar, working space and `Ans: ____ unit`
+- **Paper format (P1–P6c)** — icon toolbar, working space and `Ans: ____ unit`
   lines, marks placement, multi-part free-form questions, and paper structure:
   section blocks with derived question ranges / marks and an authored target, paper
   time, and Paper 1 Booklet A/B and Paper 2 starter templates; and answer-key options: hide the question text, omit the M/A
@@ -27,7 +27,8 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   component (document schema `1.8.0`); and a tally box on every printed page of a paper
   with a marking section, summing the marks of the questions on that page (an inline paginator
   measures the paper and prints explicit pages, so the PDF and the Preview agree; a question
-  taller than a page has its blank working space trimmed rather than clipped).
+  taller than a page has its blank working space trimmed rather than clipped; a multi-part
+  question may break between its parts).
 
 ## [0.1.0] — 2026-07-25
 

@@ -124,7 +124,18 @@
     var template = document.getElementById("tally-template");
     if (!body || !template || !body.children.length) return done();
 
-    var kids = Array.prototype.slice.call(body.children);
+    // A multi-part question is counted part by part, so it may break between its parts: its
+    // parts stand in for it, and `owner` remembers which question each one belongs to.
+    var owner = new Map();
+    var kids = [];
+    Array.prototype.forEach.call(body.children, function (el) {
+      var units = el.querySelectorAll(":scope > .part-unit[data-marks]");
+      if (!units.length) return kids.push(el);
+      Array.prototype.forEach.call(units, function (u) {
+        owner.set(u, el);
+        kids.push(u);
+      });
+    });
     var sheetTop = main.getBoundingClientRect().top + scrollY;
     var avail = PAGE_H - TALLY_H;
     var warnings = [];
@@ -136,6 +147,7 @@
 
     var pageOf = paginate(items, sheetTop, avail);
     var pages = [];
+    var placed = new Set();
     items.forEach(function (it, i) {
       (pages[pageOf[i]] = pages[pageOf[i]] || { items: [], marks: 0 });
       pages[pageOf[i]].items.push(it.el);
@@ -149,8 +161,22 @@
       pg.style.height = PAGE_H - SLACK - (n === 0 ? head : 0) + "px";
       if (n === pages.length - 1) pg.style.breakAfter = "auto";
       body.appendChild(pg);
+      var frag = null;
       p.items.forEach(function (el) {
-        pg.appendChild(el);
+        var q = owner.get(el);
+        if (!q) {
+          frag = null;
+          return pg.appendChild(el);
+        }
+        if (!frag || frag.q !== q) {
+          // the first page of a question keeps the question itself, later ones a numberless copy
+          var node = placed.has(q) ? q.cloneNode(false) : q;
+          if (node !== q) node.classList.add("cont");
+          placed.add(q);
+          pg.appendChild(node);
+          frag = { q: q, node: node };
+        }
+        frag.node.appendChild(el);
       });
       if (p.marks > 0) pg.appendChild(tallyBox(template, p.marks));
       // Whatever could not be made to fit is printed in full (Chromium splits it) rather than cut.
