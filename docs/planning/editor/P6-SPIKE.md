@@ -79,7 +79,7 @@ editor. It must never clip silently.
 | P6a ✅ | Marking margin ("Do not write in this space") and tally markup in `render`, per-section toggle, on by default for working sections | S–M |
 | P6b ✅ | Paginator script + `data-marks`, PDF and preview, oversize clamp, seed-sweep test | M |
 | P6c ✅ | Multi-part split between parts | S |
-| P6d ✅ | Editor indicative page frames + tally preview | M |
+| P6d ✅ (summary in the Preview; live frames not built) | Editor indicative page frames + tally preview | M |
 
 ## Design chosen for P6a (tweakable; all in `print.css`)
 

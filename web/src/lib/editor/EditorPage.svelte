@@ -60,6 +60,7 @@
   let quota: Quota | null = null
   let selectedId: string | null = null // the block the author is in (for the inspector)
   let previewHtml: string | null = null
+  let readToken = 0
   let pageSummary: PageSummary | null = null // the paginated preview's pages and tallies (P6d)
   let barH = 0 // the sticky top bar's height: the formatting toolbar sticks just below it
   let tick = 0 // bumps on every editor transaction so toolbar state re-reads
@@ -324,15 +325,16 @@
   // The preview paginates itself after it loads (fonts, maths); read what it decided once it has.
   function readPages(e: Event) {
     const frame = e.currentTarget as HTMLIFrameElement
+    const mine = ++readToken // a newer load (or a closed preview) cancels this poll
     pageSummary = null
     let tries = 0
     const look = () => {
       const d = frame.contentDocument
-      if (!d || !previewHtml) return
+      if (mine !== readToken || !d || previewHtml === null) return
       if (d.documentElement.getAttribute('data-paginated') === 'true') {
         const s = summarisePages(d)
         pageSummary = s.paginated ? s : null
-      } else if (tries++ < 40) setTimeout(look, 150)
+      } else if (tries++ < 200) setTimeout(look, 150) // heavy papers can take a while
     }
     look()
   }
@@ -340,6 +342,8 @@
   async function preview(mode: ExportMode) {
     busy = 'preview'
     actionError = ''
+    pageSummary = null
+    readToken++
     try {
       await autosaver?.flush()
       previewHtml = await previewDocument(id, mode)
@@ -1098,6 +1102,8 @@
     border: none;
   }
   .pagesum {
+    max-height: 5.5rem;
+    overflow-y: auto;
     display: flex;
     flex-wrap: wrap;
     gap: 0.3rem 0.9rem;

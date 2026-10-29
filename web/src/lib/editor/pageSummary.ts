@@ -48,5 +48,5 @@ export function describePage(p: PageInfo): string {
       : p.first === p.last
         ? `Q${p.first}${p.continued ? ' (continued)' : ''}`
         : `Q${p.first}–${p.last}${p.continued ? ' (starts mid-Q' + p.first + ')' : ''}`
-  return p.marks ? `${range} · ${p.marks} marks` : range
+  return p.marks ? `${range} · ${p.marks} mark${p.marks === 1 ? '' : 's'}` : range
 }
