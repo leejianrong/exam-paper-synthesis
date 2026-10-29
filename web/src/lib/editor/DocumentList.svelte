@@ -1,7 +1,8 @@
 <script lang="ts">
   // Home: the teacher's papers. New / open / delete (delete asks twice, inline).
   import { onMount } from 'svelte'
-  import { createDocument, deleteDocument, listDocuments } from './docsApi'
+  import { createDocument, deleteDocument, listDocuments, saveDocument } from './docsApi'
+  import { PAPER_TEMPLATES, buildFromTemplate, type PaperTemplate } from './templates'
   import type { DocumentSummary } from './doc'
   import { navigate } from '../router'
   import AccountChip from './AccountChip.svelte'
@@ -28,6 +29,17 @@
     error = ''
     try {
       const rec = await createDocument()
+      navigate(`/docs/${rec.id}`)
+    } catch (e) {
+      error = msg(e)
+    }
+  }
+
+  async function onTemplate(t: PaperTemplate) {
+    error = ''
+    try {
+      const rec = await createDocument(t.title)
+      await saveDocument(rec.id, buildFromTemplate(t), rec.version)
       navigate(`/docs/${rec.id}`)
     } catch (e) {
       error = msg(e)
@@ -61,6 +73,13 @@
   <div class="head">
     <h1>Your papers</h1>
     <button class="new" on:click={onNew}>+ New paper</button>
+  </div>
+
+  <div class="templates" role="group" aria-label="Start from a template">
+    <span class="tlabel">Start from a template</span>
+    {#each PAPER_TEMPLATES as t (t.id)}
+      <button class="tpl" on:click={() => onTemplate(t)}>{t.label}</button>
+    {/each}
   </div>
 
   {#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -121,6 +140,27 @@
     color: #fff;
     border-radius: 8px;
     padding: 0.5rem 1rem;
+    cursor: pointer;
+  }
+  .templates {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+  }
+  .tlabel {
+    font-size: 12.5px;
+    color: var(--ink-faint);
+  }
+  .tpl {
+    font: inherit;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    background: var(--paper-2);
+    color: var(--ink);
+    border-radius: 8px;
+    padding: 0.35rem 0.8rem;
     cursor: pointer;
   }
   .docs {

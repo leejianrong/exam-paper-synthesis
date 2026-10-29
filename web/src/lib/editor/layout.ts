@@ -7,6 +7,8 @@ export const DEFAULT_PLACEMENT: MarksPlacement = "answer";
 
 export interface PaperSettings {
   marks_placement?: MarksPlacement;
+  /** Paper time in minutes (P4); printed in the paper header. */
+  time_min?: number | null;
 }
 
 /** Pixels per millimetre on screen (CSS: 96 px per inch). */

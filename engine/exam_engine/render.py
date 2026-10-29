@@ -32,6 +32,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from . import diagram, expression
+from .document import paper_outline
 
 # ---------------------------------------------------------------------------
 # Vendored assets — read ONCE at import (no per-call I/O; keeps render_* pure).
@@ -743,14 +744,49 @@ def _freeform_marks(node: dict) -> int:
     return node["attrs"].get("marks") or 0
 
 
+_SECTION_MODE_LABEL = {
+    "mcq": "Multiple choice",
+    "short": "Short answer",
+    "structured": "Structured",
+}
+
+
+def _render_section(info: dict) -> str:
+    """A paper section header (P4): title, question range, marks, instructions."""
+    bits = []
+    if info["first"] is not None:
+        rng = (
+            f"Question {info['first']}"
+            if info["first"] == info["last"]
+            else f"Questions {info['first']}–{info['last']}"
+        )
+        bits.append(rng)
+        bits.append(f"{info['marks']} marks")
+    if info["mode"]:
+        bits.append(_SECTION_MODE_LABEL[info["mode"]])
+    meta = f'<p class="section-meta">{_esc(" · ".join(bits))}</p>' if bits else ""
+    instr = (
+        f'<p class="section-instructions">{_esc(info["instructions"])}</p>'
+        if info["instructions"]
+        else ""
+    )
+    return (
+        '<div class="paper-section">'
+        f'<h2 class="section-title">{_esc(info["title"])}</h2>{meta}{instr}</div>'
+    )
+
+
 def _render_document_body(
     doc: dict, *, answer_key: bool, assets: AssetResolver | None = None
 ) -> str:
     """Document blocks in order; questions and rich text share one numbering counter."""
     placement = _placement(doc)
     out: list[str] = ['<div class="doc-body questions">']
+    outline = iter(paper_outline(doc))
     for node in doc["content"]["content"]:
-        if node["type"] == "freeformQuestion":
+        if node["type"] == "section":
+            out.append(_render_section(next(outline)))
+        elif node["type"] == "freeformQuestion":
             out.extend(
                 _render_freeform_item(
                     node,
@@ -772,6 +808,15 @@ def _render_document_body(
             out.append(_render_rich_block(node, assets))
     out.append("</div>")
     return "".join(out)
+
+
+def _time_field(doc: dict) -> str:
+    minutes = (doc.get("settings") or {}).get("time_min")
+    if not minutes:
+        return ""
+    h, m = divmod(int(minutes), 60)
+    label = " ".join(x for x in (f"{h} h" if h else "", f"{m} min" if m else "") if x)
+    return f'<span class="field-time">Time: {label}</span>'
 
 
 def render_document_html(
@@ -814,6 +859,7 @@ def render_document_html(
         f'<h1 class="sheet-title">{_esc(title)}</h1>'
         '<p class="sheet-meta">'
         '<span class="field-name">Name: ______________</span>'
+        f"{_time_field(doc)}"
         f'<span class="field-marks">Total: {marks} marks</span>'
         "</p>"
         "</header>"
