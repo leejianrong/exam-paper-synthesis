@@ -184,7 +184,8 @@ def test_a_multipart_question_taller_than_a_page_breaks_between_its_parts(browse
     text = _pdf_pages(page.pdf(format="A4", print_background=True))
     assert len(text) == len(pages) >= 2
     joined = " ".join(text)
-    assert joined.count("1.") >= 1 and "PTa" in joined and "PTb" in joined and "PTc" in joined
+    assert re.findall(r"(?m)^(\d+)\.$", joined) == ["1", "2"]  # the continuation adds no number
+    assert joined.index("PTa") < joined.index("PTb") < joined.index("PTc")
     # the continuation carries no question number of its own
     assert (
         page.evaluate(
