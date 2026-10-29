@@ -70,3 +70,41 @@ test('start from the Paper 2 template, structure the paper, reload, preview and 
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })
+
+test('the marking margin follows the section mode and can be switched per section', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Paper 1 · Booklet B' }).click()
+  await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
+  const id = page.url().split('/docs/')[1]
+
+  // Booklet B is short-answer: the margin is on by default, and the student paper prints it.
+  const section = page.locator('.section-block').first()
+  await expect(section.getByLabel('Marking margin')).toBeChecked()
+  await page.getByRole('button', { name: 'Add question' }).click()
+  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
+  await page.keyboard.type('Ann has 12 sweets and gives away 5. How many are left?')
+  await page.locator('.ffblock').getByLabel('Marks').fill('2')
+  await page.locator('.ffblock').getByLabel('Marks').press('Enter')
+  await settled(page)
+  const preview = async () =>
+    (await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()).split('</style>').pop()
+  expect(await preview()).toMatch(/<section data-marks="2" class="question marked freeform"/)
+
+  // Switch it off: no margin. Change the mode to multiple choice: still off. Choose it on: margin.
+  await section.getByLabel('Marking margin').uncheck()
+  await settled(page)
+  expect(await preview()).not.toContain('question marked')
+  await section.getByLabel('Mode').selectOption('mcq')
+  await expect(section.getByLabel('Marking margin')).not.toBeChecked()
+  await section.getByLabel('Marking margin').check()
+  await settled(page)
+  expect(await preview()).toContain('question marked')
+
+  await page.reload()
+  await expect(page.locator('.section-block').first().getByLabel('Marking margin')).toBeChecked()
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Student PDF' }).click(),
+  ])
+  expect(download.suggestedFilename()).toMatch(/\.pdf$/)
+})

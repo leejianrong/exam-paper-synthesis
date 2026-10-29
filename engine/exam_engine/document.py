@@ -21,13 +21,14 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
+# 1.8.0 (P6a): + section.marking (marking margin).
 # 1.7.0 (P5): + settings.key_options, per-question in_key.
 # 1.6.0 (P4): + section blocks (title, instructions, mode, marks target), settings.time_min.
 # 1.5.0 (P3): + freeformPart (lettered parts of a free-form question).
 # 1.4.0 (P2): + settings.marks_placement, per-question space_mm / ans_unit.
 # 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math; 1.3.0 (W5): + question `remark`.
 # Older documents stay valid (every addition is optional).
-DOCUMENT_SCHEMA_VERSION = "1.7.0"
+DOCUMENT_SCHEMA_VERSION = "1.8.0"
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000
@@ -115,10 +116,19 @@ def block_marks(node: dict) -> int:
     return node["attrs"]["question"]["question"]["total_marks"]
 
 
+def section_marking(attrs: dict) -> bool:
+    """Whether a section prints the marking margin: its own choice, else on for working sections."""
+    chosen = attrs.get("marking")
+    if isinstance(chosen, bool):
+        return chosen
+    return attrs.get("mode") in ("short", "structured")
+
+
 def paper_outline(doc: dict) -> list[dict]:
     """The paper's sections with derived figures (P4), in order.
 
-    Each entry: ``title``, ``instructions``, ``mode``, ``marks_target`` (authored), and
+    Each entry: ``title``, ``instructions``, ``mode``, ``marks_target``, ``marking`` (authored or
+    defaulted), and
     ``first``/``last`` question numbers (both ``None`` when empty), ``count`` and ``marks``
     (derived). Questions before the first section are not in any section.
     """
@@ -133,6 +143,7 @@ def paper_outline(doc: dict) -> list[dict]:
                     "instructions": a.get("instructions"),
                     "mode": a.get("mode"),
                     "marks_target": a.get("marks_target"),
+                    "marking": section_marking(a),
                     "first": None,
                     "last": None,
                     "count": 0,

@@ -354,3 +354,48 @@ body {
 .section-meta { margin: 0.15rem 0 0; font-size: 0.85rem; color: var(--ink-soft); font-weight: 600; }
 .section-instructions { margin: 0.3rem 0 0; font-size: 0.9rem; font-style: italic; }
 .field-time { flex: 0 0 auto; }
+
+/* --- marking margin and page tally (P6) --- */
+/* Inside a marking section the text column gives up a right-hand strip for the marker; the strip
+   is ruled, and carries its caption turned on its side. */
+.question.marked { margin-right: 26mm; }
+.question.marked::after {
+  content: "Do not write in this space";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -24mm;
+  width: 22mm;
+  border: 1px solid var(--ink-faint);
+  border-width: 0 0 0 1px;
+  writing-mode: vertical-rl;
+  text-align: center;
+  font-size: 7pt;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  padding: 0 0 0 1mm;
+  box-sizing: border-box;
+}
+
+/* 20 mm square, diagonal from bottom-left to top-right: marks awarded top-left (blank), the
+   page's total available marks bottom-right. */
+.tally {
+  position: relative;
+  width: 20mm;
+  height: 20mm;
+  border: 1.2px solid var(--ink);
+  box-sizing: border-box;
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 0.6px),
+    var(--ink) calc(50% - 0.6px),
+    var(--ink) calc(50% + 0.6px),
+    transparent calc(50% + 0.6px)
+  );
+}
+.tally-total {
+  position: absolute;
+  right: 2mm;
+  bottom: 1.5mm;
+  font: 600 11pt/1 var(--sans);
+}

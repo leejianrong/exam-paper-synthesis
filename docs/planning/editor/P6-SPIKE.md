@@ -76,10 +76,21 @@ editor. It must never clip silently.
 
 | # | Slice | Size |
 |---|---|---|
-| P6a | Marking margin ("Do not write in this space") and tally markup in `render`, per-section toggle, on by default for working sections | S–M |
+| P6a ✅ | Marking margin ("Do not write in this space") and tally markup in `render`, per-section toggle, on by default for working sections | S–M |
 | P6b | Paginator script + `data-marks`, PDF and preview, oversize clamp, seed-sweep test | M |
 | P6c | Multi-part split between parts | S |
 | P6d | Editor indicative page frames + tally preview | M |
 
-Open: owner to confirm the tally box dimensions and where the margin sits relative to the
-Ans: line before P6a.
+## Design chosen for P6a (tweakable; all in `print.css`)
+
+- **Marking margin**: a 22 mm ruled strip in the page's right margin, 2 mm clear of the text,
+  one per question, running the question's full height, with "Do not write in this space" set
+  vertically at 7 pt. The text column of those questions gives up 26 mm. It is on for sections
+  in `short` or `structured` mode and off for `mcq` (decision 3), and each section can override
+  it (`section.marking`). It prints on the student paper only, never in the answer key.
+- **Tally box**: a 20 mm square with a 1.2 px border, a diagonal from bottom-left to
+  top-right, the upper-left triangle blank for the marks awarded and the page's total
+  available marks in the lower-right in 11 pt semibold. It sits bottom-right of the page,
+  under the margin strip. `render.render_tally_box(total)` produces it; placing one per page
+  with the right total is P6b.
+- Every question in a marking section carries `data-marks`, which is what the paginator sums.
