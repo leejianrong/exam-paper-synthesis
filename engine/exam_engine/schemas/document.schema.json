@@ -185,7 +185,8 @@
             "title": { "type": "string", "maxLength": 120 },
             "instructions": { "type": ["string", "null"], "maxLength": 1000 },
             "mode": { "enum": ["mcq", "short", "structured", null] },
-            "marks_target": { "type": ["integer", "null"], "minimum": 0, "maximum": 500 }
+            "marks_target": { "type": ["integer", "null"], "minimum": 0, "maximum": 500 },
+            "marking": { "type": ["boolean", "null"], "description": "Marking margin (\"Do not write in this space\") beside this section's questions (1.8.0, P6a). null/absent = on for working sections (short, structured), off otherwise." }
           }
         }
       }

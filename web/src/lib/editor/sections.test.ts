@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildDocument, cleanNode, paperOutline, type DocJSON } from './doc'
 import { freeformDocNode } from './fixtures'
-import { sectionNode, sectionSummary, targetState } from './sections'
+import { markingOn, sectionNode, sectionSummary, targetState } from './sections'
 import { PAPER_TEMPLATES, buildFromTemplate } from './templates'
 
 const doc = (...content: DocJSON['content']): DocJSON => ({ type: 'doc', content })
@@ -46,6 +46,25 @@ describe('section serialisation', () => {
     expect(out.attrs).toEqual({ title: '' })
     const full = cleanNode(sectionNode('A', { mode: 'mcq', marks_target: 0, instructions: ' hi ' }))
     expect(full.attrs).toEqual({ title: 'A', instructions: 'hi', mode: 'mcq', marks_target: 0 })
+  })
+})
+
+describe('marking margin (P6a)', () => {
+  it('follows the mode unless the author chose', () => {
+    expect(markingOn({ mode: 'short' })).toBe(true)
+    expect(markingOn({ mode: 'structured' })).toBe(true)
+    expect(markingOn({ mode: 'mcq' })).toBe(false)
+    expect(markingOn({})).toBe(false)
+    expect(markingOn({ mode: 'mcq', marking: true })).toBe(true)
+    expect(markingOn({ mode: 'short', marking: false })).toBe(false)
+  })
+
+  it('stores only an explicit choice', () => {
+    expect(cleanNode(sectionNode('A')).attrs).toEqual({ title: 'A' })
+    const on = cleanNode({ type: 'section', attrs: { title: 'A', marking: true } })
+    const off = cleanNode({ type: 'section', attrs: { title: 'A', marking: false } })
+    expect(on.attrs).toHaveProperty('marking', true)
+    expect(off.attrs).toHaveProperty('marking', false)
   })
 })
 

@@ -32,6 +32,12 @@ export function targetState(info: SectionInfo | undefined): 'ok' | 'over' | 'und
   return info.marks > info.target ? 'over' : info.marks < info.target ? 'under' : 'ok'
 }
 
+/** The marking margin: the section's own choice, else on for working sections (engine mirror). */
+export function markingOn(attrs: { marking?: unknown; mode?: unknown }): boolean {
+  if (typeof attrs.marking === 'boolean') return attrs.marking
+  return attrs.mode === 'short' || attrs.mode === 'structured'
+}
+
 export const Section = Node.create({
   name: 'section',
   group: 'block',
@@ -45,6 +51,7 @@ export const Section = Node.create({
       instructions: { default: null },
       mode: { default: null },
       marks_target: { default: null },
+      marking: { default: null }, // marking margin; null follows the mode (P6a)
     }
   },
 
@@ -102,6 +109,11 @@ export const Section = Node.create({
         setAttr({ marks_target: n })
       })
 
+      const marking = document.createElement('input')
+      marking.type = 'checkbox'
+      marking.setAttribute('aria-label', 'Marking margin')
+      marking.addEventListener('change', () => setAttr({ marking: marking.checked }))
+
       const instructions = document.createElement('textarea')
       instructions.className = 'section-instructions-input'
       instructions.rows = 2
@@ -116,7 +128,7 @@ export const Section = Node.create({
 
       const row = document.createElement('div')
       row.className = 'section-row'
-      row.append(title, field('Mode', mode), field('Target marks', target))
+      row.append(title, field('Mode', mode), field('Target marks', target), field('Marking margin', marking))
       dom.append(row, instructions, summary)
 
       const sync = () => {
@@ -129,6 +141,7 @@ export const Section = Node.create({
         set(mode, String(a.mode ?? ''))
         set(target, a.marks_target === null || a.marks_target === undefined ? '' : String(a.marks_target))
         set(instructions, String(a.instructions ?? ''))
+        marking.checked = markingOn(a)
       }
 
       const indexOfSelf = (): number => {
@@ -170,7 +183,10 @@ export const Section = Node.create({
   },
 })
 
-export function sectionNode(title: string, opts: { mode?: SectionMode; marks_target?: number; instructions?: string } = {}) {
+export function sectionNode(
+  title: string,
+  opts: { mode?: SectionMode; marks_target?: number; instructions?: string } = {},
+) {
   return {
     type: 'section',
     attrs: {

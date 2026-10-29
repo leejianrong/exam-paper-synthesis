@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from . import diagram, expression
-from .document import in_key, key_options, paper_outline
+from .document import block_marks, in_key, key_options, paper_outline
 
 # ---------------------------------------------------------------------------
 # Vendored assets — read ONCE at import (no per-call I/O; keeps render_* pure).
@@ -834,6 +834,30 @@ def _render_section(info: dict) -> str:
     )
 
 
+def _mark_unit(item: list[str], marks: int, marked: bool) -> list[str]:
+    """Inside a marking section, tag a rendered question with the ``marked`` class (draws the
+    margin, "Do not write in this space") and its marks (the paginator's input, P6b). Questions
+    elsewhere are left exactly as they were."""
+    if marked:
+        item[0] = re.sub(
+            r'^<(\w+) class="question',
+            rf'<\1 data-marks="{marks}" class="question marked',
+            item[0],
+            count=1,
+        )
+    return item
+
+
+def render_tally_box(total: int) -> str:
+    """The page tally box (P6): a square cut by a bottom-left to top-right diagonal; the
+    upper-left triangle stays blank for the marks awarded, the lower-right holds the page's
+    total available marks. The paginator (P6b) places one per page."""
+    return (
+        '<div class="tally" role="img" aria-label="Marks awarded out of '
+        f'{int(total)}"><span class="tally-total">{int(total)}</span></div>'
+    )
+
+
 def _render_document_body(
     doc: dict, *, answer_key: bool, assets: AssetResolver | None = None
 ) -> str:
@@ -841,27 +865,28 @@ def _render_document_body(
     placement = _placement(doc)
     out: list[str] = ['<div class="doc-body questions">']
     outline = iter(paper_outline(doc))
+    marking = False  # inside a section that prints the marking margin
     for node in doc["content"]["content"]:
         if node["type"] == "section":
-            out.append(_render_section(next(outline)))
+            info = next(outline)
+            marking = info["marking"] and not answer_key
+            out.append(_render_section(info))
         elif node["type"] == "freeformQuestion":
-            out.extend(
-                _render_freeform_item(
-                    node,
-                    answer_key=answer_key,
-                    assets=assets,
-                    layout=_block_layout(node, placement),
-                )
+            item = _render_freeform_item(
+                node,
+                answer_key=answer_key,
+                assets=assets,
+                layout=_block_layout(node, placement),
             )
+            out.extend(_mark_unit(item, block_marks(node), marking))
         elif node["type"] == "templatedQuestion":
-            out.extend(
-                _render_question_item(
-                    node["attrs"]["question"],
-                    answer_key=answer_key,
-                    tag="section",
-                    layout=_block_layout(node, placement),
-                )
+            item = _render_question_item(
+                node["attrs"]["question"],
+                answer_key=answer_key,
+                tag="section",
+                layout=_block_layout(node, placement),
             )
+            out.extend(_mark_unit(item, block_marks(node), marking))
         else:
             out.append(_render_rich_block(node, assets))
     out.append("</div>")

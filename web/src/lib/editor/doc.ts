@@ -5,7 +5,7 @@ import type { Question } from '../types'
 import { assetUrl } from './assets'
 import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.7.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.8.0'
 
 export interface DocNode {
   type: string
@@ -171,6 +171,8 @@ export function cleanNode(node: DocNode): DocNode {
     if (instr) attrs.instructions = instr
     if (out.attrs.mode) attrs.mode = out.attrs.mode
     if (typeof out.attrs.marks_target === 'number') attrs.marks_target = out.attrs.marks_target
+    // Only an explicit choice of the marking margin is stored; unset follows the mode.
+    if (typeof out.attrs.marking === 'boolean') attrs.marking = out.attrs.marking
     out = { ...out, attrs }
   }
   if (out.type === 'freeformPart' && out.attrs) {
