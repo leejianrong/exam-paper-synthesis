@@ -342,3 +342,15 @@ body {
   font-style: italic;
   margin: 0.5rem 0;
 }
+
+/* --- paper sections (P4) --- */
+.paper-section {
+  margin: 1.4rem 0 0.8rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1.5px solid var(--ink);
+  break-after: avoid;
+}
+.section-title { margin: 0; font-size: 1.15rem; }
+.section-meta { margin: 0.15rem 0 0; font-size: 0.85rem; color: var(--ink-soft); font-weight: 600; }
+.section-instructions { margin: 0.3rem 0 0; font-size: 0.9rem; font-style: italic; }
+.field-time { flex: 0 0 auto; }

@@ -14,7 +14,14 @@
   import Inspector from './Inspector.svelte'
   import { withReviewed } from './inspector'
   import { createAutosaver, type Autosaver } from './autosave'
-  import { buildDocument, freeformNode, numberedNodes, totalMarks, type DocJSON } from './doc'
+  import {
+    buildDocument,
+    freeformNode,
+    numberedNodes,
+    paperOutline,
+    totalMarks,
+    type DocJSON,
+  } from './doc'
   import {
     ApiError,
     exportDocument,
@@ -29,6 +36,7 @@
   import { openMathEditor } from './mathEditor'
   import { ImageBlock, ImageUpload, MathNode, uploadAndInsert } from './media'
   import { PageBreak } from './pageBreak'
+  import { Section, outline } from './sections'
   import { loadQuota, type Quota } from '../session'
   import { TemplatedQuestion, questionNode } from './templatedQuestion'
 
@@ -56,6 +64,7 @@
 
   $: blocks = numberedNodes(content)
   $: marks = totalMarks(content)
+  $: outline.set(paperOutline(content))
   $: statusLabel = {
     saved: 'Saved',
     dirty: 'Unsaved changes',
@@ -67,6 +76,13 @@
   function setPlacement(e: Event) {
     const marks_placement = (e.currentTarget as HTMLSelectElement).value as MarksPlacement
     paperSettings.update((s) => ({ ...s, marks_placement }))
+    scheduleSave()
+  }
+
+  function setTime(e: Event) {
+    const raw = (e.currentTarget as HTMLInputElement).value
+    const n = raw === '' ? null : Math.max(1, Math.min(600, Math.round(+raw)))
+    paperSettings.update((s) => ({ ...s, time_min: n }))
     scheduleSave()
   }
 
@@ -113,6 +129,7 @@
             onError: (m: string) => (actionError = m),
           }),
           PageBreak,
+          Section,
           FreeformQuestion.configure({ onAddBelow: (pos: number) => (pickerAt = pos) }),
           TemplatedQuestion.configure({
             onAddBelow: (pos: number) => (pickerAt = pos),
@@ -325,6 +342,18 @@
       <option value="both">both</option>
     </select>
   </label>
+  <label class="placement">
+    Time (min)
+    <input
+      class="time"
+      type="number"
+      min="1"
+      max="600"
+      aria-label="Paper time in minutes"
+      value={$paperSettings.time_min ?? ''}
+      on:input={setTime}
+    />
+  </label>
   <span class="spacer"></span>
   {#if quota && typeof quota.left_day === 'number'}
     <span class="quota" title="PDF exports left in the last 24 hours">{quota.left_day} exports left today</span>
@@ -403,6 +432,17 @@
       title="Numbered list"
       on:click={() => editor?.chain().focus().toggleOrderedList().run()}
       ><ToolIcon name="ordered" /></button
+    >
+    <button
+      aria-label="Section"
+      title="Insert a section"
+      on:click={() =>
+        editor
+          ?.chain()
+          .focus()
+          .insertContent({ type: 'section', attrs: { title: '' } })
+          .run()}
+      ><ToolIcon name="section" /></button
     >
     <button
       aria-label="Page break"
@@ -521,6 +561,15 @@
     align-items: center;
     gap: 0.35rem;
     color: var(--ink-soft);
+  }
+  .placement .time {
+    width: 4.5rem;
+    font: inherit;
+    font-size: 12.5px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--ink);
   }
   .placement select {
     font: inherit;
@@ -833,6 +882,75 @@
   .surface :global(.math-node:hover),
   .surface :global(.math-node.ProseMirror-selectednode) {
     background: var(--verify-soft);
+  }
+  .surface :global(.section-block) {
+    margin: 1.2rem 0 0.8rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1.5px solid var(--ink);
+  }
+  .surface :global(.section-row) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .surface :global(.section-title-input) {
+    flex: 1 1 14rem;
+    font: inherit;
+    font-size: 1.15rem;
+    font-weight: 700;
+    border: 1px dashed transparent;
+    background: transparent;
+    color: var(--ink);
+  }
+  .surface :global(.section-title-input:hover),
+  .surface :global(.section-title-input:focus) {
+    border-color: var(--line);
+  }
+  .surface :global(.section-field) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .surface :global(.section-field select),
+  .surface :global(.section-target-input) {
+    font: inherit;
+    font-size: 12.5px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .surface :global(.section-target-input) {
+    width: 4rem;
+  }
+  .surface :global(.section-instructions-input) {
+    display: block;
+    width: 100%;
+    margin-top: 0.4rem;
+    font: inherit;
+    font-size: 0.9rem;
+    font-style: italic;
+    border: 1px dashed transparent;
+    background: transparent;
+    color: var(--ink);
+    resize: vertical;
+  }
+  .surface :global(.section-instructions-input:hover),
+  .surface :global(.section-instructions-input:focus) {
+    border-color: var(--line);
+  }
+  .surface :global(.section-summary) {
+    margin: 0.3rem 0 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .surface :global(.section-summary[data-state='over']),
+  .surface :global(.section-summary[data-state='under']) {
+    color: var(--mark, #b42318);
   }
   .surface :global(.page-break-marker) {
     border-top: 2px dashed var(--line);

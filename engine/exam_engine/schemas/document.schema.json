@@ -17,7 +17,8 @@
       "type": "object", "additionalProperties": false,
       "$comment": "Per-question `space_mm` (blank working space, mm; null = default for its marks) and `ans_unit` (unit printed after the Ans: line; null = from the answer) were added with this. Paper-wide print settings (added 1.4.0). marks_placement: where each question's [n] prints; default 'answer' (beside the Ans: line).",
       "properties": {
-        "marks_placement": { "enum": ["question", "answer", "both"], "default": "answer" }
+        "marks_placement": { "enum": ["question", "answer", "both"], "default": "answer" },
+        "time_min": { "type": ["integer", "null"], "minimum": 1, "maximum": 600, "description": "Paper time in minutes (1.6.0); printed in the paper header." }
       }
     },
     "doc": {
@@ -35,6 +36,7 @@
         { "$ref": "#/$defs/bullet_list" },
         { "$ref": "#/$defs/ordered_list" },
         { "$ref": "#/$defs/page_break" },
+        { "$ref": "#/$defs/section" },
         { "$ref": "#/$defs/templated_question" },
         { "$ref": "#/$defs/freeform_question" },
         { "$ref": "#/$defs/image" }
@@ -162,6 +164,23 @@
       "type": "object", "additionalProperties": false,
       "required": ["type"],
       "properties": { "type": { "const": "pageBreak" } }
+    },
+    "section": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "attrs"],
+      "$comment": "A paper section divider (1.6.0, P4): every question after it, up to the next section, belongs to it. Question numbers continue across sections; the section's question range and marks are derived (exam_engine.document.paper_outline), only the target is authored.",
+      "properties": {
+        "type": { "const": "section" },
+        "attrs": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "title": { "type": "string", "maxLength": 120 },
+            "instructions": { "type": ["string", "null"], "maxLength": 1000 },
+            "mode": { "enum": ["mcq", "short", "structured", null] },
+            "marks_target": { "type": ["integer", "null"], "minimum": 0, "maximum": 500 }
+          }
+        }
+      }
     },
     "templated_question": {
       "type": "object", "additionalProperties": false,

@@ -5,7 +5,7 @@ import type { Question } from '../types'
 import { assetUrl } from './assets'
 import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.5.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.6.0'
 
 export interface DocNode {
   type: string
@@ -86,6 +86,55 @@ export function totalMarks(doc: DocJSON): number {
   )
 }
 
+/** One block's marks (templated snapshot total, or a free-form question's own/parts). */
+export function blockMarks(node: DocNode): number {
+  return node.type === 'freeformQuestion'
+    ? freeformMarks(node)
+    : ((node.attrs?.question as Question | undefined)?.question?.total_marks ?? 0)
+}
+
+export type SectionMode = 'mcq' | 'short' | 'structured'
+
+/** A section's figures: authored target, derived question range / count / marks (P4). */
+export interface SectionInfo {
+  first: number | null
+  last: number | null
+  count: number
+  marks: number
+  target: number | null
+}
+
+/**
+ * The derived figures of every section, in order (mirror of the engine's `paper_outline`):
+ * questions after a section divider belong to it until the next one; numbers continue.
+ */
+export function paperOutline(doc: DocJSON): SectionInfo[] {
+  const out: SectionInfo[] = []
+  let number = 0
+  for (const n of doc.content ?? []) {
+    if (n.type === 'section') {
+      const t = n.attrs?.marks_target
+      out.push({
+        first: null,
+        last: null,
+        count: 0,
+        marks: 0,
+        target: typeof t === 'number' ? t : null,
+      })
+    } else if (n.type === 'templatedQuestion' || n.type === 'freeformQuestion') {
+      number += 1
+      const sec = out[out.length - 1]
+      if (sec) {
+        sec.first ??= number
+        sec.last = number
+        sec.count += 1
+        sec.marks += blockMarks(n)
+      }
+    }
+  }
+  return out
+}
+
 export const EMPTY_ANSWER: DocJSON = { type: 'doc', content: [] }
 
 /**
@@ -111,6 +160,15 @@ export function cleanNode(node: DocNode): DocNode {
     const attrs = { ...(out.attrs as Record<string, unknown>) }
     if (attrs.space_mm === null || attrs.space_mm === undefined) delete attrs.space_mm
     if (attrs.ans_unit === null || attrs.ans_unit === undefined) delete attrs.ans_unit
+    out = { ...out, attrs }
+  }
+  if (out.type === 'section' && out.attrs) {
+    // Optional section fields are absent when unset; the title is always a string.
+    const attrs: Record<string, unknown> = { title: String(out.attrs.title ?? '') }
+    const instr = typeof out.attrs.instructions === 'string' ? out.attrs.instructions.trim() : ''
+    if (instr) attrs.instructions = instr
+    if (out.attrs.mode) attrs.mode = out.attrs.mode
+    if (typeof out.attrs.marks_target === 'number') attrs.marks_target = out.attrs.marks_target
     out = { ...out, attrs }
   }
   if (out.type === 'freeformPart' && out.attrs) {
