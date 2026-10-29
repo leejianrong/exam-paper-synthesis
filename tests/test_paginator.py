@@ -161,3 +161,44 @@ def test_the_answer_key_never_gets_tally_boxes():
 
 def test_the_paginator_is_covered_by_the_csp_hashes():
     assert len(inline_script_hashes()) == 4
+
+
+def test_a_multipart_question_taller_than_a_page_breaks_between_its_parts(browser):
+    parts = [
+        part_node(f"PT{k} work it out.", marks=m, space_mm=100)
+        for k, m in zip("abc", (2, 3, 1), strict=True)
+    ]
+    doc = make_doc(
+        _section("Section B", mode="structured"),
+        multipart_block(*parts, stem="QM01 A very long question."),
+        freeform_block("QM02 short one", marks=2),
+    )
+    html = render_document_html("P", doc, mode="student")
+    page = _paginated(browser, html)
+    # nothing had to be shrunk: the question simply continues on the next page
+    assert not page.evaluate("document.documentElement.hasAttribute('data-pagination-warnings')")
+    assert page.evaluate("document.querySelectorAll('.question.cont').length") >= 1
+    pages = page.evaluate(_PAGES_JS)
+    assert sum(p["tally"] for p in pages if p["tally"]) == 2 + 3 + 1 + 2
+    assert all(p["tally"] == p["marks"] for p in pages if p["tally"])
+    text = _pdf_pages(page.pdf(format="A4", print_background=True))
+    assert len(text) == len(pages) >= 2
+    joined = " ".join(text)
+    assert joined.count("1.") >= 1 and "PTa" in joined and "PTb" in joined and "PTc" in joined
+    # the continuation carries no question number of its own
+    assert (
+        page.evaluate(
+            "getComputedStyle(document.querySelector('.question.cont'), '::before').content"
+        )
+        == "none"
+    )
+    plain = browser.new_page()
+    plain.set_content(
+        html.replace(
+            '<main class="sheet worksheet" data-tally', '<main class="sheet worksheet"', 1
+        ),
+        wait_until="load",
+    )
+    plain.wait_for_selector("html[data-paginated='true']", state="attached")
+    base = _pdf_pages(plain.pdf(format="A4", print_background=True))
+    assert sum((_words(base) - _words(text)).values()) == 0
