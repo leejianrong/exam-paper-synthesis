@@ -25,7 +25,7 @@ initiative (EXA-E15)**: P1–P3 shipped (icon toolbar, working space / `Ans:` li
 marks placement, multi-part free-form questions) and P4 (sections with a marks target,
 derived question ranges and totals, paper time, starter templates) and P5 (answer-key
 options: hide the question text, omit the M/A breakdown, leave questions out; document
-schema 1.7.0), and P6a (marking margin per section, the tally-box component; schema 1.8.0); the rest of P6–P8 (marking margin, cover pages, one-click paper
+schema 1.7.0), and P6a (marking margin per section, the tally-box component; schema 1.8.0) and P6b (a paginator script prints a per-page tally box); the rest of P6–P8 (marking margin, cover pages, one-click paper
 generation) are planned in `docs/planning/editor/PAPER-FORMAT.md`. Live status is
 the Pandan board (EXA, board 8) and `docs/ROADMAP.md`.
 

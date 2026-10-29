@@ -399,3 +399,13 @@ body {
   bottom: 1.5mm;
   font: 600 11pt/1 var(--sans);
 }
+
+/* --- paginated paper (P6b): one fixed-height box per printed page, tally box at its foot --- */
+main[data-tally] { width: 178mm; max-width: none; }
+.pg { position: relative; overflow: hidden; break-after: page; }
+.pg > :first-child { margin-top: 0 !important; }
+.pg > .tally { position: absolute; right: 0; bottom: 0; }
+@media screen {
+  main[data-tally] { margin: 0 auto; }
+  .pg { margin-bottom: 8mm; outline: 1px solid var(--line); }
+}

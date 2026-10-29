@@ -53,7 +53,7 @@ def test_every_inline_script_in_the_print_html_is_allowed_by_hash(kind):
         "document": lambda: render_document_html("T", make_doc(gen_block()), mode="full"),
     }[kind]()
     scripts = INLINE_SCRIPT.findall(html)
-    assert len(scripts) == 3  # katex, auto-render, bootstrap — nothing else runs inline
+    assert len(scripts) == 4  # katex, auto-render, bootstrap, paginator — nothing else runs inline
     allowed = set(sources("script-src"))
     assert {sha(js) for js in scripts} <= allowed
     assert set(inline_script_hashes()) <= allowed

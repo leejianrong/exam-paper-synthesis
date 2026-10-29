@@ -29,7 +29,7 @@ def _doc():
 
 def _items(html):
     """(data-marks or None, marked?) for each numbered question in the student paper, in order."""
-    body = html.split("</style>")[-1]
+    body = html.split("</style>")[-1].split("<script>")[0]
     out = []
     for tag in re.findall(r'<section [^>]*class="question[^>]*>', body):
         m = re.search(r'data-marks="(\d+)"', tag)
@@ -59,9 +59,9 @@ def test_marked_questions_carry_their_marks_for_the_paginator():
 
 def test_the_answer_key_has_no_margin_and_the_paper_stays_numbered():
     doc = _doc()
-    key = render_document_html("P", doc, mode="key").split("</style>")[-1]
+    key = render_document_html("P", doc, mode="key").split("</style>")[-1].split("<script>")[0]
     assert " marked" not in key and "data-marks" not in key
-    full = render_document_html("P", doc, mode="full").split("</style>")[-1]
+    full = render_document_html("P", doc, mode="full").split("</style>")[-1].split("<script>")[0]
     paper, _ = full.split('<section class="key-section">')
     assert paper.count(" marked") == 3
 

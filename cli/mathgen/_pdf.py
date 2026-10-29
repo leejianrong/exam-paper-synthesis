@@ -12,6 +12,7 @@ from __future__ import annotations
 # ``exam_engine.render``); wait for it so the PDF is taken only after KaTeX has
 # finished laying out every math atom.
 _KATEX_DONE_SELECTOR = "html[data-katex-rendered='true']"
+_PAGINATED_SELECTOR = "html[data-paginated='true']"
 
 
 def html_to_pdf(html: str) -> bytes:
@@ -29,6 +30,7 @@ def html_to_pdf(html: str) -> bytes:
             page = browser.new_page()
             page.set_content(html, wait_until="load")
             page.wait_for_selector(_KATEX_DONE_SELECTOR, state="attached")
+            page.wait_for_selector(_PAGINATED_SELECTOR, state="attached")
             return page.pdf(format="A4", print_background=True)
         finally:
             browser.close()
