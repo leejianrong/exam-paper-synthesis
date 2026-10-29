@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { settled } from './helpers.js'
 
 /**
  * Browser acceptance for P5 answer-key options: leave a question out of the key, hide the
@@ -42,7 +43,7 @@ test('leave questions out of the key, hide question text and the M/A breakdown',
   await expect(entries.nth(1)).not.toContainText('QTWO-TEXT')
   await page.getByLabel('Answer key shows the M/A marking breakdown').uncheck()
 
-  await expect(page.getByRole('status').first()).toHaveText('Saved', { timeout: 10_000 })
+  await settled(page)
   await page.reload()
   await expect(page.getByLabel('Answer key repeats each question')).not.toBeChecked()
   await expect(page.getByLabel('Answer key shows the M/A marking breakdown')).not.toBeChecked()
@@ -62,7 +63,7 @@ test('leave questions out of the key, hide question text and the M/A breakdown',
   // Putting everything back restores the full key.
   await page.getByLabel('Answer key repeats each question').check()
   await key.getByLabel('Include question 1 in the answer key').check()
-  await expect(page.getByRole('status').first()).toHaveText('Saved', { timeout: 10_000 })
+  await settled(page)
   const full = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
   expect(full).toContain('ANSWER-ONE')
   expect(full).toContain('QONE-TEXT')
