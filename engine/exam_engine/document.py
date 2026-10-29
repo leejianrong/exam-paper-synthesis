@@ -21,12 +21,13 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
+# 1.7.0 (P5): + settings.key_options, per-question in_key.
 # 1.6.0 (P4): + section blocks (title, instructions, mode, marks target), settings.time_min.
 # 1.5.0 (P3): + freeformPart (lettered parts of a free-form question).
 # 1.4.0 (P2): + settings.marks_placement, per-question space_mm / ans_unit.
 # 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math; 1.3.0 (W5): + question `remark`.
 # Older documents stay valid (every addition is optional).
-DOCUMENT_SCHEMA_VERSION = "1.6.0"
+DOCUMENT_SCHEMA_VERSION = "1.7.0"
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000
@@ -91,6 +92,20 @@ def freeform_marks(node: dict) -> int:
     if parts:
         return sum(p["attrs"].get("marks") or 0 for p in parts)
     return node["attrs"].get("marks") or 0
+
+
+def key_options(doc: dict) -> dict:
+    """The answer-key print options with defaults filled in (P5)."""
+    given = (doc.get("settings") or {}).get("key_options") or {}
+    return {
+        "show_question": given.get("show_question", True),
+        "show_scheme": given.get("show_scheme", True),
+    }
+
+
+def in_key(node: dict) -> bool:
+    """Whether a numbered block appears in the answer key (default yes)."""
+    return node["attrs"].get("in_key", True) is not False
 
 
 def block_marks(node: dict) -> int:

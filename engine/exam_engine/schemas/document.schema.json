@@ -18,6 +18,14 @@
       "$comment": "Per-question `space_mm` (blank working space, mm; null = default for its marks) and `ans_unit` (unit printed after the Ans: line; null = from the answer) were added with this. Paper-wide print settings (added 1.4.0). marks_placement: where each question's [n] prints; default 'answer' (beside the Ans: line).",
       "properties": {
         "marks_placement": { "enum": ["question", "answer", "both"], "default": "answer" },
+        "key_options": {
+          "type": "object", "additionalProperties": false,
+          "description": "How the answer key prints (1.7.0, P5). Both default to true, i.e. the pre-P5 key.",
+          "properties": {
+            "show_question": { "type": "boolean", "description": "Repeat each question's text, figure and options above its answer; false = steps and answer only." },
+            "show_scheme": { "type": "boolean", "description": "Print the M/A/B marking breakdown under each answer." }
+          }
+        },
         "time_min": { "type": ["integer", "null"], "minimum": 1, "maximum": 600, "description": "Paper time in minutes (1.6.0); printed in the paper header." }
       }
     },
@@ -195,6 +203,7 @@
             "question": { "type": "object", "description": "Frozen snapshot of a canonical question object (validated by the canonical schema)." },
             "space_mm": { "type": ["integer", "null"], "minimum": 0, "maximum": 250 },
             "ans_unit": { "type": ["string", "null"], "maxLength": 12 },
+            "in_key": { "type": "boolean", "description": "false leaves this question out of the answer key (1.7.0); absent = included." },
             "remark": { "$ref": "#/$defs/remark" }
           }
         }
@@ -214,6 +223,7 @@
             "space_mm": { "type": ["integer", "null"], "minimum": 0, "maximum": 250 },
             "ans_unit": { "type": ["string", "null"], "maxLength": 12 },
             "answer": { "$ref": "#/$defs/answer_doc" },
+            "in_key": { "type": "boolean", "description": "false leaves this question out of the answer key (1.7.0); absent = included." },
             "remark": { "$ref": "#/$defs/remark" }
           }
         },

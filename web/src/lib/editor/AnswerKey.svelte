@@ -8,18 +8,40 @@
   import type { Question } from '../types'
   import { blocksToHtml, freeformMarks, freeformParts, type DocJSON, type DocNode } from './doc'
   import { partLetter } from './freeformPart'
+  import type { KeyOptions } from './layout'
   import AnswerEditor from './AnswerEditor.svelte'
   import { typesetMath } from './math'
   import FragmentView from './FragmentView.svelte'
 
   export let blocks: DocNode[] = []
+  /** The paper's answer-key options (P5): the key below previews what will print. */
+  export let options: Required<KeyOptions> = { show_question: true, show_scheme: true }
+
+  const included = (b: DocNode) => b.attrs?.in_key !== false
 
   const dispatch = createEventDispatcher<{
     answer: { blockId: string; answer: DocJSON }
     partanswer: { blockId: string; index: number; answer: DocJSON }
     error: string
+    include: { blockId: string; included: boolean }
   }>()
 </script>
+
+{#snippet include(block: DocNode, n: number)}
+  <label class="incl">
+    <input
+      type="checkbox"
+      checked={included(block)}
+      aria-label={`Include question ${n} in the answer key`}
+      on:change={(e) =>
+        dispatch('include', {
+          blockId: String(block.attrs?.block_id),
+          included: e.currentTarget.checked,
+        })}
+    />
+    in key
+  </label>
+{/snippet}
 
 <section class="key" aria-label="Answer key">
   <h2>Answer key</h2>
@@ -32,16 +54,19 @@
         {@const parts = freeformParts(block)}
         {@const body = (block.content ?? []).filter((c) => c.type !== 'freeformPart')}
         {@const marks = parts.length ? freeformMarks(block) : (block.attrs?.marks as number | null | undefined)}
-        <li class="entry freeform" data-block-id={block.attrs?.block_id}>
+        <li class="entry freeform" class:excluded={!included(block)} data-block-id={block.attrs?.block_id}>
           <div class="head">
             <span class="n">{i + 1}.</span>
             <span class="label">Answer</span>
+            {@render include(block, i + 1)}
             {#if marks !== null && marks !== undefined}<span class="marks">[{marks}]</span>{/if}
           </div>
+          {#if options.show_question}
           <div class="qtext" use:typesetMath={blocksToHtml(body)}>
             <!-- eslint-disable-next-line svelte/no-at-html-tags -- escaped by blocksToHtml -->
             {@html blocksToHtml(body)}
           </div>
+          {/if}
           {#if parts.length}
             {#each parts as part, pi (pi)}
               {@const pmarks = part.attrs?.marks as number | null | undefined}
@@ -51,10 +76,12 @@
                   <span class="label">Answer</span>
                   {#if pmarks !== null && pmarks !== undefined}<span class="marks">[{pmarks}]</span>{/if}
                 </div>
+                {#if options.show_question}
                 <div class="qtext" use:typesetMath={blocksToHtml(part.content)}>
                   <!-- eslint-disable-next-line svelte/no-at-html-tags -- escaped by blocksToHtml -->
                   {@html blocksToHtml(part.content)}
                 </div>
+                {/if}
                 <AnswerEditor
                   value={(part.attrs?.answer as DocJSON) ?? { type: 'doc', content: [] }}
                   label={`Answer to question ${i + 1} part (${partLetter(pi)})`}
@@ -84,12 +111,16 @@
       {#if q.source_type === 'sourced'}
         <!-- bank question: the engine's own key markup, so MCQ options, tables and
              constructions are right; it carries its own number. -->
-        <li class="entry"><FragmentView question={q} mode="key" number={i + 1} /></li>
+        <li class="entry" class:excluded={!included(block)}>
+          <div class="head">{@render include(block, i + 1)}</div>
+          <FragmentView question={q} mode="key" number={i + 1} keyOptions={options} />
+        </li>
       {:else}
-      <li class="entry">
+      <li class="entry" class:excluded={!included(block)}>
         <div class="head">
           <span class="n">{i + 1}.</span>
           <span class="ans"><span class="label">Answer</span> {fmtAnswer(part.answer)}</span>
+          {@render include(block, i + 1)}
           <span class="marks">[{part.marks}]</span>
         </div>
         {#if part.solution_steps?.length}
@@ -97,7 +128,7 @@
             {#each part.solution_steps as s, j (j)}<li>{s.text}</li>{/each}
           </ol>
         {/if}
-        {#if part.marking_scheme?.length}
+        {#if options.show_scheme && part.marking_scheme?.length}
           <ul class="scheme">
             {#each part.marking_scheme as m, j (j)}
               <li><span class="mtag {m.type}">{m.type}{m.mark}</span> {m.description}</li>
@@ -160,6 +191,23 @@
   .ans {
     font-family: var(--serif);
     font-weight: 600;
+  }
+  .incl {
+    font-size: 12px;
+    color: var(--ink-faint);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: auto;
+  }
+  .excluded {
+    opacity: 0.45;
+  }
+  .excluded .incl {
+    opacity: 1;
+  }
+  .incl + .marks {
+    margin-left: 0.6rem;
   }
   .marks {
     margin-left: auto;

@@ -30,9 +30,10 @@ import html
 import re
 from collections.abc import Callable
 from pathlib import Path
+from typing import NamedTuple
 
 from . import diagram, expression
-from .document import paper_outline
+from .document import in_key, key_options, paper_outline
 
 # ---------------------------------------------------------------------------
 # Vendored assets — read ONCE at import (no per-call I/O; keeps render_* pure).
@@ -321,8 +322,21 @@ def _render_part_head(
     return out
 
 
-def _render_solution(part: dict, q_diagram: dict | None = None) -> list[str]:
-    """Answer-key-only: worked steps + final answer + M/A/B marking scheme."""
+class KeyOptions(NamedTuple):
+    """How the answer key prints (P5). The defaults are the full, pre-P5 key."""
+
+    show_question: bool = True
+    show_scheme: bool = True
+
+
+def _key_options(doc: dict) -> KeyOptions:
+    return KeyOptions(**key_options(doc))
+
+
+def _render_solution(
+    part: dict, q_diagram: dict | None = None, *, show_scheme: bool = True
+) -> list[str]:
+    """Answer-key-only: worked steps + final answer + (optionally) the M/A/B marking scheme."""
     out: list[str] = ['<div class="solution">']
 
     out.append('<ol class="solution-steps">')
@@ -339,16 +353,17 @@ def _render_solution(part: dict, q_diagram: dict | None = None) -> list[str]:
     else:
         out.append(f'<p class="final-answer">Answer: {_fmt_answer(answer)}</p>')
 
-    out.append('<ul class="marking-scheme">')
-    for mark in part.get("marking_scheme", []):
-        mtype = mark["type"]
-        out.append(
-            '<li class="mark">'
-            f'<span class="mark-type mark-{mtype}">{mtype}{mark["mark"]}</span>'
-            f'<span class="mark-desc">{_esc(mark["description"])}</span>'
-            "</li>"
-        )
-    out.append("</ul>")
+    if show_scheme:
+        out.append('<ul class="marking-scheme">')
+        for mark in part.get("marking_scheme", []):
+            mtype = mark["type"]
+            out.append(
+                '<li class="mark">'
+                f'<span class="mark-type mark-{mtype}">{mtype}{mark["mark"]}</span>'
+                f'<span class="mark-desc">{_esc(mark["description"])}</span>'
+                "</li>"
+            )
+        out.append("</ul>")
 
     out.append("</div>")
     return out
@@ -392,6 +407,7 @@ def _render_question_item(
     tag: str = "li",
     layout: Layout | None = None,
     answer_area: bool = True,
+    key: KeyOptions | None = None,
 ) -> list[str]:
     """One question's markup (stem, shared figure/table, parts, answer space or solution).
 
@@ -401,6 +417,8 @@ def _render_question_item(
     out: list[str] = []
     parts = obj["question"]["parts"]
     multipart = len(parts) > 1
+    if answer_key and key is not None and not key.show_question:
+        return _render_key_only_item(obj, tag, key)
     out.append(f'<{tag} class="question">')
     stem = obj["question"].get("stem")
     if stem:
@@ -416,7 +434,9 @@ def _render_question_item(
             _render_part_head(part, multipart=multipart, answer_key=answer_key, layout=layout)
         )
         if answer_key:
-            out.extend(_render_solution(part, q_diagram))
+            out.extend(
+                _render_solution(part, q_diagram, show_scheme=key is None or key.show_scheme)
+            )
         elif answer_area and (part.get("answer") or {}).get("type") not in (
             "choice",
             "construction",
@@ -436,6 +456,25 @@ def _render_question_item(
                         part.get("marks"),
                     )
                 )
+    out.append(f"</{tag}>")
+    return out
+
+
+def _key_only_head(label: str | None, marks: int | None) -> str:
+    """The ``(a) … [2]`` line that stands in for a hidden question part in the key."""
+    lab = f'<span class="part-label">({_esc(label)})</span>' if label else ""
+    mk = f'<span class="marks">[{marks}]</span>' if marks is not None else ""
+    return f'<div class="part key-only-head">{lab}{mk}</div>'
+
+
+def _render_key_only_item(obj: dict, tag: str, key: KeyOptions) -> list[str]:
+    """A templated question in a key that hides the question text: number, steps, answer."""
+    parts = obj["question"]["parts"]
+    q_diagram = obj["question"].get("diagram")
+    out = [f'<{tag} class="question key-only">']
+    for part in parts:
+        out.append(_key_only_head(part.get("label") if len(parts) > 1 else None, part.get("marks")))
+        out.extend(_render_solution(part, q_diagram, show_scheme=key.show_scheme))
     out.append(f"</{tag}>")
     return out
 
@@ -611,6 +650,7 @@ def _render_freeform_item(
     tag: str = "section",
     assets: AssetResolver | None = None,
     layout: Layout | None = None,
+    key: KeyOptions | None = None,
 ) -> list[str]:
     """A teacher-written question (W2a): body + ``[marks]``, then answer space or key answer.
 
@@ -622,9 +662,15 @@ def _render_freeform_item(
     body = "".join(
         _render_rich_block(b, assets) for b in node["content"] if b.get("type") != "freeformPart"
     )
+    hide = answer_key and key is not None and not key.show_question
     if parts:
-        return _render_freeform_parts(node, parts, body, answer_key, tag, assets, layout)
+        return _render_freeform_parts(node, parts, body, answer_key, tag, assets, layout, hide)
     marks = attrs.get("marks")
+    if hide:
+        out = [f'<{tag} class="question freeform key-only">', _key_only_head(None, marks)]
+        out.extend(_freeform_answer(attrs, marks, answer_key, assets, layout, ""))
+        out.append(f"</{tag}>")
+        return out
     out = [f'<{tag} class="question freeform">', '<div class="part">']
     out.append(f'<div class="part-text">{body}</div>')
     if marks is not None and (layout is None or answer_key or layout.placement != "answer"):
@@ -664,23 +710,28 @@ def _render_freeform_parts(
     tag: str,
     assets: AssetResolver | None,
     layout: Layout | None,
+    hide_question: bool = False,
 ) -> list[str]:
     """A multi-part free-form question (P3): the stem, then (a), (b)… each with its own
     working space, Ans: line and marks. The label is the part's position."""
-    out = [f'<{tag} class="question freeform multipart">']
-    out.append(f'<div class="part"><div class="part-text">{body}</div></div>')
+    out = [f'<{tag} class="question freeform multipart{" key-only" if hide_question else ""}">']
+    if not hide_question:
+        out.append(f'<div class="part"><div class="part-text">{body}</div></div>')
     placement = layout.placement if layout else "question"
     for i, part in enumerate(parts):
         letter = chr(ord("a") + i)
         pattrs = part["attrs"]
         marks = pattrs.get("marks")
-        text = "".join(_render_rich_block(b, assets) for b in part["content"])
-        out.append('<div class="part">')
-        out.append(f'<span class="part-label">({letter})</span>')
-        out.append(f'<div class="part-text">{text}</div>')
-        if marks is not None and (layout is None or answer_key or placement != "answer"):
-            out.append(f'<span class="marks">[{marks}]</span>')
-        out.append("</div>")
+        if hide_question:
+            out.append(_key_only_head(letter, marks))
+        else:
+            text = "".join(_render_rich_block(b, assets) for b in part["content"])
+            out.append('<div class="part">')
+            out.append(f'<span class="part-label">({letter})</span>')
+            out.append(f'<div class="part-text">{text}</div>')
+            if marks is not None and (layout is None or answer_key or placement != "answer"):
+                out.append(f'<span class="marks">[{marks}]</span>')
+            out.append("</div>")
         part_layout = Layout(placement, pattrs.get("space_mm"), pattrs.get("ans_unit"))
         out.extend(_freeform_answer(pattrs, marks, answer_key, assets, part_layout, letter))
     out.append(f"</{tag}>")
@@ -702,28 +753,35 @@ def _render_numbered_blocks(
     answer_key: bool,
     assets: AssetResolver | None = None,
     placement: str = "answer",
+    key: KeyOptions | None = None,
+    numbers: list[int] | None = None,
 ) -> str:
-    """The ``<ol class="questions">`` body for document question blocks (both kinds)."""
+    """The ``<ol class="questions">`` body for document question blocks (both kinds).
+
+    ``numbers`` gives each block's number on the paper; the answer key passes it so a question
+    left out of the key does not renumber the ones after it.
+    """
     out: list[str] = ['<ol class="questions">']
-    for node in blocks:
+    for i, node in enumerate(blocks):
         if node["type"] == "freeformQuestion":
-            out.extend(
-                _render_freeform_item(
-                    node,
-                    answer_key=answer_key,
-                    tag="li",
-                    assets=assets,
-                    layout=_block_layout(node, placement),
-                )
+            item = _render_freeform_item(
+                node,
+                answer_key=answer_key,
+                tag="li",
+                assets=assets,
+                layout=_block_layout(node, placement),
+                key=key,
             )
         else:
-            out.extend(
-                _render_question_item(
-                    node["attrs"]["question"],
-                    answer_key=answer_key,
-                    layout=_block_layout(node, placement),
-                )
+            item = _render_question_item(
+                node["attrs"]["question"],
+                answer_key=answer_key,
+                layout=_block_layout(node, placement),
+                key=key,
             )
+        if numbers is not None:
+            item[0] = item[0].replace("<li ", f'<li style="counter-reset: q {numbers[i] - 1}" ', 1)
+        out.extend(item)
     out.append("</ol>")
     return "".join(out)
 
@@ -839,6 +897,12 @@ def render_document_html(
         if n["type"] in ("templatedQuestion", "freeformQuestion")
     ]
     marks = _doc_total_marks(blocks)
+    key_opts = _key_options(doc)
+    numbered = [(n, b) for n, b in enumerate(blocks, 1) if in_key(b)]
+    key_blocks = [b for _, b in numbered]
+    # The key counts up by itself unless a question was left out: then it keeps the paper's numbers.
+    all_numbers = [n for n, _ in numbered]
+    key_numbers = None if all_numbers == list(range(1, len(all_numbers) + 1)) else all_numbers
 
     if mode == "key":
         header = (
@@ -848,7 +912,12 @@ def render_document_html(
             "</header>"
         )
         body = _render_numbered_blocks(
-            blocks, answer_key=True, assets=assets, placement=_placement(doc)
+            key_blocks,
+            answer_key=True,
+            assets=assets,
+            placement=_placement(doc),
+            key=key_opts,
+            numbers=key_numbers,
         )
         return _document(
             root_class="sheet answer-key", title=title, header_html=header, body_html=body
@@ -867,7 +936,12 @@ def render_document_html(
     body = _render_document_body(doc, answer_key=False, assets=assets)
     if mode == "full":
         key = _render_numbered_blocks(
-            blocks, answer_key=True, assets=assets, placement=_placement(doc)
+            key_blocks,
+            answer_key=True,
+            assets=assets,
+            placement=_placement(doc),
+            key=key_opts,
+            numbers=key_numbers,
         )
         body += (
             f'<section class="key-section"><h2 class="key-heading">Answer Key</h2>{key}</section>'

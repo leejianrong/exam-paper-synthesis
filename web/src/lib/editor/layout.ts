@@ -9,6 +9,21 @@ export interface PaperSettings {
   marks_placement?: MarksPlacement;
   /** Paper time in minutes (P4); printed in the paper header. */
   time_min?: number | null;
+  /** How the answer key prints (P5); both default to shown. */
+  key_options?: KeyOptions;
+}
+
+export interface KeyOptions {
+  show_question?: boolean;
+  show_scheme?: boolean;
+}
+
+/** The key options with defaults filled in (the engine's `key_options`). */
+export function keyOptionsOf(settings: PaperSettings | undefined): Required<KeyOptions> {
+  return {
+    show_question: settings?.key_options?.show_question ?? true,
+    show_scheme: settings?.key_options?.show_scheme ?? true,
+  };
 }
 
 /** Pixels per millimetre on screen (CSS: 96 px per inch). */

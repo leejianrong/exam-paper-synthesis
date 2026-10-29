@@ -61,6 +61,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       answer: jsonAttr('data-answer', EMPTY_ANSWER),
       remark: { default: null }, // the author's private note (inspector); never printed
       space_mm: jsonAttr<number | null>('data-space_mm', null), // blank working space (mm)
+      in_key: jsonAttr<boolean>('data-in_key', true), // false leaves it out of the answer key (P5)
       ans_unit: jsonAttr<string | null>('data-ans_unit', null), // unit printed after Ans:
     }
   },
