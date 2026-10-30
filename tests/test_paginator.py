@@ -58,7 +58,8 @@ def make_paper(rng: random.Random, *, oversize: bool = False) -> dict:
 
 
 def _words(pages: list[str]) -> Counter:
-    return Counter(w for t in pages for w in t.split())
+    """Words printed, bar the marking-strip caption (it prints once per page)."""
+    return Counter(w for t in pages for w in t.replace("Do not write in this space", "").split())
 
 
 def _pdf_pages(pdf: bytes) -> list[str]:

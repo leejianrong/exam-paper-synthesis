@@ -10,7 +10,7 @@
 (function () {
   var MM = 96 / 25.4;
   var PAGE_H = (297 - 2 * 18) * MM; // content height of an A4 page under @page margin 18mm 16mm
-  var TALLY_H = 22 * MM; // room kept clear at the foot of every page for the tally box
+  var TALLY_H = 22 * MM; // foot of the page kept clear of full-width blocks for the tally box
   var SLACK = 2; // px: rounding must never spill a blank page
   var MIN_SPACE_MM = 10; // working space is never clamped below this
 
@@ -45,14 +45,14 @@
   // A question taller than a page would be clipped. Shrink its blank working space (never below
   // MIN_SPACE_MM) by the overflow and report it; whatever text remains is left to overflow.
   // A heading is kept with the block after it, so the unit that must fit is the whole run.
-  function clamp(items, sheetTop, avail, warnings) {
+  function clamp(items, sheetTop, warnings) {
     var changed = false;
     var i = 0;
     while (i < items.length) {
       var j = i;
       while (j < items.length - 1 && items[j].keepNext) j++;
       var from = i === 0 ? sheetTop : items[i].top; // page 1 also holds the paper's header
-      var over = items[j].bottom - from - avail;
+      var over = items[j].bottom - from - items[j].room;
       if (over > 0) {
         var cut = 0;
         for (var k = j; k >= i; k--) {
@@ -76,7 +76,7 @@
   }
 
   // Greedy fragmentation: the page index of every block.
-  function paginate(items, base, avail) {
+  function paginate(items, base) {
     var pageOf = [];
     var page = 0;
     var placed = 0; // groups already on the current page: never leave a page empty
@@ -84,7 +84,7 @@
     while (i < items.length) {
       var j = i;
       while (j < items.length - 1 && items[j].keepNext) j++;
-      if (items[j].bottom - base > avail && placed > 0) {
+      if (items[j].bottom - base > items[j].room && placed > 0) {
         page++;
         placed = 0;
         base = items[i].top;
@@ -136,16 +136,25 @@
         kids.push(u);
       });
     });
+    var header = main.querySelector(".sheet-header");
     var sheetTop = main.getBoundingClientRect().top + scrollY;
-    var avail = PAGE_H - TALLY_H;
     var warnings = [];
+    // Questions in a marking section stop short of the tally box's column, so they may run to the
+    // foot of the page; anything full-width keeps clear of the box.
+    function isMarked(el) {
+      return (owner.get(el) || el).classList.contains("marked");
+    }
+    function rooms(list) {
+      list.forEach(function (it) {
+        it.room = isMarked(it.el) ? PAGE_H : PAGE_H - TALLY_H;
+      });
+      return list;
+    }
 
-    var items = measure(kids);
-    // The header sits above the first block on page 1, so that page has less room.
-    var head = items[0].top - sheetTop;
-    if (clamp(items, sheetTop, avail, warnings)) items = measure(kids);
+    var items = rooms(measure(kids));
+    if (clamp(items, sheetTop, warnings)) items = rooms(measure(kids));
 
-    var pageOf = paginate(items, sheetTop, avail);
+    var pageOf = paginate(items, sheetTop);
     var pages = [];
     var placed = new Set();
     items.forEach(function (it, i) {
@@ -156,11 +165,15 @@
 
     pages.forEach(function (p, n) {
       if (!p) return;
+      var sheet = document.createElement("div"); // the page: padded like paper on screen
+      sheet.className = "sheet-page";
+      if (n === pages.length - 1) sheet.style.breakAfter = "auto";
       var pg = document.createElement("div");
       pg.className = "pg";
-      pg.style.height = PAGE_H - SLACK - (n === 0 ? head : 0) + "px";
-      if (n === pages.length - 1) pg.style.breakAfter = "auto";
-      body.appendChild(pg);
+      pg.style.height = PAGE_H - SLACK + "px";
+      sheet.appendChild(pg);
+      body.appendChild(sheet);
+      if (n === 0 && header) pg.appendChild(header); // the paper's header is part of page 1
       var frag = null;
       p.items.forEach(function (el) {
         var q = owner.get(el);
@@ -179,6 +192,14 @@
         frag.node.appendChild(el);
       });
       if (p.marks > 0) pg.appendChild(tallyBox(template, p.marks));
+      // One ruled strip per page, from the first marked question down to the tally box.
+      var first = pg.querySelector(".marked");
+      if (first) {
+        var strip = document.createElement("div");
+        strip.className = "pg-strip" + (p.marks > 0 ? " to-tally" : "");
+        strip.style.top = first.getBoundingClientRect().top - pg.getBoundingClientRect().top + "px";
+        pg.appendChild(strip);
+      }
       // Whatever could not be made to fit is printed in full (Chromium splits it) rather than cut.
       if (pg.scrollHeight > pg.clientHeight + 1) {
         pg.style.height = "auto";
@@ -189,10 +210,14 @@
   }
 
   function run() {
+    var main = document.querySelector("main[data-tally]");
+    if (main) main.classList.add("measuring"); // measure at the printed text width
     try {
       build();
     } catch (e) {
       done([{ error: String(e) }]); // never leave the export waiting for the flag
+    } finally {
+      if (main) main.classList.remove("measuring");
     }
   }
 

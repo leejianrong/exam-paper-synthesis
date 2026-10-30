@@ -40,6 +40,8 @@ export const SPACE_PRESETS: Array<{ label: string; mm: number }> = [
   { label: "M", mm: 60 },
   { label: "L", mm: 90 },
   { label: "XL", mm: 130 },
+  { label: "XXL", mm: 180 },
+  { label: "Max", mm: 250 },
 ];
 
 /** Round a drag result to 5 mm and keep it on the page. */

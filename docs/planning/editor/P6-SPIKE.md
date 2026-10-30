@@ -123,3 +123,15 @@ editor. It must never clip silently.
   and tally total, and the "working space trimmed" warning. So the editor's numbers are the
   PDF's. Live page frames drawn on the editing surface itself were not built; if wanted, they
   would be a separate, explicitly approximate feature.
+
+## After first review (owner feedback)
+
+- The marking strip is 17.6 mm wide (20 % narrower) and is drawn once per page by the paginator
+  (`.pg-strip`), from the first marked question down to the top of the tally box, instead of
+  once per question. The per-question strip stays only as a fallback if the script does not run.
+- Marked questions stop short of the tally box's column, so they may run to the foot of the
+  page; only full-width blocks keep 22 mm clear. This closes most of the gap above the tally.
+- On screen (the Preview) the paper is drawn as A4 sheets with the PDF's 18 mm / 16 mm margins on
+  a grey desk. The paper's header is now the first thing in page 1's box. The measuring pass
+  runs at the printed 178 mm text width whatever the window size.
+- Working-space presets now reach 180 mm (XXL) and 250 mm (Max).
