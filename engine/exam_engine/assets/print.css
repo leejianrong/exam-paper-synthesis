@@ -358,14 +358,14 @@ body {
 /* --- marking margin and page tally (P6) --- */
 /* Inside a marking section the text column gives up a right-hand strip for the marker; the strip
    is ruled, and carries its caption turned on its side. */
-.question.marked { margin-right: 26mm; }
+.question.marked { margin-right: 21mm; }
 .question.marked::after {
   content: "Do not write in this space";
   position: absolute;
   top: 0;
   bottom: 0;
-  right: -24mm;
-  width: 22mm;
+  right: -19mm;
+  width: 17.6mm;
   border: 1px solid var(--ink-faint);
   border-width: 0 0 0 1px;
   writing-mode: vertical-rl;
@@ -402,12 +402,47 @@ body {
 
 /* --- paginated paper (P6b): one fixed-height box per printed page, tally box at its foot --- */
 main[data-tally] { width: 178mm; max-width: none; }
-.pg { position: relative; overflow: hidden; break-after: page; }
+main[data-tally].measuring { width: 178mm !important; }
+.sheet-page { break-after: page; }
+.pg { position: relative; overflow: hidden; }
 .pg > :first-child { margin-top: 0 !important; }
 .pg > .tally { position: absolute; right: 0; bottom: 0; }
+/* the ruled marking strip: one per page, from the first marked question down to the tally box
+   (the per-question strip above is only the fallback if the paginator did not run) */
+main[data-tally] .question.marked::after { content: none; }
+.pg-strip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 17.6mm;
+  border-left: 1px solid var(--ink-faint);
+  writing-mode: vertical-rl;
+  text-align: center;
+  padding-right: 7mm;
+  font-size: 7pt;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+}
+.pg-strip::before { content: "Do not write in this space"; }
+.pg-strip.to-tally { bottom: 20mm; }
+/* On screen the preview looks like the printed sheet: grey desk, white A4 pages with the margins
+   the PDF will have. */
 @media screen {
-  main[data-tally] { margin: 0 auto; }
-  .pg { margin-bottom: 8mm; outline: 1px solid var(--line); }
+  body { background-color: #e6e8ec; }
+  main[data-tally] { width: 210mm; margin: 0 auto; padding: 8mm 0 0; }
+  .sheet-page {
+    padding: 18mm 16mm;
+    margin-bottom: 8mm;
+    background: #fff;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+  }
+  main.sheet:not([data-tally]) {
+    max-width: 210mm;
+    margin: 8mm auto;
+    padding: 18mm 16mm;
+    background: #fff;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+  }
 }
 /* the later page(s) of a multi-part question that broke between its parts (P6c): no new number */
 .question.cont { counter-increment: none; }
