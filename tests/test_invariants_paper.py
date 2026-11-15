@@ -162,11 +162,12 @@ def test_what_todays_content_fills():
         _, r = generate_paper(code, level, 1)
         return r["filled"], r["placeholders"]
 
-    assert fill("p1_booklet_a", "P6") == (8, 7)  # 3 one-mark + 5 two-mark convertible
-    assert fill("p1_booklet_a", "P5") == (7, 8)
-    assert fill("p1_booklet_b", "P6") == (10, 5)
-    assert fill("p1_booklet_b", "P5") == (7, 8)
+    assert fill("p1_booklet_a", "P6") == (9, 6)  # 4 one-mark + 5 two-mark convertible
+    assert fill("p1_booklet_a", "P5") == (9, 6)
+    assert fill("p1_booklet_b", "P6") == (12, 3)
+    assert fill("p1_booklet_b", "P5") == (9, 6)
     assert fill("p2", "P6") == (19, 0)
+    assert fill("p2", "P5") == (10, 6)
 
 
 def test_unknown_template_and_level_are_refused():
