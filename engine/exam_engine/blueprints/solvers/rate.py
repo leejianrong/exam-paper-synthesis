@@ -19,6 +19,7 @@ reads it. Exact by construction (ADR-0014):
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -162,6 +163,18 @@ class RateEasySolver:
             },
         }
 
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Rate × time slips, best first."""
+        c = CONTEXTS[params["template"]]
+        rate, t = params["rate"], params["time"]
+        return [
+            (rate + t, "added instead of multiplying"),
+            (rate, f"gave the number in 1 {c['time']}"),
+            (rate * (t - 1), f"counted one {c['time']} too few"),
+            (rate * (t + 1), f"counted one {c['time']} too many"),
+            (Fraction(rate, t), "divided instead of multiplying"),
+        ]
+
     def validate(self, params: dict, solution: dict) -> dict:
         lo, hi = CONTEXTS[params["template"]]["rate"]
         rate, t = params["rate"], params["time"]
@@ -230,6 +243,27 @@ class RateMediumSolver:
                 "answer_value": ans,
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Unitary-method slips in the asked quantity (items, or time units), best first."""
+        c = CONTEXTS[params["template"]]
+        rate, t1, t2 = params["rate"], params["t1"], params["t2"]
+        q1, q2 = rate * t1, rate * t2
+        if params["kind"] == "amount":
+            return [
+                (rate, f"gave the number in 1 {c['time']}"),
+                (q1 * t2, f"multiplied the {q1} {c['noun']} by {t2}"),
+                (q1 + (t2 - t1), f"added the difference in {c['time']}s"),
+                (q1 + q2, f"added the {q1} {c['noun']} already {c['done']}"),
+                (rate * abs(t2 - t1), f"found the number for {abs(t2 - t1)} {c['time']}s only"),
+            ]
+        return [
+            (Fraction(q2, t1), f"divided by the {c['time']}s instead of the rate"),
+            (rate, f"gave the number in 1 {c['time']}"),
+            (Fraction(q2, q1), f"divided {q2} by {q1} but did not multiply by {t1}"),
+            (t1 + t2, f"added the {t1} {c['time']}s given"),
+            (q2 - q1, f"subtracted the {c['noun']}"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         c = CONTEXTS[params["template"]]
@@ -324,6 +358,27 @@ class RateHardSolver:
                 "answer_value": money2(total),
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Tiered-charge slips, as money (cents → dollars), best first."""
+        template = params["template"]
+        first, extra, duration = params["first"], params["extra"], params["duration"]
+        block = CHARGES[template][0]
+        blocks = (duration - 60) // block
+        all_blocks = duration // block
+        what = "half hour" if template == "carpark" else "hour"
+        out: list[tuple[int | Fraction, str]] = [
+            (Fraction(first + all_blocks * extra, 100), "counted the first hour twice"),
+            (Fraction(blocks * extra, 100), "left out the first-hour charge"),
+            (Fraction(first * duration, 6000), "charged every hour at the first-hour price"),
+            (Fraction(all_blocks * extra, 100), "charged the first hour at the extra rate"),
+        ]
+        if template == "carpark":  # the extra charge read as per hour, not per half hour
+            per_hour = Fraction(first * 60 + extra * (duration - 60), 6000)
+            out.append((per_hour, "charged the extra amount per hour, not per half hour"))
+        if blocks > 1:
+            out.append((Fraction(first + (blocks - 1) * extra, 100), f"missed one {what}"))
+        return out
 
     def validate(self, params: dict, solution: dict) -> dict:
         block, first_rng, extra_rng, step, dur_rng = CHARGES[params["template"]]
