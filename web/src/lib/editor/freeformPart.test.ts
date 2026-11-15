@@ -82,6 +82,17 @@ describe('adding and deleting parts loses nothing', () => {
     expect(p?.attrs?.answer).toEqual(answer('OLD'))
   })
 
+  it('puts the caret in the new part at once, so typing never reaches the button', async () => {
+    make([question({ marks: 2 })])
+    await new Promise((r) => setTimeout(r))
+    click('.ff-bar button[aria-label="Add a lettered part"]')
+    // synchronously, not a frame later: a key typed in between went to the button (a space
+    // pressed it again and added a stray part)
+    expect(editor.view.hasFocus()).toBe(true)
+    const { $from } = editor.state.selection
+    expect($from.node($from.depth - 1).type.name).toBe('freeformPart')
+  })
+
   it('deleting the last part gives its marks and answer back to the question', async () => {
     make([question({ marks: null }, part('only', { marks: 4, answer: answer('MINE') }))])
     await new Promise((r) => setTimeout(r))
