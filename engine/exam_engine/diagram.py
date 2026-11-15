@@ -449,6 +449,17 @@ def _render_panels(spec: dict) -> str:
     return "".join(out)
 
 
+# A worked model is part of the solution, not the question: a bar model carries the units and
+# values a pupil is meant to find ("1 unit = $36", the answer itself). It prints only in the
+# answer key; every other figure (geometry, charts, solids, shaded fractions) is question data.
+WORKED_MODEL_TYPES = frozenset({"bar_model", "bar_model_before_after"})
+
+
+def is_worked_model(spec: dict | None) -> bool:
+    """True for a figure that shows the solution (EXA-132): key only, never the student paper."""
+    return spec is not None and spec.get("type") in WORKED_MODEL_TYPES
+
+
 def render_svg(spec: dict, given: dict | None = None) -> str:
     """Render a diagram spec to a self-contained inline ``<svg>`` string.
 

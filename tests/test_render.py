@@ -109,14 +109,25 @@ def test_authored_math_and_fraction_answers_still_use_katex():
 # --- diagrams ---------------------------------------------------------------
 
 
-def test_diagram_svg_embedded_when_present():
+def test_a_worked_bar_model_prints_in_the_key_never_on_the_worksheet():
+    """EXA-132: a bar model is the worked solution ("1 unit = $36", even the answer), so the
+    student's worksheet never shows it; the answer key does, verbatim from render_svg."""
     from exam_engine import diagram
 
-    html = render_worksheet_html(TITLE, [EASY])
-    assert '<figure class="diagram">' in html
-    # The SVG is reused verbatim from diagram.render_svg (not re-rendered).
-    svg = diagram.render_svg(EASY["question"]["parts"][0]["diagram"])
-    assert svg in html
+    spec = EASY["question"]["parts"][0]["diagram"]
+    assert diagram.is_worked_model(spec)
+    svg = diagram.render_svg(spec)
+    assert svg not in render_worksheet_html(TITLE, [EASY])
+    assert svg in render_answer_key_html(TITLE, [EASY])
+
+
+def test_question_figures_still_print_on_the_worksheet():
+    from exam_engine import diagram
+
+    obj = generate("geometry_angle_easy", 3)
+    spec = obj["question"]["parts"][0].get("diagram") or obj["question"].get("diagram")
+    assert spec and not diagram.is_worked_model(spec)
+    assert diagram.render_svg(spec) in render_worksheet_html(TITLE, [obj])
 
 
 def test_diagram_omitted_when_absent():

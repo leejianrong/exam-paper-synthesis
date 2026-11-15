@@ -8,6 +8,15 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
+### Fixed
+
+- **The student paper no longer prints worked bar models (EXA-132).** A `bar_model` /
+  `bar_model_before_after` figure is the worked solution: it showed units and values such as
+  "1 unit = $36" and, on before–after ratio questions, the answer itself ("Devi = $216"). Found
+  by comparing generated papers with real P6 prelims. Bar models now print only in the answer
+  key (also when the key hides the question text); *Convert to free-form* puts them in the
+  answer, not the question; the editor labels them "printed in the answer key only".
+
 ### Added
 
 - **Editor + SaaS (W1–W4)** — WYSIWYG document editor (ProseMirror-style document

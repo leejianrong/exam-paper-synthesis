@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from . import expression
+from . import diagram, expression
 from .units import printed_unit
 
 Node = dict[str, Any]
@@ -154,7 +154,11 @@ def to_freeform(obj: dict) -> dict:
 
     if q.get("stem"):
         body.append(_para(str(q["stem"])))
-    if q.get("diagram"):
+    # A worked model (bar model) is part of the solution: it goes to the answer, never the
+    # question body a pupil sees (EXA-132).
+    if q.get("diagram") and diagram.is_worked_model(q["diagram"]):
+        answer.append(_figure(q["diagram"], "worked model", "Bar model of the solution"))
+    elif q.get("diagram"):
         body.append(_figure(q["diagram"], "figure"))
     if q.get("table"):
         body.extend(_table_blocks(q["table"]))
@@ -167,7 +171,10 @@ def to_freeform(obj: dict) -> dict:
             body.extend(_options_blocks(part["answer"]))
         if part.get("diagram"):
             where = f"part ({part['label']}) figure" if part.get("label") else "figure"
-            body.append(_figure(part["diagram"], where))
+            if diagram.is_worked_model(part["diagram"]):
+                answer.append(_figure(part["diagram"], f"{where} (worked model)"))
+            else:
+                body.append(_figure(part["diagram"], where))
 
         # The written answer: the printed answer, then how to get there.
         pa = part["answer"]

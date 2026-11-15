@@ -7,6 +7,9 @@
   export let spec: DiagramSpec | null | undefined
   /** The tighter frame the editor body uses. */
   export let compact = false
+  // A bar model is the worked solution (it carries "1 unit = …" and can show the answer), so the
+  // paper never prints it; the teacher still sees it here, labelled (EXA-132).
+  $: worked = spec?.type === 'bar_model' || spec?.type === 'bar_model_before_after'
   $: svg = renderDiagram(spec)
   // Accessible label reflects the diagram kind. Older ratio cards keep "bar model".
   $: aria =
@@ -29,6 +32,12 @@
 {/if}
 
 <style>
+  .worked-note {
+    margin: 0.2rem 0 0.6rem;
+    font-size: 12px;
+    color: var(--ink-faint);
+    font-style: italic;
+  }
   .diagram {
     margin: 0 0 1rem;
     padding: 0.85rem 0.75rem 0.5rem;
@@ -48,3 +57,6 @@
     height: auto;
   }
 </style>
+{#if worked && (svg || isServerDiagram(spec))}
+  <p class="worked-note">Worked model: printed in the answer key only, not on the student paper.</p>
+{/if}
