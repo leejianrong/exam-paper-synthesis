@@ -30,6 +30,8 @@ and **Paper format** (E15, P1–P5, P6a–d, P7, P8a, P8b and P8d done (P6d = a 
 [`planning/editor/PAPER-FORMAT.md`](planning/editor/PAPER-FORMAT.md) and [`planning/editor/P8-SHAPING.md`](planning/editor/P8-SHAPING.md)).
 A comparison of generated papers with four real 2025 P6 prelims (O4, EXA-128) is in
 [`planning/editor/REAL-PAPER-COMPARISON.md`](planning/editor/REAL-PAPER-COMPARISON.md): its layout gaps are EXA-134–142 and its content gaps EXA-143–150.
+From the P7–P8 acceptance run: **Organise and create** (O1 settings, O2 folders, O3 the + New wizard, O4 a comparison with real papers — done, see below; O1 in progress) — see
+[`planning/editor/ORGANIZE-SHAPING.md`](planning/editor/ORGANIZE-SHAPING.md).
 
 ---
 

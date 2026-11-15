@@ -1,5 +1,6 @@
 // A tiny hash router (no dependency): #/ -> documents list, #/docs/:id -> editor,
-// #/classic -> the original Generate + tray page (kept until W1 is done).
+// #/classic -> the original Generate + tray page (hidden unless turned on in Settings, O1),
+// #/settings -> the account's settings.
 
 import { readable } from 'svelte/store'
 
@@ -7,12 +8,14 @@ export type Route =
   | { name: 'list' }
   | { name: 'editor'; id: string }
   | { name: 'classic' }
+  | { name: 'settings' }
   | { name: 'login'; error: string }
 
 export function parseHash(hash: string): Route {
   const [path, query = ''] = (hash.replace(/^#/, '') || '/').split('?')
   if (path === '/login') return { name: 'login', error: new URLSearchParams(query).get('error') ?? '' }
   if (path === '/classic') return { name: 'classic' }
+  if (path === '/settings') return { name: 'settings' }
   const m = /^\/docs\/([A-Za-z0-9-]+)$/.exec(path)
   if (m) return { name: 'editor', id: m[1] }
   return { name: 'list' }

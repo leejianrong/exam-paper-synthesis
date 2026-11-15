@@ -13,6 +13,7 @@
   import type { DocumentSummary } from './doc'
   import { navigate } from '../router'
   import AccountChip from './AccountChip.svelte'
+  import { settings } from '../settings'
 
   let docs: DocumentSummary[] = []
   let loaded = false
@@ -108,7 +109,10 @@
 <main>
   <div class="masthead">
     <span class="wordmark">exam-paper-synthesis</span>
-    <a class="classic" href="#/classic">Classic generator</a>
+    <nav class="links" aria-label="More">
+      {#if $settings?.classic_generator}<a class="classic" href="#/classic">Classic generator</a>{/if}
+      <a class="classic" href="#/settings">Settings</a>
+    </nav>
     <AccountChip />
   </div>
   <div class="head">
@@ -179,6 +183,12 @@
     font-family: var(--mono);
     font-size: 13.5px;
     font-weight: 600;
+  }
+  .links {
+    display: flex;
+    gap: 1rem;
+    margin-left: auto;
+    margin-right: 1rem;
   }
   .classic {
     font-size: 12.5px;

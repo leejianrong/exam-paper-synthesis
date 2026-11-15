@@ -7,6 +7,7 @@ describe('parseHash', () => {
     expect(parseHash('#/')).toEqual({ name: 'list' })
     expect(parseHash('#/docs/9af63707-e84d')).toEqual({ name: 'editor', id: '9af63707-e84d' })
     expect(parseHash('#/classic')).toEqual({ name: 'classic' })
+    expect(parseHash('#/settings')).toEqual({ name: 'settings' })
   })
   it('falls back to the list for anything else (no path injection)', () => {
     expect(parseHash('#/docs/../../x')).toEqual({ name: 'list' })

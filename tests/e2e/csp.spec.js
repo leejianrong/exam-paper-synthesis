@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { openClassic } from './helpers.js'
 import fs from 'node:fs'
 
 /**
@@ -71,7 +72,7 @@ test('editor, KaTeX preview, PDF export and the classic tray work under the poli
   expect(bytes.subarray(0, 4).toString('latin1')).toBe('%PDF')
 
   // Classic page: Preview opens the print HTML as a blob: tab, which inherits the policy.
-  await page.goto(`${ORIGIN}/#/classic`)
+  await openClassic(page, { api: ORIGIN, origin: ORIGIN })
   await page.getByRole('button', { name: 'Generate', exact: true }).click()
   await page.locator('article.card').first().getByRole('button', { name: 'Approve' }).click()
   const [popup] = await Promise.all([

@@ -25,6 +25,7 @@ from .routes_export import router as export_router
 from .routes_generate import router
 from .routes_papers import router as papers_router
 from .routes_render import router as render_router
+from .routes_settings import router as settings_router
 
 
 @asynccontextmanager
@@ -85,6 +86,7 @@ app.include_router(export_router)
 app.include_router(documents_router)
 app.include_router(bank_router)
 app.include_router(assets_router)
+app.include_router(settings_router)
 app.include_router(convert_router)
 app.include_router(papers_router)
 app.include_router(render_router)

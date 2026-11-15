@@ -44,6 +44,12 @@ CREATE TABLE IF NOT EXISTS documents (
 );
 CREATE INDEX IF NOT EXISTS documents_owner ON documents(owner_id, updated_at DESC);
 
+CREATE TABLE IF NOT EXISTS settings (
+  owner_id TEXT PRIMARY KEY,
+  data JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS assets (
   id TEXT PRIMARY KEY,
   owner_id TEXT NOT NULL,
@@ -157,6 +163,41 @@ def _iso(value: datetime) -> str:
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+# --- settings (O1) -----------------------------------------------------------------------
+
+
+class PgSettingsStore:
+    def __init__(self, db: Database):
+        self.db = db
+
+    def _stored(self, conn, owner_id: str) -> dict:
+        row = conn.execute("SELECT data FROM settings WHERE owner_id = %s", (owner_id,)).fetchone()
+        return dict(row["data"]) if row else {}
+
+    def get(self, owner_id: str) -> dict:
+        from .settings import merged
+
+        with self.db.connection() as conn:
+            return merged(self._stored(conn, owner_id))
+
+    def update(self, owner_id: str, patch: dict) -> dict:
+        from .settings import check_patch, merged
+
+        check_patch(patch)
+        with self.db.connection() as conn:
+            data = merged(self._stored(conn, owner_id)) | patch
+            conn.execute(
+                "INSERT INTO settings VALUES (%s,%s,%s) ON CONFLICT (owner_id) DO UPDATE "
+                "SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at",
+                (owner_id, Jsonb(data), _now()),
+            )
+        return merged(data)
+
+    def erase_owner(self, owner_id: str) -> None:
+        with self.db.connection() as conn:
+            conn.execute("DELETE FROM settings WHERE owner_id = %s", (owner_id,))
 
 
 # --- documents ---------------------------------------------------------------------------
