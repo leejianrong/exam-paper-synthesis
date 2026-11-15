@@ -224,6 +224,13 @@ in generation (the engine stays deterministic).
   ordered by marks. Multi-part blueprints never fill `short` or `mcq` slots. The report counts
   them per section (`multipart`, apart from `stand_ins`), and the editor's banner says "Section B
   has 3 multi-part questions; 9 single-part questions stand in for the rest."
+- **Keep / swap / lock (P8d).** `paper_swap` follows the same order. "Another like this" on a
+  multi-part question takes another multi-part question of its topic and marks, else a new seed
+  of it, else a single-part stand-in; on a stand-in it prefers a multi-part question of its
+  topic. "Another topic" and placeholders try multi-part candidates first. "Regenerate unlocked"
+  gives structured slots multi-part questions first, then stand-ins. Multi-part questions never
+  enter `short` or `mcq` slots, and only single-part questions in structured slots carry
+  `stand_in`.
 - **What it fills now.** P6 Paper 2 Section B: 12 questions, 45 / 45 marks = the three
   multi-part (4 + 5 + 5) and nine single-part stand-ins (five 3-mark, four 4-mark). A P5 paper
   is unchanged (all three are P6).

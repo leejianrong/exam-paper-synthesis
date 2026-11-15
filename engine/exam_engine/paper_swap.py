@@ -25,6 +25,14 @@ in them — are kept exactly as they are.
 Candidates are ``paper._fits`` for the slot's kind, so an ``mcq`` slot only takes blueprints
 ``mcq.to_mcq`` can convert, and its new question is converted like the generator's (P8b).
 
+Multi-part questions (P8c) only ever fill ``structured`` slots, and there they come first, as
+in ``generate_paper``: ``like`` on a multi-part question takes another multi-part question of
+the same topic and marks, else a new seed of it, else a single-part one (a stand-in); ``like``
+on a stand-in prefers a multi-part question of its topic; ``topic`` and placeholders try the
+multi-part candidates before the single-part ones; ``regenerate_unlocked`` fills structured
+slots with multi-part questions first, then stand-ins. A single-part question in a structured
+slot is flagged ``stand_in``; a multi-part one is not.
+
 Pure and deterministic: the API chooses the seed and stamps ``created_at``.
 """
 
@@ -160,12 +168,36 @@ class _Paper:
         return [
             c
             for c in self.pool
-            if c.code not in self.used and c.marks == slot["marks"] and _fits(c, slot["kind"])
+            if c.code not in self.used and c.marks == slot["marks"] and _slot_takes(c, slot)
         ]
 
     def take(self, c: Candidate) -> None:
         self.used.add(c.code)
         self.topics[c.topic] = self.topics.get(c.topic, 0) + 1
+
+
+def _slot_takes(c: Candidate, slot: dict) -> bool:
+    """``paper._fits``, plus multi-part blueprints for a structured slot (P8c)."""
+    if slot["kind"] == "structured" and _fits(c, "multipart"):
+        return True
+    return _fits(c, slot["kind"])
+
+
+def _tiers(options: list[Candidate]) -> list[list[Candidate]]:
+    """The candidates in the generator's order of preference: multi-part, then the rest."""
+    multi = [c for c in options if c.kind == "multipart"]
+    return [multi, [c for c in options if c.kind != "multipart"]]
+
+
+def _first(
+    tiers: list[list[Candidate]], topics: dict[str, int], rng: random.Random
+) -> Candidate | None:
+    """The least-used-topic candidate of the first tier that has any."""
+    for tier in tiers:
+        choice = _least_used(tier, topics, rng)
+        if choice is not None:
+            return choice
+    return None
 
 
 def _least_used(
@@ -187,10 +219,11 @@ def _kept(node: dict) -> dict:
     return {k: node["attrs"][k] for k in _KEPT_ATTRS if node["attrs"].get(k) is not None}
 
 
-def _filled_slot(slot: dict) -> dict:
+def _filled_slot(slot: dict, multipart: bool) -> dict:
     out = {"marks": slot["marks"], "kind": slot["kind"]}
-    # a single-part question in a structured section stands in for a multi-part one (P8a)
-    if slot["kind"] == "structured" or slot.get("stand_in"):
+    # a single-part question in a structured section stands in for a multi-part one (P8a);
+    # a real multi-part question (P8c) does not
+    if not multipart and (slot["kind"] == "structured" or slot.get("stand_in")):
         out["stand_in"] = True
     return out
 
@@ -209,12 +242,12 @@ def _placeholder_block(node: dict, slot: dict) -> dict:
     return {"type": "freeformQuestion", "attrs": attrs, "content": [{"type": "paragraph"}]}
 
 
-def _new_slot(node: dict, slot: dict) -> dict | None:
+def _new_slot(node: dict, slot: dict, c: Candidate) -> dict | None:
     """The slot a filled block records: a generated position keeps (and fills) its slot; a
     hand-added question without one stays without one."""
     if not (node.get("attrs") or {}).get("slot"):
         return None
-    return _filled_slot(slot)
+    return _filled_slot(slot, c.kind == "multipart")
 
 
 def _fresh(code: str, kind: str, rng: random.Random, avoid: dict | None = None) -> dict:
@@ -292,16 +325,25 @@ def swap_question(
     choice: Candidate | None
     if mode == "like":
         if node["type"] == "freeformQuestion":  # filling a placeholder
-            choice = _least_used(options, paper.topics, rng)
+            choice = _first(_tiers(options), paper.topics, rng)
         else:
-            same_topic = [c for c in options if c.topic == topic and c.code != current]
-            choice = _least_used(same_topic, {}, rng)
-            if choice is None and current and any(c.code == current for c in options):
-                choice = next(c for c in options if c.code == current)  # a new seed of it
+            multi, single = _tiers([c for c in options if c.topic == topic])
+            itself = [c for c in options if c.code == current]  # a new seed of it
+            multi = [c for c in multi if c.code != current]
+            single = [c for c in single if c.code != current]
+            order: list[list[Candidate]]
+            if itself and itself[0].kind == "multipart":  # keep it multi-part if at all possible
+                order = [multi, itself, single]
+            else:
+                order = [multi, single, itself]
+            choice = _first(order, {}, rng)
     else:  # topic
         others = [c for c in options if c.topic != topic]
-        fresh = [c for c in others if not paper.topics.get(c.topic)]
-        choice = _least_used(fresh or others, paper.topics, rng)
+        order = []
+        for tier in _tiers(others):
+            fresh = [c for c in tier if not paper.topics.get(c.topic)]
+            order += [fresh, tier]
+        choice = _first(order, paper.topics, rng)
 
     if choice is None:
         what = "another topic" if mode == "topic" else "this topic"
@@ -311,7 +353,7 @@ def swap_question(
         )
     avoid = node["attrs"]["question"] if choice.code == current else None
     obj = _fresh(choice.code, slot["kind"], rng, avoid)
-    blocks[idx] = _question_block(node, obj, _new_slot(node, slot))
+    blocks[idx] = _question_block(node, obj, _new_slot(node, slot, choice))
     return out, {**report, **_describe(choice), "placeholder": False}
 
 
@@ -338,19 +380,30 @@ def regenerate_unlocked(doc: dict, level: str | None, seed: int) -> tuple[dict, 
     rng = random.Random(f"regenerate|{level}|{seed}")
     report = {"replaced": 0, "placeholders": 0, "kept": 0}
     report["kept"] = sum(1 for n in blocks if n["type"] in QUESTION_TYPES) - len(targets)
+    # P8c: like generate_paper, structured slots take multi-part questions first, so a later
+    # stand-in slot can't use up a multi-part blueprint an earlier slot could have had.
+    chosen: dict[int, Candidate] = {}
+    for i in targets:
+        slot = _slot_of(blocks[i], modes[i])
+        if slot["kind"] == "structured":
+            c = _least_used(_tiers(paper.options(slot))[0], paper.topics, rng)
+            if c is not None:
+                paper.take(c)
+                chosen[i] = c
     for i in targets:
         node = blocks[i]
         slot = _slot_of(node, modes[i])
-        c = _least_used(paper.options(slot), paper.topics, rng)
+        c = chosen.get(i) or _least_used(paper.options(slot), paper.topics, rng)
         if c is None:
             if node["type"] == "templatedQuestion":
                 blocks[i] = _placeholder_block(node, slot)
             report["placeholders"] += 1
             continue
-        paper.take(c)
+        if i not in chosen:
+            paper.take(c)
         avoid = node["attrs"]["question"] if _blueprint(node) == c.code else None
         blocks[i] = _question_block(
-            node, _fresh(c.code, slot["kind"], rng, avoid), _new_slot(node, slot)
+            node, _fresh(c.code, slot["kind"], rng, avoid), _new_slot(node, slot, c)
         )
         report["replaced"] += 1
     return out, report

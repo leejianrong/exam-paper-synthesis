@@ -40,6 +40,7 @@ def _meta() -> dict[str, dict]:
             "level": d["syllabus"]["level"],
             "topic": d["syllabus"]["topic"],
             "marks": d["marks"],
+            "parts": len(d.get("parts") or []) or 1,  # P8c multi-part blueprints
         }
     return out
 
@@ -91,9 +92,13 @@ def _check_rules(doc, level, where):
             assert META[_code(n)]["level"] in allowed, where
             assert META[_code(n)]["marks"] == slot["marks"], where
             assert "placeholder" not in slot, where
-            if mode == "structured":
+            parts = n["attrs"]["question"]["question"]["parts"]
+            assert len(parts) == META[_code(n)]["parts"], where
+            if META[_code(n)]["parts"] > 1:  # P8c: multi-part only in structured, never a stand-in
+                assert mode == "structured" and "stand_in" not in slot, where
+            elif mode == "structured":
                 assert slot.get("stand_in") is True and _marks(n) >= 2, where
-            answers = [p["answer"] for p in n["attrs"]["question"]["question"]["parts"]]
+            answers = [p["answer"] for p in parts]
             if mode == "mcq":  # P8b: an MCQ slot stays multiple choice, 4 options
                 assert len(answers) == 1, where
                 assert answers[0]["type"] == "choice", where
@@ -267,9 +272,83 @@ def test_regenerate_never_touches_a_hand_written_or_bank_question():
 def test_regenerate_with_everything_unlocked_gives_a_new_paper():
     doc, _ = generate_paper("p2", "P6", 4)
     new, report = regenerate_unlocked(doc, "P6", 99)
-    assert report["kept"] == 0 and report["replaced"] == 19
+    assert report["kept"] == 0 and report["replaced"] == 17
     assert json.dumps(new) != json.dumps(doc)
     _check_rules(new, "P6", "p2 regenerate")
+    # P8c: like the generator, Section B takes every multi-part blueprint again
+    assert sorted(c for c in map(_code, _blocks(new)) if c and META[c]["parts"] > 1) == MULTIPART
+
+
+MULTIPART = sorted(c for c, m in META.items() if m["parts"] > 1)
+
+
+def _multipart_in(doc) -> list[str]:
+    return sorted(c for c in map(_code, _blocks(doc)) if c and META[c]["parts"] > 1)
+
+
+@pytest.mark.parametrize("seed", range(1, 13))
+def test_a_random_walk_on_paper_2_keeps_multipart_in_section_b_and_every_rule(seed):
+    """P8c x P8d: swaps of every mode and regenerates, in a seeded random order, on a P6
+    Paper 2. Totals stay exact, nothing repeats, multi-part questions stay in Section B (never a
+    stand-in), and "like" on a multi-part question keeps it multi-part."""
+    doc, _ = generate_paper("p2", "P6", seed)
+    assert _multipart_in(doc) == MULTIPART
+    rng = random.Random(f"walk{seed}")
+    for step in range(30):
+        where = f"p2 P6 seed={seed} step={step}"
+        if rng.random() < 0.15:
+            for n in _blocks(doc):  # lock a few, regenerate the rest
+                if _is_q(n) and rng.random() < 0.3:
+                    n["attrs"]["locked"] = True
+            doc, _ = regenerate_unlocked(doc, "P6", rng.randrange(1000))
+            for n in _blocks(doc):
+                if _is_q(n):
+                    n["attrs"].pop("locked", None)
+            _check_rules(doc, "P6", where)
+            continue
+        qs = [n for n in _blocks(doc) if _is_q(n)]
+        node = rng.choice(qs)
+        mode = rng.choice(MODES)
+        try:
+            new, _ = swap_question(doc, node["attrs"]["block_id"], mode, rng.randrange(1000))
+        except SwapNotPossible:
+            continue
+        out = next(
+            n for n in _blocks(new) if n["attrs"].get("block_id") == node["attrs"]["block_id"]
+        )
+        if mode == "like" and _code(node) and META[_code(node)]["parts"] > 1:
+            assert META[_code(out)]["parts"] > 1, where  # another multi-part, or a new seed
+        doc = new
+        _check_rules(doc, "P6", where)
+
+
+def test_a_freed_structured_slot_is_refilled_with_the_multipart_question_first():
+    doc, _ = generate_paper("p2", "P6", 1)
+    mp = next(n for n in _blocks(doc) if _code(n) == "speed_structured")
+    bid = mp["attrs"]["block_id"]
+    own, _ = swap_question(doc, bid, "own", 1)  # "write my own" frees speed_structured
+    filled, report = swap_question(own, bid, "like", 2)
+    assert report["blueprint"] == "speed_structured"
+    out = next(n for n in _blocks(filled) if n["attrs"].get("block_id") == bid)
+    assert "stand_in" not in out["attrs"]["slot"]
+    _check_rules(filled, "P6", "refill")
+
+
+def test_multipart_never_goes_into_short_or_mcq_slots():
+    for code in TEMPLATES:
+        doc, _ = generate_paper(code, "P6", 3)
+        for n in _blocks(doc):
+            if n["type"] == "templatedQuestion" and n["attrs"]["slot"]["kind"] != "structured":
+                for mode in ("like", "topic"):
+                    try:
+                        new, _ = swap_question(doc, n["attrs"]["block_id"], mode, 7)
+                    except SwapNotPossible:
+                        continue
+                    assert all(
+                        META[c]["parts"] == 1
+                        for c, m in zip(map(_code, _blocks(new)), _blocks(new), strict=True)
+                        if c and m["attrs"]["slot"]["kind"] != "structured"
+                    )
 
 
 # ---------------------------------------------------------------------------
