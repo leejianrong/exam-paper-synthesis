@@ -33,5 +33,5 @@ test('selecting a geometry topic renders a mandatory figure with no toggle', asy
   await expect(svg).toBeVisible()
 
   // Mandatory figure → no Show/Hide diagram control anywhere on the card.
-  await expect(card.getByRole('button', { name: /diagram/i })).toHaveCount(0)
+  await expect(card.getByRole('button', { name: /diagram|model (in|from) key/i })).toHaveCount(0)
 })

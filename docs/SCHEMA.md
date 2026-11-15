@@ -64,6 +64,9 @@ that variant's strict sub-schema.
   (`raster` = an image reference, used by sourced/scanned diagrams). The generated
   families render to inline `<svg>`; `raster` renders to an `<img src="{asset_ref}"
   alt="{alt_text}">` — see the sourced-object note under Example 3.
+  - `bar_model` and `bar_model_before_after` are **worked models** (solution aids): they carry
+    the units and values a pupil must find, so renderers print them in the answer key only,
+    never on the student paper (`diagram.is_worked_model`, EXA-132).
   - `bar_model` may carry an optional `total_bracket: { label }` (schema **1.1.0**) —
     a vertical curly brace across all bars labelling the total.
   - `bar_model_before_after` (schema **1.2.0**) is the before-after ratio aid: two

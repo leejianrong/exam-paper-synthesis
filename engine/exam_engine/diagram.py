@@ -449,6 +449,29 @@ def _render_panels(spec: dict) -> str:
     return "".join(out)
 
 
+# A worked model is part of the solution, not the question: a bar model carries the units and
+# values a pupil is meant to find ("1 unit = $36", the answer itself). It prints only in the
+# answer key; every other figure (geometry, charts, solids, shaded fractions) is question data.
+WORKED_MODEL_TYPES = frozenset({"bar_model", "bar_model_before_after"})
+
+
+def is_worked_model(spec: dict | None) -> bool:
+    """True for a figure that shows the solution (EXA-132): key only, never the student paper.
+    A ``panels`` figure counts when any of its panels does."""
+    if spec is None:
+        return False
+    if spec.get("type") == "panels":
+        return any(is_worked_model(p.get("figure")) for p in spec.get("panels", []))
+    return spec.get("type") in WORKED_MODEL_TYPES
+
+
+def hides_worked_model(obj: dict, spec: dict | None) -> bool:
+    """A *generated* question's worked model stays off the student paper. A sourced (bank)
+    question prints its figures as the real paper did: there a model may be the question
+    itself ("The model shows…"), so it is never hidden."""
+    return obj.get("source_type") == "generated" and is_worked_model(spec)
+
+
 def render_svg(spec: dict, given: dict | None = None) -> str:
     """Render a diagram spec to a self-contained inline ``<svg>`` string.
 

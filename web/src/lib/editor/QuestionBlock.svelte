@@ -65,7 +65,8 @@
   $: barView =
     part.diagram?.type === 'bar_model_before_after' ? (part.diagram.view_mode ?? 'grouped') : null
   function opLabel(op: EditOp, fallback: string): string {
-    if (op === 'toggle-diagram') return part.diagram ? 'Hide diagram' : 'Show diagram'
+    // toggle-diagram is only offered for bar models, which print in the answer key only (EXA-132)
+    if (op === 'toggle-diagram') return part.diagram ? 'Hide model from key' : 'Show model in key'
     if (op === 'toggle-bar-view') return barView === 'sliced' ? 'Group segments' : 'Slice into units'
     return fallback
   }

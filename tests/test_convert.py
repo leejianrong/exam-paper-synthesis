@@ -11,7 +11,7 @@ import pytest
 from app import export
 from app.main import app
 from documents import make_doc
-from exam_engine import generate
+from exam_engine import diagram, generate
 from exam_engine.convert import answer_inline, figures, to_freeform
 from exam_engine.document import validate_document
 from fastapi.testclient import TestClient
@@ -108,11 +108,13 @@ def test_every_blueprint_converts_to_a_valid_free_form_block(code):
         for part in q["parts"]:
             for step in part.get("solution_steps", []):
                 assert step["text"] in answer, (code, seed)
-        # figures survive as placeholders, in the right place
-        n_diagrams = sum(
-            1 for d in [q.get("diagram"), *[p.get("diagram") for p in q["parts"]]] if d
-        )
-        assert len(figures(draft["body"])) >= n_diagrams
+        # figures survive as placeholders, in the right place: a worked model (bar model) goes
+        # to the answer, never the question body a pupil sees (EXA-132)
+        specs = [d for d in [q.get("diagram"), *[p.get("diagram") for p in q["parts"]]] if d]
+        worked = [d for d in specs if diagram.is_worked_model(d)]
+        assert len(figures(draft["body"])) >= len(specs) - len(worked)
+        assert not any(diagram.is_worked_model(f["spec"]) for f in figures(draft["body"]))
+        assert len(figures(draft["answer"])) >= len(worked)
         assert validate_document(_as_document(draft)) == [], (code, seed)
 
 
@@ -205,7 +207,9 @@ def test_convert_stores_figures_as_the_owners_assets(monkeypatch):
     assert resp.status_code == 200
     out = resp.json()
     assert out["marks"] == obj["question"]["total_marks"] and out["dropped"] == []
-    images = [b for b in out["content"] if b["type"] == "image"]
+    # the bar model is the worked solution: it lands in the answer, not the question (EXA-132)
+    assert not [b for b in out["content"] if b["type"] == "image"]
+    images = [b for b in out["answer"]["content"] if b["type"] == "image"]
     assert len(images) == 1 and calls == [1]
     asset_id = images[0]["attrs"]["asset_id"]
     assert client.get(f"/assets/{asset_id}", headers=ALICE).status_code == 200
@@ -286,7 +290,9 @@ def test_real_chromium_rasterises_a_bar_model():
     obj = generate("ratio_medium", 3)
     out = client.post("/convert/freeform", json={"question": obj}, headers=ALICE).json()
     assert out["dropped"] == []
-    asset_id = next(b for b in out["content"] if b["type"] == "image")["attrs"]["asset_id"]
+    asset_id = next(b for b in out["answer"]["content"] if b["type"] == "image")["attrs"][
+        "asset_id"
+    ]
     got = client.get(f"/assets/{asset_id}", headers=ALICE)
     assert got.headers["content-type"] == "image/png"
     assert got.content.startswith(b"\x89PNG") and len(got.content) > 1000

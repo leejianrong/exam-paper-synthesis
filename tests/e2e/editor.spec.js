@@ -365,13 +365,15 @@ test('convert a generated question to free-form: text, answer and its figure as 
   const ff = page.locator('.ffblock')
   await expect(ff).toHaveCount(1)
   await expect(page.getByTestId('question-block')).toHaveCount(0)
-  // The bar model became an uploaded PNG, and the written answer is editable in the key.
-  const img = ff.locator('img.doc-image-img')
-  await expect(img).toBeVisible()
-  await expect.poll(() => img.evaluate((e) => e.naturalWidth)).toBeGreaterThan(100)
+  // The bar model is the worked solution (EXA-132): it became an uploaded PNG in the written
+  // answer (editable in the key), never in the question a pupil sees.
+  await expect(ff.locator('.ff-body img.doc-image-img')).toHaveCount(0)
   await expect(ff.locator('.ff-area .marks')).toHaveText(/\[\d+\]/)
   const entry = page.getByRole('region', { name: 'Answer key' }).locator('.entry.freeform')
   await expect(entry.locator('.answer')).toContainText('Answer:')
+  const img = entry.locator('img')
+  await expect(img).toBeVisible()
+  await expect.poll(() => img.evaluate((e) => e.naturalWidth)).toBeGreaterThan(100)
   if (original) await expect(ff.locator('.ff-body')).toContainText(original.slice(0, 20))
 
   // Now it is the teacher's text: edit it freely.
@@ -383,9 +385,11 @@ test('convert a generated question to free-form: text, answer and its figure as 
   await settled(page)
   const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
   expect(student).toContain('(edited)')
-  expect(student).toContain('data:image/png;base64,')
+  // The bar model is the worked solution: never on the student paper, in the key (EXA-132).
+  expect(student).not.toContain('data:image/png;base64,')
   const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
   expect(key).toContain('Answer:')
+  expect(key).toContain('data:image/png;base64,')
 
 })
 

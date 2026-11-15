@@ -32,7 +32,8 @@
   $: canHarder = ops.includes('make-harder')
   $: canDecimals = ops.includes('change-to-decimals')
   $: canToggleDiagram = ops.includes('toggle-diagram')
-  $: diagramLabel = part.diagram ? 'Hide diagram' : 'Show diagram'
+  // Only bar models toggle, and they print in the answer key only (EXA-132).
+  $: diagramLabel = part.diagram ? 'Hide model from key' : 'Show model in key'
   // toggle-bar-view flips the before-after bar model's view_mode (KAN-310). The
   // button names the mode it switches TO; the current mode reads off the spec
   // (defaulting to "grouped").
@@ -55,9 +56,9 @@
   </header>
 
   {#if q.question.stem}<p class="text"><MathText text={q.question.stem} /></p>{/if}
-  <DiagramView spec={q.question.diagram} />
+  <DiagramView keyOnly={q.source_type === 'generated'} spec={q.question.diagram} />
   <p class="text"><MathText text={part.text} /></p>
-  <DiagramView spec={part.diagram} />
+  <DiagramView keyOnly={q.source_type === 'generated'} spec={part.diagram} />
   {#if part.answer?.type === 'choice'}<ChoiceOptions options={part.answer.options ?? []} />{/if}
 
   <p class="answer">
