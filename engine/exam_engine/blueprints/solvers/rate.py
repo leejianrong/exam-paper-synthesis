@@ -265,7 +265,7 @@ class RateHardSolver:
         while True:
             first = step * rng.randint(first_rng[0] // step, first_rng[1] // step)
             extra = step * rng.randint(extra_rng[0] // step, extra_rng[1] // step)
-            if extra < first:
+            if extra < first and extra * (60 // block) <= first:  # an extra hour <= the first
                 break
         duration = block * rng.randint(dur_rng[0] // block, dur_rng[1] // block)
         return {
@@ -292,7 +292,7 @@ class RateHardSolver:
             s2 = f" parked there for {stay}. How much did "
             after = duration_text(duration - 60, template)
             step1 = (
-                f"Time after the first hour = {stay} - 1 h = {after} "
+                f"Time after the first hour = {stay} − 1 h = {after} "
                 f"= {blocks} {_plural('half hour', blocks)}."
             )
             expr1 = f"({duration}-60)/30"
@@ -304,7 +304,7 @@ class RateHardSolver:
             )
             s2 = f" rented a bicycle for {stay}. How much did "
             hours = duration // 60
-            step1 = f"Number of additional hours = {hours} - 1 = {blocks}."
+            step1 = f"Number of additional hours = {hours} − 1 = {blocks}."
             expr1 = f"{hours}-1"
             what = _plural("hour", blocks)
         return {
@@ -335,7 +335,7 @@ class RateHardSolver:
             and extra_rng[0] <= extra <= extra_rng[1]
             and first % step == 0
             and extra % step == 0,
-            "first_hour_costs_more": extra < first,
+            "first_hour_costs_more": extra < first and extra * (60 // block) <= first,
             "whole_blocks_past_first_hour": dur_rng[0] <= duration <= dur_rng[1]
             and duration % block == 0
             and duration > 60,

@@ -67,9 +67,10 @@ def check_easy(obj: dict) -> None:
 
 def check_medium(obj: dict) -> None:
     m = re.fullmatch(
-        r"(\d+) ([a-z ]+) cost \$(\d+\.\d\d)\. How much do (\d+) such \2 cost\?", _text(obj)
+        r"(\d+) ([a-z ]+) cost \$(\d+(?:\.\d\d)?)\. How much do (\d+) such \2 cost\?", _text(obj)
     )
     assert m, _text(obj)
+    assert not m[3].endswith(".00")  # a whole-dollar price reads "$42", as PSLE writes it
     n, cost, k = int(m[1]), Decimal(m[3]), int(m[4])
     answer = single_part_answer(obj)
     ans = _answer(obj)

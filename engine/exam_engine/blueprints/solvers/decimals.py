@@ -59,6 +59,12 @@ def money(cents: int) -> str:
     return f"${cents // 100}.{cents % 100:02d}"
 
 
+def stem_money(cents: int) -> str:
+    """A price as the question states it: ``$42`` for whole dollars (as PSLE writes it),
+    else ``$9.60``."""
+    return f"${cents // 100}" if cents % 100 == 0 else money(cents)
+
+
 def plain(cents: int) -> str:
     """``9.60`` — a cents amount for a step's ``expr``."""
     return money(cents)[1:]
@@ -188,7 +194,7 @@ class DecimalsMediumSolver:
 
     def sample(self, schema: dict, rng: random.Random) -> dict:
         while True:
-            unit = 5 * rng.randint(7, 199)  # 35¢ .. $9.95, a whole number of 5 cents
+            unit = 5 * rng.randint(21, 199)  # $1.05 .. $9.95, a whole number of 5 cents
             if unit % 100 == 0:
                 continue
             n = rng.randint(2, 9)
@@ -202,7 +208,7 @@ class DecimalsMediumSolver:
         return {
             "answer": money_answer(ans),
             "intermediates": {
-                "cost_text": money(cost),
+                "cost_text": stem_money(cost),
                 "cost_plain": plain(cost),
                 "unit_text": money(unit),
                 "unit_plain": plain(unit),
@@ -285,7 +291,7 @@ class DecimalsHardSolver:
             {
                 "step3": f"Total spent = {money(costs[0])} + {money(costs[1])} = {money(spent)}.",
                 "expr3": f"{plain(costs[0])}+{plain(costs[1])}",
-                "step4": f"Money left = ${budget} - {money(spent)} = {money(ans)}.",
+                "step4": f"Money left = ${budget} − {money(spent)} = {money(ans)}.",
                 "expr4": f"{budget}-{plain(spent)}",
             }
         )

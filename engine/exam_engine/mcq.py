@@ -104,7 +104,10 @@ def _with_value(answer: dict, value: Fraction) -> dict:
         out["numerator"], out["denominator"] = value.numerator, value.denominator
         return out
     if answer["type"] == "decimal" or value.denominator != 1:
-        places = max(_places(answer.get("value")), 1 if value.denominator != 1 else 0)
+        # the answer's declared places (money: dp 2, so 5.25 is never shown as 5.2 -> $5.20)
+        dp = answer.get("dp")
+        places = dp if isinstance(dp, int) else _places(answer.get("value"))
+        places = max(places, 1 if value.denominator != 1 else 0)
         out["type"] = "decimal" if answer["type"] != "quantity" else "quantity"
         out["value"] = round(float(value), places)
     else:

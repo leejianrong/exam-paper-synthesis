@@ -10,6 +10,7 @@ kind: once converted, the question is the teacher's.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from . import expression
@@ -22,8 +23,24 @@ def _text(value: str) -> Node:
     return {"type": "text", "text": value}
 
 
+_INLINE_MATH = re.compile(r"\\\((.+?)\\\)", re.S)
+
+
+def _inline(value: str) -> list[Node]:
+    """Text with authored ``\\(…\\)`` maths (e.g. algebra's ``\\(5n - 7\\)``) as the
+    editor's inline ``math`` nodes, so it typesets instead of showing the delimiters."""
+    out: list[Node] = []
+    at = 0
+    for m in _INLINE_MATH.finditer(value):
+        out.append(_text(value[at : m.start()]))
+        out.append({"type": "math", "attrs": {"latex": m.group(1).strip()}})
+        at = m.end()
+    out.append(_text(value[at:]))
+    return out
+
+
 def _para(*inline: Node | str) -> Node:
-    content = [_text(c) if isinstance(c, str) else c for c in inline]
+    content = [n for c in inline for n in (_inline(c) if isinstance(c, str) else [c])]
     merged: list[Node] = []
     for c in content:
         if c.get("type") == "text":

@@ -36,14 +36,25 @@ def _dev_env(monkeypatch):
 
 
 def _texts(blocks) -> str:
+    """Each paragraph's inline text joined as written (a math node back as \\(…\\)),
+    paragraphs separated by a space."""
     out: list[str] = []
 
-    def walk(n):
+    def inline(n) -> str:
         if n.get("type") == "text":
-            out.append(n["text"])
+            return n["text"]
         if n.get("type") == "math":
-            out.append(n["attrs"]["latex"])
-        for c in n.get("content", []):
+            return f"\\({n['attrs']['latex']}\\)"
+        return ""
+
+    def walk(n):
+        kids = n.get("content", [])
+        if kids and all(k.get("type") in ("text", "math") for k in kids):
+            out.append("".join(inline(k) for k in kids))
+            return
+        if n.get("type") in ("text", "math"):
+            out.append(inline(n))
+        for c in kids:
             walk(c)
 
     for b in blocks:
@@ -279,3 +290,18 @@ def test_real_chromium_rasterises_a_bar_model():
     got = client.get(f"/assets/{asset_id}", headers=ALICE)
     assert got.headers["content-type"] == "image/png"
     assert got.content.startswith(b"\x89PNG") and len(got.content) > 1000
+
+
+def test_authored_inline_maths_becomes_math_nodes():
+    """Algebra writes letters as \\(5n - 7\\): the editor must typeset them, not show the
+    delimiters."""
+    out = to_freeform(generate("algebra_easy", 1))
+    nodes = [n for b in out["body"] + out["answer"] for n in _walk(b)]
+    assert any(n.get("type") == "math" for n in nodes)
+    assert not any("\\(" in n.get("text", "") for n in nodes)
+
+
+def _walk(node):
+    yield node
+    for c in node.get("content", []):
+        yield from _walk(c)

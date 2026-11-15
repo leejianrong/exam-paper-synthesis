@@ -233,7 +233,7 @@ class AlgebraMediumSolver:
             total = rf"\(({k1}{x} + {k2}({second}))\) = $\(({k1 + k2}{x} {op} {k2 * d})\)"
         worked = {
             "more": f"{k2} × (${p} + ${d})",
-            "less": f"{k2} × (${p} - ${d})",
+            "less": f"{k2} × (${p} − ${d})",
             "times": f"{k2} × {d} × ${p}",
         }[kind]
         second_expr = {

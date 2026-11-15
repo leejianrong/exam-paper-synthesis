@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte'
   import ChoiceOptions from './ChoiceOptions.svelte'
   import DiagramView from './DiagramView.svelte'
+  import MathText from './MathText.svelte'
   import { fmtAnswer } from './format'
   import type { EditOp } from './api'
   import type { Question } from './types'
@@ -53,9 +54,9 @@
     >
   </header>
 
-  {#if q.question.stem}<p class="text">{q.question.stem}</p>{/if}
+  {#if q.question.stem}<p class="text"><MathText text={q.question.stem} /></p>{/if}
   <DiagramView spec={q.question.diagram} />
-  <p class="text">{part.text}</p>
+  <p class="text"><MathText text={part.text} /></p>
   <DiagramView spec={part.diagram} />
   {#if part.answer?.type === 'choice'}<ChoiceOptions options={part.answer.options ?? []} />{/if}
 
