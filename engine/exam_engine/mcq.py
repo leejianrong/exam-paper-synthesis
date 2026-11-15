@@ -146,10 +146,10 @@ def _plausible(v: Fraction, answer: Fraction, *, fraction: bool = False, kind: s
     plain number (a whole answer gets whole distractors)."""
     if v <= 0 or v == answer:
         return False
+    if fraction:  # first: a fraction option is a proper-looking fraction, never "4/1" (EXA-133)
+        return v.denominator != 1 and v.denominator <= 100
     if kind == "vouched":  # a solver's own decimal slip (1.984 for 19.84): up to 3 dp
         return (v * 1000).denominator == 1
-    if fraction:
-        return v.denominator != 1 and v.denominator <= 100
     if answer.denominator == 1 and v.denominator != 1:
         if kind == "money":
             return (v * 100).denominator == 1

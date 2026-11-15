@@ -264,3 +264,14 @@ def test_money_options_read_whole_dollars_or_two_places(code):
         for o in to_mcq(obj, seed)["question"]["parts"][0]["answer"]["options"]:
             if o["text"].startswith("$"):
                 assert re.fullmatch(r"\$\d+(\.\d\d)?", o["text"]), (code, seed, o["text"])
+
+
+@pytest.mark.parametrize("code", BLUEPRINTS)
+def test_a_fraction_option_never_has_denominator_one(code):
+    """EXA-133: a fraction solver's hook value 4/1 printed as "4/1"."""
+    for seed in range(1, 61):
+        obj = generate(code, seed)
+        if not convertible(obj) or obj["question"]["parts"][0]["answer"]["type"] != "fraction":
+            continue
+        for o in to_mcq(obj, seed)["question"]["parts"][0]["answer"]["options"]:
+            assert not re.search(r"\\frac\{\d+\}\{1\}", o["text"]), (code, seed, o["text"])
