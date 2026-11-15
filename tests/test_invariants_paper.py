@@ -170,3 +170,42 @@ def test_unknown_template_and_level_are_refused():
         generate_paper("p3", "P6", 1)
     with pytest.raises(ValueError):
         generate_paper("p2", "P4", 1)
+
+
+def test_a_placeholder_counts_as_written_once_anything_is_in_it():
+    doc, _ = generate_paper("p1_booklet_b", "P6", 3)
+    before = unfilled_placeholders(doc)
+    phs = [n for n in _questions(doc) if n["attrs"].get("slot", {}).get("placeholder")]
+    phs[0]["content"] = [
+        {"type": "paragraph"},
+        {
+            "type": "freeformPart",
+            "attrs": {"marks": phs[0]["attrs"]["marks"]},
+            "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Find x."}]}],
+        },
+    ]
+    phs[1]["content"] = [
+        {"type": "paragraph", "content": [{"type": "math", "attrs": {"latex": "x"}}]}
+    ]
+    phs[2]["content"] = [{"type": "paragraph", "content": [{"type": "text", "text": "   "}]}]
+    assert unfilled_placeholders(doc) == before - 2
+
+
+def test_the_stand_in_plan_stays_fast_and_exact_as_content_grows():
+    import time
+
+    from exam_engine import paper
+    from exam_engine.paper import Candidate
+
+    class _F:
+        used: set = set()
+        pool = [
+            Candidate(f"b{m}_{i}", "T", "P6", m, "constructed")
+            for m in range(2, 9)
+            for i in range(15)
+        ]
+
+    t = time.perf_counter()
+    plan = paper._stand_in_plan(_F(), 45, 12)
+    assert time.perf_counter() - t < 0.5
+    assert sum(plan) == 45 and len(plan) == 12 and min(plan) >= 2

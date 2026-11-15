@@ -73,4 +73,19 @@ describe('unfilledPlaceholders', () => {
     }
     expect(unfilledPlaceholders(doc)).toBe(2)
   })
+
+  it('a placeholder written only in its parts, or with only a figure, counts as written', () => {
+    const base = ph()
+    const withPart = {
+      ...base,
+      content: [
+        { type: 'paragraph' },
+        { type: 'freeformPart', attrs: { marks: 2 }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Find x.' }] }] },
+      ],
+    }
+    const withImage = { ...base, content: [{ type: 'image', attrs: { asset_id: 'a1' } }] }
+    const emptyPart = { ...base, content: [{ type: 'paragraph' }, { type: 'freeformPart', attrs: {}, content: [{ type: 'paragraph' }] }] }
+    expect(unfilledPlaceholders({ type: 'doc', content: [withPart, withImage, emptyPart] })).toBe(1)
+  })
 })
+

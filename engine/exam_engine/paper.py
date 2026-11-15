@@ -27,7 +27,6 @@ Rules (owner's decisions, 2026-11-15):
 from __future__ import annotations
 
 import copy
-import itertools
 import random
 from dataclasses import dataclass
 from functools import cache
@@ -217,19 +216,27 @@ def _stand_in_plan(f: _Filler, target: int, slots: int) -> list[int]:
         if c.code not in f.used and c.marks >= _STAND_IN_MIN_MARKS and _fits(c, "structured"):
             have[c.marks] = have.get(c.marks, 0) + 1
     values = sorted(have)
-    best: tuple | None = None
-    for counts in itertools.product(*(range(have[v] + 1) for v in values)):
-        total = sum(v * n for v, n in zip(values, counts, strict=True))
-        if total > target:
-            continue
-        n = sum(counts)
-        small = counts[0] if counts else 0
-        key = (total, -abs(n - slots), -small)
-        if best is None or key > best[0]:
-            best = (key, counts)
-    if best is None:
-        return []
-    return [v for v, n in zip(values, best[1], strict=True) for _ in range(n)]
+    # Dynamic programme over (marks so far, questions so far) -> the counts per mark value that
+    # reach it with the fewest of the smallest value. Bounded by target x count x pool size, so
+    # it stays fast however much content grows (an exhaustive product would not).
+    states: dict[tuple[int, int], tuple[int, ...]] = {(0, 0): ()}
+    for v in values:
+        nxt: dict[tuple[int, int], tuple[int, ...]] = {}
+        for (total, n), counts in states.items():
+            for k in range(have[v] + 1):
+                t = total + k * v
+                if t > target:
+                    break
+                key = (t, n + k)
+                cand = (*counts, k)
+                if key not in nxt or cand[:1] < nxt[key][:1]:  # fewer of the smallest value
+                    nxt[key] = cand
+        states = nxt
+    (total, n), counts = max(
+        states.items(),
+        key=lambda kv: (kv[0][0], -abs(kv[0][1] - slots), -(kv[1][0] if kv[1] else 0)),
+    )
+    return [v for v, k in zip(values, counts, strict=True) for _ in range(k)]
 
 
 def _placeholder_chunks(shortfall: int) -> list[int]:
@@ -339,13 +346,24 @@ def generate_paper(template_code: str, level: str, seed: int) -> tuple[dict, dic
     return doc, report
 
 
+def _has_content(nodes: list[dict]) -> bool:
+    """Any non-blank text, or an image / equation, anywhere in these nodes (parts included)."""
+    for n in nodes:
+        if n["type"] == "text" and n.get("text", "").strip():
+            return True
+        if n["type"] in ("image", "math"):
+            return True
+        if _has_content(n.get("content", [])):
+            return True
+    return False
+
+
 def unfilled_placeholders(doc: dict) -> int:
-    """Placeholders the teacher hasn't written yet (a placeholder with an empty body)."""
-    n = 0
-    for node in doc["content"]["content"]:
-        slot = (node.get("attrs") or {}).get("slot") or {}
-        if node["type"] == "freeformQuestion" and slot.get("placeholder"):
-            body = [b for b in node.get("content", []) if b["type"] != "freeformPart"]
-            if not any(b.get("content") for b in body):
-                n += 1
-    return n
+    """Placeholders the teacher hasn't written yet: nothing in the stem or any part."""
+    return sum(
+        1
+        for node in doc["content"]["content"]
+        if node["type"] == "freeformQuestion"
+        and ((node.get("attrs") or {}).get("slot") or {}).get("placeholder")
+        and not _has_content(node.get("content", []))
+    )

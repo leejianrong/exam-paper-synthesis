@@ -10,6 +10,7 @@ import type { NodeViewRendererProps } from '@tiptap/core'
 import { EMPTY_ANSWER } from './doc'
 import { moveBlock } from './templatedQuestion'
 import { FreeformPart, MAX_PARTS, PART_NODE, jsonAttr, partLetter } from './freeformPart'
+import { hasContent } from './paperReport'
 import { mount, unmount } from 'svelte'
 import { get, writable } from 'svelte/store'
 import FreeformArea from './FreeformArea.svelte'
@@ -259,17 +260,15 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       const sync = () => {
         const ps = parts()
         const multi = ps.length > 0
-        const slot = current.attrs.slot as { marks?: number; kind?: string; placeholder?: boolean } | null
-        let bodyText = ''
-        current.forEach((child) => {
-          if (child.type.name !== 'freeformPart') bodyText += child.textContent
-        })
-        const waiting = !!slot?.placeholder && !bodyText.trim() && !multi
+        const slot = current.attrs.slot as { kind?: string; placeholder?: boolean } | null
+        // Same rule as the "to write" count: anything in the stem or a part means it's written.
+        const waiting = !!slot?.placeholder && !hasContent(current.toJSON().content)
         hint.hidden = !waiting
         dom.classList.toggle('placeholder-slot', waiting)
         if (waiting) {
           const kind = slot?.kind === 'mcq' ? 'multiple-choice' : slot?.kind === 'structured' ? 'structured' : 'short-answer'
-          hint.textContent = `Placeholder: write a ${slot?.marks ?? ''}-mark ${kind} question here, or delete it and add one.`
+          const marks = multi ? ps.reduce((n, p) => n + p.marks, 0) : (current.attrs.marks as number | null)
+          hint.textContent = `Placeholder: write a ${marks ? `${marks}-mark ` : ''}${kind} question here, or delete it and add one.`
         }
         dom.classList.toggle('multipart', multi)
         // With parts the marks are the parts' sum and the question has no answer area of its own.

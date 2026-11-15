@@ -32,16 +32,21 @@ export function reportSummary(r: PaperReport): string {
   return bits.join(' ')
 }
 
-function hasText(nodes: DocNode[] | undefined): boolean {
-  return (nodes ?? []).some((n) => (n.type === 'text' && !!n.text?.trim()) || hasText(n.content))
+/** Any non-blank text, or an image / equation, anywhere in these nodes (parts included). */
+export function hasContent(nodes: DocNode[] | undefined): boolean {
+  return (nodes ?? []).some(
+    (n) =>
+      (n.type === 'text' && !!n.text?.trim()) ||
+      n.type === 'image' ||
+      n.type === 'math' ||
+      hasContent(n.content),
+  )
 }
 
-/** Placeholders whose body is still empty. */
+/** Placeholders the teacher hasn't written yet: nothing in the stem or any part (engine mirror). */
 export function unfilledPlaceholders(doc: DocJSON): number {
   return (doc.content ?? []).filter((n) => {
     const slot = n.attrs?.slot as { placeholder?: boolean } | null | undefined
-    if (n.type !== 'freeformQuestion' || !slot?.placeholder) return false
-    const body = (n.content ?? []).filter((c) => c.type !== 'freeformPart')
-    return !hasText(body)
+    return n.type === 'freeformQuestion' && !!slot?.placeholder && !hasContent(n.content)
   }).length
 }
