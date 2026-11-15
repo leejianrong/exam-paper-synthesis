@@ -13,6 +13,7 @@ booting together cannot race.
 
 from __future__ import annotations
 
+import builtins
 import os
 import secrets
 import uuid
@@ -29,7 +30,7 @@ from psycopg_pool import ConnectionPool
 from . import usage
 from .accounts import SESSION_TTL, Profile, hash_token
 from .assets import AssetNotFound
-from .docstore import DocumentNotFound, VersionConflict
+from .docstore import DocumentNotFound, FolderNotFound, VersionConflict, clean_folder_name
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS documents (
@@ -43,6 +44,17 @@ CREATE TABLE IF NOT EXISTS documents (
   updated_at TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX IF NOT EXISTS documents_owner ON documents(owner_id, updated_at DESC);
+-- O2 folders: existing papers are unfiled (NULL); no migration tool, so add idempotently.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS folder_id TEXT;
+CREATE INDEX IF NOT EXISTS documents_owner_folder ON documents(owner_id, folder_id);
+CREATE TABLE IF NOT EXISTS folders (
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS folders_owner ON folders(owner_id);
 
 CREATE TABLE IF NOT EXISTS settings (
   owner_id TEXT PRIMARY KEY,
@@ -211,22 +223,66 @@ def _doc_record(row: dict, *, with_document: bool = True) -> dict:
         "version": row["version"],
         "created_at": _iso(row["created_at"]),
         "updated_at": _iso(row["updated_at"]),
+        "folder_id": row["folder_id"],
     }
     if with_document:
         rec["document"] = row["document"]
     return rec
 
 
+def _folder(row: dict) -> dict:
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "created_at": _iso(row["created_at"]),
+        "updated_at": _iso(row["updated_at"]),
+        "papers": int(row["papers"]),
+    }
+
+
+_FOLDERS_SQL = (
+    "SELECT f.id, f.name, f.created_at, f.updated_at, COUNT(d.id) AS papers FROM folders f "
+    "LEFT JOIN documents d ON d.folder_id = f.id AND d.owner_id = f.owner_id "
+    "WHERE f.owner_id = %s {extra}GROUP BY f.id, f.name, f.created_at, f.updated_at "
+    "ORDER BY lower(f.name), f.created_at, f.id"
+)
+
+
+def _owned_folder_or_raise(conn, owner_id: str, folder_id: str) -> None:
+    # FOR SHARE holds the folder row until commit, so it cannot be deleted between this
+    # check and the write that files a paper in it.
+    row = conn.execute(
+        "SELECT 1 FROM folders WHERE id = %s AND owner_id = %s FOR SHARE", (folder_id, owner_id)
+    ).fetchone()
+    if row is None:
+        raise FolderNotFound(folder_id)
+
+
 class PgDocumentStore:
     def __init__(self, db: Database):
         self.db = db
 
-    def create(self, owner_id: str, document: dict, total_marks: int) -> dict:
+    def create(
+        self, owner_id: str, document: dict, total_marks: int, folder_id: str | None = None
+    ) -> dict:
         doc_id, now = str(uuid.uuid4()), _now()
         with self.db.connection() as conn:
+            if folder_id is not None:
+                _owned_folder_or_raise(conn, owner_id, folder_id)
             conn.execute(
-                "INSERT INTO documents VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
-                (doc_id, owner_id, document["title"], Jsonb(document), total_marks, 1, now, now),
+                "INSERT INTO documents (id, owner_id, title, document, total_marks, version, "
+                "created_at, updated_at, folder_id) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    doc_id,
+                    owner_id,
+                    document["title"],
+                    Jsonb(document),
+                    total_marks,
+                    1,
+                    now,
+                    now,
+                    folder_id,
+                ),
             )
         return self.get(owner_id, doc_id)
 
@@ -284,7 +340,72 @@ class PgDocumentStore:
 
     def erase_owner(self, owner_id: str) -> int:
         with self.db.connection() as conn:
+            conn.execute("DELETE FROM folders WHERE owner_id=%s", (owner_id,))
             return conn.execute("DELETE FROM documents WHERE owner_id=%s", (owner_id,)).rowcount
+
+    # --- O2 folders ------------------------------------------------------------------
+
+    def move(self, owner_id: str, doc_id: str, folder_id: str | None) -> dict:
+        """File a paper in a folder (``None`` = unfiled); content, version and ``updated_at``
+        are untouched."""
+        with self.db.connection() as conn:
+            if folder_id is not None:
+                _owned_folder_or_raise(conn, owner_id, folder_id)
+            row = conn.execute(
+                "UPDATE documents SET folder_id=%s WHERE id=%s AND owner_id=%s RETURNING *",
+                (folder_id, doc_id, owner_id),
+            ).fetchone()
+        if row is None:
+            raise DocumentNotFound(doc_id)
+        return _doc_record(row, with_document=False)
+
+    def create_folder(self, owner_id: str, name: str) -> dict:
+        folder_id, now, name = str(uuid.uuid4()), _now(), clean_folder_name(name)
+        with self.db.connection() as conn:
+            conn.execute(
+                "INSERT INTO folders (id, owner_id, name, created_at, updated_at) "
+                "VALUES (%s,%s,%s,%s,%s)",
+                (folder_id, owner_id, name, now, now),
+            )
+        return self._folder(owner_id, folder_id)
+
+    def _folder(self, owner_id: str, folder_id: str) -> dict:
+        with self.db.connection() as conn:
+            row = conn.execute(
+                _FOLDERS_SQL.format(extra="AND f.id = %s "), (owner_id, folder_id)
+            ).fetchone()
+        if row is None:
+            raise FolderNotFound(folder_id)
+        return _folder(row)
+
+    def list_folders(self, owner_id: str) -> builtins.list[dict]:
+        with self.db.connection() as conn:
+            rows = conn.execute(_FOLDERS_SQL.format(extra=""), (owner_id,)).fetchall()
+        return [_folder(r) for r in rows]
+
+    def rename_folder(self, owner_id: str, folder_id: str, name: str) -> dict:
+        name = clean_folder_name(name)
+        with self.db.connection() as conn:
+            cur = conn.execute(
+                "UPDATE folders SET name=%s, updated_at=%s WHERE id=%s AND owner_id=%s",
+                (name, _now(), folder_id, owner_id),
+            )
+            if cur.rowcount == 0:
+                raise FolderNotFound(folder_id)
+        return self._folder(owner_id, folder_id)
+
+    def delete_folder(self, owner_id: str, folder_id: str) -> None:
+        """Delete the folder; its papers become unfiled (never deleted). One transaction."""
+        with self.db.connection() as conn:
+            cur = conn.execute(
+                "DELETE FROM folders WHERE id=%s AND owner_id=%s", (folder_id, owner_id)
+            )
+            if cur.rowcount == 0:
+                raise FolderNotFound(folder_id)
+            conn.execute(
+                "UPDATE documents SET folder_id=NULL WHERE owner_id=%s AND folder_id=%s",
+                (owner_id, folder_id),
+            )
 
 
 # --- assets ------------------------------------------------------------------------------

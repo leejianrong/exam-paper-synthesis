@@ -1,9 +1,10 @@
 """W5 — the privacy promises: export everything I have, and delete my account.
 
 ``GET /account/export`` streams a zip of the owner's data: ``account.json``, every document
-(``documents/<id>.json``), every bank question (``bank/<n>-<id>.json``) and every uploaded image
-as its original bytes (``assets/<id>.<ext>`` plus ``assets/index.json``), and ``settings.json``.
-``DELETE /account`` erases all of it — documents, settings, images, bank rows, export events,
+(``documents/<id>.json``, with its ``folder_id``), the folders (``folders.json``, O2), the
+settings (``settings.json``, O1), every bank question (``bank/<n>-<id>.json``) and every uploaded
+image as its original bytes (``assets/<id>.<ext>`` plus ``assets/index.json``). ``DELETE
+/account`` erases all of it — documents, folders, settings, images, bank rows, export events,
 sessions, linked sign-ins and the user row — and needs ``{"confirm": "DELETE"}`` so a stray
 request can never do it.
 """
@@ -59,6 +60,7 @@ def export_account(
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         documents = [docs.get(owner, d["id"]) for d in docs.list(owner)]
+        folders = docs.list_folders(owner)
         with closing(open_owner_bank(owner)) as bank:
             questions = bank.search()
         images = assets.export_all(owner)
@@ -72,12 +74,14 @@ def export_account(
                 "name": user["name"] if user else None,
                 "counts": {
                     "documents": len(documents),
+                    "folders": len(folders),
                     "bank_questions": len(questions),
                     "images": len(images),
                 },
             },
         )
         _put_json(zf, "settings.json", settings.get(owner))
+        _put_json(zf, "folders.json", folders)
         for rec in documents:
             _put_json(zf, f"documents/{rec['id']}.json", rec)
         for n, obj in enumerate(questions, start=1):

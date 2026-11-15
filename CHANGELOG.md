@@ -34,6 +34,15 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Folders (O2, API)** — papers can be kept in folders (one exam set, drafts, practice).
+  `GET/POST /folders`, `PATCH /folders/{id}` (rename), `DELETE /folders/{id}` (its papers
+  become unfiled, never deleted), `PATCH /documents/{id}` `{folder_id}` to move a paper (not an
+  edit: content and version unchanged), and `folder_id` on `POST /documents`,
+  `POST /documents/generate` and every listed paper. Owner-scoped (a foreign folder is a 404),
+  names 1–80 characters, duplicates allowed. Stored in the document store on SQLite and
+  Postgres; the `folder_id` column is added idempotently, so existing papers are unfiled.
+  *Download my data* includes `folders.json`; deleting the account erases folders. The web UI
+  follows.
 - **Editor + SaaS (W1–W4)** — WYSIWYG document editor (ProseMirror-style document
   model, schema `1.5.0`), templated and free-form question blocks, question bank,
   assets, owner-scoped accounts with Google/Microsoft/GitHub OAuth, Postgres
