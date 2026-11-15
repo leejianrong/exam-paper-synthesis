@@ -258,8 +258,8 @@ class AverageHardSolver:
             rest = total - given
             ans, unit = rest // (n - 1), "cm"
             s = (
-                f"The average height of {n} children in a group is {before} cm. ",
-                f" is {given} cm tall. When ",
+                f"The average height of {n} children in a group is {before} cm. One of them, ",
+                f", is {given} cm tall. When ",
                 f" leaves the group, what is the average height of the remaining {n - 1} children?",
             )
             steps = (
