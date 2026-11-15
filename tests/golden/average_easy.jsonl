@@ -1,0 +1,3 @@
+{"params": {"name": "Aisha", "values": [14, 16, 18], "template": "tests"}, "expected": {"answer": {"type": "integer", "value": 16, "unit": ""}, "total_marks": 1}}
+{"params": {"name": "Ben", "values": [10, 20, 30, 40], "template": "pages"}, "expected": {"answer": {"type": "integer", "value": 25, "unit": ""}, "total_marks": 1}}
+{"params": {"name": "Chloe", "values": [5, 6, 7, 8, 9], "template": "savings"}, "expected": {"answer": {"type": "integer", "value": 7, "unit": "$"}, "total_marks": 1}}

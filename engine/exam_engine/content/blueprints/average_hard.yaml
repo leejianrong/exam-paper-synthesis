@@ -1,0 +1,48 @@
+code: average_hard
+syllabus:
+  level: P5
+  strand: "Data Analysis"
+  topic: "Average"
+  subtopic: "Change in average when a member joins or leaves a group"
+  skill_codes: ["AVG.CHANGE"]           # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Reasoning depth", "Hidden structure"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, kind, n, before, given]
+  properties:
+    name:
+      type: string
+    kind: { type: string, enum: [join, leave] }
+    n: { type: integer, minimum: 3, maximum: 7 }        # group size before the change
+    before: { type: integer, minimum: 30, maximum: 150 }  # average before the change
+    # join: the new average mass (kg); leave: the leaver's height (cm)
+    given: { type: integer, minimum: 25, maximum: 165 }
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  name:   { role: name }
+  kind:   { role: choice }
+  n:      { role: number }
+  before: { role: number }
+  given:  { role: number }
+# The solver builds the number-bearing fragments s1..s3; the name is interleaved here only.
+story_templates:
+  - stem: null
+    text: "{s1}{name}{s2}{name}{s3}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+    - text: "{step3}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Total of the group before the change = average × number." }
+  - { mark: 1, type: M, description: "Total of the group after the change (or of those who remain)." }
+  - { mark: 1, type: A, description: "Correct mass of the child who joined, or the new average, with the unit." }
+answer:
+  type: integer
+  unit: "kg"
