@@ -198,7 +198,8 @@
 
   function insertQuestion(q: Question) {
     if (!editor) return
-    editor.chain().focus().insertContentAt(insertionPoint(editor), questionNode(q)).run()
+    editor.chain().insertContentAt(insertionPoint(editor), questionNode(q)).scrollIntoView().run()
+    editor.view.focus() // now, not a frame later (TipTap's focus() defers; keys would be lost)
     pickerAt = undefined
   }
 
@@ -447,7 +448,15 @@
 <div class="desk" class:hidden={loading || !!loadError} style="--bar-h:{barH}px">
 <div class="main">
   <div class="toolstrip">
-  <div class="tools" role="toolbar" aria-label="Formatting">
+  <!-- Clicking a tool must not take focus from the page (like Word/Docs): the editor keeps its
+       caret, so keys typed right after a click go to the paper, not the button (a space would
+       "press" it again; TipTap's focus() only refocuses a frame later). Keyboard use is unaffected. -->
+  <div
+    class="tools"
+    role="toolbar"
+    aria-label="Formatting"
+    tabindex="-1"
+    on:mousedown|preventDefault>
     <button
       aria-label="Bold"
       title="Bold"

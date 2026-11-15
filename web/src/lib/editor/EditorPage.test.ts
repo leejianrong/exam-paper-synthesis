@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/svelte'
+import { createEvent, fireEvent, render, screen, waitFor, within } from '@testing-library/svelte'
 import EditorPage from './EditorPage.svelte'
 import { freeformDocNode, makeQuestion } from './fixtures'
 import { questionNode } from './templatedQuestion'
@@ -480,5 +480,40 @@ describe('multi-part free-form questions (P3)', () => {
     await waitFor(() => expect(document.querySelector('.ff-body')).not.toBeNull())
     expect(document.querySelectorAll('.ffpart')).toHaveLength(0)
     expect(screen.getByText('2 marks', { selector: '.total' })).toBeInTheDocument()
+  })
+})
+
+describe('formatting toolbar focus (EXA-120)', () => {
+  // jsdom never moves focus on mousedown, so do what a browser does: focus the button unless
+  // the mousedown's default was prevented. Then the click runs the tool.
+  const press = async (btn: HTMLElement) => {
+    const down = createEvent.mouseDown(btn)
+    fireEvent(btn, down)
+    if (!down.defaultPrevented) btn.focus()
+    await fireEvent.click(btn)
+  }
+
+  it('clicking a tool leaves the focus in the paper, so the next key types there', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () =>
+        record([{ type: 'paragraph', content: [{ type: 'text', text: 'Some words' }] }]),
+    })
+    render(EditorPage, { props: { id: 'd1' } })
+    await waitFor(() => expect(document.querySelector('.page .ProseMirror')).not.toBeNull())
+    const page = document.querySelector('.page .ProseMirror') as HTMLElement
+    const toolbar = screen.getByRole('toolbar', { name: 'Formatting' })
+
+    for (const name of ['Bold', 'Bulleted list', 'Page break', 'Undo']) {
+      page.focus()
+      await press(within(toolbar).getByRole('button', { name }))
+      // At once, not a frame later: a key typed now must not reach (and re-press) the button.
+      expect(page.contains(document.activeElement)).toBe(true)
+    }
+    // Keyboard users can still reach a tool.
+    const bold = within(toolbar).getByRole('button', { name: 'Bold' })
+    bold.focus()
+    expect(document.activeElement).toBe(bold)
   })
 })
