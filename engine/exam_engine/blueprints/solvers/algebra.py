@@ -25,6 +25,7 @@ Every value is a whole number by construction (ADR-0014):
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -145,6 +146,50 @@ class AlgebraEasySolver:
             },
         }
 
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Misreading the letter notation, best first."""
+        form, x = params["form"], params["letter"]
+        a, b, c, n = params["a"], params["b"], params["c"], params["n"]
+        joined = int(f"{a}{n}")  # "5n" read as the two-digit number 5n: 57 when n = 7
+        an = f"{a}{x}"
+        if form == "add":
+            return [
+                (a + n + b, f"read {an} as {a} + {x}"),
+                (joined + b, f"read {an} as the number {joined}"),
+                (a * (n + b), f"multiplied {b} by {a} as well"),
+                (n + b, f"forgot to multiply {x} by {a}"),
+            ]
+        if form == "sub":
+            return [
+                (a + n - b, f"read {an} as {a} + {x}"),
+                (joined - b, f"read {an} as the number {joined}"),
+                (a * n + b, "added instead of subtracting"),
+                (a * (n - b), f"multiplied {b} by {a} as well"),
+            ]
+        if form == "bracket":
+            return [
+                (a * n + b, f"forgot the bracket: multiplied only {x} by {a}"),
+                (a + n + b, f"added {a} instead of multiplying"),
+                (n + b, f"forgot to multiply by {a}"),
+                (joined + b, f"read {an} as the number {joined}"),
+            ]
+        if form == "frac_add":
+            return [
+                (Fraction(n + b, a), f"divided the whole sum by {a}"),
+                (n * a + b, f"multiplied by {a} instead of dividing"),
+                (n + b, f"forgot to divide {x} by {a}"),
+                (Fraction(n, a + b), f"divided {x} by {a} + {b}"),
+            ]
+        return [  # (an - b) / c
+            (a * n - b, f"forgot to divide by {c}"),
+            (a * n - Fraction(b, c), f"divided only {b} by {c}"),
+            (Fraction(a * n, c) - b, f"divided only {an} by {c}"),
+            ((a * n - b) * c, f"multiplied by {c} instead of dividing"),
+            (Fraction(a + n - b, c), f"read {an} as {a} + {x}"),
+            (Fraction(joined - b, c), f"read {an} as the number {joined}"),
+            (Fraction(a * n + b, c), "added instead of subtracting"),
+        ]
+
     def validate(self, params: dict, solution: dict) -> dict:
         form = params["form"]
         a, b, c, n = params["a"], params["b"], params["c"], params["n"]
@@ -259,6 +304,30 @@ class AlgebraMediumSolver:
             },
         }
 
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Forming-the-expression slips, in dollars, best first."""
+        kind, k1, k2, d, p = (params[k] for k in ("kind", "k1", "k2", "d", "p"))
+        one, _, two, _ = ITEM_PAIRS[params["items"]]
+        q = second_price(kind, p, d)
+        out: list[tuple[int | Fraction, str]] = []
+        if kind == "times":
+            out += [
+                (k1 * p + k2 * (p + d), f"read {d} times as much as ${d} more"),
+                (k1 * p + k2 * d, f"used ${d} for a {two}"),
+            ]
+        else:
+            sign = 1 if kind == "more" else -1
+            out.append((k1 * p + k2 * p + sign * d, f"added the ${d} only once, not {k2} times"))
+            opposite = "less" if kind == "more" else "more"
+            out.append((k1 * p + k2 * (p - sign * d), f"read ${d} {kind} as ${d} {opposite}"))
+        out += [
+            ((k1 + k2) * p, f"used the price of a {one} for both"),
+            (k1 * q + k2 * p, "swapped the prices"),
+            (k2 * q, f"forgot the {one}s"),
+            (p + q, "added the price of one of each"),
+        ]
+        return out
+
     def validate(self, params: dict, solution: dict) -> dict:
         kind, k1, k2, d, p = (params[k] for k in ("kind", "k1", "k2", "d", "p"))
         ans = solution["answer"]["value"]
@@ -356,6 +425,30 @@ class AlgebraHardSolver:
                 "answer_value": ans,
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Equation-solving slips, best first."""
+        relation, change = params["relation"], params["change"]
+        m, g, total = params["m"], params["g"], params["total"]
+        coeff, const = hard_terms(relation, m, change, g)
+        x = Fraction(total - const, coeff)
+        flipped = const + (-2 * g if change == "get" else 2 * g)  # the change the wrong way
+        other = m * x if relation == "times" else x + m
+        out: list[tuple[int | Fraction, str]] = [
+            (other, "gave the other person's number at first"),
+            (total - const, f"found {coeff}x but did not divide by {coeff}"),
+            (Fraction(total - flipped, coeff), "worked the change the wrong way"),
+            (
+                Fraction(total - (const - (g if change == "get" else -g)), coeff),
+                "left out the change",
+            ),
+            (other + (g if change == "get" else -g), "gave the other person's number at the end"),
+        ]
+        if relation == "times":  # left out the first person's own x: mx instead of (m + 1)x
+            out.append((Fraction(total - const, m), f"used {m}x for the total, not {coeff}x"))
+        else:  # wrote x + m as m x
+            out.append((Fraction(total - const + m, m + 1), f"wrote x + {m} as {m}x"))
+        return out
 
     def validate(self, params: dict, solution: dict) -> dict:
         relation, change = params["relation"], params["change"]
