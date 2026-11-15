@@ -16,9 +16,12 @@ import { get, writable } from 'svelte/store'
 import FreeformArea from './FreeformArea.svelte'
 import { DEFAULT_PLACEMENT, layoutOf } from './layout'
 import { paperSettings } from './paperSettings'
+import type { SwapMode } from './docsApi'
 
 export interface FreeformQuestionOptions {
   onAddBelow: (afterPos: number) => void
+  /** P8d: fill a generated placeholder with a question (the page saves first). */
+  onSwap: (blockId: string, mode: SwapMode) => Promise<void>
 }
 
 function clampMarks(raw: string): number | null {
@@ -52,7 +55,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
   },
 
   addOptions() {
-    return { onAddBelow: () => {} }
+    return { onAddBelow: () => {}, onSwap: async () => {} }
   },
 
   addAttributes() {
@@ -65,6 +68,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       in_key: jsonAttr<boolean>('data-in_key', true), // false leaves it out of the answer key (P5)
       ans_unit: jsonAttr<string | null>('data-ans_unit', null), // unit printed after Ans:
       slot: jsonAttr<Record<string, unknown> | null>('data-slot', null), // generator slot (P8a)
+      locked: jsonAttr<boolean>('data-locked', false), // P8d: kept by "Regenerate unlocked"
     }
   },
 
@@ -169,9 +173,18 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       const spacer = el('span', 'ff-spacer')
       const totalEl = el('span', 'ff-total')
       const addPartBtn = button('+ Add part', () => addPart(), '', 'Add a lettered part')
+      // P8d: a generated placeholder can be filled by the generator, and locked.
+      const fillBtn = button('Fill with a question', () => {
+        fillBtn.disabled = true
+        void options.onSwap(String(current.attrs.block_id), 'like').finally(() => (fillBtn.disabled = false))
+      })
+      fillBtn.title = 'Let the generator put a question with these marks here'
+      const lockBtn = button('Lock', () => setLayout({ locked: current.attrs.locked !== true }), 'ff-lock')
       bar.append(
         label,
         totalEl,
+        fillBtn,
+        lockBtn,
         spacer,
         button('↑', () => moveBlock(editor, pos(), current.nodeSize, -1), '', 'Move up'),
         button('↓', () => moveBlock(editor, pos(), current.nodeSize, 1), '', 'Move down'),
@@ -264,6 +277,15 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         // Same rule as the "to write" count: anything in the stem or a part means it's written.
         const waiting = !!slot?.placeholder && !hasContent(current.toJSON().content)
         hint.hidden = !waiting
+        const locked = current.attrs.locked === true
+        fillBtn.hidden = !waiting
+        fillBtn.disabled = locked
+        lockBtn.hidden = !slot
+        lockBtn.textContent = locked ? 'Locked' : 'Lock'
+        lockBtn.setAttribute('aria-pressed', String(locked))
+        lockBtn.title = locked
+          ? 'Locked: kept when you regenerate the paper'
+          : 'Keep this question when you regenerate the paper'
         dom.classList.toggle('placeholder-slot', waiting)
         if (waiting) {
           const kind = slot?.kind === 'mcq' ? 'multiple-choice' : slot?.kind === 'structured' ? 'structured' : 'short-answer'

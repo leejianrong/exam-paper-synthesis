@@ -104,4 +104,14 @@ describe('autosaver', () => {
     await vi.advanceTimersByTimeAsync(100)
     expect(save).not.toHaveBeenCalled()
   })
+
+  it('after the server saved a version itself (P8d), the next save is based on it', async () => {
+    const save = vi.fn().mockResolvedValue({ version: 10 })
+    const a = createAutosaver({ save, initialVersion: 4, delayMs: 10 })
+    a.rebase(9)
+    expect(a.version()).toBe(9)
+    a.schedule(doc('a'))
+    await vi.advanceTimersByTimeAsync(10)
+    expect(save).toHaveBeenCalledWith(doc('a'), 9)
+  })
 })

@@ -53,6 +53,16 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   reads exactly as the re-solved answer, so these stay engine-proven. Options now print as a
   (1)–(4) grid after the figure, with real units (cm², °); edit ops are not offered on a
   multiple-choice copy.
+- **Keep / swap / lock (P8d)** — per-question actions on a generated paper: "Another like
+  this" (same slot and marks, same topic: a sibling blueprint or a new seed), "Another
+  topic" (same marks, a topic the paper uses less), "Write my own" (an empty placeholder
+  keeping the slot's marks), "Fill with a question" on a placeholder, a lock toggle, and
+  "Regenerate unlocked" in the editor's top bar, which refills every unlocked generated
+  question and empty placeholder and never touches locked questions, bank questions or
+  anything the teacher wrote. Pure engine transforms (`paper_swap.swap_question`,
+  `regenerate_unlocked`) that keep every P8a rule; `POST /documents/{id}/swap` and
+  `POST /documents/{id}/regenerate` (owner-scoped, optimistic concurrency like PUT)
+  (document schema `1.11.0`: a question's `locked`).
 
 ## [0.1.0] — 2026-07-25
 

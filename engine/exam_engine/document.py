@@ -21,6 +21,7 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
+# 1.11.0 (P8d): + question `locked` (kept by "regenerate unlocked").
 # 1.10.0 (P8a): + question `slot` (what the paper generator asked for).
 # 1.9.0 (P7): + coverPage (first block only) and blankPage blocks.
 # 1.8.0 (P6a): + section.marking (marking margin).
@@ -30,7 +31,7 @@ from .schema import validate_object
 # 1.4.0 (P2): + settings.marks_placement, per-question space_mm / ans_unit.
 # 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math; 1.3.0 (W5): + question `remark`.
 # Older documents stay valid (every addition is optional).
-DOCUMENT_SCHEMA_VERSION = "1.10.0"
+DOCUMENT_SCHEMA_VERSION = "1.11.0"
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000

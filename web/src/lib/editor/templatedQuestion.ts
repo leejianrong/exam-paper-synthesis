@@ -10,6 +10,7 @@ import { convertToFreeform } from '../api'
 import type { Question } from '../types'
 import QuestionBlock from './QuestionBlock.svelte'
 import { freeformNode, newBlockId } from './doc'
+import type { SwapMode } from './docsApi'
 import { layoutOf, type BlockLayout } from './layout'
 
 export interface TemplatedQuestionOptions {
@@ -17,6 +18,8 @@ export interface TemplatedQuestionOptions {
   onAddBelow: (afterPos: number) => void
   /** A message for the page (e.g. which figure a conversion had to drop). */
   onNotice: (message: string) => void
+  /** P8d: ask the server for another question in this block's place (the page saves first). */
+  onSwap: (blockId: string, mode: SwapMode) => Promise<void>
 }
 
 export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
@@ -27,7 +30,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
   draggable: false,
 
   addOptions() {
-    return { onAddBelow: () => {}, onNotice: () => {} }
+    return { onAddBelow: () => {}, onNotice: () => {}, onSwap: async () => {} }
   },
 
   addAttributes() {
@@ -39,6 +42,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
       in_key: { default: true }, // false leaves it out of the answer key (P5)
       ans_unit: { default: null }, // unit printed after Ans:; null = the answer's own
       slot: { default: null }, // what the paper generator asked for here (P8a); kept, not shown
+      locked: { default: false }, // P8d: kept as it is by "Regenerate unlocked"
     }
   },
 
@@ -59,6 +63,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
 
       const store = writable<Question>(node.attrs.question as Question)
       const layout = writable<BlockLayout>(layoutOf(node.attrs))
+      const paperSlot = writable<PaperSlot>(slotOf(node.attrs))
       let current = node // the live node: attrs the inspector sets (remark) must survive edits here
       let latest = node.attrs.question as Question
       const store_value = () => latest
@@ -72,6 +77,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
         props: {
           store: { subscribe: store.subscribe },
           layout: { subscribe: layout.subscribe },
+          paperSlot: { subscribe: paperSlot.subscribe },
           ctx: {
             replace: (q: Question) => {
               const { tr } = editor.state
@@ -95,6 +101,12 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
                 .focus()
                 .deleteRange({ from: pos(), to: pos() + node.nodeSize })
                 .run()
+            },
+            swap: (mode: SwapMode) => options.onSwap(String(current.attrs.block_id), mode),
+            setLocked: (locked: boolean) => {
+              const { tr } = editor.state
+              tr.setNodeMarkup(pos(), undefined, { ...current.attrs, locked })
+              editor.view.dispatch(tr)
             },
             move: (dir: -1 | 1) => moveBlock(editor, pos(), node.nodeSize, dir),
             addBelow: () => options.onAddBelow(pos() + node.nodeSize),
@@ -132,6 +144,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
           latest = updated.attrs.question as Question
           store.set(latest)
           layout.set(layoutOf(updated.attrs))
+          paperSlot.set(slotOf(updated.attrs))
           return true
         },
         // The Svelte component owns all interaction inside the block.
@@ -144,6 +157,16 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
     }
   },
 })
+
+/** P8d: whether the generator filled this block (it can be swapped) and whether it's locked. */
+export interface PaperSlot {
+  generated: boolean
+  locked: boolean
+}
+
+export function slotOf(attrs: Record<string, unknown>): PaperSlot {
+  return { generated: !!attrs.slot, locked: attrs.locked === true }
+}
 
 /** Swap a block with its previous/next sibling. */
 export function moveBlock(

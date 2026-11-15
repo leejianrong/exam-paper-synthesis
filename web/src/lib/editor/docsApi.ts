@@ -139,3 +139,53 @@ export async function generatePaper(
   if (!res.ok) return fail(res)
   return (await res.json()) as DocumentRecord & { report: PaperReport }
 }
+
+/** P8d: how to replace one question of a paper. */
+export type SwapMode = 'like' | 'topic' | 'own'
+
+/** What a swap did (engine `paper_swap.swap_question`'s report). */
+export interface SwapReport {
+  block_id: string
+  mode: SwapMode
+  marks: number
+  placeholder: boolean
+  blueprint?: string
+  topic?: string
+}
+
+/** What "regenerate unlocked" did (engine `paper_swap.regenerate_unlocked`'s report). */
+export interface RegenerateReport {
+  replaced: number
+  placeholders: number
+  kept: number
+}
+
+/** Swap one question on the server, computed on `baseVersion` (409 if the paper moved on). */
+export async function swapQuestion(
+  id: string,
+  blockId: string,
+  mode: SwapMode,
+  baseVersion: number,
+): Promise<DocumentRecord & { report: SwapReport }> {
+  const res = await apiFetch(`${BASE}/documents/${id}/swap`, {
+    method: 'POST',
+    headers: json,
+    body: JSON.stringify({ block_id: blockId, mode, base_version: baseVersion }),
+  })
+  if (!res.ok) return fail(res)
+  return (await res.json()) as DocumentRecord & { report: SwapReport }
+}
+
+/** Refill every unlocked generated question and empty placeholder (locked ones stay). */
+export async function regeneratePaper(
+  id: string,
+  baseVersion: number,
+): Promise<DocumentRecord & { report: RegenerateReport }> {
+  const res = await apiFetch(`${BASE}/documents/${id}/regenerate`, {
+    method: 'POST',
+    headers: json,
+    body: JSON.stringify({ base_version: baseVersion }),
+  })
+  if (!res.ok) return fail(res)
+  return (await res.json()) as DocumentRecord & { report: RegenerateReport }
+}

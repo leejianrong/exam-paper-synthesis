@@ -99,7 +99,7 @@ A golden paper per template anchors regressions.
 |---|---|---|---|
 | **P8a** ✅ | Paper generator | Paper-template YAML (P4 templates move to it), `generate_paper` + placeholders + stand-ins + report, `slot` attr (schema 1.10.0), `POST /documents/generate`, the generate dialog, invariant test. | P4, P7 |
 | **P8b** ✅ | MCQ for Booklet A | Turn constructed-response blueprints into MCQ with deterministic distractors from common wrong answers (per-solver "wrong turn" hooks), or write MCQ blueprints; `choice` answers already exist in the canonical schema. Fills `mcq` slots. | P8a |
-| **P8d** | Keep / swap / lock | Per-question "another like this" (same slot: new seed or sibling blueprint), "another topic", "write my own" (turns it into a free-form question keeping the slot's marks and Ans: line), lock; "regenerate paper" refills unlocked slots only. | P8a |
+| **P8d** ✅ | Keep / swap / lock | Per-question "another like this" (same slot: new seed or sibling blueprint), "another topic", "write my own" (turns it into a free-form question keeping the slot's marks and Ans: line), lock; "regenerate paper" refills unlocked slots only. | P8a |
 | **P8c** | Multi-part blueprints | Shared stem with (a)/(b)/(c), each part solver-proven; replaces Section B stand-ins. | P8a, P3 |
 | **P8e** | Coverage growth | More topics (whole numbers, decimals, average, algebra, rate, circles, data tables, …) and more 1-/2-mark and P5 blueprints, ordered by the report's placeholder counts. | — |
 
@@ -145,3 +145,40 @@ in generation (the engine stays deterministic).
 - Booklet A's marks stay the blueprint's: 1-mark slots take 1-mark blueprints (only three
   today), which is why P5/P6 Booklet A still has 7–8 placeholders; more 1-mark content (P8e)
   closes the gap.
+
+## P8d as built (2026-11-15)
+
+- `engine/exam_engine/paper_swap.py`, pure document → document transforms beside the generator
+  (kept out of `paper.py` so P8b/P8c can change the generator independently; it reuses
+  `paper.candidates` and `paper._fits`, so MCQ and multi-part candidates arrive here for free).
+  - `swap_question(doc, block_id, mode, seed, level)`: `like` takes an unused blueprint of the
+    same topic and marks, else a new seed of the same blueprint (a visibly different question);
+    on a placeholder it *fills* it with any unused blueprint of those marks, least-used topic
+    first. `topic` takes an unused blueprint with the same marks from another topic,
+    preferring topics the paper doesn't use yet. `own` leaves an empty placeholder with the
+    slot's marks (`slot.placeholder`, stand-in flag dropped). A swap keeps the block id and
+    the position's attributes (working space, in-key, remark, lock) but drops `ans_unit`,
+    which belonged to the old answer.
+  - A question without a `slot` (added by hand) is swapped by its marks and its section's mode,
+    and stays slot-less. Refused, with a message for the teacher (`SwapNotPossible` → 422): a
+    locked question, a free-form question that isn't a placeholder, a placeholder the teacher
+    has started writing, `own` on a placeholder, and any swap the content can't make without
+    repeating a blueprint.
+  - `regenerate_unlocked(doc, level, seed)` refills unlocked *generated* questions and *empty*
+    placeholders, least-used topic first, never repeating a blueprint the kept blocks use. It
+    never touches locked questions, bank (sourced) questions, free-form questions or
+    placeholders with anything written in them. A slot nothing fits becomes a placeholder.
+  - The level is the request's, else the cover page's ("Primary 6"), else the highest level of
+    the paper's questions, else P6.
+- `locked` (boolean, only `true` stored) on both question kinds: document schema 1.11.0.
+- `POST /documents/{id}/swap {block_id, mode, base_version}` and
+  `POST /documents/{id}/regenerate {base_version}`: owner-scoped (foreign = 404), computed on
+  `base_version` only (409 otherwise, like PUT), seed chosen at the boundary, `created_at`
+  stamped on new snapshots, re-validated, saved, and returned like GET plus the `report`.
+- Web: generated questions show "Another like this", "Another topic", "Write my own" and a
+  Lock toggle (swaps disabled while locked); a placeholder shows "Fill with a question" and
+  Lock; "Regenerate unlocked" sits in the top bar when the paper has generated positions.
+  The editor saves pending edits first, is read-only while the server works, then replaces
+  only the blocks that changed (one undo step) and rebases autosave on the server's version.
+- Not done: "Another topic" on a placeholder (it is the same as filling it); a preview of the
+  candidate before swapping.

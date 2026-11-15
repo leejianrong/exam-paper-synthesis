@@ -15,6 +15,8 @@ export interface Autosaver {
   flush(): Promise<void>
   /** The version the next save is based on. */
   version(): number
+  /** The server saved a new version itself (P8d swap/regenerate): base the next save on it. */
+  rebase(version: number): void
   dispose(): void
 }
 
@@ -87,6 +89,9 @@ export function createAutosaver(opts: AutosaveOptions): Autosaver {
       await start()
     },
     version: () => version,
+    rebase(v) {
+      version = v
+    },
     dispose() {
       stopped = true
       clearTimer()

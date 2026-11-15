@@ -23,14 +23,18 @@
     paperOutline,
     totalMarks,
     type DocJSON,
+    type DocumentRecord,
   } from './doc'
   import {
     ApiError,
     exportDocument,
     getDocument,
     previewDocument,
+    regeneratePaper,
     saveDocument,
+    swapQuestion,
     type ExportMode,
+    type SwapMode,
   } from './docsApi'
   import { FreeformQuestion, QuestionDocument, insertFreeform } from './freeformQuestion'
   import { IMAGE_TYPES, uploadAsset } from './assets'
@@ -40,6 +44,7 @@
   import { PageBreak } from './pageBreak'
   import { BlankPage, CoverPage, blankPageNode, coverNode } from './pages'
   import { lastReport, reportSummary, unfilledPlaceholders } from './paperReport'
+  import { applyServerContent, hasGeneratedSlots, regenerateNotice, swapNotice } from './paperOps'
   import { Section, outline } from './sections'
   import { loadQuota, type Quota } from '../session'
   import { TemplatedQuestion, questionNode } from './templatedQuestion'
@@ -72,6 +77,7 @@
   $: marks = totalMarks(content)
   $: coverPresent = content.content?.[0]?.type === 'coverPage'
   $: placeholdersLeft = unfilledPlaceholders(content)
+  $: canRegenerate = hasGeneratedSlots(content)
   // The generator's report (P8a), shown once on the paper it made.
   $: generated = $lastReport && $lastReport.docId === id ? reportSummary($lastReport.report) : ''
   $: outline.set(paperOutline(content))
@@ -105,8 +111,10 @@
     scheduleSave()
   }
 
+  let applyingServer = false // the server already saved what is being applied (P8d)
+
   function scheduleSave() {
-    if (!editor || !autosaver) return
+    if (!editor || !autosaver || applyingServer) return
     autosaver.schedule(buildDocument(title, editor.getJSON() as DocJSON, $paperSettings))
   }
 
@@ -151,10 +159,14 @@
           Section,
           CoverPage,
           BlankPage,
-          FreeformQuestion.configure({ onAddBelow: (pos: number) => (pickerAt = pos) }),
+          FreeformQuestion.configure({
+            onAddBelow: (pos: number) => (pickerAt = pos),
+            onSwap: swapBlock,
+          }),
           TemplatedQuestion.configure({
             onAddBelow: (pos: number) => (pickerAt = pos),
             onNotice: (m: string) => (notice = m),
+            onSwap: swapBlock,
           }),
         ],
         content: rec.document.content,
@@ -344,6 +356,55 @@
     }
   }
 
+  /** P8d: a server-side change to the saved paper (swap, regenerate). Pending edits are saved
+   *  first, the server works on exactly that version, and the editor takes the blocks that
+   *  changed — one undoable step. The page stays read-only meanwhile so nothing typed is lost. */
+  async function paperOp<R>(
+    run: (baseVersion: number) => Promise<DocumentRecord & { report: R }>,
+    describe: (report: R) => string,
+  ) {
+    const ed = editor
+    if (!ed || !autosaver || busy) return
+    busy = 'paper'
+    actionError = ''
+    ed.setEditable(false, false)
+    try {
+      await autosaver.flush()
+      if (status === 'conflict') return
+      if (status === 'error') throw new Error('Your latest changes are not saved yet. Try again in a moment.')
+      const rec = await run(autosaver.version())
+      applyingServer = true
+      try {
+        applyServerContent(ed, rec.document.content)
+      } finally {
+        applyingServer = false
+      }
+      autosaver.rebase(rec.version)
+      content = ed.getJSON() as DocJSON
+      notice = describe(rec.report)
+    } catch (e) {
+      actionError =
+        e instanceof ApiError && e.status === 409
+          ? 'This paper changed in another tab or window. Reload to get the latest version.'
+          : e instanceof ApiError && typeof e.detail === 'string'
+            ? e.detail
+            : e instanceof Error
+              ? e.message
+              : String(e)
+    } finally {
+      ed.setEditable(true, false)
+      busy = ''
+    }
+  }
+
+  function swapBlock(blockId: string, mode: SwapMode): Promise<void> {
+    return paperOp((base) => swapQuestion(id, blockId, mode, base), swapNotice)
+  }
+
+  function regenerate(): Promise<void> {
+    return paperOp((base) => regeneratePaper(id, base), regenerateNotice)
+  }
+
   // The preview paginates itself after it loads (fonts, maths); read what it decided once it has.
   function readPages(e: Event) {
     const frame = e.currentTarget as HTMLIFrameElement
@@ -436,6 +497,14 @@
   {/if}
   {#if quota && typeof quota.left_day === 'number'}
     <span class="quota" title="PDF exports left in the last 24 hours">{quota.left_day} exports left today</span>
+  {/if}
+  {#if canRegenerate}
+    <button
+      class="regen"
+      disabled={!!busy}
+      title="Refill every generated question you haven't locked (your own questions are kept)"
+      on:click={regenerate}>Regenerate unlocked</button
+    >
   {/if}
   <AccountChip />
   <div class="export" role="group" aria-label="Export">
@@ -966,6 +1035,14 @@
   }
   .surface :global(.ff-bar button.danger) {
     color: var(--mark);
+  }
+  .surface :global(.ff-bar button:disabled) {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .surface :global(.ff-bar button.ff-lock[aria-pressed='true']) {
+    background: var(--paper-sink);
+    font-weight: 600;
   }
   .surface :global(.doc-image-node) {
     margin: 0.5rem 0;
