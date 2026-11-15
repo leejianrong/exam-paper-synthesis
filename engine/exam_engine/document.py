@@ -412,7 +412,8 @@ def verify_snapshot(obj: dict) -> list[str]:
             o.get("diagram") for o in options
         ):
             return [f"a generated multiple-choice question has text options {', '.join(LABELS)}"]
-        texts = [" ".join(str(o.get("text") or "").split()) for o in options]
+        # compared in one litre spelling, so a legacy "18 l" and a new "18 ℓ" count as the same
+        texts = [" ".join(str(o.get("text") or "").split()).replace("ℓ", "l") for o in options]
         if len(set(texts)) != len(texts):
             return ["multiple-choice options must all differ"]
         proven = (answer_text(solution["answer"]), legacy_answer_text(solution["answer"]))

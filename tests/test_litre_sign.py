@@ -52,3 +52,8 @@ def test_a_paper_saved_with_the_old_litre_option_still_verifies():
     a = wrong["question"]["parts"][0]["answer"]
     next(o for o in a["options"] if o["label"] == a["correct"])["text"] = "1 l"
     assert verify_snapshot(wrong)
+    twice = copy.deepcopy(legacy)
+    a = twice["question"]["parts"][0]["answer"]
+    right = next(o["text"] for o in a["options"] if o["label"] == a["correct"])
+    next(o for o in a["options"] if o["label"] != a["correct"])["text"] = right.replace("l", "ℓ")
+    assert verify_snapshot(twice) == ["multiple-choice options must all differ"]

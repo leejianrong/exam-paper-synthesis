@@ -20,7 +20,8 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 - **Litres print as ℓ** (and millilitres as mℓ), as on PSLE papers: question text, working,
   answer key, Ans: line units, multiple-choice options and the editor's unit picker. The stored
   unit codes stay `l`/`ml` (no schema change; goldens unchanged); a paper saved with the old
-  `18 l` option still verifies. The glyph is a one-glyph Inter face cut from Inter's latin-ext
+  `18 l` option still verifies (and keeps printing `18 l` until that question is swapped or
+  the paper regenerated: option text is stored). The glyph is a one-glyph Inter face cut from Inter's latin-ext
   subset (`inter-ell-*.woff2`), so the one-typeface rule holds.
 - **Multi-part polish (P8c review)** — `speed_structured` asks about ~100 different trips
   (was 24): whole speeds 30–90 km/h, the journey back in whole or half hours; the
