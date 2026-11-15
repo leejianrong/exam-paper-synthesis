@@ -17,6 +17,10 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 - **Server-drawn diagrams and answer types (T1–T7)** — `chart`, `solid`,
   `number_line`, `panels`, `expression` answers, `cube_stack`, and the
   `statistics_chart` and `volume` ladders (canonical schema now `1.12.0`).
+- **Starter templates get a cover page** — starting a paper from an empty template
+  (Paper 1 Booklet A/B, Paper 2) now adds the same prefilled cover a generated paper gets
+  (subject, paper and instructions); the level is left blank for the teacher, since an empty
+  template has none. The Preview's page list names cover, blank and rough-work pages.
 - **Coverage growth (P8e, batch 1)** — an `average` ladder at P5 (1 / 2 / 3 marks):
   the average of a set of numbers; a missing score or the money left from an average;
   the average when a child joins or leaves a group. Also in the web topic picker.

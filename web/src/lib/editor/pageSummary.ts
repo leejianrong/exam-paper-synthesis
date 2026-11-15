@@ -8,6 +8,7 @@ export interface PageInfo {
   last: number | null
   continued: boolean // the page opens with the rest of a question that began earlier
   marks: number // the tally box total; 0 when the page has none
+  kind?: 'cover' | 'blank' | 'rough' // a page of its own (P7) rather than questions
 }
 
 export interface PageSummary {
@@ -30,7 +31,15 @@ export function summarisePages(doc: Document): PageSummary {
       numbers.push(running)
     })
     const tally = box.querySelector('.tally-total')?.textContent
+    const kind = box.querySelector('.cover-page')
+      ? 'cover'
+      : box.querySelector('.blank-page.rough')
+        ? 'rough'
+        : box.querySelector('.blank-page')
+          ? 'blank'
+          : undefined
     return {
+      ...(kind && !numbers.length ? { kind: kind as PageInfo['kind'] } : {}),
       page: i + 1,
       first: numbers.length ? numbers[0] : null,
       last: numbers.length ? numbers[numbers.length - 1] : null,
@@ -42,9 +51,12 @@ export function summarisePages(doc: Document): PageSummary {
 }
 
 export function describePage(p: PageInfo): string {
+  const own = { cover: 'cover page', blank: 'blank page', rough: 'rough work' }
   const range =
     p.first === null
-      ? 'no questions'
+      ? p.kind
+        ? own[p.kind]
+        : 'no questions'
       : p.first === p.last
         ? `Q${p.first}${p.continued ? ' (continued)' : ''}`
         : `Q${p.first}–${p.last}${p.continued ? ' (starts mid-Q' + p.first + ')' : ''}`

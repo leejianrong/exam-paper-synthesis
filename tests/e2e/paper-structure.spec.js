@@ -94,7 +94,9 @@ test('the marking margin follows the section mode and can be switched per sectio
   // The editor's Preview reads what the paginator decided: pages, their questions and tallies.
   await page.getByRole('button', { name: 'Preview' }).click()
   const pages = page.getByLabel('Pages')
-  await expect(pages).toContainText('1 page')
+  // The template's cover page is a page of its own, before the questions.
+  await expect(pages).toContainText('2 pages')
+  await expect(pages).toContainText('cover page')
   await expect(pages).toContainText('Q1 · 2 marks')
   await page.getByRole('button', { name: 'Close preview' }).click()
 
