@@ -31,11 +31,25 @@ export interface FragmentAssets {
 
 let assetsPromise: Promise<FragmentAssets> | null = null
 
+/** Chromium never registers an `@font-face` declared inside a shadow root's stylesheet, so the
+ *  KaTeX faces the fragment CSS carries are installed once at document level too; otherwise
+ *  every formula in the editor falls back to a system serif (EXA-130). */
+export function installFontFaces(css: string): void {
+  if (document.querySelector('style[data-fragment-fonts]')) return
+  const faces = css.match(/@font-face\s*\{[^}]*\}/g)
+  if (!faces) return
+  const style = document.createElement('style')
+  style.setAttribute('data-fragment-fonts', '')
+  style.textContent = faces.join('\n')
+  document.head.append(style)
+}
+
 /** Fetch the stylesheet + KaTeX once per page load. */
 export function loadFragmentAssets(): Promise<FragmentAssets> {
   assetsPromise ??= fetchFragmentAssets()
     .then(({ css, js }) => {
       installKatex(js)
+      installFontFaces(css)
       let sheet: CSSStyleSheet | null = null
       if ('adoptedStyleSheets' in Document.prototype && typeof CSSStyleSheet !== 'undefined') {
         try {

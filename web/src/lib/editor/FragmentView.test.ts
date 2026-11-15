@@ -44,3 +44,17 @@ describe('FragmentView', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('API 422')
   })
 })
+
+describe('fragment fonts (EXA-130)', () => {
+  it('installs the @font-face rules at document level, once (shadow roots ignore them)', async () => {
+    const { installFontFaces } = await import('./fragments')
+    document.querySelector('style[data-fragment-fonts]')?.remove()
+    const css = '@font-face{font-family:KaTeX_Main;src:url(data:font/woff2;base64,AAAA) format("woff2")} .katex{color:red}'
+    installFontFaces(css)
+    installFontFaces(css)
+    const styles = document.querySelectorAll('style[data-fragment-fonts]')
+    expect(styles).toHaveLength(1)
+    expect(styles[0].textContent).toContain('font-family:KaTeX_Main')
+    expect(styles[0].textContent).not.toContain('.katex')
+  })
+})

@@ -21,6 +21,13 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   keystroke — after *Write my own* the selection could be left on the cover, so typing into the
   new placeholder wiped the cover. Toolbar inserts now go after a selected block, typing or
   Enter starts a paragraph after it, and a swap leaves the caret in the block it changed.
+- **Maths prints in KaTeX's fonts again; ∠ and π in the paper's own faces (EXA-130).** Every
+  inlined KaTeX `@font-face` carried `format("woff2")` twice, so the browser dropped its src
+  and all maths (fractions, algebra) printed in the host's Times. ∠ and π are outside Inter's
+  latin subset and fell back to the host's Noto fonts (boxes where none is installed). Now: the
+  KaTeX faces load, π is a one-glyph face cut from Inter's greek subset and ∠ one from
+  KaTeX_Main, all declared under the Inter family; a real-Chromium test asserts a PDF embeds
+  only Inter and KaTeX fonts.
 
 ### Added
 

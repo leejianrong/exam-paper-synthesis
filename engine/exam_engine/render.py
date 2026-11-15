@@ -46,7 +46,10 @@ _KATEX = _ASSETS / "katex"
 # The woff/ttf fallbacks reference files we do not vendor (woff2 only); strip
 # them so the emitted CSS has no dangling external refs.
 _FONT_FALLBACK_RE = re.compile(r',url\(fonts/[^)]+\.(?:woff|ttf)\) format\("[^"]+"\)')
-_FONT_WOFF2_RE = re.compile(r"url\(fonts/([^)]+\.woff2)\)")
+# The woff2 url *with* its format hint: the replacement writes both, so the hint is never
+# doubled (`format("woff2") format("woff2")` is invalid CSS: the browser drops the whole
+# src and every formula fell back to Times — EXA-130).
+_FONT_WOFF2_RE = re.compile(r'url\(fonts/([^)]+\.woff2)\)(?: format\("woff2"\))?')
 
 
 def _inline_katex_css() -> str:
@@ -76,6 +79,26 @@ def _read_js(name: str) -> str:
     return text.replace("</script>", "<\\/script>")
 
 
+_WEIGHTS = ((400, "normal"), (400, "italic"), (600, "normal"), (700, "normal"))
+
+# The one typeface, face by face: (weight, style, file, unicode-range). Each weight/style is
+# Inter's latin subset plus one-glyph faces cut from Inter's own other subsets for the symbols
+# a paper prints outside latin: the litre sign ℓ (latin-ext) and π (greek). The angle and
+# parallel signs ∠ ∥ are in no Inter subset; they are maths symbols, so they come from
+# KaTeX_Main (the maths face the project already embeds). All are declared as family "Inter",
+# so no glyph ever falls back to a font the host happens to have (EXA-94, EXA-130).
+FONT_FACES: tuple[tuple[int, str, str, str], ...] = tuple(
+    face
+    for weight, style in _WEIGHTS
+    for face in (
+        (weight, style, f"inter-latin-{weight}-{style}.woff2", ""),
+        (weight, style, f"inter-ell-{weight}-{style}.woff2", "U+2113"),
+        (weight, style, f"inter-pi-{weight}-{style}.woff2", "U+03C0"),
+        (weight, style, "katex-angle.woff2", "U+2220,U+2225"),
+    )
+)
+
+
 def _inline_font_css() -> str:
     """The one typeface (Inter, OFL) as ``@font-face`` rules with WOFF2 inlined as data URIs.
 
@@ -83,17 +106,15 @@ def _inline_font_css() -> str:
     editor does (EXA-94) with no font request and no dependence on the host's installed fonts.
     """
     faces = []
-    # Each weight/style is Inter's latin subset plus a one-glyph face for the litre sign ℓ
-    # (U+2113, cut from Inter's latin-ext subset): same family, so still one typeface.
-    for weight, style in ((400, "normal"), (400, "italic"), (600, "normal"), (700, "normal")):
-        for subset, unicode_range in (("latin", ""), ("ell", "unicode-range:U+2113;")):
-            raw = (_ASSETS / "fonts" / f"inter-{subset}-{weight}-{style}.woff2").read_bytes()
-            faces.append(
-                '@font-face{font-family:"Inter";'
-                f"font-style:{style};font-weight:{weight};font-display:block;{unicode_range}"
-                f"src:url(data:font/woff2;base64,{base64.b64encode(raw).decode('ascii')}) "
-                'format("woff2")}'
-            )
+    for weight, style, file, unicode_range in FONT_FACES:
+        raw = (_ASSETS / "fonts" / file).read_bytes()
+        faces.append(
+            '@font-face{font-family:"Inter";'
+            f"font-style:{style};font-weight:{weight};font-display:block;"
+            + (f"unicode-range:{unicode_range};" if unicode_range else "")
+            + f"src:url(data:font/woff2;base64,{base64.b64encode(raw).decode('ascii')}) "
+            'format("woff2")}'
+        )
     return "\n".join(faces)
 
 

@@ -64,6 +64,79 @@
   src: url("./assets/fonts/inter-ell-700-normal.woff2") format("woff2");
 }
 
+@font-face {
+  /* π only (U+03C0), cut from Inter's greek subset: still one typeface (EXA-130) */
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+03C0;
+  src: url("./assets/fonts/inter-pi-400-normal.woff2") format("woff2");
+}
+@font-face {
+  /* the angle and parallel signs ∠ ∥ (U+2220, U+2225): in no Inter subset, so KaTeX_Main's */
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+2220, U+2225;
+  src: url("./assets/fonts/katex-angle.woff2") format("woff2");
+}
+@font-face {
+  /* π only (U+03C0), cut from Inter's greek subset: still one typeface (EXA-130) */
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+03C0;
+  src: url("./assets/fonts/inter-pi-400-italic.woff2") format("woff2");
+}
+@font-face {
+  /* the angle and parallel signs ∠ ∥ (U+2220, U+2225): in no Inter subset, so KaTeX_Main's */
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+2220, U+2225;
+  src: url("./assets/fonts/katex-angle.woff2") format("woff2");
+}
+@font-face {
+  /* π only (U+03C0), cut from Inter's greek subset: still one typeface (EXA-130) */
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  unicode-range: U+03C0;
+  src: url("./assets/fonts/inter-pi-600-normal.woff2") format("woff2");
+}
+@font-face {
+  /* the angle and parallel signs ∠ ∥ (U+2220, U+2225): in no Inter subset, so KaTeX_Main's */
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  unicode-range: U+2220, U+2225;
+  src: url("./assets/fonts/katex-angle.woff2") format("woff2");
+}
+@font-face {
+  /* π only (U+03C0), cut from Inter's greek subset: still one typeface (EXA-130) */
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  unicode-range: U+03C0;
+  src: url("./assets/fonts/inter-pi-700-normal.woff2") format("woff2");
+}
+@font-face {
+  /* the angle and parallel signs ∠ ∥ (U+2220, U+2225): in no Inter subset, so KaTeX_Main's */
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  unicode-range: U+2220, U+2225;
+  src: url("./assets/fonts/katex-angle.woff2") format("woff2");
+}
+
 /* ============================================================
    Crafting UI — the ONE token layer (KAN-315).
 

@@ -37,7 +37,7 @@ def test_volume_questions_print_the_litre_sign_and_keep_the_unit_code():
 def test_the_font_carries_the_litre_sign_in_inter():
     css = render.font_css()
     assert css.count("unicode-range:U+2113;") == 4  # one per weight/style, family Inter
-    assert css.count('font-family:"Inter"') == 8
+    assert css.count('font-family:"Inter"') == 16  # 4 weights/styles x latin, ℓ, π, ∠
 
 
 def test_a_paper_saved_with_the_old_litre_option_still_verifies():
