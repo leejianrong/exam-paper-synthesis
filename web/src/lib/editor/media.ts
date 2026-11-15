@@ -6,7 +6,7 @@
 
 import { Extension, Node } from '@tiptap/core'
 import type { Editor, NodeViewRendererProps } from '@tiptap/core'
-import { Plugin } from '@tiptap/pm/state'
+import { Plugin, NodeSelection } from '@tiptap/pm/state'
 import { assetUrl, imageFiles, uploadAsset, type AssetMeta } from './assets'
 import { mountMath } from './math'
 import { openMathEditor } from './mathEditor'
@@ -212,6 +212,11 @@ export const MathNode = Node.create({
 export function insertBlock(editor: Editor, node: { type: string; attrs?: Record<string, unknown> }) {
   const { state } = editor
   const type = state.schema.nodes[node.type]
+  if (state.selection instanceof NodeSelection && state.selection.node.isBlock && state.selection.$from.depth === 0) {
+    // A whole top-level block is selected: go after it, never over it (EXA-129).
+    editor.chain().insertContentAt(state.selection.to, node).run()
+    return
+  }
   const $from = state.selection.$from
   let from: number | null = null
   let to: number | null = null

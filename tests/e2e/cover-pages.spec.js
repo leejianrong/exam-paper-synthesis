@@ -61,3 +61,21 @@ test('a starter template comes with its cover; fill it, add a blank page, reload
   expect(key).not.toContain('<div class="cover-page">')
   expect(key).not.toContain('<div class="blank-page')
 })
+
+test('a selected cover is never replaced by a toolbar insert or typing (EXA-129)', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Paper 2', exact: true }).click()
+  await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
+  const cover = page.locator('.cover-block')
+  await cover.locator('.page-block-title').click() // one click selects the whole cover block
+  for (const tool of ['Section', 'Blank page', 'Page break']) {
+    await page.getByRole('button', { name: tool, exact: true }).click()
+    await expect(cover).toHaveCount(1)
+    await expect(page.locator('.surface .ProseMirror > *').first()).toHaveClass(/cover-block/)
+    await cover.locator('.page-block-title').click()
+  }
+  await page.keyboard.type('Typed after selecting the cover')
+  await expect(cover).toHaveCount(1)
+  await expect(page.locator('.surface .ProseMirror > *').first()).toHaveClass(/cover-block/)
+  await expect(page.locator('.surface .ProseMirror > p').first()).toContainText('Typed after selecting the cover')
+})

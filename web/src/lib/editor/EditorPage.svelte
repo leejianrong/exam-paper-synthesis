@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { BlockSelectionGuard, insertBlockSafely } from './blockSelection'
   import ToolIcon from './ToolIcon.svelte'
   import { describePage, summarisePages, type PageSummary } from './pageSummary'
   import { paperSettings } from './paperSettings'
@@ -168,6 +169,7 @@
           Section,
           CoverPage,
           BlankPage,
+          BlockSelectionGuard,
           FreeformQuestion.configure({
             onAddBelow: (pos: number) => (pickerAt = pos),
             onSwap: swapBlock,
@@ -622,11 +624,7 @@
       aria-label="Section"
       title="Insert a section"
       on:click={() =>
-        editor
-          ?.chain()
-          .focus()
-          .insertContent({ type: 'section', attrs: { title: '' } })
-          .run()}
+        editor && insertBlockSafely(editor, { type: 'section', attrs: { title: '' } })}
       ><ToolIcon name="section" /></button
     >
     <button
@@ -639,13 +637,13 @@
     <button
       aria-label="Blank page"
       title="Insert a blank or rough-work page"
-      on:click={() => editor?.chain().focus().insertContent(blankPageNode()).run()}
+      on:click={() => editor && insertBlockSafely(editor, blankPageNode())}
       ><ToolIcon name="blankpage" /></button
     >
     <button
       aria-label="Page break"
       title="Page break"
-      on:click={() => editor?.chain().focus().insertContent({ type: 'pageBreak' }).run()}
+      on:click={() => editor && insertBlockSafely(editor, { type: 'pageBreak' })}
       ><ToolIcon name="pagebreak" /></button
     >
     <span class="sep"></span>
