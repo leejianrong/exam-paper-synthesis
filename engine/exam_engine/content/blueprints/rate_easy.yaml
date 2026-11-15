@@ -1,0 +1,44 @@
+code: rate_easy
+syllabus:
+  level: P5
+  strand: "Number and Algebra"
+  topic: "Rate"
+  subtopic: "Rate as an amount per unit of time"
+  skill_codes: ["RATE.PER.UNIT"]        # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Reasoning depth"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, template, rate, time]
+  properties:
+    name:
+      type: string
+    template: { type: string, enum: [baker, cranes, printer, typing] }
+    rate: { type: integer, minimum: 8, maximum: 60 }   # items per minute / hour
+    time: { type: integer, minimum: 3, maximum: 12 }   # minutes / hours
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  name:     { role: name }
+  template: { role: choice }
+  rate:     { role: number }
+  time:     { role: number }
+# The solver builds the number-bearing fragments s1/s2; the name is interleaved here only.
+story_templates:
+  - stem: null
+    text: "{name}{s1}{name}{s2}"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{expr1}"
+    - text: "{step2}"
+      expr: "{expr2}"
+marking_scheme:
+  - { mark: 1, type: A, description: "Correct amount (rate × time)." }
+answer:
+  type: integer
+  unit: ""

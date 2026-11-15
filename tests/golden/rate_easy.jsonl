@@ -1,0 +1,2 @@
+{"params": {"name": "Aisha", "template": "printer", "rate": 45, "time": 8}, "expected": {"answer": {"type": "integer", "value": 360, "unit": ""}, "total_marks": 1}}
+{"params": {"name": "Ben", "template": "baker", "rate": 20, "time": 6}, "expected": {"answer": {"type": "integer", "value": 120, "unit": ""}, "total_marks": 1}}

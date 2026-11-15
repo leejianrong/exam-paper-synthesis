@@ -63,6 +63,7 @@ describe('App topic × difficulty selector', () => {
       'average',
       'whole_numbers',
       'decimals',
+      'rate',
     ])
 
     const difficulty = screen.getByLabelText('Difficulty') as HTMLSelectElement
