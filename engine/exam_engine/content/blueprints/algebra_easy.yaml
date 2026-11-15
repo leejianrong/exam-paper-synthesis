@@ -1,0 +1,48 @@
+code: algebra_easy
+syllabus:
+  level: P6
+  strand: "Number and Algebra"
+  topic: "Algebra"
+  subtopic: "Evaluating a simple algebraic expression by substitution"
+  skill_codes: ["ALG.EVAL"]             # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Reasoning depth"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [form, letter, a, b, c, n]
+  properties:
+    # an + b | an - b | a(n + b) | n/a + b | (an - b)/c
+    form: { type: string, enum: [add, sub, bracket, frac_add, frac_sub] }
+    letter: { type: string, enum: [n, x, y, k, m, p] }
+    a: { type: integer, minimum: 2, maximum: 9 }
+    b: { type: integer, minimum: 1, maximum: 20 }
+    c: { type: integer, minimum: 1, maximum: 5 }      # the divisor of (an - b)/c; 1 otherwise
+    n: { type: integer, minimum: 2, maximum: 81 }     # the value of the letter
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  form:   { role: choice }
+  letter: { role: choice }
+  a:      { role: number }
+  b:      { role: number }
+  c:      { role: number }
+  n:      { role: number }
+# The solver builds the whole sentence (the expression is typeset with KaTeX).
+story_templates:
+  - stem: null
+    text: "{s1}"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{expr1}"
+    - text: "{step2}"
+      expr: "{expr2}"
+marking_scheme:
+  - { mark: 1, type: A, description: "Correct value of the expression." }
+answer:
+  type: integer
+  unit: ""

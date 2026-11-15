@@ -1,0 +1,56 @@
+code: algebra_medium
+syllabus:
+  level: P6
+  strand: "Number and Algebra"
+  topic: "Algebra"
+  subtopic: "Writing and evaluating an algebraic expression from a story"
+  skill_codes: ["ALG.EXPR", "ALG.EVAL"]   # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Representation"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, items, letter, kind, k1, k2, d, p]
+  properties:
+    name:
+      type: string
+    items: { type: string, enum: [pen_file, pencil_ruler, cup_plate, notebook_bag, cap_shirt] }
+    letter: { type: string, enum: [p, x, y, k] }
+    # the second item costs $d more | $d less | d times as much as the first
+    kind: { type: string, enum: [more, less, times] }
+    k1: { type: integer, minimum: 2, maximum: 6 }     # how many of the first item
+    k2: { type: integer, minimum: 2, maximum: 6 }     # how many of the second item
+    d: { type: integer, minimum: 1, maximum: 9 }
+    p: { type: integer, minimum: 2, maximum: 15 }     # the first item's price, in $
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  name:   { role: name }
+  items:  { role: choice }
+  letter: { role: choice }
+  kind:   { role: choice }
+  k1:     { role: number }
+  k2:     { role: number }
+  d:      { role: number }
+  p:      { role: number }
+# The solver builds the number-bearing fragments s1/s2; the name is interleaved here only.
+story_templates:
+  - stem: null
+    text: "{name}{s1}{name}{s2}"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{expr1}"
+    - text: "{step2}"
+      expr: "{expr2}"
+    - text: "{step3}"
+      expr: "{expr3}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Correct expression for the total cost, or correct substitution into it." }
+  - { mark: 1, type: A, description: "Correct total cost with the $ unit." }
+answer:
+  type: integer
+  unit: "$"

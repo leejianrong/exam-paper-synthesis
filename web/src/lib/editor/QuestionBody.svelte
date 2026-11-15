@@ -2,6 +2,7 @@
   // The presentational body of a question (no edit/approve chrome): marks, question text and diagram. Used by the editor's question block and the picker.
   import ChoiceOptions from '../ChoiceOptions.svelte'
   import DiagramView from '../DiagramView.svelte'
+  import MathText from '../MathText.svelte'
   import type { Question } from '../types'
   import { paperSettings } from './paperSettings'
   import { DEFAULT_PLACEMENT } from './layout'
@@ -18,9 +19,9 @@
       <span class="marks">[{part.marks}]</span>
     </div>
   {/if}
-  {#if q.question.stem}<p class="text">{q.question.stem}</p>{/if}
+  {#if q.question.stem}<p class="text"><MathText text={q.question.stem} /></p>{/if}
   <DiagramView compact spec={q.question.diagram} />
-  <p class="text">{part.text}</p>
+  <p class="text"><MathText text={part.text} /></p>
   <DiagramView compact spec={part.diagram} />
   {#if part.answer?.type === 'choice'}<ChoiceOptions options={part.answer.options ?? []} />{/if}
 </div>

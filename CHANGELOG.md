@@ -32,6 +32,13 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   template has none. A starter paper's student print therefore shows the cover in place of
   the sheet header, and the Preview counts the cover as page 1; its page list names cover,
   blank and rough-work pages.
+- **Coverage growth (P8e, batch 2: 1-mark content)** — four new ladders, 1 / 2 / 3 marks
+  each: `whole_numbers` (P5: order of operations; a remainder to interpret; excess and
+  shortage), `decimals` (P5: × / ÷ by a whole number; unit cost; change from shopping),
+  `rate` (P5: rate × time; unitary rate; tiered car-park / bicycle charges) and `algebra`
+  (P6: evaluate an expression; a story expression in $; solve a simple equation from a
+  story). Every answer is numeric, so all twelve convert to multiple choice. P6 Booklet B
+  and Paper 2 now fill completely; Booklet A fills 13 / 15 (P6) and 12 / 15 (P5).
 - **Coverage growth (P8e, batch 1)** — an `average` ladder at P5 (1 / 2 / 3 marks):
   the average of a set of numbers; a missing score or the money left from an average;
   the average when a child joins or leaves a group. Also in the web topic picker.

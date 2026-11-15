@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from fractions import Fraction
 from pathlib import Path
 
 import pytest
+from exam_engine import mcq
 from exam_engine.canonical import load
 from exam_engine.document import verify_snapshot
 from exam_engine.edits import applicable, available_ops
@@ -154,3 +156,19 @@ def test_a_question_shown_in_decimals_is_not_converted():
     obj = apply("change-to-decimals", generate("ratio_medium", 3), seed=1)
     with pytest.raises(EditNotApplicable):
         to_mcq(obj, 1)
+
+
+def test_money_distractors_keep_their_cents():
+    """A $42.00 answer (stored 42.0, dp 2) must not round a $5.25 step to "$5.20"."""
+    for seed in range(40):
+        obj = generate("decimals_medium", seed)
+        options = to_mcq(obj, seed)["question"]["parts"][0]["answer"]["options"]
+        for o in options:
+            assert re.fullmatch(r"\$\d+\.\d\d", o["text"]), o["text"]
+        for step in obj["question"]["parts"][0]["solution_steps"]:
+            v = mcq._eval(step.get("expr") or "")
+            shown = f"${v:.2f}" if v is not None and v * 100 == int(v * 100) else None
+            if shown and v != Fraction(str(obj["question"]["parts"][0]["answer"]["value"])):
+                texts = [o["text"] for o in options]
+                rounded = f"${float(v):.1f}0"
+                assert rounded == shown or rounded not in texts, (seed, shown, texts)

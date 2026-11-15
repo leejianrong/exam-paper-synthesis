@@ -371,9 +371,10 @@ def test_swaps_are_deterministic_and_leave_the_input_alone():
 
 
 def test_a_placeholder_is_filled_by_like_and_topic_when_content_allows():
-    doc, _ = generate_paper("p1_booklet_b", "P6", 1)
+    # P6 Booklet A has ten 1-mark slots and fewer 1-mark blueprints (P8e batch 2: eight), so a
+    # 1-mark placeholder is left and every 1-mark blueprint is used already ...
+    doc, _ = generate_paper("p1_booklet_a", "P6", 1)
     ph = _first(doc, lambda n: n["type"] == "freeformQuestion" and n["attrs"]["slot"]["marks"] == 1)
-    # every 1-mark blueprint is used already in Booklet B, so the slot can't be filled ...
     with pytest.raises(SwapNotPossible):
         swap_question(doc, ph["attrs"]["block_id"], "like", 1)
     # ... until the teacher writes their own instead of one of them
@@ -382,13 +383,16 @@ def test_a_placeholder_is_filled_by_like_and_topic_when_content_allows():
     new, report = swap_question(doc, ph["attrs"]["block_id"], "like", 1)
     filled = _first(new, lambda n: n["attrs"].get("block_id") == ph["attrs"]["block_id"])
     assert filled["type"] == "templatedQuestion" and _marks(filled) == 1
-    assert filled["attrs"]["slot"] == {"marks": 1, "kind": "short"}
+    assert filled["attrs"]["slot"] == {"marks": 1, "kind": "mcq"}
+    assert filled["attrs"]["question"]["question"]["parts"][0]["answer"]["type"] == "choice"
     assert report["placeholder"] is False and report["blueprint"] == _code(filled)
     _check_rules(new, "P6", "filled")
 
 
 def test_refusals_say_why():
     doc, _ = generate_paper("p1_booklet_b", "P6", 1)
+    last = [n for n in doc["content"]["content"] if n["type"] == "templatedQuestion"][-1]
+    doc, _ = swap_question(doc, last["attrs"]["block_id"], "own", 1)  # a placeholder
     q = _first(doc, lambda n: n["type"] == "templatedQuestion")
     ph = _first(doc, lambda n: n["type"] == "freeformQuestion")
     with pytest.raises(KeyError):

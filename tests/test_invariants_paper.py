@@ -201,12 +201,12 @@ def test_what_todays_content_fills():
         _, r = generate_paper(code, level, 1)
         return r["filled"], r["placeholders"]
 
-    assert fill("p1_booklet_a", "P6") == (9, 6)  # 4 one-mark + 5 two-mark convertible
-    assert fill("p1_booklet_a", "P5") == (9, 6)
-    assert fill("p1_booklet_b", "P6") == (12, 3)
-    assert fill("p1_booklet_b", "P5") == (9, 6)
-    assert fill("p2", "P6") == (17, 0)  # P8c's 4-/5-mark multi-part blueprints joined
-    assert fill("p2", "P5") == (10, 6)
+    assert fill("p1_booklet_a", "P6") == (13, 2)  # 8 one-mark (P8e batch 2) + 5 two-mark
+    assert fill("p1_booklet_a", "P5") == (12, 3)  # 7 one-mark at P5
+    assert fill("p1_booklet_b", "P6") == (15, 0)
+    assert fill("p1_booklet_b", "P5") == (13, 2)
+    assert fill("p2", "P6") == (17, 0)  # Section B: 3 multi-part + 9 single-part stand-ins
+    assert fill("p2", "P5") == (16, 3)  # Section B: 11 stand-ins, 3 placeholders (15 marks)
 
 
 def test_unknown_template_and_level_are_refused():
@@ -219,7 +219,12 @@ def test_unknown_template_and_level_are_refused():
 
 
 def test_a_placeholder_counts_as_written_once_anything_is_in_it():
+    from exam_engine.paper_swap import swap_question
+
     doc, _ = generate_paper("p1_booklet_b", "P6", 3)
+    # make three placeholders the teacher could write (content may fill every slot)
+    for q in [n for n in _questions(doc) if n["type"] == "templatedQuestion"][:3]:
+        doc, _ = swap_question(doc, q["attrs"]["block_id"], "own", 1)
     before = unfilled_placeholders(doc)
     phs = [n for n in _questions(doc) if n["attrs"].get("slot", {}).get("placeholder")]
     phs[0]["content"] = [

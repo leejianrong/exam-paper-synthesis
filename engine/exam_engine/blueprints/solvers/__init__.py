@@ -1,7 +1,9 @@
 """Solver plugins. Importing this package registers every solver."""
 
 from . import (
+    algebra,  # noqa: F401
     average,  # noqa: F401
+    decimals,  # noqa: F401
     fractions_easy,  # noqa: F401
     fractions_hard,  # noqa: F401
     fractions_medium,  # noqa: F401
@@ -14,6 +16,7 @@ from . import (
     percentage_easy,  # noqa: F401
     percentage_hard,  # noqa: F401
     percentage_medium,  # noqa: F401
+    rate,  # noqa: F401
     ratio_easy,  # noqa: F401
     ratio_hard,  # noqa: F401
     ratio_medium,  # noqa: F401
@@ -23,10 +26,13 @@ from . import (
     statistics_chart,  # noqa: F401
     structured,  # noqa: F401
     volume,  # noqa: F401
+    whole_numbers,  # noqa: F401
 )
 
 __all__ = [
+    "algebra",
     "average",
+    "decimals",
     "fractions_easy",
     "fractions_hard",
     "fractions_medium",
@@ -39,6 +45,7 @@ __all__ = [
     "percentage_easy",
     "percentage_hard",
     "percentage_medium",
+    "rate",
     "ratio_easy",
     "ratio_hard",
     "ratio_medium",
@@ -48,4 +55,5 @@ __all__ = [
     "statistics_chart",
     "structured",
     "volume",
+    "whole_numbers",
 ]

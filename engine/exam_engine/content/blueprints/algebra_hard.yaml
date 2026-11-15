@@ -1,0 +1,59 @@
+code: algebra_hard
+syllabus:
+  level: P6
+  strand: "Number and Algebra"
+  topic: "Algebra"
+  subtopic: "Forming and solving a simple linear equation from a story"
+  skill_codes: ["ALG.EQUATION"]         # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Reasoning depth", "Direction"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [names, thing, relation, change, m, g, total]
+  properties:
+    names:
+      type: array
+      items: { type: string }
+      minItems: 2
+      maxItems: 2
+    thing: { type: string, enum: [stickers, marbles, stamps, beads, cards] }
+    # the second person has m times as many | m more than the first (who has x)
+    relation: { type: string, enum: [times, more] }
+    # the second person then gives away g | gets g more
+    change: { type: string, enum: [give, get] }
+    m: { type: integer, minimum: 3, maximum: 30 }      # "3 times as many", never "2 times" (twice)
+    g: { type: integer, minimum: 2, maximum: 20 }
+    total: { type: integer, minimum: 1, maximum: 500 }  # how many they have altogether at the end
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  names:    { role: name }
+  thing:    { role: choice }
+  relation: { role: choice }
+  change:   { role: choice }
+  m:        { role: number }
+  g:        { role: number }
+  total:    { role: number }
+# The solver builds the number-bearing fragments s1..s4; the names are interleaved here only.
+story_templates:
+  - stem: null
+    text: "{names[0]}{s1}{names[1]}{s2}{names[0]}{s3}{names[1]}{s4}"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: null                          # an expression in x, not a number
+    - text: "{step2}"
+      expr: "{expr2}"
+    - text: "{step3}"
+      expr: "{expr3}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Correct expression for the total, in terms of x." }
+  - { mark: 1, type: M, description: "Correct equation, simplified to (number)x = (number)." }
+  - { mark: 1, type: A, description: "Correct value of x." }
+answer:
+  type: integer
+  unit: ""

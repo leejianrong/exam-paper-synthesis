@@ -102,7 +102,8 @@ def test_bad_requests_are_refused_with_a_reason():
     assert _swap(rec, "nope_1234", "like").status_code == 404
     assert _swap(rec, qs[0]["attrs"]["block_id"], "sideways").status_code == 422
     assert _swap(rec, qs[0]["attrs"]["block_id"], "like", level="P4").status_code == 422
-    placeholder = next(n for n in qs if n["type"] == "freeformQuestion")
+    rec = _swap(rec, qs[-1]["attrs"]["block_id"], "own").json()  # a placeholder to refuse
+    placeholder = next(n for n in _questions(rec) if n["type"] == "freeformQuestion")
     resp = _swap(rec, placeholder["attrs"]["block_id"], "own")
     assert resp.status_code == 422 and "already" in resp.json()["detail"]
     # a locked question can't be swapped

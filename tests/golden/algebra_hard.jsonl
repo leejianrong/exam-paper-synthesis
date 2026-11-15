@@ -1,0 +1,2 @@
+{"params": {"names": ["Ali", "Ben"], "thing": "stickers", "relation": "times", "change": "give", "m": 3, "g": 8, "total": 96}, "expected": {"answer": {"type": "integer", "value": 26, "unit": ""}, "total_marks": 3}}
+{"params": {"names": ["Chloe", "Devi"], "thing": "marbles", "relation": "more", "change": "get", "m": 10, "g": 6, "total": 50}, "expected": {"answer": {"type": "integer", "value": 17, "unit": ""}, "total_marks": 3}}

@@ -1,0 +1,50 @@
+code: rate_hard
+syllabus:
+  level: P5
+  strand: "Number and Algebra"
+  topic: "Rate"
+  subtopic: "Tiered charges: a first-hour price, then a price for each additional period"
+  skill_codes: ["RATE.TIERED"]          # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Reasoning depth", "Hidden structure"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, template, first, extra, duration]
+  properties:
+    name:
+      type: string
+    template: { type: string, enum: [bicycle, carpark] }
+    first: { type: integer, minimum: 150, maximum: 800 }     # cents, the first hour
+    extra: { type: integer, minimum: 50, maximum: 500 }      # cents, each additional period
+    duration: { type: integer, minimum: 90, maximum: 360 }   # minutes, whole periods
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  name:     { role: name }
+  template: { role: choice }
+  first:    { role: number }
+  extra:    { role: number }
+  duration: { role: number }
+# The solver builds the number-bearing fragments s1..s3; the name is interleaved here only.
+story_templates:
+  - stem: null
+    text: "{s1}{name}{s2}{name}{s3}"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{expr1}"
+    - text: "{step2}"
+      expr: "{expr2}"
+    - text: "{step3}"
+      expr: "{expr3}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Number of additional periods after the first hour." }
+  - { mark: 1, type: M, description: "Charge for the additional periods." }
+  - { mark: 1, type: A, description: "Correct total charge with the $ unit." }
+answer:
+  type: decimal
+  unit: "$"

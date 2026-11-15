@@ -1,0 +1,2 @@
+{"params": {"context": "boats", "n": 50, "d": 8}, "expected": {"answer": {"type": "integer", "value": 7, "unit": ""}, "total_marks": 2}}
+{"params": {"context": "rope", "n": 100, "d": 7}, "expected": {"answer": {"type": "integer", "value": 14, "unit": ""}, "total_marks": 2}}

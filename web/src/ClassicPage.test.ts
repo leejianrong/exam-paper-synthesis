@@ -46,11 +46,11 @@ describe('App topic × difficulty selector', () => {
     expect(generate).toHaveBeenCalledWith('geometry_area_hard', 1)
   })
 
-  it('offers all eight topics and three difficulties', () => {
+  it('offers every topic and three difficulties', () => {
     render(App)
 
     const topic = screen.getByLabelText('Topic') as HTMLSelectElement
-    expect(topic.options).toHaveLength(9)
+    expect(topic.options).toHaveLength(13)
     expect([...topic.options].map((o) => o.value)).toEqual([
       'ratio',
       'fractions',
@@ -61,6 +61,10 @@ describe('App topic × difficulty selector', () => {
       'statistics_chart',
       'volume',
       'average',
+      'whole_numbers',
+      'decimals',
+      'rate',
+      'algebra',
     ])
 
     const difficulty = screen.getByLabelText('Difficulty') as HTMLSelectElement

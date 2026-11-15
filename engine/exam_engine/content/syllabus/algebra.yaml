@@ -1,0 +1,8 @@
+# PROVISIONAL skill codes — remap to MOE P5-P6 syllabus outcomes when the
+# official doc is available (Q-M1). Codes are carried, not queried, in v1
+# (ADR-0016), so remapping is a mechanical find/replace with no data migration.
+strand: "Number and Algebra"
+skills:
+  ALG.EVAL: "Evaluate a simple algebraic expression by substitution"   # used by algebra_easy, algebra_medium
+  ALG.EXPR: "Write an algebraic expression from a story"              # used by algebra_medium
+  ALG.EQUATION: "Form and solve a simple linear equation"             # used by algebra_hard
