@@ -94,6 +94,7 @@ All commands verified from repo root.
 | Make: boot API + web | `make dev` (both together; Ctrl-C stops both) |
 | Make: stop dev servers | `make stop` (graceful TERM→KILL on ports 8000/5173; works from any shell, e.g. when `make dev` was backgrounded or orphaned) |
 | Make: run tests | `make test` |
+| Make: show goldens for the human check | `make goldens G="decimals rate"` (prints each golden as the printed question, steps and answer; `G` filters by blueprint prefix) |
 | Make: lint Python | `make py-lint` (`uv run ruff check .`) |
 | Make: format Python | `make py-fmt` (`uv run ruff format .`) |
 | Make: type-check Python | `make py-typecheck` (`uv run mypy`) |
