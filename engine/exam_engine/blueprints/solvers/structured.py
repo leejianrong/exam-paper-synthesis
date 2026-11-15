@@ -8,7 +8,8 @@ its part's marks, marking scheme and steps.
 * ``ratio_structured``  (5 marks) — A:B = p:q and A has n more: (a) the total;
   (b) after A gives some to B the ratio is r:s — how many did A give? (The total is
   unchanged, so (b) needs (a).)
-* ``speed_structured``  (4 marks) — out at v1 km/h for t1 h, back at v2 km/h:
+* ``speed_structured``  (4 marks) — out at v1 km/h for t1 h, back at v2 km/h (whole or
+  half hours back, ~100 trips):
   (a) the distance; (b) the average speed for the whole (round) journey.
 * ``volume_structured`` (5 marks) — tank A with water to a depth: (a) the litres of
   water; (b) all of it poured into an empty tank B — the height of the water there.
@@ -19,6 +20,7 @@ Every quantity is a whole number by construction (ADR-0014).
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 from math import gcd
 
 from ..registry import register
@@ -86,6 +88,13 @@ class RatioStructuredSolver:
             "intermediates": {
                 "diff_units": p - q,
                 "diff_units_text": "1 unit" if p - q == 1 else f"{p - q} units",
+                # One unit of difference IS the value of one unit: say it once, not twice.
+                "diff_tail": "" if p - q == 1 else f", so {p - q} units = {more}",
+                "unit_line": (
+                    f"So 1 unit = {more}."
+                    if p - q == 1
+                    else f"1 unit = {more} ÷ {p - q} = {u1}."
+                ),
                 "u1": u1,
                 "sum_before": p + q,
                 "total": total,
@@ -120,58 +129,81 @@ class RatioStructuredSolver:
 # --------------------------------------------------------------------------- speed
 
 
-_SPEED_MIN, _SPEED_MAX = 30, 100
+_SPEED_MIN, _SPEED_MAX = 30, 90  # km/h: realistic road speeds
+_TIME_OUT = range(2, 7)  # whole hours out
+_TIME_BACK_HALVES = range(2, 17)  # 1 h to 8 h back, in half hours
+_DISTANCE_MAX = 480  # km
+
+
+def _hours(t: Fraction) -> str:
+    """``3`` or ``2.5`` (half hours print as a decimal, as in the PSLE answer key)."""
+    return str(t.numerator) if t.denominator == 1 else f"{float(t):g}"
+
+
+def speed_trips() -> list[tuple[int, int, int]]:
+    """Every trip ``(v1, t1, v2)`` the blueprint may ask about: out at a whole ``v1`` km/h for
+    ``t1`` whole hours, back at a different whole ``v2`` taking whole or half hours, with a
+    whole average speed (ADR-0014). Enumerated once so sampling is uniform over trips."""
+    out = []
+    for t1 in _TIME_OUT:
+        for v1 in range(_SPEED_MIN, _SPEED_MAX + 1):
+            distance = v1 * t1
+            if distance > _DISTANCE_MAX:
+                continue
+            for halves in _TIME_BACK_HALVES:
+                t2 = Fraction(halves, 2)
+                v2, avg = distance / t2, 2 * distance / (t1 + t2)
+                if t2 == t1 or v2.denominator != 1 or avg.denominator != 1:
+                    continue
+                if _SPEED_MIN <= v2 <= _SPEED_MAX:
+                    out.append((v1, t1, int(v2)))
+    return out
+
+
+_TRIPS = speed_trips()
 
 
 class SpeedStructuredSolver:
     def sample(self, schema: dict, rng: random.Random) -> dict:
-        while True:
-            t1, t2 = rng.randint(2, 5), rng.randint(1, 6)
-            if t1 == t2:
-                continue
-            step = 5 * _lcm(t1, t2)  # both speeds are multiples of 5
-            distance = step * rng.randint(1, 20)
-            v1, v2 = distance // t1, distance // t2
-            if not (_SPEED_MIN <= v1 <= _SPEED_MAX and _SPEED_MIN <= v2 <= _SPEED_MAX):
-                continue
-            if (2 * distance) % (t1 + t2):
-                continue
-            return {
-                "name": rng.choice(NAME_POOL),
-                "speed_out": v1,
-                "time_out": t1,
-                "speed_back": v2,
-            }
+        v1, t1, v2 = rng.choice(_TRIPS)
+        return {
+            "name": rng.choice(NAME_POOL),
+            "speed_out": v1,
+            "time_out": t1,
+            "speed_back": v2,
+        }
 
     def solve(self, params: dict) -> dict:
         v1, t1, v2 = params["speed_out"], params["time_out"], params["speed_back"]
         distance = v1 * t1
-        time_back = distance // v2
+        time_back = Fraction(distance, v2)
         total_distance = 2 * distance
         total_time = t1 + time_back
-        avg = total_distance // total_time
+        avg = total_distance / total_time
         return {
             "answers": [
                 {"type": "quantity", "value": distance, "unit": "km"},
-                {"type": "quantity", "value": avg, "unit": "km/h"},
+                {"type": "quantity", "value": int(avg), "unit": "km/h"},
             ],
             "intermediates": {
                 "distance": distance,
-                "time_back": time_back,
+                "time_back": _hours(time_back),
                 "total_distance": total_distance,
-                "total_time": total_time,
-                "avg": avg,
+                "total_time": _hours(total_time),
+                "avg": int(avg),
             },
         }
 
     def validate(self, params: dict, solution: dict) -> dict:
         v1, t1, v2 = params["speed_out"], params["time_out"], params["speed_back"]
         distance, avg = (a["value"] for a in solution["answers"])
+        time_back = Fraction(v1 * t1, v2)
         checks = {
-            "return_time_whole": (v1 * t1) % v2 == 0,
+            "return_time_half_hours": (2 * time_back).denominator == 1,
             "speeds_differ": v1 != v2,
             "speeds_in_range": all(_SPEED_MIN <= v <= _SPEED_MAX for v in (v1, v2)),
-            "avg_whole": avg * (t1 + distance // v2) == 2 * distance,
+            "distance_in_range": distance <= _DISTANCE_MAX,
+            "avg_whole": avg * (t1 + time_back) == 2 * distance,
             "answers_verified": distance == v1 * t1,
         }
         return {"ok": all(checks.values()), "checks": checks}

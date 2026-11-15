@@ -84,18 +84,30 @@ def test_ratio_parts_found_by_search_over_whole_numbers(params):
 # --------------------------------------------------------------------------- speed
 
 
-# Every whole-number trip in the parameter space: out at v1 for t1 h, back at a different
-# whole v2 in whole hours, with a whole average speed (enumerated, not sampled).
-_TRIPS = [
-    (v1, t1, v1 * t1 // t2)
-    for t1 in range(2, 6)
-    for t2 in range(1, 7)
-    for v1 in range(30, 101)
-    if t2 != t1
-    and (v1 * t1) % t2 == 0
-    and 30 <= v1 * t1 // t2 <= 100
-    and (2 * v1 * t1) % (t1 + t2) == 0
-]
+# Every trip in the parameter space, enumerated (not sampled) from the definitions: out at a
+# whole v1 (30-90 km/h) for 2-6 whole hours, at most 480 km; back at a different whole v2
+# taking whole or half hours; a whole average speed (total distance / total time).
+_TRIPS = sorted(
+    {
+        (v1, t1, int(Fraction(v1 * t1) / Fraction(h, 2)))
+        for t1 in range(2, 7)
+        for v1 in range(30, 91)
+        for h in range(2, 17)
+        if v1 * t1 <= 480
+        and Fraction(h, 2) != t1
+        and (Fraction(v1 * t1) / Fraction(h, 2)).denominator == 1
+        and 30 <= Fraction(v1 * t1) / Fraction(h, 2) <= 90
+        and (Fraction(2 * v1 * t1) / (t1 + Fraction(h, 2))).denominator == 1
+    }
+)
+
+
+def test_speed_trips_are_many_and_the_sampler_reaches_them():
+    """The #194 review: ~24 distinct trips was too few for a paper bank."""
+    from exam_engine.blueprints.solvers.structured import speed_trips
+
+    assert len(_TRIPS) >= 100
+    assert sorted(set(speed_trips())) == _TRIPS
 
 
 @st.composite

@@ -54,9 +54,9 @@ parts:
     text: "How many {item} did they have altogether?"
     solution_template:
       steps:
-        - text: "{names[0]} had {ratio_before[0]} - {ratio_before[1]} = {diff_units_text} more than {names[1]}, so {diff_units_text} = {more}."
+        - text: "{names[0]} had {ratio_before[0]} - {ratio_before[1]} = {diff_units_text} more than {names[1]}{diff_tail}."
           expr: "{ratio_before[0]}-{ratio_before[1]}"
-        - text: "1 unit = {more} ÷ {diff_units} = {u1}."
+        - text: "{unit_line}"
           expr: "{more}/{diff_units}"
         - text: "Altogether = {sum_before} units = {sum_before} × {u1} = {total}."
           expr: "{sum_before}*{u1}"

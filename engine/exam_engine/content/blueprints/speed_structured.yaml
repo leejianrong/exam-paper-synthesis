@@ -16,9 +16,9 @@ parameter_schema:                       # ADR-0014: sampled params validate agai
   required: [name, speed_out, time_out, speed_back]
   properties:
     name: { type: string }
-    speed_out: { type: integer, minimum: 30, maximum: 100 }
-    time_out: { type: integer, minimum: 2, maximum: 5 }
-    speed_back: { type: integer, minimum: 30, maximum: 100 }
+    speed_out: { type: integer, minimum: 30, maximum: 90 }
+    time_out: { type: integer, minimum: 2, maximum: 6 }
+    speed_back: { type: integer, minimum: 30, maximum: 90 }
 # Every parameter_schema property needs a role (W1a).
 param_roles:
   name:       { role: name }
