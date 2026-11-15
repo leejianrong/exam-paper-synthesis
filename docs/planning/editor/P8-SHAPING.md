@@ -24,13 +24,14 @@ sub-slices.
 There are 27 blueprints, 9 topics × 3 rungs. Each has fixed marks, one part and a
 constructed-response answer. Counted by marks: 1 mark: 4, 2 marks: 8, 3 marks: 11, 4 marks: 4.
 14 are P5 (1: 4, 2: 5, 3: 5). P8e batch 1 (EXA-117) added the P5 `average` ladder (1/2/3 marks).
+P8c (EXA-116) added three P6 multi-part blueprints (4, 5, 5 marks) for Paper 2 Section B, so 30 in all.
 
 | Paper part | Real composition | P6 paper today | P5 paper today |
 |---|---|---|---|
 | P1 Booklet A | 15 MCQ, 20 marks (10 × 1, 5 × 2) | 9 / 15 (was 0 before P8b, 8 before P8e) | 9 / 15 (was 7 before P8e) |
 | P1 Booklet B | 15 short answer, 25 marks (5 × 1, 10 × 2) | 12 / 15 slots, 20 / 25 marks | 9 / 15, 14 / 25 |
 | P2 Section A | 5 × 2 marks | 5 / 5 | 5 / 5 |
-| P2 Section B | ~12 multi-part, 45 marks | 45 / 45 with 14 stand-ins (eleven 3-mark, three 4-mark) | 15 / 45 (five 3-mark) |
+| P2 Section B | ~12 multi-part, 45 marks | 45 / 45: 3 multi-part (4 + 5 + 5 marks, since P8c) + 9 stand-ins (five 3-mark, four 4-mark) | 15 / 45 (five 3-mark) |
 
 So for a P6 teacher, P8a alone makes a complete Paper 2 and two thirds of Booklet B. P8b (MCQ) is
 the single largest content unlock after that. A P5 paper stays thin until P8e.
