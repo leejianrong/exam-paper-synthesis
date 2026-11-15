@@ -28,6 +28,12 @@ SEEDS = range(1, 21)
 FRESH_NAMES = ["Zara", "Yusof", "Xin Yi", "Wafi", "Vikram"]  # none in any NAME_POOL
 
 
+def _story_texts(spec) -> list[str]:
+    """Every printed template: the story text, or a multi-part blueprint's stem and parts."""
+    texts = [t.get("text") or t.get("stem") or "" for t in spec.story_templates]
+    return texts + [p["text"] for p in spec.parts]
+
+
 # --- param_roles are complete and sensible ----------------------------------
 
 
@@ -54,7 +60,7 @@ def test_every_blueprint_with_a_person_has_a_name_slot():
     # Guards against a template with a person being left classified as `number`.
     for code in CODES:
         spec = load_blueprint(code)
-        if any(re.search(r"\{names?\d?(\[|\})", t["text"]) for t in spec.story_templates):
+        if any(re.search(r"\{names?\d?(\[|\})", t) for t in _story_texts(spec)):
             assert any(e["role"] == "name" for e in spec.param_roles.values()), code
 
 
@@ -62,8 +68,9 @@ def test_every_blueprint_with_a_person_has_a_name_slot():
 def test_templates_have_no_pronouns(code):
     """Names are unpaired slots only while no template says he/she/his/her."""
     spec = load_blueprint(code)
-    texts = [t["text"] for t in spec.story_templates]
-    texts += [s["text"] for s in spec.solution_template.get("steps", [])]
+    texts = _story_texts(spec)
+    for sol in [spec.solution_template] + [p["solution_template"] for p in spec.parts]:
+        texts += [s["text"] for s in sol.get("steps", [])]
     for text in texts:
         assert not re.search(r"\b(he|she|his|her|hers|him|himself|herself)\b", text, re.I), text
 

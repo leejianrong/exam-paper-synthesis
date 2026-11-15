@@ -60,6 +60,18 @@ describe('reportSummary', () => {
   })
 })
 
+describe('reportSummary with multi-part questions (P8c)', () => {
+  it('counts real multi-part questions apart from the single-part stand-ins', () => {
+    const text = reportSummary(
+      report({
+        filled: 12,
+        sections: [section({ title: 'Section B', mode: 'structured', filled: 12, multipart: 3, stand_ins: 9 })],
+      }),
+    )
+    expect(text).toContain('Section B has 3 multi-part questions; 9 single-part questions stand in for the rest.')
+  })
+})
+
 describe('unfilledPlaceholders', () => {
   const ph = (text?: string) => ({
     type: 'freeformQuestion',

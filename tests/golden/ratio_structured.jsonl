@@ -1,0 +1,3 @@
+{"params": {"names": ["Aisha", "Ben"], "item": "stickers", "ratio_before": [3, 1], "more": 20, "ratio_after": [1, 3]}, "expected": {"answers": [{"type": "integer", "value": 40}, {"type": "integer", "value": 20}], "marks": [2, 3], "total_marks": 5}}
+{"params": {"names": ["Devi", "Ethan"], "item": "marbles", "ratio_before": [2, 1], "more": 15, "ratio_after": [1, 2]}, "expected": {"answers": [{"type": "integer", "value": 45}, {"type": "integer", "value": 15}], "marks": [2, 3], "total_marks": 5}}
+{"params": {"names": ["Gopal", "Hui Ling"], "item": "cards", "ratio_before": [4, 1], "more": 60, "ratio_after": [2, 3]}, "expected": {"answers": [{"type": "integer", "value": 100}, {"type": "integer", "value": 40}], "marks": [2, 3], "total_marks": 5}}

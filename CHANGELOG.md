@@ -67,6 +67,19 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   `regenerate_unlocked`) that keep every P8a rule; `POST /documents/{id}/swap` and
   `POST /documents/{id}/regenerate` (owner-scoped, optimistic concurrency like PUT)
   (document schema `1.11.0`: a question's `locked`).
+- **Multi-part blueprints (P8c, first three)** — a blueprint can now produce a shared stem
+  with lettered parts, each with its own answer, marks, marking scheme and worked steps
+  (YAML `parts:`; the solver returns `answers`, one per part; `BlueprintSpec.is_multipart` /
+  `part_count`). Three Paper 2 Section B blueprints, each with (b) building on (a):
+  `ratio_structured` (5 marks), `speed_structured` (4) and `volume_structured` (5).
+  `document.verify_snapshot` re-solves and checks every part's label, answer and marks;
+  a multi-part question is offered only whole-question edits (regenerate, edit names); the
+  editor draws generated multi-part questions and their key entries with the engine's
+  renderer. The paper generator fills Paper 2 Section B with these first (real multi-part
+  questions, not stand-ins; P6 now 3 multi-part + 9 single-part stand-ins) and never puts them
+  in short-answer or MCQ slots; the report counts them per section. Keep / swap / lock and
+  "regenerate unlocked" follow the same order (multi-part first, then stand-ins). No schema change (the
+  canonical schema already allowed parts).
 
 ## [0.1.0] — 2026-07-25
 

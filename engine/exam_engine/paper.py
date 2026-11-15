@@ -15,9 +15,11 @@ Rules (owner's decisions, 2026-11-15):
   **placeholder** (a free-form question with the slot's marks and an empty body for the
   teacher to write). The paper is never padded with repeats or off-topic questions.
 - Each section's marks equal its target, counting placeholders.
-- A ``structured`` section with no multi-part blueprints (all of today's content) is filled
-  with single-part **stand-ins** of 2 marks or more whose marks add up to the target; the slot
-  count may then differ from the real paper's. Any shortfall becomes placeholders of 3–5 marks.
+- A ``structured`` section first takes real **multi-part** questions (P8c blueprints with
+  ``parts``), each at most once, as many as fit its marks target and slot count. The rest of
+  the target is filled with single-part **stand-ins** of 2 marks or more whose marks add up to
+  it; the slot count may then differ from the real paper's. Any shortfall becomes placeholders
+  of 3–5 marks. Multi-part blueprints are never used in ``short`` or ``mcq`` sections.
 - ``mcq`` slots take a blueprint whose answer is numeric or a fraction and turn its question
   into four-option multiple choice (P8b, ``mcq.to_mcq``); the marks stay the blueprint's.
 - A paper of level P6 may use P5 and P6 blueprints; a P5 paper only P5 ones.
@@ -126,7 +128,7 @@ class Candidate:
     topic: str
     level: str
     marks: int
-    kind: str  # "constructed" today; "multipart" arrives with P8c
+    kind: str  # "constructed" (single-part) or "multipart" (P8c: a stem with parts)
     answer_type: str = ""
 
 
@@ -141,7 +143,7 @@ def _pool() -> tuple[Candidate, ...]:
                 topic=spec.syllabus.get("topic", spec.code),
                 level=spec.syllabus.get("level", "P6"),
                 marks=spec.marks,
-                kind="constructed",
+                kind="multipart" if spec.is_multipart else "constructed",
                 answer_type=str((spec.answer or {}).get("type", "")),
             )
         )
@@ -157,6 +159,8 @@ def candidates(level: str) -> list[Candidate]:
 def _fits(c: Candidate, kind: str) -> bool:
     if kind == "mcq":  # P8b: converted to multiple choice, so the answer must be convertible
         return c.kind == "constructed" and c.answer_type in CONVERTIBLE
+    if kind == "multipart":  # P8c: only structured sections ask for these
+        return c.kind == "multipart"
     # short-answer and (stand-in) structured slots take constructed-response questions.
     return kind in ("short", "structured") and c.kind == "constructed"
 
@@ -184,6 +188,22 @@ class _Filler:
         """An unused blueprint with these marks, from the least-used topic (seeded ties)."""
         options = [
             c for c in self.pool if c.code not in self.used and c.marks == marks and _fits(c, kind)
+        ]
+        if not options:
+            return None
+        self.rng.shuffle(options)
+        best = min(options, key=lambda c: self.topics.get(c.topic, 0))
+        self.used.add(best.code)
+        self.topics[best.topic] = self.topics.get(best.topic, 0) + 1
+        return best
+
+    def pick_multipart(self, max_marks: int) -> Candidate | None:
+        """An unused multi-part blueprint of at most ``max_marks``, least-used topic first
+        (seeded ties), the same way :meth:`pick` chooses."""
+        options = [
+            c
+            for c in self.pool
+            if c.code not in self.used and c.marks <= max_marks and _fits(c, "multipart")
         ]
         if not options:
             return None
@@ -277,11 +297,23 @@ def _fill_fixed(f: _Filler, section: dict, report: dict) -> list[dict]:
     return blocks
 
 
-def _fill_stand_ins(f: _Filler, section: dict, report: dict) -> list[dict]:
+def _fill_structured(f: _Filler, section: dict, report: dict) -> list[dict]:
+    """Real multi-part questions first (P8c), then single-part stand-ins for the rest of the
+    marks target, then placeholders for any shortfall. Questions are ordered by marks (stable),
+    so the section reads from shorter to longer questions."""
     target = section["marks_target"]
     n_slots = sum(s["count"] for s in section["slots"])
-    plan = _stand_in_plan(f, target, n_slots)
-    blocks = []
+    blocks: list[dict] = []
+    while len(blocks) < n_slots:
+        mp = f.pick_multipart(target - sum(b["attrs"]["slot"]["marks"] for b in blocks))
+        if mp is None:
+            break
+        blocks.append(f.question(mp, {"marks": mp.marks, "kind": "structured"}))
+        report["filled"] += 1
+        report["multipart"] += 1
+        report["blueprints"].append(mp.code)
+    rest = target - sum(b["attrs"]["slot"]["marks"] for b in blocks)
+    plan = _stand_in_plan(f, rest, n_slots - len(blocks)) if rest > 0 else []
     for marks in sorted(plan):
         c = f.pick(marks, "structured")
         assert c is not None  # the plan only counts unused blueprints
@@ -289,7 +321,8 @@ def _fill_stand_ins(f: _Filler, section: dict, report: dict) -> list[dict]:
         report["filled"] += 1
         report["stand_ins"] += 1
         report["blueprints"].append(c.code)
-    for marks in _placeholder_chunks(target - sum(plan)):
+    blocks.sort(key=lambda b: b["attrs"]["slot"]["marks"])
+    for marks in _placeholder_chunks(rest - sum(plan)):
         blocks.append(f.placeholder(marks, "structured"))
         report["placeholders"] += 1
         report["placeholder_marks"] += marks
@@ -324,15 +357,15 @@ def generate_paper(template_code: str, level: str, seed: int) -> tuple[dict, dic
             "marks_target": section["marks_target"],
             "slots": sum(s["count"] for s in section["slots"]),
             "filled": 0,
+            "multipart": 0,
             "stand_ins": 0,
             "placeholders": 0,
             "placeholder_marks": 0,
             "blueprints": [],
         }
         blocks.append(_section_node(section))
-        # No multi-part blueprints exist yet (P8c), so structured sections take stand-ins.
         if section["mode"] == "structured":
-            blocks += _fill_stand_ins(f, section, rep)
+            blocks += _fill_structured(f, section, rep)
         else:
             blocks += _fill_fixed(f, section, rep)
         sections_report.append(rep)

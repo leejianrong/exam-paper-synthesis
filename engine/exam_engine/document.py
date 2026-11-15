@@ -336,6 +336,30 @@ def _answer_matches(actual: dict, expected: dict, *, decimals_view: bool) -> boo
     return all(actual.get(k) == v for k, v in expected.items())
 
 
+def _verify_parts(
+    code: str, spec_parts: list[dict], parts: list[dict], solution: dict, q: dict, total: int
+) -> list[str]:
+    """The multi-part half of :func:`verify_snapshot`: the snapshot has the blueprint's
+    parts, in order, each with the re-solved answer and the blueprint's marks."""
+    if len(parts) != len(spec_parts):
+        return [f"a generated {code} question has exactly {len(spec_parts)} parts"]
+    answers = solution.get("answers") or []
+    errors = []
+    for i, (part, want) in enumerate(zip(parts, spec_parts, strict=True)):
+        label = want["label"]
+        if part.get("label") != label:
+            errors.append(f"part {i} must be labelled ({label})")
+        if i >= len(answers) or not _answer_matches(
+            part["answer"], answers[i], decimals_view=False
+        ):
+            errors.append(f"part ({label}) answer does not match the engine's solution")
+        if part.get("marks") != want["marks"]:
+            errors.append(f"part ({label}) marks do not match blueprint {code} ({want['marks']})")
+    if q["total_marks"] != total:
+        errors.append(f"marks do not match blueprint {code} ({total})")
+    return errors
+
+
 def verify_snapshot(obj: dict) -> list[str]:
     """Re-solve a *generated* snapshot and check it still is what the engine would produce.
 
@@ -372,6 +396,8 @@ def verify_snapshot(obj: dict) -> list[str]:
         return [f"parameters fail {code}'s own checks: {report.get('checks')}"]
 
     parts = obj["question"]["parts"]
+    if spec.parts:  # P8c multi-part: every part's label, answer and marks are re-derived
+        return _verify_parts(code or "", spec.parts, parts, solution, obj["question"], spec.marks)
     if len(parts) != 1:
         return ["a generated question has exactly one part"]
     decimals_view = obj.get("validation", {}).get("checks", {}).get("representation") == "decimals"
