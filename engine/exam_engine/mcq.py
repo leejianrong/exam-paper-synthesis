@@ -113,8 +113,8 @@ def _with_value(answer: dict, value: Fraction) -> dict:
     if answer["type"] == "decimal" or value.denominator != 1:
         # the answer's declared places (money: dp 2, so 5.25 is never shown as 5.2 -> $5.20)
         dp = answer.get("dp")
-        places = dp if isinstance(dp, int) else _places(answer.get("value"))
-        places = max(places, 1 if value.denominator != 1 else 0)
+        own = next((k for k in range(4) if (value * 10**k).denominator == 1), 2)
+        places = dp if isinstance(dp, int) else max(_places(answer.get("value")), own)
         out["type"] = "decimal" if answer["type"] != "quantity" else "quantity"
         out["value"] = round(float(value), places)
         if value.denominator == 1 and _kind(answer) != "money":
@@ -139,9 +139,12 @@ _MEASURES = frozenset(
 
 def _plausible(v: Fraction, answer: Fraction, *, fraction: bool = False, kind: str = "") -> bool:
     """``kind``: ``"money"`` (2 dp always fine), ``"measure"`` (a whole answer allows 1 dp),
-    else a count or plain number (a whole answer gets whole distractors)."""
+    ``"vouched"`` (a unitless number the solver's hook offers: up to 3 dp), else a count or
+    plain number (a whole answer gets whole distractors)."""
     if v <= 0 or v == answer:
         return False
+    if kind == "vouched":  # a solver's own decimal slip (1.984 for 19.84): up to 3 dp
+        return (v * 1000).denominator == 1
     if fraction:
         return v.denominator != 1 and v.denominator <= 100
     if answer.denominator == 1 and v.denominator != 1:
@@ -155,7 +158,7 @@ def _plausible(v: Fraction, answer: Fraction, *, fraction: bool = False, kind: s
 
 def _kind(answer: dict) -> str:
     unit = answer.get("unit") or ""
-    if unit == "$" and (answer["type"] == "decimal" or answer.get("dp") == 2):
+    if unit == "$":  # whole dollars or cents: a wrong answer may have cents, never 3 dp
         return "money"
     return "measure" if unit in _MEASURES else ""
 
@@ -194,15 +197,21 @@ def distractor_candidates(obj: dict) -> list[tuple[Fraction, str]]:
     kind = _kind(answer_obj)
     out: list[tuple[Fraction, str]] = []
 
-    def add(v: Fraction | None, why: str) -> None:
-        if v is None or not _plausible(v, answer, fraction=is_fraction, kind=kind):
+    def add(v: Fraction | None, why: str, *, vouched: bool = False) -> None:
+        # a solver's own hook vouches for a decimal slip on a whole answer (7.4 × 30: "22.2")
+        if v is None or not _plausible(
+            v, answer, fraction=is_fraction, kind="vouched" if vouched and not kind else kind
+        ):
             return
         if all(v != have for have, _ in out):
             out.append((v, why))
 
     hooked = common_wrong_answers(obj)
     for v, why in hooked:
-        add(v, why)
+        # a real slip, but one far off the answer is a giveaway (24000 ℓ for 24 ℓ); 20x
+        # still keeps "the distance in 1 hour" for a 12-hour journey
+        if is_fraction or answer / 20 <= v <= answer * 20:
+            add(v, why, vouched=True)
 
     if is_fraction:
         n, d = answer.numerator, answer.denominator
@@ -281,7 +290,10 @@ def to_mcq(obj: dict, seed: int) -> dict:
     candidates = distractor_candidates(obj)
     for strict in (True, False):  # avoid a give-away set when the candidates allow it
         for v, reason in candidates:
-            t = answer_text(_with_value(answer, v))
+            shown = _with_value(answer, v)
+            if _value(shown) != v:  # printed rounded: its reason would not match what is shown
+                continue
+            t = answer_text(shown)
             if t in texts or (strict and _gives_it_away(value, [*chosen, v])):
                 continue
             texts.append(t)

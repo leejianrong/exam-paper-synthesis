@@ -44,9 +44,9 @@ CODES = [
 # speed_hard: the gap is (s1 + s2) x a whole number of hours, so the one mistake that is
 # always exact is "the mean of the two speeds" (twice the answer). The others (the
 # difference of the speeds, one speed only) are offered when they come to at most 1 dp
-# (about a third of questions, e.g. 2.5 h); a recurring 10/3 h is never rounded into a
-# made-up option, so the generic near misses fill in.
-MIN_TWO_FROM_HOOK: dict[str, float] = {"speed_hard": 0.3}
+# (about a quarter of questions within 20x of the answer, e.g. 2.5 h); a recurring 10/3 h
+# is never rounded into a made-up option, so the generic near misses fill in.
+MIN_TWO_FROM_HOOK: dict[str, float] = {"speed_hard": 0.2}
 
 
 def _part(obj: dict) -> dict:

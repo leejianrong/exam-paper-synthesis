@@ -230,3 +230,25 @@ def test_a_solver_hook_comes_first_and_never_offers_the_answer(monkeypatch):
     assert "$387" in texts and texts.count("$344") == 1
     assert "the other share" in m["question"]["parts"][0]["marking_scheme"][0]["description"]
     assert verify_snapshot(m) == []
+
+
+@pytest.mark.parametrize("code", BLUEPRINTS)
+def test_an_option_shows_exactly_the_wrong_answer_its_reason_describes(code):
+    """A hook's value is never printed rounded (0.05 shown as "0.1" under a reason that
+    describes 0.05): the option a teacher reads is the slip the key names."""
+    for seed in range(1, 41):
+        obj = generate(code, seed)
+        if not convertible(obj):
+            continue
+        hooked = {why: v for v, why in mcq.common_wrong_answers(obj)}
+        part = to_mcq(obj, seed)["question"]["parts"][0]
+        reasons = dict(
+            re.findall(r"\((\d)\) ([^;]+?)(?:;|\.$)", part["marking_scheme"][0]["description"])
+        )
+        for o in part["answer"]["options"]:
+            why = reasons.get(o["label"])
+            if why in hooked:
+                shown = _value(o["text"])
+                assert shown == hooked[why] or any(
+                    shown == v for v, w in mcq.common_wrong_answers(obj) if w == why
+                ), (code, seed, o["text"], why)

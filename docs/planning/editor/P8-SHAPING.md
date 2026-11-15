@@ -258,11 +258,16 @@ in generation (the engine stays deterministic).
   near misses / doubling / place value. All 39 single-part ladder solvers have a hook; tests
   `tests/test_distractors_group_{a,b,c}.py` re-derive at least one named mistake per blueprint
   from the printed question and require the hook to supply 2 of the 3 wrong options in ≥ 90%
-  of seeds (`speed_hard` 30%: its other real mistakes are recurring decimals, never rounded
-  into made-up options).
-- Plausibility is unit-aware: money (dp 2) takes cents even for a whole-dollar answer; a
+  of seeds (two exceptions, below).
+- Plausibility is unit-aware: money ($) takes cents even for a whole-dollar answer; a
   measure (h, cm², °, …) with a whole answer takes 1-dp wrong answers; a plain count stays
-  whole. A whole wrong answer prints "100 cm²", not "100.0 cm²".
+  whole, except that a solver's hook may offer a unitless decimal slip up to 3 dp
+  (1.984 for 19.84). A hook value more than 20× from the answer is dropped (24000 ℓ for 24 ℓ
+  gives itself away). Every candidate prints at its own precision, and one that would print
+  rounded is skipped, so an option always shows exactly the slip its reason names. A whole
+  wrong answer prints "100 cm²", not "100.0 cm²". Bars below 90%: `speed_hard` 20% (its
+  other real mistakes are recurring decimals) and `decimals_easy` 55% (its decimal-point
+  slips come in ÷10 / ×10 pairs, and the give-away guard keeps only one of each).
 - Give-away guard: the answer is never exactly between two options (7 / 8 / 9, or
   14 / 28 / 56) nor the odd one out (the only whole number, or the only decimal) while the
   candidates allow another choice; pinned for every convertible blueprint over 60 seeds.
