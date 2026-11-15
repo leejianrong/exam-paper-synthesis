@@ -18,6 +18,7 @@ base angles stay whole) — the key is provably the figure's solution.
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -185,6 +186,33 @@ class GeometryAngleMediumSolver:
                 "step2": built["steps"][1],
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong angles (degrees), best first (EXA-122)."""
+        g, template = params["givens"], params["template"]
+        if template == "isosceles_apex":
+            apex = g["apex"]
+            return [
+                (180 - apex, "forgot to halve (both base angles together)"),
+                (apex, "took ∠ABC equal to ∠BAC"),
+                (180 - 2 * apex, "treated ∠BAC as a base angle"),
+                (Fraction(360 - apex, 2), "used 360° instead of 180°"),
+            ]
+        if template == "isosceles_base":
+            base = g["base"]
+            return [
+                (180 - base, "subtracted only one base angle"),
+                (Fraction(180 - base, 2), "treated ∠ABC as the angle at A"),
+                (base, "took ∠BAC equal to ∠ABC"),
+                (360 - 2 * base, "used 360° instead of 180°"),
+            ]
+        b, ext = g["b"], g["ext"]
+        return [
+            (180 - ext, "found ∠ACB, not ∠BAC"),
+            (180 - b - ext, "used ∠ACD as an angle inside the triangle"),
+            (ext + b, "added the two given angles"),
+            (180 - b, "subtracted only ∠ABC"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         built = _build(params)

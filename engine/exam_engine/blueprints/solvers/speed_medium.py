@@ -20,6 +20,7 @@ two leg speeds ``s1 != s2`` (since ``j >= 1``). No diagram (ratio-specific check
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -75,6 +76,19 @@ class SpeedMediumSolver:
                 "avg": avg,
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong average speeds (km/h), best first (EXA-122)."""
+        d1, t1 = params["d1"], params["t1"]
+        d2, t2 = params["d2"], params["t2"]
+        s1, s2 = Fraction(d1, t1), Fraction(d2, t2)
+        return [
+            ((s1 + s2) / 2, "the mean of the two speeds"),
+            (Fraction(d1 + d2, 2), "divided the total distance by 2 (the number of parts)"),
+            (s1, "the speed for the first part only"),
+            (s2, "the speed for the second part only"),
+            (s1 + s2, "added the two speeds"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         d1, t1 = params["d1"], params["t1"]
