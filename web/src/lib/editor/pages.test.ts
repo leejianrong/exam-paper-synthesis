@@ -2,7 +2,15 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { Editor, type JSONContent } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { cleanNode } from './doc'
-import { BLANK_TEXT, BlankPage, CoverPage, blankPageNode, coverNode, hasCover } from './pages'
+import {
+  BLANK_TEXT,
+  BlankPage,
+  CoverPage,
+  blankPageNode,
+  coverNode,
+  coverPlacementOk,
+  hasCover,
+} from './pages'
 
 let editor: Editor | null = null
 afterEach(() => {
@@ -40,6 +48,22 @@ describe('cover page (P7)', () => {
     // and so is putting text in front of it
     e.chain().insertContentAt(0, para('before')).run()
     expect(e.getJSON().content?.[0]?.type).toBe('coverPage')
+  })
+
+  it('counts a cover nested inside a list as misplaced', () => {
+    const e = make([para('a')])
+    const nested = e.schema.nodeFromJSON({
+      type: 'doc',
+      content: [
+        coverNode(),
+        {
+          type: 'bulletList',
+          content: [{ type: 'listItem', content: [para('x'), coverNode()] }],
+        },
+      ],
+    })
+    expect(coverPlacementOk(nested)).toBe(false)
+    expect(coverPlacementOk(e.schema.nodeFromJSON({ type: 'doc', content: [coverNode(), para('b')] }))).toBe(true)
   })
 
   it('serialises only what is set', () => {

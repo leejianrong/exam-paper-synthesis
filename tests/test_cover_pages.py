@@ -203,3 +203,24 @@ def test_cover_and_blank_pages_each_get_a_page_of_their_own(browser, tally):
         assert [p["tally"] for p in pgs] == [None, 8, None, 3, None]
     else:
         assert pgs == []
+
+
+def test_the_examiner_table_rows_add_up_when_questions_precede_the_sections():
+    doc = make_doc(cover(), q("Q0 loose", 5), section("Section A"), q("QA1", 2))
+    html = render_document_html("T", doc, mode="student")
+    assert '<th scope="row">Other questions</th><td></td><td>5</td>' in html
+    assert '<th scope="row">Section A</th><td></td><td>2</td>' in html
+    assert '<tr class="total"><th scope="row">Total</th><td></td><td>7</td>' in html
+
+
+@pytest.mark.parametrize("keeper", ["section", "heading"])
+def test_a_blank_page_after_a_header_is_not_pulled_onto_its_page(browser, keeper):
+    from documents import heading
+
+    head = section("Section A") if keeper == "section" else heading("HEADX")
+    doc = make_doc(cover(), section("Lead"), q("QL1 lead", 1), head, blank(), q("QA1 first", 2))
+    text, pgs = _pdf(browser, render_document_html("T", doc, mode="student"))
+    assert len(text) == len(pgs) == 4, [t[:40] for t in text]
+    assert "intentionally left blank" in text[2]
+    assert "QA1" not in text[2] and ("HEADX" not in text[2]) and ("Section A" not in text[2])
+    assert "QA1" in text[3]

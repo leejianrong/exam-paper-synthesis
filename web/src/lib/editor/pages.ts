@@ -26,11 +26,13 @@ export const COVER_FIELDS = [
 
 /** True when a document's cover, if any, is its first block and the only one (engine rule). */
 export function coverPlacementOk(doc: PMNode): boolean {
-  let ok = true
-  doc.forEach((child, _offset, index) => {
-    if (child.type.name === 'coverPage' && index !== 0) ok = false
+  // Count covers at any depth: one pasted into a list item would be refused by the server too.
+  let covers = 0
+  doc.descendants((node) => {
+    if (node.type.name === 'coverPage') covers += 1
+    return true
   })
-  return ok
+  return covers === 0 || (covers === 1 && doc.firstChild?.type.name === 'coverPage')
 }
 
 export function hasCover(doc: PMNode): boolean {

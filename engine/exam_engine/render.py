@@ -962,13 +962,17 @@ def _render_blank_page(attrs: dict) -> str:
 
 def _examiner_table(doc: dict, marks: int) -> str:
     """ "For examiner's use": a row per section that holds questions, then the paper total. The
-    marks are derived from the questions, like the section headers (P4)."""
+    marks are derived from the questions, like the section headers (P4); questions before the
+    first section get an "Other questions" row, so the rows always add up to the total."""
+    sections = [s for s in paper_outline(doc) if s["count"]]
     rows = [
         f'<tr><th scope="row">{_esc(s["title"] or "Section")}</th><td></td>'
         f"<td>{s['marks']}</td></tr>"
-        for s in paper_outline(doc)
-        if s["count"]
+        for s in sections
     ]
+    loose = marks - sum(s["marks"] for s in sections)
+    if sections and loose > 0:
+        rows.insert(0, f'<tr><th scope="row">Other questions</th><td></td><td>{loose}</td></tr>')
     rows.append(f'<tr class="total"><th scope="row">Total</th><td></td><td>{marks}</td></tr>')
     return (
         '<table class="examiner-table"><caption>For examiner\'s use</caption>'
