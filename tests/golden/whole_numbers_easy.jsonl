@@ -1,0 +1,2 @@
+{"params": {"form": "sub_div_mul", "nums": [48, 12, 4, 3]}, "expected": {"answer": {"type": "integer", "value": 39, "unit": ""}, "total_marks": 1}}
+{"params": {"form": "add_mul_bracket", "nums": [10, 5, 9, 3]}, "expected": {"answer": {"type": "integer", "value": 40, "unit": ""}, "total_marks": 1}}

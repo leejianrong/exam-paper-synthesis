@@ -23,6 +23,7 @@ from . import (
     statistics_chart,  # noqa: F401
     structured,  # noqa: F401
     volume,  # noqa: F401
+    whole_numbers,  # noqa: F401
 )
 
 __all__ = [
@@ -48,4 +49,5 @@ __all__ = [
     "statistics_chart",
     "structured",
     "volume",
+    "whole_numbers",
 ]

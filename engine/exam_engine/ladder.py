@@ -16,6 +16,7 @@ GEOMETRY_AREA = ["geometry_area_easy", "geometry_area_medium", "geometry_area_ha
 STATISTICS_CHART = ["statistics_chart_easy", "statistics_chart_medium", "statistics_chart_hard"]
 VOLUME = ["volume_easy", "volume_medium", "volume_hard"]
 AVERAGE = ["average_easy", "average_medium", "average_hard"]
+WHOLE_NUMBERS = ["whole_numbers_easy", "whole_numbers_medium", "whole_numbers_hard"]
 
 # Keyed by topic; each value is the ordered list of rungs, easiest first.
 LADDERS: dict[str, list[str]] = {
@@ -28,6 +29,7 @@ LADDERS: dict[str, list[str]] = {
     "Statistics (Charts)": STATISTICS_CHART,
     "Volume": VOLUME,
     "Average": AVERAGE,
+    "Whole Numbers": WHOLE_NUMBERS,
 }
 
 

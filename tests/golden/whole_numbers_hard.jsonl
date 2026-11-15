@@ -1,0 +1,2 @@
+{"params": {"name": "Mrs Tan", "item": "sweets", "a": 5, "b": 7, "left": 12, "short": 4}, "expected": {"answer": {"type": "integer", "value": 52, "unit": ""}, "total_marks": 3}}
+{"params": {"name": "Mr Lim", "item": "stickers", "a": 3, "b": 5, "left": 10, "short": 6}, "expected": {"answer": {"type": "integer", "value": 34, "unit": ""}, "total_marks": 3}}

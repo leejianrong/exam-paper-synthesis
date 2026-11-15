@@ -1,0 +1,47 @@
+code: whole_numbers_medium
+syllabus:
+  level: P5
+  strand: "Number and Algebra"
+  topic: "Whole Numbers"
+  subtopic: "Division with a remainder: interpreting the remainder"
+  skill_codes: ["WN.DIV.REMAINDER"]     # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Direction"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [context, n, d]
+  properties:
+    # boats/cupcakes round the quotient up; rope/pens/eggs round it down
+    context: { type: string, enum: [boats, cupcakes, rope, pens, eggs] }
+    n: { type: integer, minimum: 5, maximum: 999 }   # the amount being shared out
+    d: { type: integer, minimum: 2, maximum: 9 }     # the size of each group
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  context: { role: choice }
+  n:       { role: number }
+  d:       { role: number }
+# The solver builds the question and the steps for the chosen context.
+story_templates:
+  - stem: null
+    text: "{s1}"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{e1}"
+    - text: "{step2}"
+      expr: "{e2}"
+    - text: "{step3}"
+      expr: "{e3}"
+    - text: "{step4}"
+      expr: "{e4}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Divide to find the quotient and the remainder." }
+  - { mark: 1, type: A, description: "Correct answer: one more for the remainder (least number needed), or the quotient (greatest number possible)." }
+answer:
+  type: integer
+  unit: ""

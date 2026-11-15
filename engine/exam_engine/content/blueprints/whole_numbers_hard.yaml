@@ -1,0 +1,57 @@
+code: whole_numbers_hard
+syllabus:
+  level: P5
+  strand: "Number and Algebra"
+  topic: "Whole Numbers"
+  subtopic: "Excess and shortage"
+  skill_codes: ["WN.EXCESS.SHORTAGE"]   # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Reasoning depth", "Hidden structure"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, item, a, b, left, short]
+  properties:
+    name:
+      type: string
+    item:
+      type: string
+    a: { type: integer, minimum: 2, maximum: 9 }       # the smaller share per pupil
+    b: { type: integer, minimum: 3, maximum: 14 }      # the larger share per pupil
+    left: { type: integer, minimum: 2, maximum: 200 }  # left over with the smaller share
+    short: { type: integer, minimum: 2, maximum: 200 } # shortage with the larger share
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  name:  { role: name }
+  item:  { role: item }
+  a:     { role: number }
+  b:     { role: number }
+  left:  { role: number }
+  short: { role: number }
+story_templates:
+  - stem: null
+    text: >
+      {name} has some {item} to give to the pupils in a class. If each pupil gets {a} {item},
+      there will be {left} {item} left over. If each pupil gets {b} {item}, {name} will be
+      short of {short} {item}. How many {item} does {name} have?
+solution_template:
+  steps:
+    - text: "To give each pupil {b} − {a} = {k} more {item}, {left} + {short} = {g} more {item} are needed."
+      expr: "{left}+{short}"
+    - text: "Number of pupils = {g} ÷ {k} = {p}."
+      expr: "{g}/{k}"
+    - text: "Number of {item} given out at {a} each = {a} × {p} = {ap}."
+      expr: "{a}*{p}"
+    - text: "Number of {item} {name} has = {ap} + {left} = {answer_value}."
+      expr: "{ap}+{left}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Number of pupils = (left over + shortage) ÷ difference in shares." }
+  - { mark: 1, type: M, description: "Smaller share × number of pupils + left over (or larger share × pupils − shortage)." }
+  - { mark: 1, type: A, description: "Correct number of items." }
+answer:
+  type: integer
+  unit: ""

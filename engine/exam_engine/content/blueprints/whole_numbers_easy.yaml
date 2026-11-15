@@ -1,0 +1,48 @@
+code: whole_numbers_easy
+syllabus:
+  level: P5
+  strand: "Number and Algebra"
+  topic: "Whole Numbers"
+  subtopic: "Order of operations"
+  skill_codes: ["WN.ORDER.OPS"]         # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Reasoning depth"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [form, nums]
+  properties:
+    form:
+      type: string
+      enum: [sub_div_mul, add_mul_bracket, bracket_div_mul, mul_sub_div]
+    # a, b, c, d in reading order of the printed expression
+    nums:
+      type: array
+      items: { type: integer, minimum: 1, maximum: 999 }
+      minItems: 4
+      maxItems: 4
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  form: { role: choice }
+  nums: { role: number }
+# The solver builds the printed expression (with × and ÷) and the steps.
+story_templates:
+  - stem: null
+    text: "Find the value of {expression}."
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{e1}"
+    - text: "{step2}"
+      expr: "{e2}"
+    - text: "{step3}"
+      expr: "{e3}"
+marking_scheme:
+  - { mark: 1, type: A, description: "Correct value (brackets first, then × and ÷ from left to right, then + and −)." }
+answer:
+  type: integer
+  unit: ""

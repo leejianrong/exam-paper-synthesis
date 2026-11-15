@@ -50,7 +50,7 @@ describe('App topic × difficulty selector', () => {
     render(App)
 
     const topic = screen.getByLabelText('Topic') as HTMLSelectElement
-    expect(topic.options).toHaveLength(9)
+    expect(topic.options).toHaveLength(10)
     expect([...topic.options].map((o) => o.value)).toEqual([
       'ratio',
       'fractions',
@@ -61,6 +61,7 @@ describe('App topic × difficulty selector', () => {
       'statistics_chart',
       'volume',
       'average',
+      'whole_numbers',
     ])
 
     const difficulty = screen.getByLabelText('Difficulty') as HTMLSelectElement
