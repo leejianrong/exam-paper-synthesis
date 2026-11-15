@@ -2,6 +2,7 @@
 // "regenerate unlocked" on the saved paper and saves the result; the editor then takes the
 // blocks that changed (one undoable step, the rest of the page and the scroll untouched).
 
+import { Selection } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/core'
 import { cleanNode, type DocJSON, type DocNode } from './doc'
 import type { RegenerateReport, SwapReport } from './docsApi'
@@ -65,6 +66,11 @@ export function applyServerContent(editor: Editor, sent: DocJSON, next: DocJSON)
   const tr = state.tr
   // Back to front, so the positions still to visit don't move.
   for (const t of targets.reverse()) tr.replaceWith(t.from, t.to, state.schema.nodeFromJSON(t.node))
+  // Leave the caret in (or right after) the first block that changed, never on a stale
+  // selection: a selection mapped over a replaced block can fall back onto the cover, and the
+  // next keystroke would replace it (EXA-129). After 'Write my own' this is the new placeholder.
+  const first = targets[targets.length - 1]
+  if (first) tr.setSelection(Selection.near(tr.doc.resolve(Math.min(first.from + 1, tr.doc.content.size))))
   editor.view.dispatch(tr)
   return targets.length
 }

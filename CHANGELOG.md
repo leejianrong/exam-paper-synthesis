@@ -16,6 +16,11 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   by comparing generated papers with real P6 prelims. Bar models now print only in the answer
   key (also when the key hides the question text); *Convert to free-form* puts them in the
   answer, not the question; the editor labels them "printed in the answer key only".
+- **A selected block is never replaced (EXA-129).** One click on the cover selects the whole
+  block; the toolbar's Section / Blank page / Page break then replaced it, and so did the first
+  keystroke — after *Write my own* the selection could be left on the cover, so typing into the
+  new placeholder wiped the cover. Toolbar inserts now go after a selected block, typing or
+  Enter starts a paragraph after it, and a swap leaves the caret in the block it changed.
 
 ### Added
 
