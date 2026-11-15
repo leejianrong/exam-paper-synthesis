@@ -4,7 +4,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { FreeformQuestion, QuestionDocument } from './freeformQuestion'
 import { MAX_PARTS } from './freeformPart'
 import { ImageBlock, MathNode } from './media'
-import { buildDocument, type DocJSON } from './doc'
+import { buildDocument, cleanNode, type DocJSON } from './doc'
 
 const para = (t?: string) => ({ type: 'paragraph', content: t ? [{ type: 'text', text: t }] : undefined })
 const answer = (t: string) => ({ type: 'doc', content: [para(t)] })
@@ -125,5 +125,32 @@ describe('the part cap', () => {
     editor.view.dispatch(editor.state.tr.insert(q.nodeSize - 1, extra)) // end of the question
     const parts = json().content[0].content?.filter((c) => c.type === 'freeformPart') ?? []
     expect(parts).toHaveLength(MAX_PARTS)
+  })
+})
+
+describe('generated placeholders (P8a)', () => {
+  const slot = { marks: 3, kind: 'structured', placeholder: true }
+  const empty = () => ({
+    type: 'freeformQuestion',
+    attrs: { block_id: 'ff_ph_1', marks: 3, answer: { type: 'doc', content: [] }, slot },
+    content: [{ type: 'paragraph' }],
+  })
+
+  it('keeps the slot through the editor and says what to write until the body has text', async () => {
+    make([empty()])
+    await new Promise((r) => setTimeout(r))
+    expect(json().content[0].attrs?.slot).toEqual(slot)
+    expect(cleanNode(json().content[0]).attrs?.slot).toEqual(slot)
+    const hint = document.querySelector('.ff-placeholder-hint') as HTMLElement
+    expect(hint.hidden).toBe(false)
+    expect(hint.textContent).toBe('Placeholder: write a 3-mark structured question here, or delete it and add one.')
+    editor.chain().setTextSelection(2).insertContent('A tank holds water.').run()
+    await new Promise((r) => setTimeout(r))
+    expect((document.querySelector('.ff-placeholder-hint') as HTMLElement).hidden).toBe(true)
+  })
+
+  it('an ordinary question stores no slot', () => {
+    make([question({ marks: 2 })])
+    expect(cleanNode(json().content[0]).attrs).not.toHaveProperty('slot')
   })
 })

@@ -483,6 +483,28 @@ describe('multi-part free-form questions (P3)', () => {
   })
 })
 
+describe('opening a paper that starts with a block (cover / section)', () => {
+  it('opens with a text cursor, not the first block selected (typing must never replace it)', async () => {
+    const cover = { type: 'coverPage', attrs: { school: 'Pandan Primary', subject: 'Mathematics' } }
+    const body = freeformDocNode({ id: 'ff_one', marks: 2, body: 'A tank holds water.' })
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...record([cover, body]),
+        document: {
+          schema_version: '1.10.0',
+          title: 'Ratio Review',
+          content: { type: 'doc', content: [cover, body] },
+        },
+      }),
+    })
+    render(EditorPage, { props: { id: 'd1' } })
+    await waitFor(() => expect(document.querySelector('.cover-block')).not.toBeNull())
+    expect(document.querySelector('.ProseMirror-selectednode')).toBeNull()
+  })
+})
+
 describe('formatting toolbar focus (EXA-120)', () => {
   // jsdom never moves focus on mousedown, so do what a browser does: focus the button unless
   // the mousedown's default was prevented. Then the click runs the tool.

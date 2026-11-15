@@ -1,8 +1,15 @@
 <script lang="ts">
   // Home: the teacher's papers. New / open / delete (delete asks twice, inline).
   import { onMount } from 'svelte'
-  import { createDocument, deleteDocument, listDocuments, saveDocument } from './docsApi'
-  import { PAPER_TEMPLATES, buildFromTemplate, type PaperTemplate } from './templates'
+  import {
+    createDocument,
+    deleteDocument,
+    generatePaper,
+    listDocuments,
+    listPaperTemplates,
+    type PaperTemplateInfo,
+  } from './docsApi'
+  import { lastReport } from './paperReport'
   import type { DocumentSummary } from './doc'
   import { navigate } from '../router'
   import AccountChip from './AccountChip.svelte'
@@ -11,6 +18,12 @@
   let loaded = false
   let error = ''
   let confirmId: string | null = null
+  // Paper templates (P8a) come from the engine: the starter buttons and the generator.
+  let templates: PaperTemplateInfo[] = []
+  let levels: string[] = ['P5', 'P6']
+  let genTemplate = ''
+  let genLevel = 'P6'
+  let generating = false
 
   const msg = (e: unknown): string => (e instanceof Error ? e.message : String(e))
 
@@ -23,7 +36,36 @@
       loaded = true
     }
   }
-  onMount(refresh)
+  onMount(() => {
+    void refresh()
+    void loadTemplates()
+  })
+
+  async function loadTemplates() {
+    try {
+      const res = await listPaperTemplates()
+      templates = res.templates
+      levels = res.levels
+      genTemplate = genTemplate || (templates[templates.length - 1]?.code ?? '')
+    } catch (e) {
+      error = msg(e)
+    }
+  }
+
+  async function onGenerate() {
+    if (!genTemplate || generating) return
+    error = ''
+    generating = true
+    try {
+      const rec = await generatePaper(genTemplate, genLevel)
+      lastReport.set({ docId: rec.id, report: rec.report })
+      navigate(`/docs/${rec.id}`)
+    } catch (e) {
+      error = msg(e)
+    } finally {
+      generating = false
+    }
+  }
 
   async function onNew() {
     error = ''
@@ -35,11 +77,10 @@
     }
   }
 
-  async function onTemplate(t: PaperTemplate) {
+  async function onTemplate(t: PaperTemplateInfo) {
     error = ''
     try {
-      const rec = await createDocument(t.title)
-      await saveDocument(rec.id, buildFromTemplate(t), rec.version)
+      const rec = await createDocument(undefined, t.code)
       navigate(`/docs/${rec.id}`)
     } catch (e) {
       error = msg(e)
@@ -77,10 +118,29 @@
 
   <div class="templates" role="group" aria-label="Start from a template">
     <span class="tlabel">Start from a template</span>
-    {#each PAPER_TEMPLATES as t (t.id)}
+    {#each templates as t (t.code)}
       <button class="tpl" on:click={() => onTemplate(t)}>{t.label}</button>
     {/each}
   </div>
+
+  <form class="generate" aria-label="Generate a paper" on:submit|preventDefault={onGenerate}>
+    <span class="tlabel">Generate a whole paper</span>
+    <label>
+      Paper
+      <select bind:value={genTemplate} aria-label="Paper to generate">
+        {#each templates as t (t.code)}<option value={t.code}>{t.label}</option>{/each}
+      </select>
+    </label>
+    <label>
+      Level
+      <select bind:value={genLevel} aria-label="Level">
+        {#each levels as l (l)}<option value={l}>{l}</option>{/each}
+      </select>
+    </label>
+    <button class="gen" type="submit" disabled={!genTemplate || generating}>
+      {generating ? 'Generating…' : 'Generate paper'}
+    </button>
+  </form>
 
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 
@@ -162,6 +222,43 @@
     border-radius: 8px;
     padding: 0.35rem 0.8rem;
     cursor: pointer;
+  }
+  .generate {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.8rem;
+    margin: 0.6rem 0 0;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .generate label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .generate select {
+    font: inherit;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--ink);
+    padding: 0.2rem 0.4rem;
+  }
+  .gen {
+    font: inherit;
+    font-size: 13px;
+    border: 1px solid var(--verify);
+    background: var(--verify-soft, var(--paper-2));
+    color: var(--ink);
+    border-radius: 8px;
+    padding: 0.35rem 0.8rem;
+    cursor: pointer;
+  }
+  .gen:disabled {
+    opacity: 0.6;
+    cursor: default;
   }
   .docs {
     list-style: none;

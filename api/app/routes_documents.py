@@ -7,10 +7,13 @@ step, headless Chromium. A foreign document is a 404, never a 403.
 
 from __future__ import annotations
 
+import random
 import re
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from exam_engine import document as docs
+from exam_engine import paper
 from exam_engine.render import render_document_html
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
@@ -19,7 +22,7 @@ from . import export
 from .assets import AssetNotFound, AssetStore, get_asset_store
 from .auth import current_owner
 from .docstore import DocumentNotFound, DocumentStore, VersionConflict, get_store
-from .models import CreateDocumentRequest, SaveDocumentRequest
+from .models import CreateDocumentRequest, GeneratePaperRequest, SaveDocumentRequest
 from .ops import strip_document_hints, with_document_hints
 from .quota import check_export_quota, export_slot, refund_export
 
@@ -79,8 +82,37 @@ def create_document(
     owner: Owner,
     store: Store,
 ) -> dict:
-    document = docs.empty_document(req.title or "Untitled paper")
+    if req.template:
+        try:
+            document = paper.template_document(req.template)
+        except paper.UnknownPaperTemplate:
+            raise HTTPException(status_code=404, detail="unknown paper template") from None
+        if req.title:
+            document["title"] = req.title
+    else:
+        document = docs.empty_document(req.title or "Untitled paper")
     return store.create(owner, _valid_or_422(document), 0)
+
+
+_SEED_CEIL = 2**31
+
+
+@router.post("/generate", status_code=201)
+def generate_paper(req: GeneratePaperRequest, owner: Owner, store: Store) -> dict:
+    """P8a: one click, one paper. Fills the template's slots from the blueprints (the engine
+    is pure; the seed — the only entropy — is chosen here, as for POST /generate) and stores
+    it as a new document. The response is the document record plus the fill ``report``."""
+    seed = req.seed if req.seed is not None else random.randrange(1, _SEED_CEIL)
+    try:
+        document, report = paper.generate_paper(req.template, req.level, seed)
+    except paper.UnknownPaperTemplate:
+        raise HTTPException(status_code=404, detail="unknown paper template") from None
+    stamp = datetime.now(UTC).isoformat()
+    for node in document["content"]["content"]:
+        if node["type"] == "templatedQuestion":
+            node["attrs"]["question"]["provenance"]["created_at"] = stamp
+    record = store.create(owner, _valid_or_422(document), docs.total_marks(document))
+    return {**with_document_hints(record), "report": report}
 
 
 @router.get("")

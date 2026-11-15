@@ -23,6 +23,7 @@ from .routes_documents import router as documents_router
 from .routes_edit import router as edit_router
 from .routes_export import router as export_router
 from .routes_generate import router
+from .routes_papers import router as papers_router
 from .routes_render import router as render_router
 
 
@@ -85,6 +86,7 @@ app.include_router(documents_router)
 app.include_router(bank_router)
 app.include_router(assets_router)
 app.include_router(convert_router)
+app.include_router(papers_router)
 app.include_router(render_router)
 
 

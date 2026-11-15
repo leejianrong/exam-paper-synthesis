@@ -1,0 +1,23 @@
+# Paper template (P8a): PSLE-style Paper 1 Booklet B (short answer, no calculator).
+code: p1_booklet_b
+label: "Paper 1 · Booklet B"
+title: "Paper 1 Booklet B"
+order: 2
+time_min: 60
+cover:
+  subject: Mathematics
+  paper: "Paper 1 (Booklet B)"
+  instructions: |-
+    Do not turn over this page until you are told to do so.
+    Follow all instructions carefully.
+    Answer all questions.
+    Write your answers in the spaces provided.
+    The use of calculators is not allowed.
+sections:
+  - title: Booklet B
+    mode: short
+    marks_target: 25
+    instructions: Write your answer in the space provided.
+    slots:
+      - { marks: 1, count: 5 }
+      - { marks: 2, count: 10 }

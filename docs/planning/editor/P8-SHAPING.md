@@ -97,7 +97,7 @@ A golden paper per template anchors regressions.
 
 | # | Slice | What | Depends on |
 |---|---|---|---|
-| **P8a** | Paper generator | Paper-template YAML (P4 templates move to it), `generate_paper` + placeholders + stand-ins + report, `slot` attr (schema 1.10.0), `POST /documents/generate`, the generate dialog, invariant test. | P4, P7 |
+| **P8a** ✅ | Paper generator | Paper-template YAML (P4 templates move to it), `generate_paper` + placeholders + stand-ins + report, `slot` attr (schema 1.10.0), `POST /documents/generate`, the generate dialog, invariant test. | P4, P7 |
 | **P8b** | MCQ for Booklet A | Turn constructed-response blueprints into MCQ with deterministic distractors from common wrong answers (per-solver "wrong turn" hooks), or write MCQ blueprints; `choice` answers already exist in the canonical schema. Fills `mcq` slots. | P8a |
 | **P8d** | Keep / swap / lock | Per-question "another like this" (same slot: new seed or sibling blueprint), "another topic", "write my own" (turns it into a free-form question keeping the slot's marks and Ans: line), lock; "regenerate paper" refills unlocked slots only. | P8a |
 | **P8c** | Multi-part blueprints | Shared stem with (a)/(b)/(c), each part solver-proven; replaces Section B stand-ins. | P8a, P3 |
@@ -109,3 +109,20 @@ Two-column answer keys. Exam-wide topic balance (decision 1). Difficulty targets
 slot's marks imply. Marks and rung mostly track each other in today's content, but not
 always: `geometry_angle` and `speed` give 3 marks at both the medium and hard rungs. An LLM anywhere
 in generation (the engine stays deterministic).
+
+## P8a as built (2026-11-15)
+
+- `engine/exam_engine/paper.py` (`paper_templates`, `template_document`, `generate_paper`,
+  `unfilled_placeholders`) over `engine/exam_engine/content/papers/*.yaml`; `GET /papers`,
+  `POST /documents` with `template`, `POST /documents/generate`. Generation takes well under a
+  second. The fill counts are exactly the coverage table above (pinned by
+  `tests/test_invariants_paper.py::test_what_todays_content_fills`, which must be updated
+  whenever content grows).
+- The P4 starter templates are the same YAML (the TypeScript copy is gone), so "start from a
+  template" and "generate" can't drift.
+- Differences from the shape above: the generator is an inline form on the papers list, not a
+  modal dialog; unfilled placeholders show as a "N placeholders to write" count in the editor's
+  top bar (and a hint on each placeholder) rather than an export warning. A placeholder stops
+  counting as soon as its body has text, so nothing is stored to clear.
+- Generated papers start with a cover page (level, subject, paper and instructions prefilled;
+  school, exam and date for the teacher). Starting from an empty template doesn't add one.

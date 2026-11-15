@@ -37,11 +37,11 @@ export async function listDocuments(): Promise<DocumentSummary[]> {
   return ((await res.json()) as { documents: DocumentSummary[] }).documents
 }
 
-export async function createDocument(title?: string): Promise<DocumentRecord> {
+export async function createDocument(title?: string, template?: string): Promise<DocumentRecord> {
   const res = await apiFetch(`${BASE}/documents`, {
     method: 'POST',
     headers: json,
-    body: JSON.stringify({ title: title ?? null }),
+    body: JSON.stringify({ title: title ?? null, template: template ?? null }),
   })
   if (!res.ok) return fail(res)
   return (await res.json()) as DocumentRecord
@@ -88,4 +88,54 @@ export async function exportDocument(id: string, mode: ExportMode): Promise<Blob
   }
   if (!res.ok) return fail(res)
   return res.blob()
+}
+
+/** A paper template (P8a, engine content): the starter buttons and the generate dialog. */
+export interface PaperTemplateInfo {
+  code: string
+  label: string
+  title: string
+  time_min: number
+  sections: { title: string; mode: string; marks_target: number; questions: number }[]
+}
+
+export async function listPaperTemplates(): Promise<{ templates: PaperTemplateInfo[]; levels: string[] }> {
+  const res = await apiFetch(`${BASE}/papers`)
+  if (!res.ok) return fail(res)
+  return (await res.json()) as { templates: PaperTemplateInfo[]; levels: string[] }
+}
+
+/** What the generator filled, per section (engine `paper.generate_paper`'s report). */
+export interface PaperReport {
+  template: string
+  level: string
+  seed: number
+  title: string
+  filled: number
+  placeholders: number
+  placeholder_marks: number
+  sections: {
+    title: string
+    mode: string
+    marks_target: number
+    slots: number
+    filled: number
+    stand_ins: number
+    placeholders: number
+    placeholder_marks: number
+  }[]
+  topics: Record<string, number>
+}
+
+export async function generatePaper(
+  template: string,
+  level: string,
+): Promise<DocumentRecord & { report: PaperReport }> {
+  const res = await apiFetch(`${BASE}/documents/generate`, {
+    method: 'POST',
+    headers: json,
+    body: JSON.stringify({ template, level }),
+  })
+  if (!res.ok) return fail(res)
+  return (await res.json()) as DocumentRecord & { report: PaperReport }
 }
