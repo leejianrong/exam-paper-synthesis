@@ -6,7 +6,7 @@
 # Ports the dev servers bind to (API, Vite). `make stop` frees these.
 DEV_PORTS := 8000 5173
 
-.PHONY: help web-deps install dev stop api web web-lint web-typecheck web-test py-lint py-fmt py-typecheck test e2e build health hooks
+.PHONY: help web-deps install dev stop api web web-lint web-typecheck web-test py-lint py-fmt py-typecheck test e2e build health hooks goldens
 
 help: ## List available targets
 	@echo "Targets:"
@@ -107,6 +107,9 @@ web-test: web-deps ## Run the web unit tests (vitest)
 
 test: ## Run the pytest suite
 	uv run pytest
+
+goldens: ## Print golden fixtures as printed questions for the human check (G="decimals rate" to filter)
+	uv run python scripts/show_goldens.py $(G)
 
 py-lint: ## Lint Python with ruff
 	uv run ruff check .
