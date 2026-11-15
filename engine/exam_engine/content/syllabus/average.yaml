@@ -1,0 +1,9 @@
+# PROVISIONAL skill codes — remap to MOE P5-P6 syllabus outcomes when the
+# official doc is available (Q-M1). Codes are carried, not queried, in v1
+# (ADR-0016), so remapping is a mechanical find/replace with no data migration.
+strand: "Data Analysis"
+skills:
+  AVG.OF.SET: "Average of a set of numbers (total / number of items)"     # used by average_easy
+  AVG.TOTAL: "Total from the average (average x number of items)"        # used by average_medium
+  AVG.MISSING: "Missing value given the average of a group"              # used by average_medium
+  AVG.CHANGE: "Change in average when a member joins or leaves a group"  # used by average_hard

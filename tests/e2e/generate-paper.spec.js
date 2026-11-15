@@ -45,17 +45,17 @@ test('generate a P6 Booklet B: placeholders for what the content cannot fill yet
   await form.getByRole('button', { name: 'Generate paper' }).click()
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
 
-  await expect(page.getByTestId('generate-report')).toContainText('Filled 10 of 15 questions')
-  await expect(page.getByTestId('placeholders-left')).toHaveText('5 placeholders to write')
+  await expect(page.getByTestId('generate-report')).toContainText('Filled 12 of 15 questions')
+  await expect(page.getByTestId('placeholders-left')).toHaveText('3 placeholders to write')
   const hints = page.locator('.ff-placeholder-hint:visible')
-  await expect(hints).toHaveCount(5)
+  await expect(hints).toHaveCount(3)
   await expect(hints.first()).toHaveText(/write a [12]-mark short-answer question here/)
   await expect(page.locator('.section-block .section-summary')).toHaveText('Questions 1–15 · 25 / 25 marks')
 
   // Writing a placeholder's question clears it.
   await page.locator('.ffblock.placeholder-slot .ff-body').first().click()
   await page.keyboard.type('What is 3 + 4?')
-  await expect(page.getByTestId('placeholders-left')).toHaveText('4 placeholders to write')
+  await expect(page.getByTestId('placeholders-left')).toHaveText('2 placeholders to write')
 })
 
 test('generate a P6 Booklet A: multiple-choice questions with four options each', async ({ page }) => {
@@ -67,13 +67,13 @@ test('generate a P6 Booklet A: multiple-choice questions with four options each'
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
-  await expect(page.getByTestId('generate-report')).toContainText('Filled 8 of 15 questions')
-  await expect(page.getByTestId('generate-report')).toContainText('7 multiple-choice questions still to write')
-  await expect(page.getByTestId('placeholders-left')).toHaveText('7 placeholders to write')
+  await expect(page.getByTestId('generate-report')).toContainText('Filled 9 of 15 questions')
+  await expect(page.getByTestId('generate-report')).toContainText('6 multiple-choice questions still to write')
+  await expect(page.getByTestId('placeholders-left')).toHaveText('6 placeholders to write')
 
   const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
-  expect(student.match(/<ol class="options">/g)).toHaveLength(8)
+  expect(student.match(/<ol class="options">/g)).toHaveLength(9)
   expect(student).not.toContain('class="option option-correct"') // the right option never reaches the paper
   const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
-  expect(key.match(/option option-correct/g)).toHaveLength(8)
+  expect(key.match(/option option-correct/g)).toHaveLength(9)
 })

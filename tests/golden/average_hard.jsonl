@@ -1,0 +1,4 @@
+{"params": {"name": "Hui Ling", "kind": "join", "n": 3, "before": 30, "given": 32}, "expected": {"answer": {"type": "integer", "value": 38, "unit": "kg"}, "total_marks": 3}}
+{"params": {"name": "Ismail", "kind": "join", "n": 4, "before": 40, "given": 39}, "expected": {"answer": {"type": "integer", "value": 35, "unit": "kg"}, "total_marks": 3}}
+{"params": {"name": "Jia En", "kind": "leave", "n": 5, "before": 140, "given": 148}, "expected": {"answer": {"type": "integer", "value": 138, "unit": "cm"}, "total_marks": 3}}
+{"params": {"name": "Kavya", "kind": "leave", "n": 4, "before": 150, "given": 141}, "expected": {"answer": {"type": "integer", "value": 153, "unit": "cm"}, "total_marks": 3}}
