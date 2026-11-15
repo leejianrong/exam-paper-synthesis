@@ -212,8 +212,8 @@ export const MathNode = Node.create({
 export function insertBlock(editor: Editor, node: { type: string; attrs?: Record<string, unknown> }) {
   const { state } = editor
   const type = state.schema.nodes[node.type]
-  if (state.selection instanceof NodeSelection && state.selection.node.isBlock) {
-    // A whole block is selected: go after it, never over it (EXA-129).
+  if (state.selection instanceof NodeSelection && state.selection.node.isBlock && state.selection.$from.depth === 0) {
+    // A whole top-level block is selected: go after it, never over it (EXA-129).
     editor.chain().insertContentAt(state.selection.to, node).run()
     return
   }

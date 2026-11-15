@@ -38,4 +38,15 @@ describe('after a swap the caret is in the changed block (EXA-129)', () => {
     expect(json[0]).toMatchObject({ type: 'coverPage', attrs: { school: 'Pandan' } })
     expect(JSON.stringify(json[1])).toContain('My own question.')
   })
+
+  it('swapping a generated question selects that question, not its neighbour', () => {
+    const q = (id: string, v: number) => ({ type: 'templatedQuestion', attrs: { block_id: id, question: { v } } })
+    const sent = { type: 'doc', content: [coverNode(), q('q1', 1), q('q2', 1)] } as unknown as DocJSON
+    editor = new Editor({ extensions: [StarterKit, CoverPage, BlankPage, Templated, Freeform], content: sent })
+    const next = { type: 'doc', content: [coverNode(), q('q1', 2), q('q2', 1)] } as unknown as DocJSON
+    expect(applyServerContent(editor, sent, next)).toBe(1)
+    const sel = editor.state.selection
+    expect(sel instanceof NodeSelection).toBe(true)
+    expect(sel.from).toBe(editor.state.doc.child(0).nodeSize) // q1, right after the cover
+  })
 })
