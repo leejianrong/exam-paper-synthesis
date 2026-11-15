@@ -17,6 +17,15 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 - **Server-drawn diagrams and answer types (T1–T7)** — `chart`, `solid`,
   `number_line`, `panels`, `expression` answers, `cube_stack`, and the
   `statistics_chart` and `volume` ladders (canonical schema now `1.12.0`).
+- **Litres print as ℓ** (and millilitres as mℓ), as on PSLE papers: question text, working,
+  answer key, Ans: line units, multiple-choice options and the editor's unit picker. The stored
+  unit codes stay `l`/`ml` (no schema change; goldens unchanged); a paper saved with the old
+  `18 l` option still verifies (and keeps printing `18 l` until that question is swapped or
+  the paper regenerated: option text is stored). The glyph is a one-glyph Inter face cut from Inter's latin-ext
+  subset (`inter-ell-*.woff2`), so the one-typeface rule holds.
+- **Multi-part polish (P8c review)** — `speed_structured` asks about ~100 different trips
+  (was 24): whole speeds 30–90 km/h, the journey back in whole or half hours; the
+  `ratio_structured` working no longer repeats "1 unit = n" when the ratio difference is one unit.
 - **Starter templates get a cover page** — starting a paper from an empty template
   (Paper 1 Booklet A/B, Paper 2) now adds the same prefilled cover a generated paper gets
   (subject, paper and instructions); the level is left blank for the teacher, since an empty

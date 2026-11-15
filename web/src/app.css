@@ -27,6 +27,43 @@
   src: url("./assets/fonts/inter-latin-700-normal.woff2") format("woff2");
 }
 
+@font-face {
+  /* the litre sign ℓ only (U+2113), cut from Inter's latin-ext subset: still one typeface */
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+2113;
+  src: url("./assets/fonts/inter-ell-400-normal.woff2") format("woff2");
+}
+@font-face {
+  /* the litre sign ℓ only (U+2113), cut from Inter's latin-ext subset: still one typeface */
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+2113;
+  src: url("./assets/fonts/inter-ell-400-italic.woff2") format("woff2");
+}
+@font-face {
+  /* the litre sign ℓ only (U+2113), cut from Inter's latin-ext subset: still one typeface */
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  unicode-range: U+2113;
+  src: url("./assets/fonts/inter-ell-600-normal.woff2") format("woff2");
+}
+@font-face {
+  /* the litre sign ℓ only (U+2113), cut from Inter's latin-ext subset: still one typeface */
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  unicode-range: U+2113;
+  src: url("./assets/fonts/inter-ell-700-normal.woff2") format("woff2");
+}
+
 /* ============================================================
    Crafting UI — the ONE token layer (KAN-315).
 

@@ -405,17 +405,19 @@ def verify_snapshot(obj: dict) -> list[str]:
     if actual.get("type") == "choice":
         # P8b multiple choice: the correct option must read exactly as the proven answer does,
         # and no other option may read the same.
-        from .mcq import LABELS, answer_text, correct_option_text
+        from .mcq import LABELS, answer_text, correct_option_text, legacy_answer_text
 
         options = actual.get("options", [])
         if [o.get("label") for o in options] != list(LABELS) or any(
             o.get("diagram") for o in options
         ):
             return [f"a generated multiple-choice question has text options {', '.join(LABELS)}"]
-        texts = [" ".join(str(o.get("text") or "").split()) for o in options]
+        # compared in one litre spelling, so a legacy "18 l" and a new "18 ℓ" count as the same
+        texts = [" ".join(str(o.get("text") or "").split()).replace("ℓ", "l") for o in options]
         if len(set(texts)) != len(texts):
             return ["multiple-choice options must all differ"]
-        if decimals_view or correct_option_text(actual) != answer_text(solution["answer"]):
+        proven = (answer_text(solution["answer"]), legacy_answer_text(solution["answer"]))
+        if decimals_view or correct_option_text(actual) not in proven:
             return ["the correct option does not match the engine's solution for these parameters"]
     elif not _answer_matches(actual, solution["answer"], decimals_view=decimals_view):
         return ["answer does not match the engine's solution for these parameters"]

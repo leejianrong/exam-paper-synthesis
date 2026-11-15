@@ -237,3 +237,13 @@ in generation (the engine stays deterministic).
 - **What it fills now.** P6 Paper 2 Section B: 12 questions, 45 / 45 marks = the three
   multi-part (4 + 5 + 5) and nine single-part stand-ins (five 3-mark, four 4-mark). A P5 paper
   is unchanged (all three are P6).
+
+## P8c polish (EXA-123, 2026-11-15)
+
+- `speed_structured`: whole speeds 30–90 km/h, 2–6 h out, the journey back in whole or half
+  hours (printed "2.5 h"), at most 480 km, a whole average speed: 105 trips (was 24),
+  enumerated once (`structured.speed_trips`) so sampling is uniform over them.
+- `ratio_structured`: a one-unit ratio difference says "1 unit = n" once.
+- Litres print as ℓ everywhere (see `units.py`); stored codes and goldens unchanged, and a saved
+  multiple-choice option in the old `l` form still verifies (`mcq.legacy_answer_text`).
+

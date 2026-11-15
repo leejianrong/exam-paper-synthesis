@@ -65,7 +65,12 @@ def convertible(obj: dict) -> bool:
     )
 
 
-_UNIT_TEXT = {"cm^2": "cm²", "m^2": "m²", "cm^3": "cm³", "m^3": "m³"}
+_UNIT_TEXT = {"cm^2": "cm²", "m^2": "m²", "cm^3": "cm³", "m^3": "m³", "l": "ℓ", "ml": "mℓ"}
+
+
+def legacy_answer_text(answer: dict) -> str:
+    """The option text a paper saved before litres printed as ``ℓ`` carries (``18 l``)."""
+    return answer_text(answer).replace("mℓ", "ml").replace("ℓ", "l")
 
 
 def answer_text(answer: dict) -> str:

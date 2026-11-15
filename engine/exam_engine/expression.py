@@ -54,6 +54,8 @@ def check_expression_consistency(answer: dict) -> dict[str, bool]:
 def unit_latex(unit: str) -> str:
     """A unit as KaTeX text, with ``cm^2`` / ``m^3`` as a real superscript (a caret
     inside ``\\text`` is a KaTeX error)."""
+    if unit in ("l", "ml"):  # the litre sign, as printed elsewhere (units.PRINTED)
+        return r"\ell" if unit == "l" else r"\text{m}\ell"
     base, _, exp = unit.partition("^")
     return rf"\text{{{base}}}^{{{exp}}}" if exp else rf"\text{{{unit}}}"
 
