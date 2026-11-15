@@ -28,6 +28,8 @@ Post-MVP epics on the board (not yet itemised below; the board is the live sourc
 **Editor: WYSIWYG document editor + SaaS** (E14, deferred stories remain: EXA-33, 89, 90),
 and **Paper format** (E15, P1–P5, P6a–d, P7, P8a, P8b and P8d done (P6d = a page summary in the Preview; live frames on the editing surface not built); P8c first three multi-part blueprints done (generator and swap wiring); starter templates carry the generated paper's cover (level left blank); P8e in progress: the P5 `average` ladder (EXA-117), then `whole_numbers`, `decimals`, `rate` (P5) and `algebra` (P6) (EXA-121) — see
 [`planning/editor/PAPER-FORMAT.md`](planning/editor/PAPER-FORMAT.md) and [`planning/editor/P8-SHAPING.md`](planning/editor/P8-SHAPING.md)).
+A comparison of generated papers with four real 2025 P6 prelims (O4, EXA-128) is in
+[`planning/editor/REAL-PAPER-COMPARISON.md`](planning/editor/REAL-PAPER-COMPARISON.md): its layout gaps are EXA-134–142 and its content gaps EXA-143–150.
 
 ---
 
