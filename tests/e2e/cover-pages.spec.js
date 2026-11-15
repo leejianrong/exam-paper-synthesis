@@ -6,22 +6,35 @@ import { settled } from './helpers.js'
  * reload, and check the student paper prints the cover in place of the header while the answer
  * key leaves both out. Needs the API with EXAM_DEV_AUTH (playwright.config.js).
  */
-test('add a cover page and a blank page, reload, and preview them', async ({ page }) => {
+test('the toolbar adds a cover page to a new paper, first and only once', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '+ New paper' }).click()
+  await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
+  const coverButton = page.getByRole('button', { name: 'Cover page', exact: true })
+  await expect(coverButton).toBeEnabled()
+  await coverButton.click()
+  await expect(page.locator('.cover-block')).toHaveCount(1)
+  await expect(coverButton).toBeDisabled()
+  await expect(page.locator('.surface .ProseMirror > *').first()).toHaveClass(/cover-block/)
+})
+
+test('a starter template comes with its cover; fill it, add a blank page, reload, preview', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Paper 2', exact: true }).click()
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
-  // The cover goes first, and only once: the button is disabled after.
+  // The template's cover is prefilled like a generated paper's; the level is the teacher's.
   const coverButton = page.getByRole('button', { name: 'Cover page', exact: true })
-  await coverButton.click()
   const cover = page.locator('.cover-block')
   await expect(cover).toHaveCount(1)
   await expect(coverButton).toBeDisabled()
   await expect(page.locator('.surface .ProseMirror > *').first()).toHaveClass(/cover-block/)
+  await expect(cover.getByLabel('Cover paper')).toHaveValue('Paper 2')
+  await expect(cover.getByLabel('Cover level')).toHaveValue('')
+  await expect(cover.getByLabel('Cover instructions')).toHaveValue(/You may use a calculator\./)
   await cover.getByLabel('Cover school').fill('Pandan Primary School')
   await cover.getByLabel('Cover level').fill('Primary 6')
-  await cover.getByLabel('Cover paper').fill('Paper 2')
   await cover.getByLabel('Cover instructions').fill('Answer all questions.\nShow your working.')
 
   // A blank page lands where the cursor is; make it rough work.

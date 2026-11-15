@@ -26,7 +26,7 @@ Ongoing (un-prefixed) epics: **Foundation & CI/CD**, **Product shaping & docs**,
 Post-MVP epics on the board (not yet itemised below; the board is the live source):
 **M8** diagram & difficulty polish (E12, done), **Editor: bank + schema v2** (E13, done),
 **Editor: WYSIWYG document editor + SaaS** (E14, deferred stories remain: EXA-33, 89, 90),
-and **Paper format** (E15, P1–P5, P6a–d, P7, P8a, P8b and P8d done (P6d = a page summary in the Preview; live frames on the editing surface not built); P8c in progress (framework, first three multi-part blueprints, generator and swap wiring); P8e started with the P5 `average` ladder (EXA-117) — see
+and **Paper format** (E15, P1–P5, P6a–d, P7, P8a, P8b and P8d done (P6d = a page summary in the Preview; live frames on the editing surface not built); P8c first three multi-part blueprints done (generator and swap wiring); starter templates carry the generated paper's cover (level left blank); P8e started with the P5 `average` ladder (EXA-117) — see
 [`planning/editor/PAPER-FORMAT.md`](planning/editor/PAPER-FORMAT.md) and [`planning/editor/P8-SHAPING.md`](planning/editor/P8-SHAPING.md)).
 
 ---

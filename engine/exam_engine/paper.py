@@ -109,11 +109,27 @@ def _empty_doc(title: str, settings: dict, blocks: list[dict]) -> dict:
     }
 
 
+def _cover_node(t: dict, level: str | None) -> dict:
+    """The template's cover page (P7): subject, paper and instructions prefilled. The level is
+    stated only when known (a generated paper); school, exam and date are the teacher's."""
+    attrs = {
+        "subject": t["cover"].get("subject", SUBJECT),
+        "paper": t["cover"]["paper"],
+        "instructions": t["cover"].get("instructions"),
+    }
+    if level is not None:
+        attrs = {"level": _LEVEL_NAMES[level], **attrs}
+    return {"type": "coverPage", "attrs": attrs}
+
+
 def template_document(code: str) -> dict:
-    """The empty starter paper for a template (P4): its sections and time, no questions."""
+    """The empty starter paper for a template (P4): the cover page (level left for the
+    teacher, as an empty template has none), its sections and time, no questions."""
     t = paper_template(code)
     return _empty_doc(
-        t["title"], {"time_min": t["time_min"]}, [_section_node(s) for s in t["sections"]]
+        t["title"],
+        {"time_min": t["time_min"]},
+        [_cover_node(t, None), *(_section_node(s) for s in t["sections"])],
     )
 
 
@@ -339,16 +355,7 @@ def generate_paper(template_code: str, level: str, seed: int) -> tuple[dict, dic
     t = paper_template(template_code)
     f = _Filler(t, level, seed)
 
-    cover = {
-        "type": "coverPage",
-        "attrs": {
-            "level": _LEVEL_NAMES[level],
-            "subject": t["cover"].get("subject", SUBJECT),
-            "paper": t["cover"]["paper"],
-            "instructions": t["cover"].get("instructions"),
-        },
-    }
-    blocks: list[dict] = [cover]
+    blocks: list[dict] = [_cover_node(t, level)]
     sections_report = []
     for section in t["sections"]:
         rep = {

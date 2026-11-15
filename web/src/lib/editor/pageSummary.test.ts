@@ -48,4 +48,16 @@ describe('summarisePages', () => {
     const s = summarisePages(paper('<div class="pg"><div class="paper-section"></div></div>'))
     expect(describePage(s.pages[0])).toBe('no questions')
   })
+
+  it('names the pages of their own: the cover, a blank page and rough work', () => {
+    const s = summarisePages(
+      paper(
+        '<div class="pg"><div class="cover-page"></div></div>' +
+          '<div class="pg"><div class="blank-page blank"></div></div>' +
+          '<div class="pg"><div class="blank-page rough"></div></div>' +
+          `<div class="pg"><section class="question"></section>${tally(2)}</div>`,
+      ),
+    )
+    expect(s.pages.map(describePage)).toEqual(['cover page', 'blank page', 'rough work', 'Q1 · 2 marks'])
+  })
 })

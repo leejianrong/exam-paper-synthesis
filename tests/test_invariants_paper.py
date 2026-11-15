@@ -79,6 +79,18 @@ def test_templates_are_consistent():
         assert validate_document(template_document(t["code"])) == []
 
 
+@pytest.mark.parametrize("code", TEMPLATES)
+def test_a_starter_paper_has_the_generated_papers_cover_without_a_level(code):
+    """An empty template starts with the same cover a generated paper gets; the level is left
+    for the teacher (an empty template has none), so swaps fall back to the request's level."""
+    starter = template_document(code)["content"]["content"]
+    generated = generate_paper(code, "P6", 1)[0]["content"]["content"]
+    assert starter[0]["type"] == generated[0]["type"] == "coverPage"
+    assert "level" not in starter[0]["attrs"]
+    assert {**starter[0]["attrs"], "level": "Primary 6"} == generated[0]["attrs"]
+    assert [n["type"] for n in starter[1:]] == ["section"] * (len(starter) - 1)
+
+
 @pytest.mark.parametrize("level", LEVELS)
 @pytest.mark.parametrize("code", TEMPLATES)
 def test_generated_papers_keep_every_rule(code, level):
