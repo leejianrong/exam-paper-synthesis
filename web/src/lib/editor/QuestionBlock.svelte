@@ -28,6 +28,8 @@
   $: part = q.question.parts[0]
   $: placement = $paperSettings.marks_placement ?? DEFAULT_PLACEMENT
   $: multipart = q.question.parts.length > 1
+  // A multiple-choice copy (P8b) can't be rebuilt with new names: the engine refuses it.
+  $: isChoice = q.question.parts.some((p) => p.answer?.type === 'choice')
   // Only written answers get working space and an Ans: line (not MCQ, not a construction).
   $: writtenParts = q.question.parts.filter(
     (p) => !['choice', 'construction'].includes(p.answer?.type ?? ''),
@@ -113,7 +115,7 @@
           >
         {/if}
       {/each}
-      {#if q.source_type !== 'sourced' && q.blueprint_code}
+      {#if q.source_type !== 'sourced' && q.blueprint_code && !isChoice}
         <button disabled={busy} on:click={() => (editingNames = !editingNames)}>Edit names</button>
       {/if}
       <button

@@ -374,7 +374,23 @@ def verify_snapshot(obj: dict) -> list[str]:
     if len(parts) != 1:
         return ["a generated question has exactly one part"]
     decimals_view = obj.get("validation", {}).get("checks", {}).get("representation") == "decimals"
-    if not _answer_matches(parts[0]["answer"], solution["answer"], decimals_view=decimals_view):
+    actual = parts[0]["answer"]
+    if actual.get("type") == "choice":
+        # P8b multiple choice: the correct option must read exactly as the proven answer does,
+        # and no other option may read the same.
+        from .mcq import LABELS, answer_text, correct_option_text
+
+        options = actual.get("options", [])
+        if [o.get("label") for o in options] != list(LABELS) or any(
+            o.get("diagram") for o in options
+        ):
+            return [f"a generated multiple-choice question has text options {', '.join(LABELS)}"]
+        texts = [" ".join(str(o.get("text") or "").split()) for o in options]
+        if len(set(texts)) != len(texts):
+            return ["multiple-choice options must all differ"]
+        if decimals_view or correct_option_text(actual) != answer_text(solution["answer"]):
+            return ["the correct option does not match the engine's solution for these parameters"]
+    elif not _answer_matches(actual, solution["answer"], decimals_view=decimals_view):
         return ["answer does not match the engine's solution for these parameters"]
     if parts[0].get("marks") != spec.marks or obj["question"]["total_marks"] != spec.marks:
         return [f"marks do not match blueprint {code} ({spec.marks})"]

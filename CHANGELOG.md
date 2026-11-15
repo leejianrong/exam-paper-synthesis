@@ -44,6 +44,15 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   report banner and a placeholders-to-write count in the editor (document schema `1.10.0`:
   a question's `slot`). Also fixed: a paper opening on a cover or section block started
   with that block selected, so the first click and keystroke could replace it.
+- **Multiple choice for Booklet A (P8b)** — `mcq.to_mcq` turns a generated question with a
+  numeric or fraction answer into four-option multiple choice: the correct option is the
+  engine's answer, the distractors are the worked solution's intermediate values (stopping a
+  step early), near misses, halving/doubling and place-value slips (fractions: the unshaded
+  part, shaded : unshaded, off-by-one). The paper generator fills Booklet A's slots this way
+  (P6: 8 of 15, P5: 7 of 15 with today's content); `verify_snapshot` checks the correct option
+  reads exactly as the re-solved answer, so these stay engine-proven. Options now print as a
+  (1)–(4) grid after the figure, with real units (cm², °); edit ops are not offered on a
+  multiple-choice copy.
 
 ## [0.1.0] — 2026-07-25
 

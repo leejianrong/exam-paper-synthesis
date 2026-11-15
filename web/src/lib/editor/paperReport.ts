@@ -26,7 +26,9 @@ export function reportSummary(r: PaperReport): string {
       )
     }
     if (s.mode === 'mcq' && s.placeholders) {
-      bits.push(`${s.title}: multiple-choice questions can't be generated yet.`)
+      bits.push(
+        `${s.title}: ${plural(s.placeholders, 'multiple-choice question')} still to write (not enough convertible questions yet).`,
+      )
     }
   }
   return bits.join(' ')

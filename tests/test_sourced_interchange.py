@@ -131,12 +131,12 @@ def test_mcq_fixture_loads_and_renders():
     assert obj["question"]["parts"][0]["answer"]["type"] == "choice"
 
     ws = render_worksheet_html("MCQ", [obj])
-    assert ws.count("option-correct") == 0
+    assert ws.count("option option-correct") == 0
     for opt in obj["question"]["parts"][0]["answer"]["options"]:
         assert f"({opt['label']})" in ws
 
     ak = render_answer_key_html("MCQ", [obj])
-    assert ak.count("option-correct") == 1
+    assert ak.count("option option-correct") == 1
     assert "Answer: (2)" in ak
 
 

@@ -451,3 +451,18 @@ main[data-tally] { width: 178mm; max-width: none; }
 .blank-page.rough .blank-text { font-style: normal; font-weight: 700; color: var(--ink); }
 /* inside the paginator's page boxes the pages are already placed: no breaks of their own */
 .pg > .cover-page, .pg > .blank-page { break-before: auto; break-after: auto; }
+
+/* --- multiple-choice options (A3 / P8b): (1)-(4) in a 2 x 2 grid, as in Booklet A --- */
+.options {
+  list-style: none;
+  margin: 0.5rem 0 0.3rem;
+  padding: 0 0 0 1.6rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 1.5rem;
+  break-inside: avoid;
+}
+.option { display: flex; align-items: baseline; gap: 0.5rem; }
+.option-label { font-weight: 600; min-width: 1.8rem; }
+.option-correct .option-label,
+.option-correct .option-text { text-decoration: underline; text-decoration-thickness: 2px; }
