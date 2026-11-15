@@ -209,7 +209,10 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
           tr.setNodeMarkup(pos(), undefined, { ...current.attrs, marks: null, answer: EMPTY_ANSWER })
         }
         editor.view.dispatch(tr)
-        editor.commands.focus(at + 2)
+        // Caret into the new part, focused *now*: TipTap's focus() waits a frame, and keys typed
+        // meanwhile went to this button (a space "clicked" it again, adding stray parts).
+        editor.commands.setTextSelection(at + 2)
+        editor.view.focus()
       }
 
       input.addEventListener('change', () => {
