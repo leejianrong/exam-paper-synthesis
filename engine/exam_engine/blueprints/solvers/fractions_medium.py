@@ -14,6 +14,7 @@ rung carries no figure (as the Percentage ladder did).
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -65,6 +66,20 @@ class FractionsMediumSolver:
                 "answer_value": answer_value,
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (EXA-122), in $, best first."""
+        whole = params["whole"]
+        n1, d1, n2, d2 = params["n1"], params["d1"], params["n2"], params["d2"]
+        rest = Fraction(whole * (d1 - n1), d1)
+        food = rest * n2 / d2
+        return [
+            (Fraction(whole * n2, d2), f"took {n2}/{d2} of the whole, not of the remainder"),
+            (rest, "the money left after the first part"),
+            (rest - food, "the money left at the end"),
+            (Fraction(whole * n1, d1), "the first amount spent"),
+            (whole - rest + food, "the total amount spent"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         whole = params["whole"]

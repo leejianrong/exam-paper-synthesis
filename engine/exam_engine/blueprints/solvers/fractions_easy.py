@@ -16,6 +16,7 @@ fraction is already in simplest form and ``shaded_parts == numerator``,
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 from math import gcd
 
 from ..registry import register
@@ -60,6 +61,17 @@ class FractionsEasySolver:
         )
         checks["within_level"] = _DENOM_MIN <= denominator <= _DENOM_MAX
         return {"ok": all(checks.values()), "checks": checks}
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (EXA-122), as fractions, best first."""
+        n, d = params["numerator"], params["denominator"]
+        return [
+            (Fraction(d - n, d), "the unshaded part"),
+            (Fraction(n, d - n), "shaded parts over unshaded parts"),
+            (Fraction(d - n, n), "unshaded parts over shaded parts"),
+            (Fraction(n, d + 1), "counted one part too many"),
+            (Fraction(1, d), "one shaded part only"),
+        ]
 
     def diagram(self, params: dict, solution: dict) -> dict:
         """Build the mandatory ``shaded_fraction`` figure (plan D1).

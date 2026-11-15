@@ -16,6 +16,7 @@ unit_value`` so the work-backwards division is exact.
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 from math import gcd
 
 from ..registry import register
@@ -133,6 +134,27 @@ class RatioHardSolver:
             and a_before - a_after == spent
         )
         return {"ok": all(checks.values()), "checks": checks}
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (EXA-122), in $, best first."""
+        a, b = params["ratio_before"]
+        c, d = params["ratio_after"]
+        spent = params["spent"]
+        inter = solution["intermediates"]
+        unit = inter["unit_value"]
+        spender, keeper = params["names"]
+        out: list[tuple[int | Fraction, str]] = [
+            (inter["a_before_units"] * unit, f"{spender}'s savings at first"),
+        ]
+        if a > c:  # did not equalise: took the drop in the ratio terms as the units spent
+            out.append((Fraction(spent * b, a - c), f"did not make {keeper}'s units equal"))
+        out += [
+            (min(b, d) * unit, f"did not scale up {keeper}'s units"),
+            (inter["a_after_units"] * unit, f"{spender}'s savings after spending"),
+            (unit, "found 1 unit only"),
+            (Fraction(spent * b, a), f"took ${spent} as all of {spender}'s savings"),
+        ]
+        return out
 
     def diagram(self, params: dict, solution: dict) -> dict:
         """Build the before-after aid bar model (A5, ADR-0007) in *equalised* units.

@@ -17,6 +17,7 @@ ladder did — the bar-model check is ratio-specific).
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -71,6 +72,27 @@ class FractionsHardSolver:
                 "answer_value": answer_value,
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (EXA-122), in $, best first."""
+        n1, d1, n2, d2 = params["n1"], params["d1"], params["n2"], params["d2"]
+        left = params["left"]
+        out: list[tuple[int | Fraction, str]] = []
+        kept = 1 - Fraction(n1, d1) - Fraction(n2, d2)
+        if kept > 0:
+            out.append((left / kept, "took both fractions of the whole amount"))
+        after_first = Fraction(left * d2, d2 - n2)
+        original = after_first * d1 / (d1 - n1)
+        out += [
+            (
+                left * Fraction(d1, n1) * Fraction(d2, n2),
+                "divided by the fractions spent, not left",
+            ),
+            (after_first, "the money after the first purchase only"),
+            (original - left, "the total amount spent"),
+            (left * d1 * d2, "multiplied by both denominators"),
+        ]
+        return out
 
     def validate(self, params: dict, solution: dict) -> dict:
         n1, d1 = params["n1"], params["d1"]

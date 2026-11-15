@@ -9,6 +9,7 @@ unit_value`` so every share is a positive integer and division is exact.
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -76,6 +77,20 @@ class RatioMediumSolver:
         checks["answer_verified"] = solution["answer"]["value"] == shares[2]
         checks["within_level"] = _TOTAL_MIN <= total <= _TOTAL_MAX and all(s > 0 for s in shares)
         return {"ok": all(checks.values()), "checks": checks}
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (EXA-122), in $, best first."""
+        a, b, c = params["ratio"]
+        total = params["total"]
+        unit = total // (a + b + c)
+        first, second, _ = params["names"]
+        return [
+            (unit, "found 1 unit only"),
+            (a * unit, f"{first}'s share"),
+            (b * unit, f"{second}'s share"),
+            ((a + b) * unit, f"{first}'s and {second}'s shares together"),
+            (Fraction(total, 3), "shared the money equally"),
+        ]
 
     def diagram(self, params: dict, solution: dict) -> dict:
         """Build the aid bar model (A5, ADR-0007): one bar per ratio term.

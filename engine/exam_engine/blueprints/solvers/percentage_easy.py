@@ -10,6 +10,7 @@ and ``percent% of whole`` is an exact integer.
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -57,6 +58,16 @@ class PercentageEasySolver:
                 "answer_value": answer_value,
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (EXA-122), in $, best first."""
+        p, whole = params["percent"], params["whole"]
+        part = Fraction(p * whole, 100)
+        return [
+            (whole - part, "the amount left, not the amount given"),
+            (whole + part, f"added {p}% on to the amount"),
+            (Fraction(whole * 100, p), f"divided by {p}% instead of multiplying"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         percent = params["percent"]
