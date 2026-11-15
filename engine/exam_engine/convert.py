@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import expression
+from .units import printed_unit
 
 Node = dict[str, Any]
 
@@ -63,7 +64,7 @@ def answer_inline(answer: dict) -> list[Node]:
             return [_text(f"${shown}")]
         if unit == "%":
             return [_text(f"{shown}%")]
-        return [_text(f"{shown} {unit}".strip())]
+        return [_text(f"{shown} {printed_unit(unit)}".strip())]
     if atype == "fraction":
         latex = rf"\frac{{{answer['numerator']}}}{{{answer['denominator']}}}"
         unit = answer.get("unit") or ""
@@ -71,7 +72,7 @@ def answer_inline(answer: dict) -> list[Node]:
             return [_text("$"), {"type": "math", "attrs": {"latex": latex}}]
         out: list[Node] = [{"type": "math", "attrs": {"latex": latex}}]
         if unit:
-            out.append(_text(f" {unit}"))
+            out.append(_text(f" {printed_unit(unit)}"))
         return out
     if atype == "expression":
         return [{"type": "math", "attrs": {"latex": expression.to_latex(answer)}}]

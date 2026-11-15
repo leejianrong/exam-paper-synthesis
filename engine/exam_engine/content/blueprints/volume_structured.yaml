@@ -36,7 +36,7 @@ story_templates:
   - stem: >
       Tank A is a rectangular tank measuring {length} cm by {width} cm by {height} cm.
       It contains water to a depth of {depth} cm. Tank B is an empty rectangular tank
-      measuring {length_b} cm by {width_b} cm by {height_b} cm. (1 l = 1000 cm³)
+      measuring {length_b} cm by {width_b} cm by {height_b} cm. (1 ℓ = 1000 cm³)
 parts:
   - label: a
     marks: 2
@@ -45,7 +45,7 @@ parts:
       steps:
         - text: "Volume of water in Tank A = {length} × {width} × {depth} = {volume} cm³."
           expr: "{length}*{width}*{depth}"
-        - text: "{volume} cm³ = {litres} l."
+        - text: "{volume} cm³ = {litres} ℓ."
           expr: "{volume}/1000"
     marking_scheme:
       - { mark: 1, type: M, description: "Finds the volume of water in cm³." }
@@ -58,7 +58,7 @@ parts:
       in Tank B?
     solution_template:
       steps:
-        - text: "The volume of water stays the same: {litres} l = {volume} cm³."
+        - text: "The volume of water stays the same: {litres} ℓ = {volume} cm³."
           expr: "{litres}*1000"
         - text: "Base area of Tank B = {length_b} × {width_b} = {base_b} cm²."
           expr: "{length_b}*{width_b}"

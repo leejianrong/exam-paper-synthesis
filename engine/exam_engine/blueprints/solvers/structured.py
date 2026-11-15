@@ -91,9 +91,7 @@ class RatioStructuredSolver:
                 # One unit of difference IS the value of one unit: say it once, not twice.
                 "diff_tail": "" if p - q == 1 else f", so {p - q} units = {more}",
                 "unit_line": (
-                    f"So 1 unit = {more}."
-                    if p - q == 1
-                    else f"1 unit = {more} ÷ {p - q} = {u1}."
+                    f"So 1 unit = {more}." if p - q == 1 else f"1 unit = {more} ÷ {p - q} = {u1}."
                 ),
                 "u1": u1,
                 "sum_before": p + q,

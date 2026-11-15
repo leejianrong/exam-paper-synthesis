@@ -536,7 +536,8 @@ def test_missing_asset_renders_a_visible_placeholder_not_a_broken_page():
 
 def test_documents_embed_the_one_typeface_and_declare_no_other_families():
     html = render_document_html("T", make_doc(freeform_block("Q")), mode="full")
-    assert html.count('font-family:"Inter"') == 4  # regular, italic, semibold, bold
+    # regular, italic, semibold, bold; each with a one-glyph face for the litre sign ℓ
+    assert html.count('font-family:"Inter"') == 8
     assert "data:font/woff2;base64," in html
     css = html.split("<style>")[3]  # font, katex, then print.css
     families = set(re.findall(r"--(?:serif|sans|mono):\s*([^;]+);", html))

@@ -34,6 +34,7 @@ from typing import NamedTuple
 
 from . import diagram, expression
 from .document import block_marks, cover_page, in_key, key_options, paper_outline
+from .units import printed_unit
 
 # ---------------------------------------------------------------------------
 # Vendored assets — read ONCE at import (no per-call I/O; keeps render_* pure).
@@ -82,14 +83,17 @@ def _inline_font_css() -> str:
     editor does (EXA-94) with no font request and no dependence on the host's installed fonts.
     """
     faces = []
+    # Each weight/style is Inter's latin subset plus a one-glyph face for the litre sign ℓ
+    # (U+2113, cut from Inter's latin-ext subset): same family, so still one typeface.
     for weight, style in ((400, "normal"), (400, "italic"), (600, "normal"), (700, "normal")):
-        raw = (_ASSETS / "fonts" / f"inter-latin-{weight}-{style}.woff2").read_bytes()
-        faces.append(
-            '@font-face{font-family:"Inter";'
-            f"font-style:{style};font-weight:{weight};font-display:block;"
-            f"src:url(data:font/woff2;base64,{base64.b64encode(raw).decode('ascii')}) "
-            'format("woff2")}'
-        )
+        for subset, unicode_range in (("latin", ""), ("ell", "unicode-range:U+2113;")):
+            raw = (_ASSETS / "fonts" / f"inter-{subset}-{weight}-{style}.woff2").read_bytes()
+            faces.append(
+                '@font-face{font-family:"Inter";'
+                f"font-style:{style};font-weight:{weight};font-display:block;{unicode_range}"
+                f"src:url(data:font/woff2;base64,{base64.b64encode(raw).decode('ascii')}) "
+                'format("woff2")}'
+            )
     return "\n".join(faces)
 
 
@@ -162,7 +166,7 @@ def _fmt_answer(answer: dict) -> str:
             return f"${shown}"
         if unit == "%":
             return f"{value}%"
-        return f"{value} {_esc(unit)}" if unit else f"{value}"
+        return f"{value} {_esc(printed_unit(unit))}" if unit else f"{value}"
     if atype == "fraction":
         body = rf"\frac{{{answer['numerator']}}}{{{answer['denominator']}}}"
         unit = answer.get("unit") or ""
@@ -257,7 +261,7 @@ def unit_parts(unit: str | None) -> tuple[str, str]:
         return "", "°"
     if unit == "%":
         return "", "%"
-    return "", _UNIT_SUP.get(unit, _esc(unit))
+    return "", _UNIT_SUP.get(unit, _esc(printed_unit(unit)))
 
 
 def _answer_line(

@@ -1,5 +1,9 @@
 import type { Answer } from "./types";
 
+/** How a unit code prints: the litre sign as on PSLE papers (engine units.PRINTED). */
+export const PRINTED_UNIT: Record<string, string> = { l: "ℓ", ml: "mℓ" };
+const printed = (u: string): string => PRINTED_UNIT[u] ?? u;
+
 /** Plain-text rendering of a typed answer (the web mirror of the engine's _fmt_answer). */
 export function fmtAnswer(a: Answer | undefined): string {
   if (!a) return "";
@@ -14,7 +18,7 @@ export function fmtAnswer(a: Answer | undefined): string {
           ? Number(a.value).toFixed(2)
           : `${a.value}`;
       if (u === "$") return `$${shown}`;
-      return u ? `${shown} ${u}` : `${shown}`;
+      return u ? `${shown} ${printed(u)}` : `${shown}`;
     }
     case "fraction":
       return `${a.numerator}/${a.denominator}`;
@@ -49,7 +53,7 @@ export function fmtAnswer(a: Answer | undefined): string {
           ? `-$${body.slice(1)}`
           : `$${group}`;
       if (u === "%") return `${group}%`;
-      return u ? `${group} ${u}` : group;
+      return u ? `${group} ${printed(u)}` : group;
     }
     default:
       return JSON.stringify(a);

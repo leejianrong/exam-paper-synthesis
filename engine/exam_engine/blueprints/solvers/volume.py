@@ -107,10 +107,10 @@ class VolumeMediumSolver:
                 "question_text": (
                     f"A rectangular tank measures {l} cm by {w} cm by {h} cm. It contains "
                     f"water to a depth of {d} cm. How many more litres of water are needed "
-                    "to fill the tank to the brim? (1 l = 1000 cm³)"
+                    "to fill the tank to the brim? (1 ℓ = 1000 cm³)"
                 ),
                 "step1": f"Empty depth = {h} - {d} = {e} cm.",
-                "step2": (f"Volume still needed = {l} x {w} x {e} = {l * w * e} cm³ = {ans} l."),
+                "step2": (f"Volume still needed = {l} x {w} x {e} = {l * w * e} cm³ = {ans} ℓ."),
                 "answer_value": ans,
             },
         }
