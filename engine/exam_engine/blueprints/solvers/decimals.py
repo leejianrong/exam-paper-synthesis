@@ -156,6 +156,36 @@ class DecimalsEasySolver:
             },
         }
 
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Decimal-point and operation slips, best first (mcq keeps those within 2 dp)."""
+        a, factor, value = easy_operand(params), params["factor"], easy_value(params)
+        tens = 1
+        while factor % (tens * 10) == 0:
+            tens *= 10
+        out: list[tuple[int | Fraction, str]] = []
+        if params["op"] == "multiply":
+            if tens > 1:
+                out.append((a * (factor // tens), f"multiplied by {factor // tens}, not {factor}"))
+            out.append((int(a) * factor, "multiplied only the whole-number part"))
+        else:
+            if tens > 1:
+                out.append((a / (factor // tens), f"divided by {factor // tens}, not {factor}"))
+            whole, rest = divmod(a, 1)
+            out.append(
+                (whole // factor + rest / factor, "dropped the remainder of the whole-number part")
+            )
+        out += [
+            (value * 10, "put the decimal point one place too far right"),
+            (value / 10, "put the decimal point one place too far left"),
+            (value * 100, "put the decimal point two places too far right"),
+            (value / 100, "put the decimal point two places too far left"),
+        ]
+        if params["op"] == "divide":
+            out.append((a * factor, "multiplied instead of dividing"))
+        else:
+            out.append((a / factor, "divided instead of multiplying"))
+        return out
+
     def validate(self, params: dict, solution: dict) -> dict:
         a, factor = easy_operand(params), params["factor"]
         ans = Fraction(str(solution["answer"]["value"]))
@@ -215,6 +245,20 @@ class DecimalsMediumSolver:
                 "answer_text": money(ans),
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Unitary-method slips, as money (whole cents), best first."""
+        n, cost, m = params["n"], params["cost"], params["m"]
+        unit = cost // n
+        out: list[tuple[int | Fraction, str]] = [
+            (Fraction(unit, 100), "gave the cost of one"),
+            (Fraction(cost + m * unit, 100), f"added the cost of the {n} as well"),
+            (Fraction(unit * abs(m - n), 100), f"found the cost of {abs(m - n)} only"),
+        ]
+        if (cost * n) % m == 0:  # divided by the wrong number of items and multiplied back
+            out.append((Fraction(cost * n // m, 100), f"divided by {m} and multiplied by {n}"))
+        out.append((Fraction(cost * m, 100), f"multiplied the cost of {n} by {m}"))
+        return out
 
     def validate(self, params: dict, solution: dict) -> dict:
         n, cost, m = params["n"], params["cost"], params["m"]
@@ -296,6 +340,22 @@ class DecimalsHardSolver:
             }
         )
         return {"answer": money_answer(ans), "intermediates": inter}
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Shopping-change slips, as money (whole cents), best first."""
+        qty, price, budget = params["qty"], params["price"], params["budget"] * 100
+        costs = [q * p for q, p in zip(qty, price, strict=True)]
+        spent = sum(costs)
+        out: list[tuple[int | Fraction, str]] = [
+            (Fraction(spent, 100), "gave the total spent instead of the change"),
+            (Fraction(budget - costs[0], 100), "forgot the second item"),
+            (Fraction(budget - costs[1], 100), "forgot the first item"),
+            (Fraction(budget - sum(price), 100), "used the price of one of each"),
+        ]
+        if spent % 100:  # took the dollars away but kept the cents: $30 − $17.45 → $13.45
+            kept = Fraction(budget - spent // 100 * 100 + spent % 100, 100)
+            out.append((kept, "subtracted the dollars and kept the cents"))
+        return out
 
     def validate(self, params: dict, solution: dict) -> dict:
         goods, qty, price = params["goods"], params["qty"], params["price"]

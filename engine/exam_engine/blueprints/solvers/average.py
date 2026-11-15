@@ -20,6 +20,7 @@ reads it. Every answer is a whole number by construction (ADR-0014):
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -113,6 +114,23 @@ class AverageEasySolver:
             },
         }
 
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (EXA-122), best first."""
+        values = params["values"]
+        n, total = len(values), sum(values)
+        ordered = sorted(values)
+        median = Fraction(ordered[(n - 1) // 2] + ordered[n // 2], 2)
+        return [
+            (total, "the total, not divided by the number of items"),
+            (Fraction(total, n - 1), f"divided by {n - 1}, not {n}"),
+            (median, "the middle value, not the average"),
+            (Fraction(max(values) + min(values), 2), "averaged the largest and smallest only"),
+            (Fraction(total, n + 1), f"divided by {n + 1}, not {n}"),
+            (Fraction(total - values[-1], n), "left out the last value when adding"),
+            (Fraction(total - values[-1], n - 1), "averaged all but the last value"),
+            (Fraction(total, 2), "divided by 2, not by the number of items"),
+        ]
+
     def validate(self, params: dict, solution: dict) -> dict:
         values = params["values"]
         lo, hi, _ = EASY_TEMPLATES[params["template"]]
@@ -188,6 +206,27 @@ class AverageMediumSolver:
                 "answer_value": ans,
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (EXA-122), best first."""
+        n, avg, given = params["n"], params["average"], params["given"]
+        total = n * avg
+        if params["kind"] == "missing":
+            return [
+                (avg, "the average, not the missing score"),
+                ((n - 1) * avg - sum(given), f"multiplied the average by {n - 1}, not {n}"),
+                (Fraction(sum(given), n - 1), "the average of the other scores"),
+                (total, "the total score of all the tests"),
+                (total - sum(given[1:]), "left out the first score when subtracting"),
+            ]
+        spent = given[0]
+        return [
+            (total, "the total saved, without taking away the present"),
+            (avg - spent, "took the present away from one week's savings"),
+            (total + spent, "added the cost of the present"),
+            (Fraction(total - spent, n), f"divided the money left by {n}"),
+            ((n - 1) * avg - spent, f"multiplied the average by {n - 1}, not {n}"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         n, avg, given, kind = params["n"], params["average"], params["given"], params["kind"]
@@ -279,6 +318,25 @@ class AverageHardSolver:
                 "answer_value": ans,
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (EXA-122), best first."""
+        n, before, given = params["n"], params["before"], params["given"]
+        if params["kind"] == "join":
+            return [
+                (given, "the new average, not the newcomer's mass"),
+                (before, "the old average"),
+                ((n + 1) * given, "the total mass of the group, not the newcomer's"),
+                (n * (given - before), f"used {n} children for both totals"),
+                ((n + 1) * (given - before), f"used {n + 1} children for both totals"),
+            ]
+        rest = n * before - given
+        return [
+            (Fraction(rest, n), f"divided by {n}, not {n - 1}"),
+            (before, "the old average"),
+            (2 * before - given, "took the whole difference off the average"),
+            (rest, "the total height, not divided"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         n, before, given, kind = params["n"], params["before"], params["given"], params["kind"]

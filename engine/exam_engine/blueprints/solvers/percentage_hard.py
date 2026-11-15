@@ -15,6 +15,7 @@ division reproduces ``original`` exactly.
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -76,6 +77,27 @@ class PercentageHardSolver:
                 "op": op,
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (EXA-122), in $, best first."""
+        p, new = params["percent"], params["new_value"]
+        up = params["direction"] == "increase"
+        of_new = Fraction(p * new, 100)
+        original = solution["answer"]["value"]
+        factor = 100 + p if up else 100 - p
+        return [
+            (
+                new - of_new if up else new + of_new,
+                f"{'took' if up else 'added'} {p}% of the new price {'off' if up else 'back'}",
+            ),
+            (Fraction(new * factor, 100), f"found {factor}% of the new price"),
+            (abs(original - new), "the change in price, not the original price"),
+            (
+                Fraction(new * 100, 100 - p if up else 100 + p),
+                f"used {200 - factor}%, not {factor}%",
+            ),
+            (new, "the new price"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         percent = params["percent"]

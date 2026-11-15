@@ -13,6 +13,7 @@ any rejection loop. No diagram (the bar-model check is ratio-specific).
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -53,6 +54,16 @@ class SpeedEasySolver:
             "answer": {"type": "quantity", "value": distance, "unit": "km"},
             "intermediates": {"distance": distance},
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong distances (km), best first (EXA-122)."""
+        speed, time = params["speed"], params["time"]
+        return [
+            (speed, "the distance in 1 hour only"),
+            (speed + time, "added the speed and the time"),
+            (Fraction(speed, time), "divided the speed by the time"),
+            (speed * time * 60, "multiplied by the time in minutes"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         speed = params["speed"]

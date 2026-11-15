@@ -172,3 +172,95 @@ def test_money_distractors_keep_their_cents():
                 texts = [o["text"] for o in options]
                 rounded = f"${float(v):.1f}0"
                 assert rounded == shown or rounded not in texts, (seed, shown, texts)
+
+
+# --- EXA-122: per-solver common wrong answers + the give-away guard -----------------------
+
+
+@pytest.mark.parametrize("code", BLUEPRINTS)
+def test_the_answer_is_never_guessable_from_the_options(code):
+    """Never exactly between two other options, evenly (7/8/9) or by a factor (14/28/56)."""
+    for seed in range(1, 61):
+        obj = generate(code, seed)
+        if not convertible(obj):
+            continue
+        texts = [o["text"] for o in to_mcq(obj, seed)["question"]["parts"][0]["answer"]["options"]]
+        values = [_value(t) for t in texts]
+        a = _value(answer_text(obj["question"]["parts"][0]["answer"]))
+        for x in values:
+            for y in values:
+                if x < a < y:
+                    assert a - x != y - a and a / x != y / a, (code, seed, texts)
+
+
+@pytest.mark.parametrize("code", BLUEPRINTS)
+def test_every_wrong_option_says_why_it_is_tempting(code):
+    obj = generate(code, 2)
+    if not convertible(obj):
+        pytest.skip("not convertible")
+    m = to_mcq(obj, 2)
+    part = m["question"]["parts"][0]
+    desc = part["marking_scheme"][0]["description"]
+    correct = part["answer"]["correct"]
+    assert desc.startswith(f"Correct option ({correct}). Wrong options: ")
+    for label in ("1", "2", "3", "4"):
+        if label != correct:
+            assert re.search(rf"\({label}\) \w", desc), desc
+
+
+def test_a_solver_hook_comes_first_and_never_offers_the_answer(monkeypatch):
+    from exam_engine.blueprints.registry import get_solver
+
+    obj = generate("ratio_medium", 3)  # $731 shared 3 : 6 : 8, Ismail gets $344
+    solver = get_solver("ratio_medium")
+    monkeypatch.setattr(
+        solver,
+        "distractors",
+        lambda params, solution: [
+            (solution["answer"]["value"], "the answer itself: must be filtered out"),
+            (387, "the other share"),
+            (Fraction(1, 3), "not plausible for a whole-number answer: filtered out"),
+        ],
+        raising=False,
+    )
+    assert mcq.common_wrong_answers(obj)[1] == (Fraction(387), "the other share")
+    assert mcq.distractor_candidates(obj)[0] == (Fraction(387), "the other share")
+    m = to_mcq(obj, 1)
+    texts = [o["text"] for o in m["question"]["parts"][0]["answer"]["options"]]
+    assert "$387" in texts and texts.count("$344") == 1
+    assert "the other share" in m["question"]["parts"][0]["marking_scheme"][0]["description"]
+    assert verify_snapshot(m) == []
+
+
+@pytest.mark.parametrize("code", BLUEPRINTS)
+def test_an_option_shows_exactly_the_wrong_answer_its_reason_describes(code):
+    """A hook's value is never printed rounded (0.05 shown as "0.1" under a reason that
+    describes 0.05): the option a teacher reads is the slip the key names."""
+    for seed in range(1, 41):
+        obj = generate(code, seed)
+        if not convertible(obj):
+            continue
+        hooked = {why: v for v, why in mcq.common_wrong_answers(obj)}
+        part = to_mcq(obj, seed)["question"]["parts"][0]
+        reasons = dict(
+            re.findall(r"\((\d)\) ([^;]+?)(?:;|\.$)", part["marking_scheme"][0]["description"])
+        )
+        for o in part["answer"]["options"]:
+            why = reasons.get(o["label"])
+            if why in hooked:
+                shown = _value(o["text"])
+                assert shown == hooked[why] or any(
+                    shown == v for v, w in mcq.common_wrong_answers(obj) if w == why
+                ), (code, seed, o["text"], why)
+
+
+@pytest.mark.parametrize("code", BLUEPRINTS)
+def test_money_options_read_whole_dollars_or_two_places(code):
+    """A cent-valued wrong answer to a whole-dollar question prints "$19.80", not "$19.8"."""
+    for seed in range(1, 61):
+        obj = generate(code, seed)
+        if not convertible(obj) or obj["question"]["parts"][0]["answer"].get("unit") != "$":
+            continue
+        for o in to_mcq(obj, seed)["question"]["parts"][0]["answer"]["options"]:
+            if o["text"].startswith("$"):
+                assert re.fullmatch(r"\$\d+(\.\d\d)?", o["text"]), (code, seed, o["text"])

@@ -281,6 +281,48 @@ class GeometryAreaMediumSolver:
             },
         }
 
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers in the answer's own unit (cm² or cm), best first (EXA-122)."""
+        g, template = params["givens"], params["template"]
+        if template == "L_shape":
+            W, H, w, h = g["W"], g["H"], g["w"], g["h"]
+            return [
+                (W * H, "forgot to take away the corner"),
+                (2 * (W + H), "the perimeter, not the area"),
+                (W * H + w * h, "added the corner instead of taking it away"),
+            ]
+        if template == "rectangle_plus_triangle":
+            W, H, h = g["W"], g["H"], g["h"]
+            return [
+                (W * H + W * h, "forgot to halve the triangle"),
+                (W * H, "the rectangle only"),
+                (Fraction(W * (H + h), 2), "halved the whole figure"),
+                (Fraction(W * h, 2), "the triangle only"),
+            ]
+        if template == "inverse_rectangle":
+            length, width = g["length"], g["width"]
+            area = length * width
+            return [
+                (Fraction(area, 2) - length, "used the perimeter formula"),
+                (Fraction(2 * area, length), "used the triangle formula (½ × base × height)"),
+                (area - length, "subtracted the length from the area"),
+            ]
+        r = g["r"]
+        pi = pi_value(pi_str_for(r))
+        if template == "semicircle_area":
+            return [
+                (pi * r * r, "the whole circle (forgot to halve)"),
+                (pi * (2 * r) * (2 * r) / 2, "used the diameter as the radius"),
+                (pi * r + 2 * r, "the perimeter, not the area"),
+                (pi * r, "the curved edge, not the area"),
+            ]
+        return [  # semicircle_perimeter
+            (pi * r, "left out the diameter (curved edge only)"),
+            (pi * r + r, "added the radius, not the diameter"),
+            (2 * pi * r, "the circumference of the whole circle"),
+            (pi * r * r / 2, "the area, not the perimeter"),
+        ]
+
     def validate(self, params: dict, solution: dict) -> dict:
         built = _build(params)
         g = params["givens"]

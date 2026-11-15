@@ -32,6 +32,14 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   template has none. A starter paper's student print therefore shows the cover in place of
   the sheet header, and the Preview counts the cover as page 1; its page list names cover,
   blank and rough-work pages.
+- **Better multiple-choice distractors (P8b follow-up)** — a solver may give its own
+  "common wrong answers" (`distractors(params, solution)`: values in the answer's own
+  quantity and unit, each with the reason pupils give it), and every one of the 39 ladder
+  solvers does: forgot to divide, the mean of the two speeds, the capacity of the whole
+  tank, worked left to right, the change instead of the total... The answer key's marking
+  scheme says why each wrong option is tempting. The answer is never left guessable from
+  the options (between two others evenly or by a factor, or the odd one out); money
+  distractors keep their cents and whole wrong answers print without ".0".
 - **Coverage growth (P8e, batch 2: 1-mark content)** — four new ladders, 1 / 2 / 3 marks
   each: `whole_numbers` (P5: order of operations; a remainder to interpret; excess and
   shortage), `decimals` (P5: × / ÷ by a whole number; unit cost; change from shopping),

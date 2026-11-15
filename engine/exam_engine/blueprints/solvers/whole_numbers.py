@@ -14,17 +14,19 @@ excess + shortage is drawn as a multiple of the difference in shares.
 The teacher's ``name`` and the ``item`` noun (hard) are cosmetic (W1a): they appear only in
 the YAML templates, so ``solve()`` never reads them.
 
-The samplers also keep the multiple-choice copy fair (P8b): ``mcq.to_mcq`` offers the worked
-solution's intermediate values as distractors, then a near miss. Each sampler only accepts
-numbers whose would-be distractors are all used (within 1/8 to 8 times the answer), distinct,
-and never sit symmetrically around the answer — so the answer is never given away as the
-middle of three evenly spaced options. This is a sampling preference, not a correctness rule.
+Each rung has a ``distractors`` hook (EXA-122): the wrong answers pupils really give —
+working left to right, ignoring the brackets, giving the remainder or rounding the wrong way,
+forgetting the leftover sweets. The samplers still prefer numbers whose worked-solution
+intermediates would make fair options (written before the hook, when ``mcq.to_mcq`` offered
+those intermediates); that preference is kept so the parameter space and goldens are unchanged,
+and ``mcq.to_mcq``'s own give-away guard now does the rest. Not a correctness rule.
 """
 
 from __future__ import annotations
 
 import random
 from collections.abc import Callable
+from fractions import Fraction
 from itertools import combinations
 
 from ..registry import register
@@ -165,6 +167,42 @@ class WholeNumbersEasySolver:
         inter["answer_value"] = ans
         return {"answer": {"type": "integer", "value": ans, "unit": ""}, "intermediates": inter}
 
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Order-of-operations slips, best first (whole, positive ones survive mcq's filter)."""
+        form = params["form"]
+        a, b, c, d = (Fraction(v) for v in params["nums"])
+        if form == "sub_div_mul":  # a − b ÷ c × d
+            return [
+                ((a - b) / c * d, "worked left to right, ignoring the order of operations"),
+                ((a - b / c) * d, "subtracted before multiplying"),
+                (a - b / (c * d), "multiplied before dividing"),
+                (b / c * d, "forgot to subtract from the first number"),
+            ]
+        if form == "add_mul_bracket":  # a + b × (c − d)
+            return [
+                ((a + b) * (c - d), "added before multiplying"),
+                (a + b * c - d, "ignored the brackets"),
+                ((a + b) * c - d, "ignored the brackets and worked left to right"),
+                (b * (c - d), "forgot to add the first number"),
+            ]
+        if form == "bracket_div_mul":  # (a + b) ÷ c × d
+            return [
+                ((a + b) / (c * d), "multiplied before dividing"),
+                (a + b / c * d, "ignored the brackets"),
+                ((a + b) * c / d, "swapped the division and the multiplication"),
+                ((a + b) / c, "forgot to multiply by the last number"),
+                ((a + b) / c + d, "added the last number instead of multiplying"),
+                ((a + b) * d, "forgot to divide"),
+            ]
+        # a × b − c ÷ d
+        return [
+            ((a * b - c) / d, "worked left to right, ignoring the order of operations"),
+            (a * (b - c) / d, "subtracted before multiplying"),
+            (a * b - c, "forgot to divide"),
+            (a * b + c / d, "added instead of subtracting"),
+            (a * b - d, "subtracted the divisor instead of the quotient"),
+        ]
+
     def validate(self, params: dict, solution: dict) -> dict:
         form, (a, b, c, d) = params["form"], params["nums"]
         ok = _easy_ok(params)
@@ -278,6 +316,25 @@ class WholeNumbersMediumSolver:
             },
         }
 
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Misreading the remainder, best first."""
+        q, r = divmod(params["n"], params["d"])
+        if MEDIUM_CONTEXTS[params["context"]][0] == "up":
+            wrong = [
+                (q, "rounded down, leaving the remainder out"),
+                (r, "gave the remainder"),
+                (q + r, "added the remainder to the quotient"),
+                (params["d"], "gave the size of each group"),
+            ]
+        else:
+            wrong = [
+                (q + 1, "rounded up, although what is left is not enough for one more"),
+                (r, "gave the remainder"),
+                (q + r, "added the remainder to the quotient"),
+                (params["d"], "gave the size of each group"),
+            ]
+        return wrong
+
     def validate(self, params: dict, solution: dict) -> dict:
         context, n, d = params["context"], params["n"], params["d"]
         ans = solution["answer"]["value"]
@@ -351,6 +408,24 @@ class WholeNumbersHardSolver:
                 "answer_value": h["ans"],
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Excess-and-shortage slips, best first."""
+        a, b, left, short = params["a"], params["b"], params["left"], params["short"]
+        k = b - a
+        p = (left + short) // k
+        out: list[tuple[int | Fraction, str]] = [
+            (a * p, "forgot the leftover"),
+            (p, "gave the number of pupils"),
+            (b * p, "added the shortage instead of taking it away"),
+            (left + short, "gave the leftover and the shortage added together"),
+        ]
+        # used the difference of the leftover and the shortage to find the pupils
+        p_wrong = Fraction(abs(left - short), k)
+        if p_wrong:
+            out.append((a * p_wrong + left, "subtracted the shortage from the leftover"))
+        out.append((a * p - short, "took away the shortage instead of adding the leftover"))
+        return out
 
     def validate(self, params: dict, solution: dict) -> dict:
         a, b, left, short = params["a"], params["b"], params["left"], params["short"]

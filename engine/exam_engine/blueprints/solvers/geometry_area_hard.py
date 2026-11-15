@@ -253,6 +253,38 @@ class GeometryAreaHardSolver:
             },
         }
 
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers in the answer's own unit (cm² or cm), best first (EXA-122)."""
+        g, template = params["givens"], params["template"]
+        if template == "square_minus_quarter":
+            s = g["s"]
+            pi = pi_value(pi_str_for(s))
+            return [
+                (pi * s * s / 4, "the quarter circle, not the shaded part"),
+                (s * s - pi * s / 2, "took away the arc length, not the area"),
+                (s * s, "the square only"),
+            ]
+        if template == "rectangle_with_semicircle_ends":
+            L, r = g["L"], g["r"]
+            pi = pi_value(pi_str_for(r))
+            return [
+                (2 * L + pi * r, "counted only one semicircle"),
+                (2 * L + 2 * pi * r + 4 * r, "added the two diameters too"),
+                (L + 2 * pi * r, "counted only one straight side"),
+                (2 * L + 4 * pi * r, "used the diameter as the radius"),
+                (2 * pi * r, "the curved parts only"),
+            ]
+        b, H = g["b"], g["H"]
+        r = b // 2
+        pi = pi_value(pi_str_for(r))
+        tri, semi = Fraction(b * H, 2), pi * r * r / 2
+        return [
+            (b * H + semi, "forgot to halve the triangle"),
+            (tri + pi * r * r, "a whole circle, not a semicircle"),
+            (tri + pi * b * b / 2, "used the diameter as the radius"),
+            (tri, "the triangle only"),
+        ]
+
     def validate(self, params: dict, solution: dict) -> dict:
         built = _build(params)
         g = params["givens"]

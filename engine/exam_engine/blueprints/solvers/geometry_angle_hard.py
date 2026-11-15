@@ -22,6 +22,7 @@ printed key is provably the figure's solution.
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -209,6 +210,33 @@ class GeometryAngleHardSolver:
                 "step2": built["steps"][1],
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong angles (degrees), best first (EXA-122)."""
+        g, template = params["givens"], params["template"]
+        if template == "parallelogram":
+            a, e = g["a"], g["e"]
+            return [
+                (a - e, "took ∠CBE as 180° − ∠DAB"),
+                (180 - a, "found ∠ABC, not ∠BCE"),
+                (a + e, "added the two given angles"),
+                (180 - e, "subtracted only ∠BEC"),
+            ]
+        if template == "rhombus":
+            b = g["b"]
+            return [
+                (180 - b, "forgot to halve"),
+                (Fraction(b, 2), "halved ∠ABC (the diagonal AC does not bisect ∠B)"),
+                (b, "took ∠BAC equal to ∠ABC"),
+                (Fraction(360 - b, 2), "used 360° instead of 180°"),
+            ]
+        a, e = g["a"], g["e"]
+        return [
+            (180 - a, "found ∠DAE, not ∠ADE"),
+            (180 - a - e, "used ∠DAB inside triangle ADE"),
+            (180 - e, "subtracted only ∠AED"),
+            (a + e, "added the two given angles"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         built = _build(params)

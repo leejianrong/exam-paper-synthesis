@@ -18,6 +18,7 @@ construction) — the printed key is provably the figure's solution (no LLM).
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 from .geometry_area_common import AREA_UNIT, _labels, _pt
@@ -158,6 +159,30 @@ class GeometryAreaEasySolver:
                 "step2": built["steps"][1],
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong areas (cm²), best first (EXA-122)."""
+        g, template = params["givens"], params["template"]
+        if template == "rectangle":
+            w, h = g["w"], g["h"]
+            return [
+                (2 * (w + h), "the perimeter, not the area"),
+                (w + h, "added the length and the width"),
+                (Fraction(w * h, 2), "halved, as for a triangle"),
+            ]
+        if template == "square":
+            s = g["s"]
+            return [
+                (4 * s, "the perimeter, not the area"),
+                (2 * s, "side × 2 instead of side × side"),
+                (Fraction(s * s, 2), "halved, as for a triangle"),
+            ]
+        base, height = g["base"], g["height"]
+        return [
+            (base * height, "forgot to halve"),
+            (base + height, "added the base and the height"),
+            (2 * (base + height), "the perimeter of the rectangle around it"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         built = _build(params)

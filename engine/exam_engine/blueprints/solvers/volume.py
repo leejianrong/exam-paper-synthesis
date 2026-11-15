@@ -15,6 +15,7 @@ so the empty depth is drawn as such a multiple. Hard: the answer is an integer p
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 from math import gcd
 
 from ..registry import register
@@ -74,6 +75,16 @@ class VolumeEasySolver:
             },
         }
 
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong volumes (cm³), best first (EXA-122)."""
+        l, w, h = params["length"], params["width"], params["height"]  # noqa: E741
+        return [
+            (l * w, "the area of the base only"),
+            (2 * (l * w + w * h + l * h), "the total area of the faces"),
+            (l + w + h, "added the three edges"),
+            (4 * (l + w + h), "the total length of the edges"),
+        ]
+
     def validate(self, params: dict, solution: dict) -> dict:
         dims = (params["length"], params["width"], params["height"])
         checks = {
@@ -114,6 +125,16 @@ class VolumeMediumSolver:
                 "answer_value": ans,
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (litres), best first (EXA-122)."""
+        l, w, d, e = params["length"], params["width"], params["depth"], params["empty"]  # noqa: E741
+        return [
+            (Fraction(l * w * (d + e), 1000), "the capacity of the whole tank"),
+            (Fraction(l * w * d, 1000), "the water already in the tank"),
+            (Fraction(l * w * e, 100), "divided by 100 instead of 1000"),
+            (l * w * e, "forgot to convert cm³ to litres"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         l, w, d, e = params["length"], params["width"], params["depth"], params["empty"]  # noqa: E741
@@ -160,6 +181,17 @@ class VolumeHardSolver:
                 "answer_value": ans,
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong block volumes (cm³), best first (EXA-122)."""
+        l, w, b, r = params["length"], params["width"], params["before"], params["rise"]  # noqa: E741
+        h = b + r + params["room"]
+        return [
+            (l * w * (b + r), "used the new water level, not the rise"),
+            (l * w * b, "used the water level before"),
+            (l * w * h, "the capacity of the tank"),
+            (l * w, "the area of the base only"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         l, w, b, r = params["length"], params["width"], params["before"], params["rise"]  # noqa: E741

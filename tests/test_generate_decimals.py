@@ -123,7 +123,8 @@ def test_multiple_choice_keeps_the_answers_format(code):
             o["text"] for o in mcq.to_mcq(obj, seed)["question"]["parts"][0]["answer"]["options"]
         ]
         if code == "decimals_easy":
-            assert all(re.fullmatch(r"\d+(\.\d{1,2})?", t) for t in options), options
+            # a decimal-point slip may show 3 dp (1.984 for 19.84), the classic wrong option
+            assert all(re.fullmatch(r"\d+(\.\d{1,3})?", t) for t in options), options
         else:
             assert all(MONEY.fullmatch(t) for t in options), options
 

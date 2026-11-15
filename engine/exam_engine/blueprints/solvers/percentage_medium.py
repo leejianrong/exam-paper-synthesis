@@ -10,6 +10,7 @@ exact integer; ``percent < 100`` keeps a decrease strictly positive.
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -73,6 +74,24 @@ class PercentageMediumSolver:
                 "op": op,
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (EXA-122), in $, best first."""
+        original, p = params["original"], params["percent"]
+        change = Fraction(p * original, 100)
+        up = params["direction"] == "increase"
+        return [
+            (change, f"the {'increase' if up else 'decrease'} only, not the new price"),
+            (
+                original - change if up else original + change,
+                f"{'decreased' if up else 'increased'} the price instead",
+            ),
+            (
+                original + p if up else original - p,
+                f"{'added' if up else 'took away'} ${p}, not {p}%",
+            ),
+            (original, "the original price"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         original = params["original"]
