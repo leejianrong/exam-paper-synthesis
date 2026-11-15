@@ -198,9 +198,9 @@ def distractor_candidates(obj: dict) -> list[tuple[Fraction, str]]:
     if not hooked:
         steps = part.get("solution_steps") or []
         for i in range(len(steps) - 2, -1, -1):  # the latest intermediate first
-            v = _eval(steps[i].get("expr") or "")
-            if v is not None and answer / 8 <= v <= answer * 8:
-                add(v, f"stopped after step {i + 1}")
+            mid = _eval(steps[i].get("expr") or "")
+            if mid is not None and answer / 8 <= mid <= answer * 8:
+                add(mid, f"stopped after step {i + 1}")
     step = max(Fraction(1), Fraction(10) ** (len(str(int(answer))) - 2))
     for v, why in (
         (answer + step, "a near miss"),
