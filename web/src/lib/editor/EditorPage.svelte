@@ -502,7 +502,7 @@
     <button
       class="regen"
       disabled={!!busy}
-      title="Refill every generated question you haven't locked (your own questions are kept)"
+      title="Refill every generated question and empty placeholder you haven't locked, including generated questions you added by hand. Locked questions and your own writing are kept."
       on:click={regenerate}>Regenerate unlocked</button
     >
   {/if}

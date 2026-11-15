@@ -137,6 +137,18 @@ describe('swap and lock in the editor (P8d)', () => {
     expect(calls[0].body).toEqual({ block_id: 'gq3', mode: 'like', base_version: 4 })
   })
 
+  it('a placeholder can also be filled from another topic', async () => {
+    const calls = serve([placeholder('gq3')], () => ({
+      ...record([generated('gq3', 'From elsewhere.')], 5),
+      report: { block_id: 'gq3', mode: 'topic', marks: 3, placeholder: false, topic: 'Volume' },
+    }))
+    await open()
+    const ff = await waitFor(() => document.querySelector('.ffblock') as HTMLElement)
+    await fireEvent.click(within(ff).getByRole('button', { name: 'Another topic' }))
+    expect(await screen.findByText('From elsewhere.')).toBeInTheDocument()
+    expect(calls[0].body).toEqual({ block_id: 'gq3', mode: 'topic', base_version: 4 })
+  })
+
   it('"Regenerate unlocked" shows on a generated paper and applies what the server made', async () => {
     const calls = serve([generated('gq1', 'Before.'), generated('gq2', 'Locked.', { locked: true })], () => ({
       ...record([generated('gq1', 'After.'), generated('gq2', 'Locked.', { locked: true })], 5),
@@ -144,7 +156,9 @@ describe('swap and lock in the editor (P8d)', () => {
     }))
     await open()
     await screen.findByText('Before.')
-    await fireEvent.click(screen.getByRole('button', { name: 'Regenerate unlocked' }))
+    const regen = screen.getByRole('button', { name: 'Regenerate unlocked' })
+    expect(regen.title).toMatch(/Locked questions and your own writing are kept/)
+    await fireEvent.click(regen)
     expect(await screen.findByText('After.')).toBeInTheDocument()
     expect(screen.getByText('Locked.')).toBeInTheDocument()
     expect(calls[0]).toEqual({ url: expect.stringMatching(/\/regenerate$/), body: { base_version: 4 } })

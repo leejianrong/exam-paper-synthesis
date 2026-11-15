@@ -93,6 +93,13 @@ def _check_rules(doc, level, where):
             assert "placeholder" not in slot, where
             if mode == "structured":
                 assert slot.get("stand_in") is True and _marks(n) >= 2, where
+            answers = [p["answer"] for p in n["attrs"]["question"]["question"]["parts"]]
+            if mode == "mcq":  # P8b: an MCQ slot stays multiple choice, 4 options
+                assert len(answers) == 1, where
+                assert answers[0]["type"] == "choice", where
+                assert len(answers[0]["options"]) == 4, where
+            else:
+                assert all(a["type"] != "choice" for a in answers), where
 
 
 def _possible_other_topic(doc, idx, level) -> bool:
@@ -362,3 +369,26 @@ def test_the_paper_level_comes_from_the_cover_or_the_questions():
             except SwapNotPossible:
                 continue
             assert all(META[_code(m)]["level"] == "P5" for m in _blocks(new) if _code(m))
+
+
+@pytest.mark.parametrize("level", LEVELS)
+def test_booklet_a_stays_multiple_choice_through_swaps_and_regenerate(level):
+    """Every swap mode and "regenerate unlocked" on Booklet A: each MCQ-section question is
+    still four-option multiple choice and engine-proven (validate_document re-solves it)."""
+    filled = 0
+    for seed in SEEDS:
+        doc, _ = generate_paper("p1_booklet_a", level, seed)
+        for mode in ("like", "topic"):
+            for n in list(_blocks(doc)):
+                if not _is_q(n):
+                    continue
+                try:
+                    doc, _ = swap_question(doc, n["attrs"]["block_id"], mode, seed)
+                except SwapNotPossible:
+                    continue
+                filled += 1
+        _check_rules(doc, level, f"booklet A {level} seed={seed} swaps")
+        new, _ = regenerate_unlocked(doc, level, seed)
+        _check_rules(new, level, f"booklet A {level} seed={seed} regenerate")
+        assert any(n["type"] == "templatedQuestion" for n in _blocks(new))
+    assert filled > len(SEEDS)  # swaps really happened (and placeholders were filled)

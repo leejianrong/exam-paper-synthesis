@@ -176,9 +176,15 @@ in generation (the engine stays deterministic).
   `base_version` only (409 otherwise, like PUT), seed chosen at the boundary, `created_at`
   stamped on new snapshots, re-validated, saved, and returned like GET plus the `report`.
 - Web: generated questions show "Another like this", "Another topic", "Write my own" and a
-  Lock toggle (swaps disabled while locked); a placeholder shows "Fill with a question" and
-  Lock; "Regenerate unlocked" sits in the top bar when the paper has generated positions.
+  Lock toggle (swaps disabled while locked); a placeholder shows "Fill with a question",
+  "Another topic" and Lock; "Regenerate unlocked" sits in the top bar when the paper has generated positions.
   The editor saves pending edits first, is read-only while the server works, then replaces
   only the blocks that changed (one undo step) and rebases autosave on the server's version.
-- Not done: "Another topic" on a placeholder (it is the same as filling it); a preview of the
-  candidate before swapping.
+- Multiple choice (P8b): candidates are `paper._fits` for the slot's kind, so an `mcq` slot only
+  takes convertible blueprints, and a swapped or refilled Booklet A question is converted with
+  `mcq.to_mcq` exactly as the generator does — it stays four-option multiple choice and
+  engine-proven (pinned by `test_booklet_a_stays_multiple_choice_through_swaps_and_regenerate`).
+- A placeholder offers "Another topic" too (fills it from a topic the paper lacks).
+  "Regenerate unlocked" also refills generated questions added by hand; its tooltip says
+  locked questions and the teacher's own writing are kept.
+- Not done: a preview of the candidate before swapping.

@@ -56,7 +56,8 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 - **Keep / swap / lock (P8d)** — per-question actions on a generated paper: "Another like
   this" (same slot and marks, same topic: a sibling blueprint or a new seed), "Another
   topic" (same marks, a topic the paper uses less), "Write my own" (an empty placeholder
-  keeping the slot's marks), "Fill with a question" on a placeholder, a lock toggle, and
+  keeping the slot's marks), "Fill with a question" / "Another topic" on a placeholder, a
+  lock toggle (Booklet A questions stay multiple choice through swaps), and
   "Regenerate unlocked" in the editor's top bar, which refills every unlocked generated
   question and empty placeholder and never touches locked questions, bank questions or
   anything the teacher wrote. Pure engine transforms (`paper_swap.swap_question`,

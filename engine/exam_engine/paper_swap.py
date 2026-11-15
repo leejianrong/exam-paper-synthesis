@@ -13,7 +13,7 @@ document → document transforms. They keep every P8a rule (``paper.generate_pap
   marks, else a new seed of the same blueprint (a placeholder takes any unused blueprint that
   fits, least-used topic first — it is *filled*);
 - ``topic`` — an unused blueprint with the same marks from another topic, preferring topics
-  the paper doesn't use yet;
+  the paper doesn't use yet (on a placeholder: fills it from a topic the paper lacks);
 - ``own``   — a free-form placeholder with the slot's marks and an empty body, for the
   teacher to write.
 
@@ -21,6 +21,9 @@ document → document transforms. They keep every P8a rule (``paper.generate_pap
 still-empty placeholder whose ``locked`` is not true. Locked questions, bank (sourced)
 questions and anything the teacher wrote — free-form questions, placeholders with something
 in them — are kept exactly as they are.
+
+Candidates are ``paper._fits`` for the slot's kind, so an ``mcq`` slot only takes blueprints
+``mcq.to_mcq`` can convert, and its new question is converted like the generator's (P8b).
 
 Pure and deterministic: the API chooses the seed and stamps ``created_at``.
 """
@@ -31,6 +34,7 @@ import copy
 import random
 
 from .document import QUESTION_TYPES
+from .mcq import to_mcq
 from .paper import KINDS, LEVELS, Candidate, _fits, _has_content, candidates
 from .pipeline import generate
 
@@ -199,13 +203,17 @@ def _new_slot(node: dict, slot: dict) -> dict | None:
     return _filled_slot(slot)
 
 
-def _fresh(code: str, rng: random.Random, avoid: dict | None = None) -> dict:
-    """A question from ``code``; with ``avoid``, one whose parameters differ from it."""
+def _fresh(code: str, kind: str, rng: random.Random, avoid: dict | None = None) -> dict:
+    """A question from ``code`` for a slot of ``kind`` (multiple choice for an ``mcq`` slot,
+    converted exactly as ``paper._Filler.question`` does); with ``avoid``, one whose
+    parameters differ from it."""
     obj = generate(code, rng.randrange(1, 2**31))
     for _ in range(_RESEED_TRIES):
         if avoid is None or obj.get("parameters") != avoid.get("parameters"):
             break
         obj = generate(code, rng.randrange(1, 2**31))
+    if kind == "mcq":
+        obj = to_mcq(obj, rng.randrange(1, 2**31))
     return obj
 
 
@@ -285,7 +293,7 @@ def swap_question(
             "(each question is used once per paper)."
         )
     avoid = node["attrs"]["question"] if choice.code == current else None
-    obj = _fresh(choice.code, rng, avoid)
+    obj = _fresh(choice.code, slot["kind"], rng, avoid)
     blocks[idx] = _question_block(node, obj, _new_slot(node, slot))
     return out, {**report, **_describe(choice), "placeholder": False}
 
@@ -326,6 +334,8 @@ def regenerate_unlocked(doc: dict, level: str | None, seed: int) -> tuple[dict, 
             continue
         paper.take(c)
         avoid = node["attrs"]["question"] if _blueprint(node) == c.code else None
-        blocks[i] = _question_block(node, _fresh(c.code, rng, avoid), _new_slot(node, slot))
+        blocks[i] = _question_block(
+            node, _fresh(c.code, slot["kind"], rng, avoid), _new_slot(node, slot)
+        )
         report["replaced"] += 1
     return out, report

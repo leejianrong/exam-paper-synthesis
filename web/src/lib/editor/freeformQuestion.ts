@@ -174,16 +174,20 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       const totalEl = el('span', 'ff-total')
       const addPartBtn = button('+ Add part', () => addPart(), '', 'Add a lettered part')
       // P8d: a generated placeholder can be filled by the generator, and locked.
-      const fillBtn = button('Fill with a question', () => {
-        fillBtn.disabled = true
-        void options.onSwap(String(current.attrs.block_id), 'like').finally(() => (fillBtn.disabled = false))
-      })
+      const fill = (mode: SwapMode, b: () => HTMLButtonElement) => () => {
+        b().disabled = true
+        void options.onSwap(String(current.attrs.block_id), mode).finally(() => (b().disabled = false))
+      }
+      const fillBtn = button('Fill with a question', fill('like', () => fillBtn))
       fillBtn.title = 'Let the generator put a question with these marks here'
+      const topicBtn = button('Another topic', fill('topic', () => topicBtn))
+      topicBtn.title = 'Fill it with a question from a topic this paper uses less'
       const lockBtn = button('Lock', () => setLayout({ locked: current.attrs.locked !== true }), 'ff-lock')
       bar.append(
         label,
         totalEl,
         fillBtn,
+        topicBtn,
         lockBtn,
         spacer,
         button('↑', () => moveBlock(editor, pos(), current.nodeSize, -1), '', 'Move up'),
@@ -278,8 +282,10 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         const waiting = !!slot?.placeholder && !hasContent(current.toJSON().content)
         hint.hidden = !waiting
         const locked = current.attrs.locked === true
-        fillBtn.hidden = !waiting
-        fillBtn.disabled = locked
+        for (const b of [fillBtn, topicBtn]) {
+          b.hidden = !waiting
+          b.disabled = locked
+        }
         lockBtn.hidden = !slot
         lockBtn.textContent = locked ? 'Locked' : 'Lock'
         lockBtn.setAttribute('aria-pressed', String(locked))
