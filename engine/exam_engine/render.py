@@ -84,9 +84,9 @@ _WEIGHTS = ((400, "normal"), (400, "italic"), (600, "normal"), (700, "normal"))
 # The one typeface, face by face: (weight, style, file, unicode-range). Each weight/style is
 # Inter's latin subset plus one-glyph faces cut from Inter's own other subsets for the symbols
 # a paper prints outside latin: the litre sign ℓ (latin-ext) and π (greek). The angle and
-# parallel signs ∠ ∥ are in no Inter subset; they are maths symbols, so they come from KaTeX_Main (the maths face the
-# project already embeds). All are declared as family "Inter", so no glyph ever falls back to
-# a font the host happens to have (EXA-94, EXA-130).
+# parallel signs ∠ ∥ are in no Inter subset; they are maths symbols, so they come from
+# KaTeX_Main (the maths face the project already embeds). All are declared as family "Inter",
+# so no glyph ever falls back to a font the host happens to have (EXA-94, EXA-130).
 FONT_FACES: tuple[tuple[int, str, str, str], ...] = tuple(
     face
     for weight, style in _WEIGHTS
