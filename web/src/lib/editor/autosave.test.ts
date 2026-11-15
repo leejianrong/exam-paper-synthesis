@@ -114,4 +114,53 @@ describe('autosaver', () => {
     await vi.advanceTimersByTimeAsync(10)
     expect(save).toHaveBeenCalledWith(doc('a'), 9)
   })
+
+  it('rebase drops a change scheduled before it: the old document is never saved over the new', async () => {
+    const save = vi.fn().mockResolvedValue({ version: 10 })
+    const a = createAutosaver({ save, initialVersion: 4, delayMs: 1000 })
+    a.schedule(doc('pre-swap copy'))
+    a.rebase(9)
+    expect(get(a.status)).toBe('saved')
+    await vi.advanceTimersByTimeAsync(5000)
+    await a.flush()
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('rebase ignores a save that was in flight across it, and clears the conflict it met', async () => {
+    let reject: (e: unknown) => void = () => {}
+    const save = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise((_, rej) => (reject = rej)))
+      .mockResolvedValue({ version: 11 })
+    const a = createAutosaver({ save, initialVersion: 4, delayMs: 10 })
+    a.schedule(doc('racing'))
+    await vi.advanceTimersByTimeAsync(10)
+    a.rebase(9)
+    reject(new ApiError(409, 'changed'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(get(a.status)).toBe('saved')
+    expect(a.version()).toBe(9)
+    // still saving afterwards, on the server's version
+    a.schedule(doc('next'))
+    await vi.advanceTimersByTimeAsync(10)
+    expect(save).toHaveBeenLastCalledWith(doc('next'), 9)
+    expect(a.version()).toBe(11)
+  })
+
+  it('rebase lifts a conflict, but never revives a disposed saver', async () => {
+    const save = vi.fn().mockRejectedValueOnce(new ApiError(409, 'x')).mockResolvedValue({ version: 6 })
+    const a = createAutosaver({ save, initialVersion: 4, delayMs: 10 })
+    a.schedule(doc('a'))
+    await vi.advanceTimersByTimeAsync(10)
+    expect(get(a.status)).toBe('conflict')
+    a.rebase(5)
+    a.schedule(doc('b'))
+    await vi.advanceTimersByTimeAsync(10)
+    expect(save).toHaveBeenLastCalledWith(doc('b'), 5)
+    a.dispose()
+    a.rebase(7)
+    a.schedule(doc('c'))
+    await vi.advanceTimersByTimeAsync(10)
+    expect(save).toHaveBeenCalledTimes(2)
+  })
 })

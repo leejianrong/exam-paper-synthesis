@@ -392,3 +392,23 @@ def test_booklet_a_stays_multiple_choice_through_swaps_and_regenerate(level):
         _check_rules(new, level, f"booklet A {level} seed={seed} regenerate")
         assert any(n["type"] == "templatedQuestion" for n in _blocks(new))
     assert filled > len(SEEDS)  # swaps really happened (and placeholders were filled)
+
+
+def test_a_bank_question_is_never_swapped():
+    doc, _ = generate_paper("p2", "P6", 4)
+    q = _first(doc, lambda n: n["type"] == "templatedQuestion")
+    q["attrs"]["question"]["source_type"] = "sourced"  # stands for a bank question
+    for mode in ("like", "topic", "own"):
+        with pytest.raises(SwapNotPossible, match="bank"):
+            swap_question(doc, q["attrs"]["block_id"], mode, 1)
+
+
+def test_the_cover_level_wins_over_the_requested_one():
+    p5, _ = generate_paper("p2", "P5", 2)
+    assert paper_level(p5, "P6") == "P5"
+    new, _ = regenerate_unlocked(p5, "P6", 3)
+    assert all(META[_code(n)]["level"] == "P5" for n in _blocks(new) if _code(n))
+    p5["content"]["content"] = p5["content"]["content"][1:]  # no cover: the request decides
+    assert paper_level(p5, "P6") == "P6"
+    with pytest.raises(ValueError):
+        paper_level(p5, "P4")

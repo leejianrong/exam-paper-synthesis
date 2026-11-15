@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte'
 import EditorPage from './EditorPage.svelte'
 import { cleanNode } from './doc'
-import { makeQuestion } from './fixtures'
+import { makeBankQuestion, makeQuestion } from './fixtures'
 import { hasGeneratedSlots, regenerateNotice, swapNotice } from './paperOps'
 
 const fetchMock = vi.fn()
@@ -122,14 +122,16 @@ describe('swap and lock in the editor (P8d)', () => {
     expect(screen.getByText('Only one.')).toBeInTheDocument()
   })
 
-  it('a placeholder can be filled and locked; hand-added questions get no paper tools', async () => {
+  it('a placeholder can be filled and locked; a hand-added generated question gets the tools too', async () => {
     const calls = serve([placeholder('gq3'), { type: 'templatedQuestion', attrs: { block_id: 'mine1', question: makeQuestion({}, 'Hand added.') } }], () => ({
       ...record([generated('gq3', 'Filled in.'), { type: 'templatedQuestion', attrs: { block_id: 'mine1', question: makeQuestion({}, 'Hand added.') } }], 5),
       report: { block_id: 'gq3', mode: 'like', marks: 3, placeholder: false, topic: 'Ratio' },
     }))
     await open()
     const hand = (await screen.findByText('Hand added.')).closest('[data-testid="question-block"]') as HTMLElement
-    expect(within(hand).queryByRole('button', { name: 'Another like this' })).toBeNull()
+    // "Regenerate unlocked" refills it, so it can be locked (and swapped) like a slotted one
+    expect(within(hand).getByRole('button', { name: 'Another like this' })).toBeInTheDocument()
+    expect(within(hand).getByRole('button', { name: 'Lock' })).toBeInTheDocument()
     const ff = document.querySelector('.ffblock') as HTMLElement
     expect(within(ff).getByRole('button', { name: 'Lock' })).toBeVisible()
     await fireEvent.click(within(ff).getByRole('button', { name: 'Fill with a question' }))
@@ -165,10 +167,78 @@ describe('swap and lock in the editor (P8d)', () => {
     expect(screen.getByText(/Regenerated 1 question; kept 1/)).toBeInTheDocument()
   })
 
-  it('no "Regenerate unlocked" on a hand-made paper', async () => {
-    serve([{ type: 'templatedQuestion', attrs: { block_id: 'mine1', question: makeQuestion({}, 'Mine.') } }], () => ({}))
+  it('bank questions get no paper tools, and a paper of only those no "Regenerate unlocked"', async () => {
+    serve([{ type: 'templatedQuestion', attrs: { block_id: 'bank1', question: makeBankQuestion() } }], () => ({}))
     await open()
-    await screen.findByText('Mine.')
+    const block = await waitFor(() => screen.getByTestId('question-block'))
+    expect(within(block).queryByRole('button', { name: 'Another like this' })).toBeNull()
+    expect(within(block).queryByRole('button', { name: 'Lock' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Regenerate unlocked' })).toBeNull()
+  })
+
+  it('an edit made while a swap is out never puts the old question back, and is saved after it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let answer: (v: unknown) => void = () => {}
+      const puts: Array<{ base: number; doc: { title: string; content: { content: Array<{ attrs: Record<string, unknown> }> } } }> = []
+      const initial = [generated('gq1', 'Old question.'), generated('gq2', 'Other question.')]
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+        const u = String(url)
+        if (u.endsWith('/swap')) return new Promise((r) => (answer = r))
+        if (init?.method === 'PUT') {
+          const body = JSON.parse(String(init.body))
+          puts.push({ base: body.base_version, doc: body.document })
+          return ok(record(body.document.content.content, body.base_version + 1))
+        }
+        return ok(record(initial))
+      })
+      await open()
+      const old = (await screen.findByText('Old question.')).closest('[data-testid="question-block"]') as HTMLElement
+      const other = screen.getByText('Other question.').closest('[data-testid="question-block"]') as HTMLElement
+      await fireEvent.click(within(old).getByRole('button', { name: 'Another like this' }))
+      // The page is inert, but say a change gets through anyway: a lock on another question.
+      await fireEvent.click(within(other).getByRole('button', { name: 'Lock' }))
+      await vi.advanceTimersByTimeAsync(3000) // well past the autosave debounce
+      expect(puts).toHaveLength(0) // nothing races the swap
+      answer(
+        ok({
+          ...record([generated('gq1', 'New question.'), generated('gq2', 'Other question.')], 5),
+          report: { block_id: 'gq1', mode: 'like', marks: 3, placeholder: false, topic: 'Ratio' },
+        }),
+      )
+      expect(await screen.findByText('New question.')).toBeInTheDocument()
+      await vi.advanceTimersByTimeAsync(3000)
+      // one save, on the server's version, with the new question and the lock kept
+      expect(puts).toHaveLength(1)
+      expect(puts[0].base).toBe(5)
+      const saved = puts[0].doc.content.content
+      expect(JSON.stringify(saved)).toContain('New question.')
+      expect(JSON.stringify(saved)).not.toContain('Old question.')
+      expect(saved.find((n) => n.attrs?.block_id === 'gq2')?.attrs.locked).toBe(true)
+      expect(within(other).getByRole('button', { name: 'Locked' })).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // jsdom has no `inert` behaviour; Svelte sets it as the property or the attribute.
+  const isInert = (sel: string) => {
+    const el = document.querySelector(sel) as (HTMLElement & { inert?: boolean }) | null
+    return !!el && (el.inert === true || el.hasAttribute('inert'))
+  }
+
+  it('the page is inert while the server works', async () => {
+    let answer: (v: unknown) => void = () => {}
+    fetchMock.mockImplementation(async (url: string) =>
+      String(url).endsWith('/regenerate') ? new Promise((r) => (answer = r)) : ok(record([generated('gq1', 'Q.')])),
+    )
+    await open()
+    await screen.findByText('Q.')
+    await fireEvent.click(screen.getByRole('button', { name: 'Regenerate unlocked' }))
+    await waitFor(() => expect(isInert('.desk')).toBe(true))
+    expect(isInert('.bar')).toBe(true)
+    answer(ok({ ...record([generated('gq1', 'Q2.')], 5), report: { replaced: 1, kept: 0, placeholders: 0 } }))
+    await screen.findByText('Q2.')
+    expect(isInert('.desk')).toBe(false)
   })
 })

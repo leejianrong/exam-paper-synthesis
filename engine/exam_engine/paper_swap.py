@@ -49,19 +49,33 @@ class SwapNotPossible(ValueError):
     """The requested swap can't be made (the message says why, for the teacher)."""
 
 
+class BlockNotFound(KeyError):
+    """No question block with that id in the paper."""
+
+
 # ---------------------------------------------------------------------------
 # Reading the paper
 # ---------------------------------------------------------------------------
 
 
-def paper_level(doc: dict) -> str:
-    """The paper's level: the cover page's ("Primary 6"), else the highest level of its
-    generated questions, else P6."""
+def cover_level(doc: dict) -> str | None:
+    """The level the paper's cover page states ("Primary 6" -> P6), if it has one."""
     blocks = doc["content"]["content"]
     if blocks and blocks[0]["type"] == "coverPage":
         name = str((blocks[0].get("attrs") or {}).get("level") or "").strip().lower()
-        if name in _LEVEL_BY_NAME:
-            return _LEVEL_BY_NAME[name]
+        return _LEVEL_BY_NAME.get(name)
+    return None
+
+
+def paper_level(doc: dict, requested: str | None = None) -> str:
+    """The level to fill for: the cover page's ("Primary 6") when the paper states one, else
+    ``requested``, else the highest level of its generated questions, else P6."""
+    stated = cover_level(doc) or requested
+    if stated:
+        if stated not in LEVELS:
+            raise ValueError(f"level must be one of {LEVELS}, not {stated!r}")
+        return stated
+    blocks = doc["content"]["content"]
     seen = [
         n["attrs"]["question"].get("syllabus", {}).get("level")
         for n in blocks
@@ -232,12 +246,11 @@ def swap_question(
     """Replace the question ``block_id`` (see the module docstring). Returns ``(document,
     report)``; ``doc`` itself is not changed. Raises ``SwapNotPossible`` with a message for
     the teacher when the paper's rules leave nothing to swap in, and ``KeyError`` when no
-    question has that id."""
+    question has that id (``BlockNotFound``). Bank (sourced) questions and teacher-written
+    free-form questions are never swapped."""
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}, not {mode!r}")
-    level = level or paper_level(doc)
-    if level not in LEVELS:
-        raise ValueError(f"level must be one of {LEVELS}, not {level!r}")
+    level = paper_level(doc, level)
     out = copy.deepcopy(doc)
     blocks = out["content"]["content"]
     idx = next(
@@ -249,10 +262,14 @@ def swap_question(
         None,
     )
     if idx is None:
-        raise KeyError(block_id)
+        raise BlockNotFound(block_id)
     node = blocks[idx]
     if node["attrs"].get("locked"):
         raise SwapNotPossible("This question is locked. Unlock it to swap it.")
+    if node["type"] == "templatedQuestion" and not _is_generated(node):
+        raise SwapNotPossible(
+            "A question from your bank is kept as it is; delete it to replace it."
+        )
     if node["type"] == "freeformQuestion":
         if not _is_placeholder(node):
             raise SwapNotPossible("Only generated questions and placeholders can be swapped.")
@@ -312,9 +329,7 @@ def _refillable(node: dict) -> bool:
 def regenerate_unlocked(doc: dict, level: str | None, seed: int) -> tuple[dict, dict]:
     """Refill every unlocked generated question and empty placeholder (see the module
     docstring). Returns ``(document, report)``; ``doc`` itself is not changed."""
-    level = level or paper_level(doc)
-    if level not in LEVELS:
-        raise ValueError(f"level must be one of {LEVELS}, not {level!r}")
+    level = paper_level(doc, level)
     out = copy.deepcopy(doc)
     blocks = out["content"]["content"]
     modes = _section_modes(blocks)

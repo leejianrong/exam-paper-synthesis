@@ -111,10 +111,19 @@
     scheduleSave()
   }
 
-  let applyingServer = false // the server already saved what is being applied (P8d)
+  // P8d: while the server swaps or regenerates, nothing is saved (a save would race the op,
+  // or put the pre-op document back afterwards); a change made meanwhile is remembered and
+  // saved on top of the server's version once it is in.
+  let opInFlight = false
+  let editedDuringOp = false
+  let applyingServer = false // the server already saved what is being applied
 
   function scheduleSave() {
     if (!editor || !autosaver || applyingServer) return
+    if (opInFlight) {
+      editedDuringOp = true
+      return
+    }
     autosaver.schedule(buildDocument(title, editor.getJSON() as DocJSON, $paperSettings))
   }
 
@@ -357,8 +366,10 @@
   }
 
   /** P8d: a server-side change to the saved paper (swap, regenerate). Pending edits are saved
-   *  first, the server works on exactly that version, and the editor takes the blocks that
-   *  changed — one undoable step. The page stays read-only meanwhile so nothing typed is lost. */
+   *  first and the server works on exactly that version. The page is inert meanwhile; if
+   *  anything changes anyway it isn't saved until the op is done, then it is saved on top of
+   *  the server's version. The editor takes only the blocks the server changed (compared with
+   *  the paper as it was sent), one undoable step. */
   async function paperOp<R>(
     run: (baseVersion: number) => Promise<DocumentRecord & { report: R }>,
     describe: (report: R) => string,
@@ -367,7 +378,12 @@
     if (!ed || !autosaver || busy) return
     busy = 'paper'
     actionError = ''
+    opInFlight = true
+    editedDuringOp = false
     ed.setEditable(false, false)
+    // What the server will work on: every change up to now is saved by the flush below, and
+    // nothing after this point is (opInFlight).
+    const sent = ed.getJSON() as DocJSON
     try {
       await autosaver.flush()
       if (status === 'conflict') return
@@ -375,7 +391,7 @@
       const rec = await run(autosaver.version())
       applyingServer = true
       try {
-        applyServerContent(ed, rec.document.content)
+        applyServerContent(ed, sent, rec.document.content)
       } finally {
         applyingServer = false
       }
@@ -392,8 +408,10 @@
               ? e.message
               : String(e)
     } finally {
+      opInFlight = false
       ed.setEditable(true, false)
       busy = ''
+      if (editedDuringOp) scheduleSave()
     }
   }
 
@@ -440,7 +458,7 @@
 
 <svelte:window on:beforeunload={onBeforeUnload} />
 
-<div class="bar" bind:clientHeight={barH}>
+<div class="bar" bind:clientHeight={barH} inert={busy === 'paper'}>
   <a class="back" href="#/">← Papers</a>
   <span class="chip {status}" role="status" aria-live="polite">{statusLabel}</span>
   <span class="total">{marks} marks</span>
@@ -541,7 +559,13 @@
   <p class="banner err" role="alert">{loadError} <a href="#/">Back to papers</a></p>
 {/if}
 
-<div class="desk" class:hidden={loading || !!loadError} style="--bar-h:{barH}px">
+<div
+  class="desk"
+  class:hidden={loading || !!loadError}
+  style="--bar-h:{barH}px"
+  inert={busy === 'paper'}
+  aria-busy={busy === 'paper'}
+>
 <div class="main">
   <div class="toolstrip">
   <!-- Clicking a tool must not take focus from the page (like Word/Docs): the editor keeps its

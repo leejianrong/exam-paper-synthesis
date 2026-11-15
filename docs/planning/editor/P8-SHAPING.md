@@ -161,30 +161,38 @@ in generation (the engine stays deterministic).
     which belonged to the old answer.
   - A question without a `slot` (added by hand) is swapped by its marks and its section's mode,
     and stays slot-less. Refused, with a message for the teacher (`SwapNotPossible` → 422): a
-    locked question, a free-form question that isn't a placeholder, a placeholder the teacher
+    locked question, a bank (sourced) question, a free-form question that isn't a placeholder, a placeholder the teacher
     has started writing, `own` on a placeholder, and any swap the content can't make without
     repeating a blueprint.
   - `regenerate_unlocked(doc, level, seed)` refills unlocked *generated* questions and *empty*
     placeholders, least-used topic first, never repeating a blueprint the kept blocks use. It
     never touches locked questions, bank (sourced) questions, free-form questions or
     placeholders with anything written in them. A slot nothing fits becomes a placeholder.
-  - The level is the request's, else the cover page's ("Primary 6"), else the highest level of
-    the paper's questions, else P6.
+  - The level is the cover page's ("Primary 6") when the paper states one, else the request's,
+    else the highest level of the paper's questions, else P6. Only a missing block is a 404
+    (`BlockNotFound`); other engine errors surface as errors.
 - `locked` (boolean, only `true` stored) on both question kinds: document schema 1.11.0.
 - `POST /documents/{id}/swap {block_id, mode, base_version}` and
   `POST /documents/{id}/regenerate {base_version}`: owner-scoped (foreign = 404), computed on
   `base_version` only (409 otherwise, like PUT), seed chosen at the boundary, `created_at`
   stamped on new snapshots, re-validated, saved, and returned like GET plus the `report`.
-- Web: generated questions show "Another like this", "Another topic", "Write my own" and a
-  Lock toggle (swaps disabled while locked); a placeholder shows "Fill with a question",
-  "Another topic" and Lock; "Regenerate unlocked" sits in the top bar when the paper has generated positions.
-  The editor saves pending edits first, is read-only while the server works, then replaces
-  only the blocks that changed (one undo step) and rebases autosave on the server's version.
+- Web: every generated question (with or without a slot — "Regenerate unlocked" refills both)
+  shows "Another like this", "Another topic", "Write my own" and a Lock toggle (swaps disabled
+  while locked); a bank question shows none. A placeholder shows "Fill with a question",
+  "Another topic" and Lock; "Regenerate unlocked" sits in the top bar when the paper has
+  anything it would refill.
+- No lost updates around an op: the editor saves pending edits first and snapshots what the
+  server will work on; the page is `inert` while the request is out, and any change that gets
+  through anyway is not saved until the op is done (then saved on the server's version).
+  Autosave `rebase(version)` drops any snapshot scheduled before it, ignores a save in flight
+  across it and lifts a conflict. The editor replaces only the question blocks the server
+  changed (matched by block id against the snapshot, one undo step), so a change made
+  meanwhile elsewhere survives.
 - Multiple choice (P8b): candidates are `paper._fits` for the slot's kind, so an `mcq` slot only
   takes convertible blueprints, and a swapped or refilled Booklet A question is converted with
   `mcq.to_mcq` exactly as the generator does — it stays four-option multiple choice and
   engine-proven (pinned by `test_booklet_a_stays_multiple_choice_through_swaps_and_regenerate`).
 - A placeholder offers "Another topic" too (fills it from a topic the paper lacks).
-  "Regenerate unlocked" also refills generated questions added by hand; its tooltip says
-  locked questions and the teacher's own writing are kept.
+  "Regenerate unlocked" also refills generated questions added by hand (so they show Lock too);
+  its tooltip says locked questions and the teacher's own writing are kept.
 - Not done: a preview of the candidate before swapping.

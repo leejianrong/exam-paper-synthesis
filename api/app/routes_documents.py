@@ -171,7 +171,7 @@ def swap_question(doc_id: str, req: SwapQuestionRequest, owner: Owner, store: St
     def change(document: dict) -> tuple[dict, dict]:
         try:
             return paper_swap.swap_question(document, req.block_id, req.mode, seed, req.level)
-        except KeyError:
+        except paper_swap.BlockNotFound:
             raise HTTPException(status_code=404, detail="question not found") from None
         except paper_swap.SwapNotPossible as e:
             raise HTTPException(status_code=422, detail=str(e)) from None

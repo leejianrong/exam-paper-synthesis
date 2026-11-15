@@ -11,6 +11,7 @@ import type { Question } from '../types'
 import QuestionBlock from './QuestionBlock.svelte'
 import { freeformNode, newBlockId } from './doc'
 import type { SwapMode } from './docsApi'
+import { isGeneratedPosition } from './paperOps'
 import { layoutOf, type BlockLayout } from './layout'
 
 export interface TemplatedQuestionOptions {
@@ -165,7 +166,12 @@ export interface PaperSlot {
 }
 
 export function slotOf(attrs: Record<string, unknown>): PaperSlot {
-  return { generated: !!attrs.slot, locked: attrs.locked === true }
+  // Any generated question, slot or not: "Regenerate unlocked" refills it, so it can be
+  // locked (and swapped) too. A bank question is never touched, so it gets neither.
+  return {
+    generated: isGeneratedPosition({ type: 'templatedQuestion', attrs }),
+    locked: attrs.locked === true,
+  }
 }
 
 /** Swap a block with its previous/next sibling. */

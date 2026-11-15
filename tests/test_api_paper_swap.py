@@ -147,3 +147,17 @@ def test_regenerate_keeps_locked_questions():
     for n in locked:
         assert after[n["attrs"]["block_id"]] == n
     assert [s["marks"] for s in paper_outline(out["document"])] == [10, 45]
+
+
+def test_only_a_missing_block_is_a_404(monkeypatch):
+    from exam_engine import paper_swap
+
+    rec = _paper()
+    q = _questions(rec)[0]
+
+    def boom(*a, **k):
+        raise KeyError("an engine bug, not a missing block")
+
+    monkeypatch.setattr(paper_swap, "swap_question", boom)
+    with pytest.raises(KeyError):
+        _swap(rec, q["attrs"]["block_id"], "like")

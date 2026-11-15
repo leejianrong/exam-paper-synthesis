@@ -25,7 +25,10 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   await first.getByRole('button', { name: 'Lock' }).click()
   await expect(first.getByRole('button', { name: 'Locked' })).toHaveAttribute('aria-pressed', 'true')
   await expect(first.getByRole('button', { name: 'Another topic' })).toBeDisabled()
-  const lockedText = await first.locator('.main').first().innerText()
+  // The question itself (its stem), compared as text content: innerText would also carry the
+  // block's form controls (working-space and unit menus) laid out line by line.
+  const stemOf = (block) => block.locator('.qbody')
+  const lockedStem = await stemOf(first).textContent()
 
   // Question 2: "Write my own" leaves a 2-mark placeholder; the section stays at 10 marks.
   const second = blocks.nth(1)
@@ -37,18 +40,22 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
 
   // Question 3 (now the second generated block): another topic, same marks.
   const third = blocks.nth(1)
-  const before = await third.innerText()
+  const before = await stemOf(third).textContent()
   await third.hover()
   await third.getByRole('button', { name: 'Another topic' }).click()
   await expect(page.getByText(/Swapped in a 2-mark/)).toBeVisible()
-  await expect(third).not.toHaveText(before)
+  await expect(stemOf(third)).not.toHaveText(before ?? '')
   await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
 
   // Regenerate: the locked question stays, the placeholder is filled, targets hold.
+  const api = async () => (await page.request.get(`http://localhost:8000/documents/${id}`)).json()
+  const lockedBlock = (doc) => doc.document.content.content.filter((n) => n.attrs && n.attrs.locked === true)
+  const lockedBefore = lockedBlock(await api())
+  expect(lockedBefore).toHaveLength(1)
   await page.getByRole('button', { name: 'Regenerate unlocked' }).click()
   await expect(page.getByText(/Regenerated 18 questions; kept 1/)).toBeVisible()
   await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
-  await expect(blocks.nth(0).locator('.main').first()).toHaveText(lockedText)
+  await expect(stemOf(blocks.nth(0))).toHaveText(lockedStem ?? '')
   await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
   await expect(page.locator('.section-block').nth(1).locator('.section-summary')).toHaveText(
     'Questions 6–19 · 45 / 45 marks',
@@ -57,7 +64,8 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   // What the server stored is what the editor shows (the lock survives a reload).
   await page.reload()
   await expect(page.getByTestId('question-block').nth(0).getByRole('button', { name: 'Locked' })).toHaveCount(1)
-  const stored = await (await page.request.get(`http://localhost:8000/documents/${id}`)).json()
-  const locked = stored.document.content.content.filter((n) => n.attrs && n.attrs.locked === true)
-  expect(locked).toHaveLength(1)
+  const lockedAfter = lockedBlock(await api())
+  expect(lockedAfter).toHaveLength(1)
+  expect(lockedAfter[0].attrs.question.id).toBe(lockedBefore[0].attrs.question.id)
+  expect(lockedAfter[0].attrs.question.question).toEqual(lockedBefore[0].attrs.question.question)
 })
