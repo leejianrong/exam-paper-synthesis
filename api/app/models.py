@@ -41,6 +41,8 @@ class CreateDocumentRequest(BaseModel):
     title: str | None = None
     # P8a: start from a paper template (its sections and time, no questions).
     template: str | None = None
+    # O2: file the new paper in one of the caller's folders (404 if foreign or unknown).
+    folder_id: str | None = None
 
 
 class GeneratePaperRequest(BaseModel):
@@ -49,6 +51,7 @@ class GeneratePaperRequest(BaseModel):
     template: str
     level: Literal["P5", "P6"] = "P6"
     seed: int | None = Field(default=None, ge=1, lt=2**31)
+    folder_id: str | None = None  # O2
 
 
 class SwapQuestionRequest(BaseModel):
@@ -97,3 +100,15 @@ class BankReviewRequest(BaseModel):
 class BankImportRequest(BaseModel):
     objects: list[Any]  # per-item validation happens in the route, so one bad item is reported
     replace: bool = False
+
+
+class FolderRequest(BaseModel):
+    """O2: create or rename a folder. The store trims and checks 1-80 characters."""
+
+    name: str = Field(max_length=1000)
+
+
+class MoveDocumentRequest(BaseModel):
+    """O2: file a paper in a folder, or ``null`` to unfile it (not an edit: no new version)."""
+
+    folder_id: str | None

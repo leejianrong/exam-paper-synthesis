@@ -65,6 +65,40 @@ gaps as cards.
 | **O3** | + New wizard with M3 chips (folder, exam set, single paper, template, blank) | O2 |
 | **O4** | Compare generated PDFs with real papers | owner's samples |
 
+
+
+## O2 as built (API)
+
+- **Store.** Folders live in the `DocumentStore` (same database as the papers), on both
+  backends behind the one protocol: `create_folder`, `list_folders` (each with its `papers`
+  count, ordered by name case-insensitively then age), `rename_folder`, `delete_folder`,
+  `move(owner, doc_id, folder_id | None)`, and `create(..., folder_id=None)`. Document records
+  (get, list, save, move) carry `folder_id`. `erase_owner` erases folders too.
+- **Schema, no migration tool.** `CREATE TABLE IF NOT EXISTS folders (id, owner_id, name,
+  created_at, updated_at)`; the nullable `documents.folder_id` is added idempotently — Postgres
+  `ALTER TABLE documents ADD COLUMN IF NOT EXISTS folder_id TEXT` in the boot DDL (under the
+  existing advisory lock), SQLite checks `PRAGMA table_info(documents)` and adds the column
+  when missing. Inserts now name their columns, so an old file (column appended last) and a new
+  one behave alike. Existing papers are unfiled (NULL). No foreign key: deleting a folder
+  unfiles its papers in the same transaction.
+- **Rules.** Names are trimmed, 1–80 characters (else 422); duplicates are allowed. A foreign or
+  unknown folder is `FolderNotFound` → 404, for rename, delete, move and create/generate with
+  `folder_id`. Filing a paper locks the folder row for the write (SQLite `BEGIN IMMEDIATE`,
+  Postgres `FOR SHARE`), so a concurrent delete cannot leave a paper in a vanished folder.
+- **Moving is not an edit.** `PATCH /documents/{id}` `{folder_id: string | null}` changes only
+  the folder: content, `version` and `updated_at` stay, so an editor open on the paper keeps
+  saving without a 409. It returns the paper's summary record (no content).
+- **API.** `GET /folders` → `{folders: [{id, name, created_at, updated_at, papers}]}`;
+  `POST /folders {name}` → 201; `PATCH /folders/{id} {name}` → 200; `DELETE /folders/{id}` →
+  204. Router `routes_folders.py`; envelopes `FolderRequest`, `MoveDocumentRequest` in
+  `models.py`.
+- **Account.** *Download my data* adds `folders.json` (and a `folders` count in
+  `account.json`); `DELETE /account` erases folders through `erase_owner`.
+- **Tests.** Store contract tests in `tests/test_docstore.py` (SQLite, and Postgres when
+  `EXAM_TEST_DATABASE_URL` is set), including an old-schema SQLite file gaining the column;
+  API tests in `tests/test_api_folders.py` (also run on Postgres with
+  `EXAM_TEST_BACKEND=postgres`).
+
 ## Not in this round
 
 Nested folders, sharing folders between teachers, drag-and-drop, bulk export of a whole exam

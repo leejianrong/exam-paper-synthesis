@@ -60,7 +60,7 @@ def test_export_is_a_zip_of_json_and_images_for_the_caller_only():
     assert len([n for n in names if n.startswith("bank/")]) == 1
     meta = json.loads(zf.read("account.json"))
     assert meta["id"] == "alice"
-    assert meta["counts"] == {"documents": 1, "bank_questions": 1, "images": 1}
+    assert meta["counts"] == {"documents": 1, "folders": 0, "bank_questions": 1, "images": 1}
     doc = json.loads(zf.read(f"documents/{doc_id}.json"))
     assert doc["document"]["title"] == "alice's paper"
     (entry,) = json.loads(zf.read("assets/index.json"))
@@ -75,6 +75,7 @@ def test_export_of_an_empty_account_is_still_a_valid_zip():
     zf = _zip(client.get("/account/export", headers=ALICE))
     assert json.loads(zf.read("account.json"))["counts"] == {
         "documents": 0,
+        "folders": 0,
         "bank_questions": 0,
         "images": 0,
     }

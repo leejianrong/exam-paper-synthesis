@@ -22,10 +22,17 @@ from fastapi.responses import HTMLResponse, Response
 from . import export
 from .assets import AssetNotFound, AssetStore, get_asset_store
 from .auth import current_owner
-from .docstore import DocumentNotFound, DocumentStore, VersionConflict, get_store
+from .docstore import (
+    DocumentNotFound,
+    DocumentStore,
+    FolderNotFound,
+    VersionConflict,
+    get_store,
+)
 from .models import (
     CreateDocumentRequest,
     GeneratePaperRequest,
+    MoveDocumentRequest,
     RegeneratePaperRequest,
     SaveDocumentRequest,
     SwapQuestionRequest,
@@ -51,6 +58,19 @@ def _slug(title: str) -> str:
 
 def _not_found() -> HTTPException:
     return HTTPException(status_code=404, detail="document not found")
+
+
+def _folder_not_found() -> HTTPException:
+    return HTTPException(status_code=404, detail="folder not found")
+
+
+def _store_new(
+    store: DocumentStore, owner: str, document: dict, total: int, folder_id: str | None
+) -> dict:
+    try:
+        return store.create(owner, document, total, folder_id)
+    except FolderNotFound:
+        raise _folder_not_found() from None
 
 
 def _valid_or_422(document: object) -> dict:
@@ -98,7 +118,7 @@ def create_document(
             document["title"] = req.title
     else:
         document = docs.empty_document(req.title or "Untitled paper")
-    return store.create(owner, _valid_or_422(document), 0)
+    return _store_new(store, owner, _valid_or_422(document), 0, req.folder_id)
 
 
 _SEED_CEIL = 2**31
@@ -118,7 +138,8 @@ def generate_paper(req: GeneratePaperRequest, owner: Owner, store: Store) -> dic
     for node in document["content"]["content"]:
         if node["type"] == "templatedQuestion":
             node["attrs"]["question"]["provenance"]["created_at"] = stamp
-    record = store.create(owner, _valid_or_422(document), docs.total_marks(document))
+    document = _valid_or_422(document)
+    record = _store_new(store, owner, document, docs.total_marks(document), req.folder_id)
     return {**with_document_hints(record), "report": report}
 
 
@@ -230,6 +251,18 @@ def save_document(
             status_code=409,
             detail={"message": "document changed elsewhere", "current_version": e.current},
         ) from None
+
+
+@router.patch("/{doc_id}")
+def move_document(doc_id: str, req: MoveDocumentRequest, owner: Owner, store: Store) -> dict:
+    """O2: file the paper in a folder (``null`` = unfiled). Not an edit: the content and
+    version are unchanged, so an open editor's next save does not conflict."""
+    try:
+        return store.move(owner, doc_id, req.folder_id)
+    except DocumentNotFound:
+        raise _not_found() from None
+    except FolderNotFound:
+        raise _folder_not_found() from None
 
 
 @router.delete("/{doc_id}", status_code=204)
