@@ -10,6 +10,9 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **A fraction option never reads "4/1" (EXA-133)**, and **working steps typeset their maths**
+  in the editor's answer key and on the Classic page (algebra showed raw `\\(3x\\)`, EXA-131).
+
 - **The student paper no longer prints worked bar models (EXA-132).** A `bar_model` /
   `bar_model_before_after` figure is the worked solution: it showed units and values such as
   "1 unit = $36" and, on before–after ratio questions, the answer itself ("Devi = $216"). Found

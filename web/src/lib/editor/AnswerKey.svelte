@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MathText from '../MathText.svelte'
   // The answer key region under the page: one entry per numbered question, in document
   // order, with the same numbering as the body. Templated entries are generated and
   // read-only; a free-form entry shows its question and an editable answer (written back to
@@ -125,7 +126,7 @@
         </div>
         {#if part.solution_steps?.length}
           <ol class="steps">
-            {#each part.solution_steps as s, j (j)}<li>{s.text}</li>{/each}
+            {#each part.solution_steps as s, j (j)}<li><MathText text={s.text} /></li>{/each}
           </ol>
         {/if}
         {#if options.show_scheme && part.marking_scheme?.length}

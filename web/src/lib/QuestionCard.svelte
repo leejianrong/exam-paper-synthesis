@@ -140,7 +140,7 @@
       <h3>Worked solution <span class="marks">[{part.marks}]</span></h3>
       <ol>
         {#each steps as s, i (i)}
-          <li>{s.text}</li>
+          <li><MathText text={s.text} /></li>
         {/each}
       </ol>
     </section>

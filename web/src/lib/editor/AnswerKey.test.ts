@@ -136,4 +136,13 @@ describe('AnswerKey', () => {
     expect(q.querySelector('img')!.getAttribute('src')).toContain('/assets/asset_0001')
     expect(q.querySelector('.math-host')!.shadowRoot!.textContent).toContain('\\frac{3}{4}')
   })
+
+  it('typesets maths in working steps (algebra letters), never the raw delimiters (EXA-131)', () => {
+    const q = makeQuestion({ id: 'alg' }, 'Find the value.')
+    q.question.parts[0].solution_steps = [{ text: 'Cost of 3 cups = $\\(3x\\) = $36.' }]
+    render(AnswerKey, { props: { blocks: templatedNodes([q]) } })
+    const entry = document.querySelector('.entry')!
+    expect(entry.textContent).not.toContain('\\(')
+    expect(entry.querySelector('.math-host')?.getAttribute('data-latex')).toBe('3x')
+  })
 })
