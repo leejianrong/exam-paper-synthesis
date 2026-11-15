@@ -45,7 +45,8 @@ def main(prefixes: list[str]) -> None:
                 print(f"   {label}{plain(p['text'])}")
                 for s in p.get("solution_steps", []):
                     print(f"      · {plain(s['text'])}")
-                print(f"   => {label}{plain(_fmt_answer(p['answer']))}   [{p['marks']} marks]")
+                marks = f"{p['marks']} mark{'' if p['marks'] == 1 else 's'}"
+                print(f"   => {label}{plain(_fmt_answer(p['answer']))}   [{marks}]")
 
 
 if __name__ == "__main__":
