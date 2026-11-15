@@ -30,7 +30,7 @@ Only 11 are P5 (1: 3, 2: 4, 3: 4).
 | P1 Booklet A | 15 MCQ, 20 marks (10 × 1, 5 × 2) | **0 / 15**: no MCQ (P8b) | 0 / 15 |
 | P1 Booklet B | 15 short answer, 25 marks (5 × 1, 10 × 2) | 10 / 15 slots, 17 / 25 marks | 7 / 15, 11 / 25 |
 | P2 Section A | 5 × 2 marks | 5 / 5 | 4 / 5 |
-| P2 Section B | ~12 multi-part, 45 marks | 45 / 45 with 14 stand-ins (one 2-mark, nine 3-mark, four 4-mark) | 12 / 45 |
+| P2 Section B | ~12 multi-part, 45 marks | 45 / 45 with 14 stand-ins (one 2-mark, nine 3-mark, four 4-mark) | 12 / 45 (four 3-mark; no 2-mark left after Section A) |
 
 So for a P6 teacher, P8a alone makes a complete Paper 2 and two thirds of Booklet B. P8b (MCQ) is
 the single largest content unlock after that. A P5 paper stays thin until P8e.
@@ -53,12 +53,14 @@ entropy enters, as with `/generate`.
 - **Fill.** A small seeded constraint search. No blueprint is used twice in the paper. Topics are
   spread by preferring the least-used topic, with ties broken by the seed. Each slot's question is
   generated with a seed derived from the paper seed and the slot index.
-- **Exact totals.** Each section's marks must equal its target. If that can't be reached, the
-  section is filled as close below the target as possible, and one placeholder carries the
-  missing marks. A paper is never silently short.
+- **Exact totals.** Each section's marks must equal its target, counting placeholders. In a
+  section with fixed slots (Booklet A, Booklet B, Section A), every slot that can't be filled
+  becomes a placeholder with that slot's marks. A paper is never silently short.
 - **Stand-ins.** For a `structured` section with no multi-part candidates, the search may change
-  the slot count and choose single-part questions whose marks sum to the target. Each one is
-  flagged `stand_in`.
+  the slot count and choose single-part questions of 2 marks or more (1-mark questions don't
+  belong in a structured section) whose marks sum to the target. Each one is flagged
+  `stand_in`. Any shortfall is split into placeholders of 3–5 marks, the size of a real
+  Section B question.
 - **Report.** Per section: slots filled, placeholders, stand-ins, and the topics used. The dialog
   shows it honestly, e.g. "Filled 10 of 15 questions; 5 placeholders (8 marks) for you to write".
 
@@ -104,5 +106,6 @@ A golden paper per template anchors regressions.
 ## Not in P8
 
 Two-column answer keys. Exam-wide topic balance (decision 1). Difficulty targets beyond what a
-slot's marks imply (marks and rung already track each other in today's content). An LLM anywhere
+slot's marks imply. Marks and rung mostly track each other in today's content, but not
+always: `geometry_angle` and `speed` give 3 marks at both the medium and hard rungs. An LLM anywhere
 in generation (the engine stays deterministic).
