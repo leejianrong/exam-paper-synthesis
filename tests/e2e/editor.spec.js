@@ -385,9 +385,11 @@ test('convert a generated question to free-form: text, answer and its figure as 
   await settled(page)
   const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
   expect(student).toContain('(edited)')
-  expect(student).toContain('data:image/png;base64,')
+  // The bar model is the worked solution: never on the student paper, in the key (EXA-132).
+  expect(student).not.toContain('data:image/png;base64,')
   const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
   expect(key).toContain('Answer:')
+  expect(key).toContain('data:image/png;base64,')
 
 })
 
