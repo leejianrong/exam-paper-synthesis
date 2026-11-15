@@ -211,7 +211,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         editor.view.dispatch(tr)
         // Caret into the new part, focused *now*: TipTap's focus() waits a frame, and keys typed
         // meanwhile went to this button (a space "clicked" it again, adding stray parts).
-        editor.commands.setTextSelection(at + 2)
+        editor.chain().setTextSelection(at + 2).scrollIntoView().run()
         editor.view.focus()
       }
 
