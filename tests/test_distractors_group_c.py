@@ -35,14 +35,6 @@ def _hook_values(obj: dict) -> list[Fraction]:
     return [v for v, _ in mcq.common_wrong_answers(obj)]
 
 
-def _whole_dollars(answer: dict) -> bool:
-    """A money answer that happens to be whole dollars ($7.00). mcq's plausibility filter
-    reads its value as a whole number and drops every distractor with cents, so most
-    money mistakes (the cost of one, $5.25 + ...) cannot be offered: the generic near
-    misses fill in. Those seeds are left out of the ratio (a framework limitation)."""
-    return answer.get("unit") == "$" and float(answer["value"]).is_integer()
-
-
 @pytest.mark.parametrize("code", CODES)
 def test_the_hook_supplies_most_wrong_options(code):
     from_hook = counted = 0
@@ -58,8 +50,6 @@ def test_the_hook_supplies_most_wrong_options(code):
         choice = m["question"]["parts"][0]["answer"]
         wrong = [o["text"] for o in choice["options"] if o["label"] != choice["correct"]]
         assert len(wrong) == 3
-        if answer["type"] == "decimal" and _whole_dollars(answer):
-            continue
         counted += 1
         if sum(t in hook_texts for t in wrong) >= 2:
             from_hook += 1

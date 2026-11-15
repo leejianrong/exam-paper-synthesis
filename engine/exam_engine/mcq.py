@@ -117,6 +117,8 @@ def _with_value(answer: dict, value: Fraction) -> dict:
         places = max(places, 1 if value.denominator != 1 else 0)
         out["type"] = "decimal" if answer["type"] != "quantity" else "quantity"
         out["value"] = round(float(value), places)
+        if value.denominator == 1 and _kind(answer) != "money":
+            out["value"] = int(value)  # a whole wrong answer reads "100 cm²", not "100.0 cm²"
     else:
         out["value"] = int(value)
     return out
@@ -127,15 +129,35 @@ def _places(v: object) -> int:
     return len(s.split(".")[1]) if "." in s else 0
 
 
-def _plausible(v: Fraction, answer: Fraction, *, fraction: bool = False) -> bool:
+# Units of a measure, where a whole answer may still be met by a 1-dp wrong answer (2.5 h,
+# 52.5°); a plain count ("", items, people, ...) keeps whole-number distractors.
+_MEASURES = frozenset(
+    {"cm", "m", "km", "mm", "cm^2", "m^2", "cm^3", "m^3", "ml", "l", "g", "kg", "s", "min", "h"}
+    | {"km/h", "m/s", "m/min", "degrees", "%"}
+)
+
+
+def _plausible(v: Fraction, answer: Fraction, *, fraction: bool = False, kind: str = "") -> bool:
+    """``kind``: ``"money"`` (2 dp always fine), ``"measure"`` (a whole answer allows 1 dp),
+    else a count or plain number (a whole answer gets whole distractors)."""
     if v <= 0 or v == answer:
         return False
     if fraction:
         return v.denominator != 1 and v.denominator <= 100
-    if v.denominator != 1 and answer.denominator == 1:
-        # a whole-number answer gets whole-number distractors (2 dp at most otherwise)
+    if answer.denominator == 1 and v.denominator != 1:
+        if kind == "money":
+            return (v * 100).denominator == 1
+        if kind == "measure":
+            return (v * 10).denominator == 1
         return False
     return (v * 100).denominator == 1
+
+
+def _kind(answer: dict) -> str:
+    unit = answer.get("unit") or ""
+    if unit == "$" and (answer["type"] == "decimal" or answer.get("dp") == 2):
+        return "money"
+    return "measure" if unit in _MEASURES else ""
 
 
 def common_wrong_answers(obj: dict) -> list[tuple[Fraction, str]]:
@@ -169,10 +191,11 @@ def distractor_candidates(obj: dict) -> list[tuple[Fraction, str]]:
     answer_obj = part["answer"]
     answer = _value(answer_obj)
     is_fraction = answer_obj["type"] == "fraction"
+    kind = _kind(answer_obj)
     out: list[tuple[Fraction, str]] = []
 
     def add(v: Fraction | None, why: str) -> None:
-        if v is None or not _plausible(v, answer, fraction=is_fraction):
+        if v is None or not _plausible(v, answer, fraction=is_fraction, kind=kind):
             return
         if all(v != have for have, _ in out):
             out.append((v, why))
@@ -225,14 +248,19 @@ def distractor_values(obj: dict) -> list[Fraction]:
 
 
 def _gives_it_away(answer: Fraction, chosen: list[Fraction]) -> bool:
-    """The answer sits exactly between two other options, evenly (``7 / 8 / 9``) or by a
-    factor (``14 / 28 / 56``, its half and its double): guessable without the maths."""
-    return any(
+    """Guessable without the maths: the answer sits exactly between two other options,
+    evenly (``7 / 8 / 9``) or by a factor (``14 / 28 / 56``), or it is the odd one out (the
+    only whole number among decimals, or the only decimal)."""
+    between = any(
         answer - a == b - answer or answer / a == b / answer
         for a in chosen
         for b in chosen
         if 0 < a < answer < b
     )
+    # the odd one out: the only whole number among decimals, or the only decimal
+    whole = answer.denominator == 1
+    odd = len(chosen) == len(LABELS) - 1 and all((c.denominator == 1) != whole for c in chosen)
+    return between or odd
 
 
 def to_mcq(obj: dict, seed: int) -> dict:

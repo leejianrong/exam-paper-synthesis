@@ -141,9 +141,8 @@ in generation (the engine stays deterministic).
 - Distractors, best first: intermediate values of the worked solution's steps (only within 8×
   of the answer: farther ones are usually another quantity, e.g. km in a time question), then
   ± one "step", ×2/÷2 and ×10/÷10; for fractions the unshaded part, shaded : unshaded,
-  off-by-one numerator/denominator. Never a value equal to the answer. Known limit: an
-  intermediate within 8× can still be another quantity in the answer's unit; per-solver
-  distractor hooks are the fix if teachers find these weak.
+  off-by-one numerator/denominator. Never a value equal to the answer. Known limit (fixed by EXA-122, below): an
+  intermediate within 8× could be another quantity in the answer's unit.
 - Proof: `verify_snapshot` re-solves the blueprint and requires the correct option's text to
   equal `mcq.answer_text` of the proven answer, and all options to differ. No schema change.
 - A multiple-choice copy offers no edit ops (re-solving would turn it back into a written
@@ -249,4 +248,25 @@ in generation (the engine stays deterministic).
 - `ratio_structured`: a one-unit ratio difference says "1 unit = n" once.
 - Litres print as ℓ everywhere (see `units.py`); stored codes and goldens unchanged, and a saved
   multiple-choice option in the old `l` form still verifies (`mcq.legacy_answer_text`).
+
+## P8b follow-up: common wrong answers (EXA-122, 2026-11-15)
+
+- Solver protocol: optional `distractors(params, solution) -> [(value, why)]`, best first, in
+  the answer's own quantity and unit. `mcq.common_wrong_answers` re-solves the object's
+  `parameters` and asks the solver; `distractor_candidates` takes those first, then (only for
+  a solver without a hook) the worked solution's intermediates within 8×, then the generic
+  near misses / doubling / place value. All 39 single-part ladder solvers have a hook; tests
+  `tests/test_distractors_group_{a,b,c}.py` re-derive at least one named mistake per blueprint
+  from the printed question and require the hook to supply 2 of the 3 wrong options in ≥ 90%
+  of seeds (`speed_hard` 30%: its other real mistakes are recurring decimals, never rounded
+  into made-up options).
+- Plausibility is unit-aware: money (dp 2) takes cents even for a whole-dollar answer; a
+  measure (h, cm², °, …) with a whole answer takes 1-dp wrong answers; a plain count stays
+  whole. A whole wrong answer prints "100 cm²", not "100.0 cm²".
+- Give-away guard: the answer is never exactly between two options (7 / 8 / 9, or
+  14 / 28 / 56) nor the odd one out (the only whole number, or the only decimal) while the
+  candidates allow another choice; pinned for every convertible blueprint over 60 seeds.
+- The multiple-choice marking scheme names each wrong option's reason
+  ("Correct option (3). Wrong options: (1) forgot to divide; …"). No schema change; the
+  correct-option proof in `verify_snapshot` is unchanged.
 

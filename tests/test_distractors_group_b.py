@@ -42,11 +42,11 @@ CODES = [
 ]
 
 # speed_hard: the gap is (s1 + s2) x a whole number of hours, so the one mistake that is
-# always a whole number of hours is "the mean of the two speeds" (twice the answer). The
-# others (the difference of the speeds, one speed only) divide exactly in about a fifth of
-# questions; a non-whole option for a whole-hour answer would give the answer away, so the
-# rest of the options come from mcq's generic near misses.
-MIN_TWO_FROM_HOOK = {"speed_hard": 0.15}
+# always exact is "the mean of the two speeds" (twice the answer). The others (the
+# difference of the speeds, one speed only) are offered when they come to at most 1 dp
+# (about a third of questions, e.g. 2.5 h); a recurring 10/3 h is never rounded into a
+# made-up option, so the generic near misses fill in.
+MIN_TWO_FROM_HOOK: dict[str, float] = {"speed_hard": 0.3}
 
 
 def _part(obj: dict) -> dict:
