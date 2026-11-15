@@ -21,20 +21,23 @@ sub-slices.
 
 ## What the content can fill today (computed, not estimated)
 
-There are 27 blueprints, 9 topics × 3 rungs. Each has fixed marks, one part and a
-constructed-response answer. Counted by marks: 1 mark: 4, 2 marks: 8, 3 marks: 11, 4 marks: 4.
-14 are P5 (1: 4, 2: 5, 3: 5). P8e batch 1 (EXA-117) added the P5 `average` ladder (1/2/3 marks).
-P8c (EXA-116) added three P6 multi-part blueprints (4, 5, 5 marks) for Paper 2 Section B, so 30 in all.
+There are 42 blueprints: 13 topic ladders × 3 rungs, each single-part with fixed marks, plus
+3 multi-part ones. Single-part, counted by marks: 1 mark: 8, 2 marks: 12, 3 marks: 15,
+4 marks: 4; 23 are P5 (1: 7, 2: 8, 3: 8). P8e batch 1 (EXA-117) added the P5 `average`
+ladder; P8c (EXA-116) the three P6 multi-part blueprints (4, 5, 5 marks) for Paper 2
+Section B; P8e batch 2 (EXA-121) the P5 `whole_numbers`, `decimals` and `rate` ladders and
+the P6 `algebra` ladder (1/2/3 marks each).
 
 | Paper part | Real composition | P6 paper today | P5 paper today |
 |---|---|---|---|
-| P1 Booklet A | 15 MCQ, 20 marks (10 × 1, 5 × 2) | 9 / 15 (was 0 before P8b, 8 before P8e) | 9 / 15 (was 7 before P8e) |
-| P1 Booklet B | 15 short answer, 25 marks (5 × 1, 10 × 2) | 12 / 15 slots, 20 / 25 marks | 9 / 15, 14 / 25 |
+| P1 Booklet A | 15 MCQ, 20 marks (10 × 1, 5 × 2) | 13 / 15: two 1-mark placeholders (was 0 before P8b, 9 before batch 2) | 12 / 15: three 1-mark placeholders (was 9) |
+| P1 Booklet B | 15 short answer, 25 marks (5 × 1, 10 × 2) | 15 / 15, 25 / 25 (was 12 / 15) | 13 / 15, 21 / 25 (was 9 / 15) |
 | P2 Section A | 5 × 2 marks | 5 / 5 | 5 / 5 |
-| P2 Section B | ~12 multi-part, 45 marks | 45 / 45: 3 multi-part (4 + 5 + 5 marks, since P8c) + 9 stand-ins (five 3-mark, four 4-mark) | 15 / 45 (five 3-mark) |
+| P2 Section B | ~12 multi-part, 45 marks | 45 / 45: 3 multi-part (4 + 5 + 5 marks) + 9 stand-ins | 30 / 45: 11 stand-ins (eight 3-mark, three 2-mark) + 3 placeholders (was 15 / 45) |
 
-So for a P6 teacher, P8a alone makes a complete Paper 2 and two thirds of Booklet B. P8b (MCQ) is
-the single largest content unlock after that. A P5 paper stays thin until P8e.
+So a P6 teacher gets complete Paper 1 Booklet B and Paper 2, and Booklet A short of two 1-mark
+questions. The remaining gaps are 1-mark content (Booklet A needs ten distinct 1-mark
+blueprints per paper) and P5 multi-part / 3-mark content for Paper 2 Section B.
 
 ## Shape
 
@@ -146,7 +149,7 @@ in generation (the engine stays deterministic).
 - A multiple-choice copy offers no edit ops (re-solving would turn it back into a written
   answer); P8d's swap replaces it instead.
 - Booklet A's marks stay the blueprint's: 1-mark slots take 1-mark blueprints (only four
-  today), which is why P5/P6 Booklet A still has 6 placeholders; more 1-mark content (P8e)
+  today; eight after P8e batch 2), which is why P6 Booklet A still has 2 placeholders and P5 3; more 1-mark content (P8e)
   closes the gap.
 
 ## P8d as built (2026-11-15)
