@@ -74,12 +74,12 @@
   src: url("./assets/fonts/inter-pi-400-normal.woff2") format("woff2");
 }
 @font-face {
-  /* the angle sign ∠ only (U+2220): in no Inter subset, so the maths face KaTeX_Main's */
+  /* the angle and parallel signs ∠ ∥ (U+2220, U+2225): in no Inter subset, so KaTeX_Main's */
   font-family: "Inter";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  unicode-range: U+2220;
+  unicode-range: U+2220, U+2225;
   src: url("./assets/fonts/katex-angle.woff2") format("woff2");
 }
 @font-face {
@@ -92,12 +92,12 @@
   src: url("./assets/fonts/inter-pi-400-italic.woff2") format("woff2");
 }
 @font-face {
-  /* the angle sign ∠ only (U+2220): in no Inter subset, so the maths face KaTeX_Main's */
+  /* the angle and parallel signs ∠ ∥ (U+2220, U+2225): in no Inter subset, so KaTeX_Main's */
   font-family: "Inter";
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  unicode-range: U+2220;
+  unicode-range: U+2220, U+2225;
   src: url("./assets/fonts/katex-angle.woff2") format("woff2");
 }
 @font-face {
@@ -110,12 +110,12 @@
   src: url("./assets/fonts/inter-pi-600-normal.woff2") format("woff2");
 }
 @font-face {
-  /* the angle sign ∠ only (U+2220): in no Inter subset, so the maths face KaTeX_Main's */
+  /* the angle and parallel signs ∠ ∥ (U+2220, U+2225): in no Inter subset, so KaTeX_Main's */
   font-family: "Inter";
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  unicode-range: U+2220;
+  unicode-range: U+2220, U+2225;
   src: url("./assets/fonts/katex-angle.woff2") format("woff2");
 }
 @font-face {
@@ -128,12 +128,12 @@
   src: url("./assets/fonts/inter-pi-700-normal.woff2") format("woff2");
 }
 @font-face {
-  /* the angle sign ∠ only (U+2220): in no Inter subset, so the maths face KaTeX_Main's */
+  /* the angle and parallel signs ∠ ∥ (U+2220, U+2225): in no Inter subset, so KaTeX_Main's */
   font-family: "Inter";
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  unicode-range: U+2220;
+  unicode-range: U+2220, U+2225;
   src: url("./assets/fonts/katex-angle.woff2") format("woff2");
 }
 

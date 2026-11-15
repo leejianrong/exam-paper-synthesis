@@ -26,7 +26,7 @@ def test_every_katex_font_face_has_one_valid_src():
 
 def test_the_text_faces_cover_the_symbols_papers_print():
     css = render.font_css()
-    for rng in ("U+2113", "U+03C0", "U+2220"):
+    for rng in ("U+2113", "U+03C0", "U+2220,U+2225"):
         assert css.count(f"unicode-range:{rng};") == 4  # one per weight/style
     for face in FACE.findall(css):
         assert len(SRC.findall(face)) == 1
@@ -53,11 +53,12 @@ def test_a_real_pdf_embeds_only_inter_and_katex_fonts():
         generate("fractions_medium", 3),
         generate("algebra_easy", 1),
         generate("geometry_angle_medium", 2),
+        *[generate("geometry_angle_hard", s) for s in range(6)],  # "AD ∥ BC" in the steps
         generate("geometry_area_hard", 3),
         generate("volume_medium", 4),
     ]
     html = render.render_answer_key_html("Fonts", questions)
-    for symbol in ("∠", "π", "ℓ"):
+    for symbol in ("∠", "∥", "π", "ℓ"):
         assert symbol in html, symbol
     pdf = html_to_pdf(html)
     fonts = set(re.findall(rb"/BaseFont\s*/[A-Z]{6}\+([A-Za-z0-9_-]+)", pdf))
