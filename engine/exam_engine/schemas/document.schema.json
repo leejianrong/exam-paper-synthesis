@@ -243,6 +243,7 @@
             "space_mm": { "type": ["integer", "null"], "minimum": 0, "maximum": 250 },
             "ans_unit": { "type": ["string", "null"], "maxLength": 12 },
             "in_key": { "type": "boolean", "description": "false leaves this question out of the answer key (1.7.0); absent = included." },
+            "slot": { "$ref": "#/$defs/slot" },
             "remark": { "$ref": "#/$defs/remark" }
           }
         }
@@ -263,6 +264,7 @@
             "ans_unit": { "type": ["string", "null"], "maxLength": 12 },
             "answer": { "$ref": "#/$defs/answer_doc" },
             "in_key": { "type": "boolean", "description": "false leaves this question out of the answer key (1.7.0); absent = included." },
+            "slot": { "$ref": "#/$defs/slot" },
             "remark": { "$ref": "#/$defs/remark" }
           }
         },
@@ -289,6 +291,17 @@
           }
         },
         "content": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/text_block" } }
+      }
+    },
+    "slot": {
+      "type": "object", "additionalProperties": false,
+      "required": ["marks", "kind"],
+      "$comment": "What the paper generator asked for at this position (1.10.0, P8a): the slot's marks and kind; stand_in = a single-part question standing in for a multi-part one; placeholder = left for the teacher to write (a free-form question). Informational: printing ignores it.",
+      "properties": {
+        "marks": { "type": "integer", "minimum": 1, "maximum": 20 },
+        "kind": { "enum": ["mcq", "short", "structured"] },
+        "stand_in": { "type": "boolean" },
+        "placeholder": { "type": "boolean" }
       }
     },
     "remark": { "type": "string", "maxLength": 2000, "description": "The author's private note on a question (1.3.0). Shown in the inspector only; never rendered into any preview or export." },

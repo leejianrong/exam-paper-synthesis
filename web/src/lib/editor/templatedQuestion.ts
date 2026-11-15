@@ -38,6 +38,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
       space_mm: { default: null }, // blank working space (mm); null = the default for its marks
       in_key: { default: true }, // false leaves it out of the answer key (P5)
       ans_unit: { default: null }, // unit printed after Ans:; null = the answer's own
+      slot: { default: null }, // what the paper generator asked for here (P8a); kept, not shown
     }
   },
 

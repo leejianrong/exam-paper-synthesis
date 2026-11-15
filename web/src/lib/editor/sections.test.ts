@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import { buildDocument, cleanNode, paperOutline, type DocJSON } from './doc'
 import { freeformDocNode } from './fixtures'
 import { markingOn, sectionNode, sectionSummary, targetState } from './sections'
-import { PAPER_TEMPLATES, buildFromTemplate } from './templates'
 
 const doc = (...content: DocJSON['content']): DocJSON => ({ type: 'doc', content })
 
@@ -68,20 +67,8 @@ describe('marking margin (P6a)', () => {
   })
 })
 
-describe('starter templates', () => {
-  it('are three plain documents with sections, a target and a paper time', () => {
-    expect(PAPER_TEMPLATES.map((t) => t.id)).toEqual(['p1-a', 'p1-b', 'p2'])
-    for (const t of PAPER_TEMPLATES) {
-      const d = buildFromTemplate(t)
-      expect(d.title).toBe(t.title)
-      expect(d.settings?.time_min).toBeGreaterThan(0)
-      expect(d.content.content.every((n) => n.type === 'section')).toBe(true)
-      expect(paperOutline(d.content).every((s) => (s.target ?? 0) > 0)).toBe(true)
-    }
-    const p2 = paperOutline(buildFromTemplate(PAPER_TEMPLATES[2]).content)
-    expect(p2.map((s) => s.target)).toEqual([10, 45])
-  })
-
+// The starter templates moved to the engine (P8a): tests/test_invariants_paper.py, tests/test_api_papers.py.
+describe('sections in a document', () => {
   it('buildDocument keeps sections and the paper time', () => {
     const out = buildDocument('T', doc(sectionNode('A')), { time_min: 30 })
     expect(out.content.content[0].type).toBe('section')

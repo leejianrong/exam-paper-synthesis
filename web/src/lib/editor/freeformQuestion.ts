@@ -10,6 +10,7 @@ import type { NodeViewRendererProps } from '@tiptap/core'
 import { EMPTY_ANSWER } from './doc'
 import { moveBlock } from './templatedQuestion'
 import { FreeformPart, MAX_PARTS, PART_NODE, jsonAttr, partLetter } from './freeformPart'
+import { hasContent } from './paperReport'
 import { mount, unmount } from 'svelte'
 import { get, writable } from 'svelte/store'
 import FreeformArea from './FreeformArea.svelte'
@@ -63,6 +64,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       space_mm: jsonAttr<number | null>('data-space_mm', null), // blank working space (mm)
       in_key: jsonAttr<boolean>('data-in_key', true), // false leaves it out of the answer key (P5)
       ans_unit: jsonAttr<string | null>('data-ans_unit', null), // unit printed after Ans:
+      slot: jsonAttr<Record<string, unknown> | null>('data-slot', null), // generator slot (P8a)
     }
   },
 
@@ -137,6 +139,10 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       const marksEl = el('span', 'ff-marks')
       marksEl.contentEditable = 'false'
       row.append(contentDOM, marksEl)
+
+      // A generated paper's placeholder (P8a): says what to write until the body has text.
+      const hint = el('p', 'ff-placeholder-hint')
+      hint.contentEditable = 'false'
 
       const bar = el('div', 'ff-bar')
       bar.contentEditable = 'false'
@@ -224,7 +230,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
 
       const areaHost = el('div', 'ff-area')
       areaHost.contentEditable = 'false'
-      main.append(row, areaHost, bar)
+      main.append(hint, row, areaHost, bar)
       dom.append(num, main)
 
       const setLayout = (patch: Record<string, unknown>) => {
@@ -254,6 +260,16 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       const sync = () => {
         const ps = parts()
         const multi = ps.length > 0
+        const slot = current.attrs.slot as { kind?: string; placeholder?: boolean } | null
+        // Same rule as the "to write" count: anything in the stem or a part means it's written.
+        const waiting = !!slot?.placeholder && !hasContent(current.toJSON().content)
+        hint.hidden = !waiting
+        dom.classList.toggle('placeholder-slot', waiting)
+        if (waiting) {
+          const kind = slot?.kind === 'mcq' ? 'multiple-choice' : slot?.kind === 'structured' ? 'structured' : 'short-answer'
+          const marks = multi ? ps.reduce((n, p) => n + p.marks, 0) : (current.attrs.marks as number | null)
+          hint.textContent = `Placeholder: write a ${marks ? `${marks}-mark ` : ''}${kind} question here, or delete it and add one.`
+        }
         dom.classList.toggle('multipart', multi)
         // With parts the marks are the parts' sum and the question has no answer area of its own.
         label.hidden = multi

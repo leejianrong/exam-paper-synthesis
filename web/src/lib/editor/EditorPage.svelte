@@ -8,6 +8,7 @@
   import { onDestroy, onMount } from 'svelte'
   import { Editor } from '@tiptap/core'
   import StarterKit from '@tiptap/starter-kit'
+  import { NodeSelection, TextSelection } from '@tiptap/pm/state'
   import type { Question } from '../types'
   import AddQuestion from './AddQuestion.svelte'
   import AccountChip from './AccountChip.svelte'
@@ -38,6 +39,7 @@
   import { ImageBlock, ImageUpload, MathNode, uploadAndInsert } from './media'
   import { PageBreak } from './pageBreak'
   import { BlankPage, CoverPage, blankPageNode, coverNode } from './pages'
+  import { lastReport, reportSummary, unfilledPlaceholders } from './paperReport'
   import { Section, outline } from './sections'
   import { loadQuota, type Quota } from '../session'
   import { TemplatedQuestion, questionNode } from './templatedQuestion'
@@ -69,6 +71,9 @@
   $: blocks = numberedNodes(content)
   $: marks = totalMarks(content)
   $: coverPresent = content.content?.[0]?.type === 'coverPage'
+  $: placeholdersLeft = unfilledPlaceholders(content)
+  // The generator's report (P8a), shown once on the paper it made.
+  $: generated = $lastReport && $lastReport.docId === id ? reportSummary($lastReport.report) : ''
   $: outline.set(paperOutline(content))
   $: keyOpts = keyOptionsOf($paperSettings)
   $: statusLabel = {
@@ -159,6 +164,7 @@
         },
         onTransaction: () => (tick += 1),
       })
+      startWithTextCursor(editor)
       content = editor.getJSON() as DocJSON
     } catch (e) {
       loadError =
@@ -180,6 +186,17 @@
 
   function onBeforeUnload(e: BeforeUnloadEvent) {
     if (status === 'dirty' || status === 'saving' || status === 'error') e.preventDefault()
+  }
+
+  /** A paper that opens on an atom block (cover page, section) starts with that whole block
+   *  selected; the first click into the still-unfocused editor kept that selection, so the
+   *  first keys typed replaced the block. Open with a text cursor instead (the last place text
+   *  can go). */
+  function startWithTextCursor(ed: Editor) {
+    const { state } = ed
+    if (!(state.selection instanceof NodeSelection)) return
+    const sel = TextSelection.findFrom(state.doc.resolve(state.doc.content.size), -1, true)
+    if (sel) ed.view.dispatch(state.tr.setSelection(sel))
   }
 
   function trackBlock(e: Event) {
@@ -412,6 +429,11 @@
     </label>
   </fieldset>
   <span class="spacer"></span>
+  {#if placeholdersLeft}
+    <span class="quota placeholders" title="Generated placeholders still to write" data-testid="placeholders-left"
+      >{placeholdersLeft} placeholder{placeholdersLeft === 1 ? '' : 's'} to write</span
+    >
+  {/if}
   {#if quota && typeof quota.left_day === 'number'}
     <span class="quota" title="PDF exports left in the last 24 hours">{quota.left_day} exports left today</span>
   {/if}
@@ -433,6 +455,11 @@
   </p>
 {/if}
 {#if actionError}<p class="banner err" role="alert">{actionError}</p>{/if}
+{#if generated}
+  <p class="banner note" aria-live="polite" data-testid="generate-report">
+    {generated} <button on:click={() => lastReport.set(null)}>Dismiss</button>
+  </p>
+{/if}
 {#if notice}
   <p class="banner note" aria-live="polite">
     {notice} <button on:click={() => (notice = '')}>Dismiss</button>
@@ -1063,6 +1090,24 @@
   }
   .surface :global(.section-summary[data-state='over']),
   .surface :global(.section-summary[data-state='under']) {
+    color: var(--mark, #b42318);
+  }
+  .surface :global(.ff-placeholder-hint) {
+    margin: 0 0 0.3rem;
+    font-size: 12.5px;
+    font-style: italic;
+    color: var(--mark, #b42318);
+  }
+  .surface :global(.ffblock.placeholder-slot .ff-body) {
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+  }
+  /* the empty line itself is the tall target, so a click anywhere in the box lands in it */
+  .surface :global(.ffblock.placeholder-slot .ff-body > p:first-child) {
+    min-height: 2.2em;
+    margin: 0;
+  }
+  .placeholders {
     color: var(--mark, #b42318);
   }
   .surface :global(.page-block) {

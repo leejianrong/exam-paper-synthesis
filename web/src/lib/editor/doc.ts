@@ -5,7 +5,7 @@ import type { Question } from '../types'
 import { assetUrl } from './assets'
 import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.9.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.10.0'
 
 export interface DocNode {
   type: string
@@ -162,6 +162,8 @@ export function cleanNode(node: DocNode): DocNode {
     if (attrs.ans_unit === null || attrs.ans_unit === undefined) delete attrs.ans_unit
     // Included in the answer key unless set false: only the exception is stored.
     if (attrs.in_key !== false) delete attrs.in_key
+    // The generator's slot (P8a) is kept as it came; an ordinary question has none.
+    if (attrs.slot === null || attrs.slot === undefined) delete attrs.slot
     out = { ...out, attrs }
   }
   if (out.type === 'section' && out.attrs) {

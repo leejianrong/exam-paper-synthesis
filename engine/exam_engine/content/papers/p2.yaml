@@ -1,0 +1,32 @@
+# Paper template (P8a): PSLE-style Paper 2 (calculator allowed). Section B is multi-part;
+# until multi-part blueprints exist (P8c) the generator fills it with single-part stand-ins
+# whose marks add up to the section's target (docs/planning/editor/P8-SHAPING.md).
+code: p2
+label: "Paper 2"
+title: "Paper 2"
+order: 3
+time_min: 90
+cover:
+  subject: Mathematics
+  paper: "Paper 2"
+  instructions: |-
+    Do not turn over this page until you are told to do so.
+    Follow all instructions carefully.
+    Answer all questions.
+    Show your working clearly in the spaces provided.
+    You may use a calculator.
+sections:
+  - title: Section A
+    mode: short
+    marks_target: 10
+    instructions: Write your answer in the space provided.
+    slots:
+      - { marks: 2, count: 5 }
+  - title: Section B
+    mode: structured
+    marks_target: 45
+    instructions: Show your working clearly.
+    slots:
+      - { marks: 3, count: 6 }
+      - { marks: 4, count: 3 }
+      - { marks: 5, count: 3 }

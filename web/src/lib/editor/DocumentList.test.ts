@@ -4,13 +4,27 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/svelte'
 const listDocuments = vi.fn()
 const createDocument = vi.fn()
 const deleteDocument = vi.fn()
+const listPaperTemplates = vi.fn()
+const generatePaper = vi.fn()
 vi.mock('./docsApi', () => ({
   listDocuments: (...a: unknown[]) => listDocuments(...a),
   createDocument: (...a: unknown[]) => createDocument(...a),
   deleteDocument: (...a: unknown[]) => deleteDocument(...a),
+  listPaperTemplates: (...a: unknown[]) => listPaperTemplates(...a),
+  generatePaper: (...a: unknown[]) => generatePaper(...a),
 }))
 
+const TEMPLATES = {
+  levels: ['P5', 'P6'],
+  templates: [
+    { code: 'p1_booklet_b', label: 'Paper 1 · Booklet B', title: 'Paper 1 Booklet B', time_min: 60, sections: [] },
+    { code: 'p2', label: 'Paper 2', title: 'Paper 2', time_min: 90, sections: [] },
+  ],
+}
+
 import DocumentList from './DocumentList.svelte'
+import { get } from 'svelte/store'
+import { lastReport } from './paperReport'
 
 const summary = (id: string, title: string) => ({
   id,
@@ -25,6 +39,10 @@ beforeEach(() => {
   listDocuments.mockReset()
   createDocument.mockReset()
   deleteDocument.mockReset()
+  generatePaper.mockReset()
+  listPaperTemplates.mockReset()
+  listPaperTemplates.mockResolvedValue(TEMPLATES)
+  lastReport.set(null)
   location.hash = ''
 })
 
@@ -66,5 +84,31 @@ describe('DocumentList', () => {
     listDocuments.mockRejectedValue(new Error('API 401: authentication required'))
     render(DocumentList)
     expect(await screen.findByRole('alert')).toHaveTextContent('authentication required')
+  })
+
+  it('starts a paper from an engine template by its code', async () => {
+    listDocuments.mockResolvedValue([])
+    createDocument.mockResolvedValue({ ...summary('t1', 'Paper 2'), document: {} })
+    render(DocumentList)
+    await fireEvent.click(await screen.findByRole('button', { name: 'Paper 2' }))
+    await waitFor(() => expect(location.hash).toBe('#/docs/t1'))
+    expect(createDocument).toHaveBeenCalledWith(undefined, 'p2')
+  })
+
+  it('generates a whole paper for the chosen template and level, and hands on the report', async () => {
+    listDocuments.mockResolvedValue([])
+    const report = { template: 'p1_booklet_b', level: 'P5', filled: 7, placeholders: 8 }
+    generatePaper.mockResolvedValue({ ...summary('g1', 'P5 Paper 1 Booklet B'), document: {}, report })
+    render(DocumentList)
+    const form = await screen.findByRole('form', { name: 'Generate a paper' })
+    expect(form).toBeInTheDocument()
+    // Paper 2 is preselected (the last template); pick Booklet B at P5
+    await waitFor(() => expect(screen.getByLabelText('Paper to generate')).toHaveValue('p2'))
+    await fireEvent.change(screen.getByLabelText('Paper to generate'), { target: { value: 'p1_booklet_b' } })
+    await fireEvent.change(screen.getByLabelText('Level'), { target: { value: 'P5' } })
+    await fireEvent.click(screen.getByRole('button', { name: 'Generate paper' }))
+    await waitFor(() => expect(location.hash).toBe('#/docs/g1'))
+    expect(generatePaper).toHaveBeenCalledWith('p1_booklet_b', 'P5')
+    expect(get(lastReport)).toEqual({ docId: 'g1', report })
   })
 })

@@ -34,6 +34,16 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   and a "For examiner's use" table derived from the sections; it replaces the paper's header)
   and blank pages ("This page is intentionally left blank." or rough work), each on a page of
   its own and left out of the answer key (document schema `1.9.0`).
+- **One-click paper generation (P8a)** — paper templates as engine content
+  (`content/papers/*.yaml`: Paper 1 Booklet A/B, Paper 2, with their real slot layouts;
+  the P4 starter templates now come from them via `GET /papers`), a pure, seeded
+  `paper.generate_paper(template, level, seed)` (each blueprint once per paper, topics
+  spread, every section exactly at its marks target, single-part stand-ins for Paper 2
+  Section B, placeholders for what the content can't fill yet, an honest report),
+  `POST /documents/generate`, the "Generate a whole paper" form on the papers list, the
+  report banner and a placeholders-to-write count in the editor (document schema `1.10.0`:
+  a question's `slot`). Also fixed: a paper opening on a cover or section block started
+  with that block selected, so the first click and keystroke could replace it.
 
 ## [0.1.0] — 2026-07-25
 

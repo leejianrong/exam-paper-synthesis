@@ -39,6 +39,16 @@ class ExportRequest(BaseModel):
 
 class CreateDocumentRequest(BaseModel):
     title: str | None = None
+    # P8a: start from a paper template (its sections and time, no questions).
+    template: str | None = None
+
+
+class GeneratePaperRequest(BaseModel):
+    """P8a: fill a paper template's slots from the blueprints (one paper per call)."""
+
+    template: str
+    level: Literal["P5", "P6"] = "P6"
+    seed: int | None = Field(default=None, ge=1, lt=2**31)
 
 
 class SaveDocumentRequest(BaseModel):

@@ -1,0 +1,24 @@
+# Paper template (P8a): the real composition of PSLE-style Paper 1 Booklet A.
+# Slots are what the generator fills; marks_target must equal the slots' sum (tested).
+code: p1_booklet_a
+label: "Paper 1 · Booklet A"
+title: "Paper 1 Booklet A"
+order: 1
+time_min: 60
+cover:
+  subject: Mathematics
+  paper: "Paper 1 (Booklet A)"
+  instructions: |-
+    Do not turn over this page until you are told to do so.
+    Follow all instructions carefully.
+    Answer all questions.
+    For each question, choose the correct answer.
+    The use of calculators is not allowed.
+sections:
+  - title: Booklet A
+    mode: mcq
+    marks_target: 20
+    instructions: For each question, choose the correct answer.
+    slots:
+      - { marks: 1, count: 10 }
+      - { marks: 2, count: 5 }
