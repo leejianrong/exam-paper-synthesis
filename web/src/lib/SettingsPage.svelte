@@ -48,7 +48,6 @@
         role="switch"
         class="switch"
         checked={$settings.classic_generator}
-        aria-checked={$settings.classic_generator}
         disabled={busy}
         on:change={(e) => toggleClassic(e.currentTarget.checked)}
       />

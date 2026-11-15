@@ -57,4 +57,22 @@ describe('ClassicOff', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'Turn on the Classic generator' }))
     await waitFor(() => expect(get(settings)?.classic_generator).toBe(true))
   })
+
+  it('a failed load falls back to the defaults and retries once', async () => {
+    vi.useFakeTimers()
+    const { loadSettings } = await import('./settings')
+    fetchMock.mockImplementationOnce(() => reply({ detail: 'down' }, 500)).mockImplementation(() => reply({ classic_generator: true }))
+    await loadSettings(1000)
+    expect(get(settings)).toEqual({ classic_generator: false })
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(get(settings)).toEqual({ classic_generator: true })
+    vi.useRealTimers()
+  })
+
+  it('settings are forgotten when nobody is signed in', async () => {
+    const { session } = await import('./session')
+    settings.set({ classic_generator: true })
+    session.set({ status: 'anon' })
+    expect(get(settings)).toBeNull()
+  })
 })
