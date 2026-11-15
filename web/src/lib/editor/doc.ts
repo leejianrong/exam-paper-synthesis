@@ -5,7 +5,7 @@ import type { Question } from '../types'
 import { assetUrl } from './assets'
 import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.8.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.9.0'
 
 export interface DocNode {
   type: string
@@ -174,6 +174,26 @@ export function cleanNode(node: DocNode): DocNode {
     // Only an explicit choice of the marking margin is stored; unset follows the mode.
     if (typeof out.attrs.marking === 'boolean') attrs.marking = out.attrs.marking
     out = { ...out, attrs }
+  }
+  if (out.type === 'coverPage') {
+    // P7: text fields are strings (empty ones dropped), the rest absent when unset.
+    const a = out.attrs ?? {}
+    const attrs: Record<string, unknown> = {}
+    for (const k of ['school', 'exam', 'level', 'subject', 'paper']) {
+      const v = typeof a[k] === 'string' ? (a[k] as string).trim() : ''
+      if (v) attrs[k] = v
+    }
+    for (const k of ['date', 'instructions']) {
+      const v = typeof a[k] === 'string' ? (a[k] as string).trim() : ''
+      if (v) attrs[k] = v
+    }
+    if (typeof a.examiner_table === 'boolean') attrs.examiner_table = a.examiner_table
+    out = { ...out, attrs }
+  }
+  if (out.type === 'blankPage') {
+    const a = out.attrs ?? {}
+    const text = typeof a.text === 'string' ? a.text.trim() : ''
+    out = { ...out, attrs: { kind: a.kind === 'rough' ? 'rough' : 'blank', ...(text ? { text } : {}) } }
   }
   if (out.type === 'freeformPart' && out.attrs) {
     const attrs = { ...(out.attrs as Record<string, unknown>) }

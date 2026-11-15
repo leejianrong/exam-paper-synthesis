@@ -45,6 +45,8 @@
         { "$ref": "#/$defs/ordered_list" },
         { "$ref": "#/$defs/page_break" },
         { "$ref": "#/$defs/section" },
+        { "$ref": "#/$defs/cover_page" },
+        { "$ref": "#/$defs/blank_page" },
         { "$ref": "#/$defs/templated_question" },
         { "$ref": "#/$defs/freeform_question" },
         { "$ref": "#/$defs/image" }
@@ -187,6 +189,42 @@
             "mode": { "enum": ["mcq", "short", "structured", null] },
             "marks_target": { "type": ["integer", "null"], "minimum": 0, "maximum": 500 },
             "marking": { "type": ["boolean", "null"], "description": "Marking margin (\"Do not write in this space\") beside this section's questions (1.8.0, P6a). null/absent = on for working sections (short, structured), off otherwise." }
+          }
+        }
+      }
+    },
+    "cover_page": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "attrs"],
+      "$comment": "The paper's cover (1.9.0, P7). At most one, and only as the first block (exam_engine.document.validate_document). Replaces the student paper's header and ends with a page break; never printed in the answer key. Time comes from settings.time_min, the total and the examiner's table from the questions (paper_outline), so neither can drift.",
+      "properties": {
+        "type": { "const": "coverPage" },
+        "attrs": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "school": { "type": "string", "maxLength": 120 },
+            "exam": { "type": "string", "maxLength": 120, "description": "e.g. 2026 Preliminary Examination" },
+            "level": { "type": "string", "maxLength": 60, "description": "e.g. Primary 6" },
+            "subject": { "type": "string", "maxLength": 60, "description": "e.g. Mathematics" },
+            "paper": { "type": "string", "maxLength": 120, "description": "e.g. Paper 1 (Booklet A)" },
+            "date": { "type": ["string", "null"], "maxLength": 60, "description": "Free text, printed as written" },
+            "instructions": { "type": ["string", "null"], "maxLength": 2000, "description": "Instructions to candidates, one per line; printed as a numbered list" },
+            "examiner_table": { "type": ["boolean", "null"], "description": "Print the 'For examiner's use' marks table (one row per section with questions, then the total). null/absent = on." }
+          }
+        }
+      }
+    },
+    "blank_page": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "attrs"],
+      "$comment": "A page of its own (1.9.0, P7): 'blank' prints 'This page is intentionally left blank.' in the middle, 'rough' prints a 'Rough work' heading over an empty page. `text` replaces the default wording. Never printed in the answer key; carries no tally box.",
+      "properties": {
+        "type": { "const": "blankPage" },
+        "attrs": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "kind": { "enum": ["blank", "rough"] },
+            "text": { "type": ["string", "null"], "maxLength": 200 }
           }
         }
       }

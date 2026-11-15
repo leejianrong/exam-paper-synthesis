@@ -21,6 +21,7 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
+# 1.9.0 (P7): + coverPage (first block only) and blankPage blocks.
 # 1.8.0 (P6a): + section.marking (marking margin).
 # 1.7.0 (P5): + settings.key_options, per-question in_key.
 # 1.6.0 (P4): + section blocks (title, instructions, mode, marks target), settings.time_min.
@@ -28,7 +29,7 @@ from .schema import validate_object
 # 1.4.0 (P2): + settings.marks_placement, per-question space_mm / ans_unit.
 # 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math; 1.3.0 (W5): + question `remark`.
 # Older documents stay valid (every addition is optional).
-DOCUMENT_SCHEMA_VERSION = "1.8.0"
+DOCUMENT_SCHEMA_VERSION = "1.9.0"
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000
@@ -36,6 +37,7 @@ MAX_BLOCK_TEXT_CHARS = 20_000
 MAX_IMAGES = 40
 MAX_PARTS = 10
 MAX_SECTIONS = 20
+MAX_BLANK_PAGES = 20
 
 QUESTION_TYPES = ("templatedQuestion", "freeformQuestion")
 
@@ -161,6 +163,12 @@ def paper_outline(doc: dict) -> list[dict]:
     return out
 
 
+def cover_page(doc: dict) -> dict | None:
+    """The paper's cover block (P7), or ``None``. Validation keeps it first and unique."""
+    blocks = doc["content"]["content"]
+    return blocks[0] if blocks and blocks[0]["type"] == "coverPage" else None
+
+
 def total_marks(doc: dict) -> int:
     """Templated totals plus the marks teachers gave their free-form questions."""
     return sum(q["question"]["total_marks"] for q in questions_in_order(doc)) + sum(
@@ -247,6 +255,12 @@ def validate_document(doc: object) -> list[str]:
     n_sections = sum(1 for n in blocks if n["type"] == "section")
     if n_sections > MAX_SECTIONS:
         errors.append(f"content/content: {n_sections} sections; the limit is {MAX_SECTIONS}")
+    for i, node in enumerate(blocks):
+        if node["type"] == "coverPage" and i != 0:
+            errors.append(f"content/content/{i}: a cover page must be the paper's first block")
+    n_blank = sum(1 for n in blocks if n["type"] == "blankPage")
+    if n_blank > MAX_BLANK_PAGES:
+        errors.append(f"content/content: {n_blank} blank pages; the limit is {MAX_BLANK_PAGES}")
     seen: set[str] = set()
     n_questions = 0
     for i, node in enumerate(blocks):

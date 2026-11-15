@@ -37,6 +37,7 @@
   import { openMathEditor } from './mathEditor'
   import { ImageBlock, ImageUpload, MathNode, uploadAndInsert } from './media'
   import { PageBreak } from './pageBreak'
+  import { BlankPage, CoverPage, blankPageNode, coverNode } from './pages'
   import { Section, outline } from './sections'
   import { loadQuota, type Quota } from '../session'
   import { TemplatedQuestion, questionNode } from './templatedQuestion'
@@ -67,6 +68,7 @@
 
   $: blocks = numberedNodes(content)
   $: marks = totalMarks(content)
+  $: coverPresent = content.content?.[0]?.type === 'coverPage'
   $: outline.set(paperOutline(content))
   $: keyOpts = keyOptionsOf($paperSettings)
   $: statusLabel = {
@@ -142,6 +144,8 @@
           }),
           PageBreak,
           Section,
+          CoverPage,
+          BlankPage,
           FreeformQuestion.configure({ onAddBelow: (pos: number) => (pickerAt = pos) }),
           TemplatedQuestion.configure({
             onAddBelow: (pos: number) => (pickerAt = pos),
@@ -495,6 +499,19 @@
           .insertContent({ type: 'section', attrs: { title: '' } })
           .run()}
       ><ToolIcon name="section" /></button
+    >
+    <button
+      aria-label="Cover page"
+      title={coverPresent ? 'The paper already has a cover page' : 'Add a cover page'}
+      disabled={coverPresent}
+      on:click={() => editor?.chain().insertContentAt(0, coverNode()).run()}
+      ><ToolIcon name="cover" /></button
+    >
+    <button
+      aria-label="Blank page"
+      title="Insert a blank or rough-work page"
+      on:click={() => editor?.chain().focus().insertContent(blankPageNode()).run()}
+      ><ToolIcon name="blankpage" /></button
     >
     <button
       aria-label="Page break"
@@ -1038,6 +1055,72 @@
   .surface :global(.section-summary[data-state='over']),
   .surface :global(.section-summary[data-state='under']) {
     color: var(--mark, #b42318);
+  }
+  .surface :global(.page-block) {
+    margin: 1rem 0;
+    padding: 0.7rem 0.9rem;
+    border: 1.5px dashed var(--line);
+    border-radius: 8px;
+  }
+  .surface :global(.page-block-title) {
+    margin: 0 0 0.4rem;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+  }
+  .surface :global(.page-row) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .surface :global(.page-row .page-block-title) {
+    margin: 0;
+  }
+  .surface :global(.cover-grid) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 0.4rem 0.8rem;
+  }
+  .surface :global(.page-field) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .surface :global(.page-field.inline) {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+  }
+  .surface :global(.page-block input:not([type='checkbox'])),
+  .surface :global(.page-block select),
+  .surface :global(.cover-instructions-input) {
+    font: inherit;
+    font-size: 13px;
+    padding: 0.2rem 0.4rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .surface :global(.cover-instructions-input) {
+    display: block;
+    width: 100%;
+    margin-top: 0.5rem;
+    resize: vertical;
+  }
+  .surface :global(.blank-text-input) {
+    flex: 1 1 14rem;
+  }
+  .surface :global(.page-block-note) {
+    margin: 0.4rem 0 0;
+    font-size: 12px;
+    color: var(--ink-soft);
   }
   .surface :global(.page-break-marker) {
     border-top: 2px dashed var(--line);

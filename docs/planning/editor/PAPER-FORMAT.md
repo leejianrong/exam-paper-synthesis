@@ -73,8 +73,30 @@ on 12 / 12 test papers; it also found a clipping hazard for taller-than-page que
 
 | # | Slice | What | Size |
 |---|---|---|---|
-| **P7** | Cover, title and blank pages | A title/cover page block (school, paper, level, time, candidate name/class/date fields, instructions) and an explicit blank page (e.g. "This page is intentionally left blank", or rough-work space). To be discussed and shaped separately; captured here so it is not lost. | S–M, later |
+| **P7** ✅ | Cover, title and blank pages | A title/cover page block (school, paper, level, time, candidate name/class/date fields, instructions) and an explicit blank page (e.g. "This page is intentionally left blank", or rough-work space). Shaped and shipped as below (document schema 1.9.0). | S–M |
 | **P8** | One-click full paper generation | See below. | L, its own shaping |
+
+### P7 — cover and blank pages (shaped and shipped)
+
+- **`coverPage`** block: at most one, and only as the paper's first block (the server refuses
+  anything else; the editor's transaction filter keeps it first, and its toolbar button is
+  disabled once a cover exists). Authored fields: school, exam, level, subject (default
+  *Mathematics*), paper, date (free text), instructions to candidates (one per line, printed
+  as a numbered list) and an `examiner_table` switch (default on).
+- Everything that could drift is **derived**: the time comes from `settings.time_min`, the total
+  from the questions, and the "For examiner's use" table has one row per section that holds
+  questions (its marks from `paper_outline`) plus the total. Name / Class / Register No. lines
+  are always printed.
+- On the student paper the cover **replaces the header** (title, Name, Time, Total) and ends with
+  a page break. An empty cover still prints the document title. The answer key never prints it.
+- **`blankPage`** block (`kind` = `blank` → "This page is intentionally left blank." centred, or
+  `rough` → a "Rough work" heading over an empty page; optional `text` replaces the wording;
+  at most 20). It always takes a page of its own: the P6b paginator now honours
+  `break-before: page`, so it starts a new page box there, and neither block carries a tally
+  box or a question number.
+- Not done (later, if asked): a school logo (would need an asset ref on the cover), a parent's
+  signature line, and adding a cover to the starter templates (natural to do with P8's paper
+  templates).
 
 ### P8 — generate an entire paper with one click
 

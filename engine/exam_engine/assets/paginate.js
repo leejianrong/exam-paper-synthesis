@@ -38,6 +38,7 @@
         bottom: r.bottom + scrollY,
         keepNext: cs.breakAfter === "avoid" || cs.breakAfter === "avoid-page",
         forced: cs.breakAfter === "page",
+        forcedBefore: cs.breakBefore === "page", // a blank page (P7) starts a page of its own
       };
     });
   }
@@ -50,7 +51,7 @@
     var i = 0;
     while (i < items.length) {
       var j = i;
-      while (j < items.length - 1 && items[j].keepNext) j++;
+      while (j < items.length - 1 && items[j].keepNext && !items[j + 1].forcedBefore) j++;
       var from = i === 0 ? sheetTop : items[i].top; // page 1 also holds the paper's header
       var over = items[j].bottom - from - avail;
       if (over > 0) {
@@ -83,7 +84,12 @@
     var i = 0;
     while (i < items.length) {
       var j = i;
-      while (j < items.length - 1 && items[j].keepNext) j++;
+      while (j < items.length - 1 && items[j].keepNext && !items[j + 1].forcedBefore) j++;
+      if (items[i].forcedBefore && placed > 0) {
+        page++;
+        placed = 0;
+        base = items[i].top;
+      }
       if (items[j].bottom - base > avail && placed > 0) {
         page++;
         placed = 0;
