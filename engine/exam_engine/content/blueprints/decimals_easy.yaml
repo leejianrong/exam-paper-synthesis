@@ -1,0 +1,41 @@
+code: decimals_easy
+syllabus:
+  level: P5
+  strand: "Number and Algebra"
+  topic: "Decimals"
+  subtopic: "Multiplying and dividing a decimal by a whole number, tens and hundreds"
+  skill_codes: ["DEC.MULDIV.WHOLE"]     # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Number type / magnitude"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [op, digits, dp, factor]
+  properties:
+    op: { type: string, enum: [multiply, divide] }
+    # the decimal operand is digits / 10^dp (its last digit is non-zero)
+    digits: { type: integer, minimum: 1, maximum: 99999 }
+    dp: { type: integer, minimum: 1, maximum: 3 }
+    factor: { type: integer, minimum: 2, maximum: 900 }   # 2-9, 20-90 or 200-900
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  op:     { role: choice }
+  digits: { role: number }
+  dp:     { role: number }
+  factor: { role: number }
+story_templates:
+  - stem: null
+    text: "Find the value of {a} {sign} {factor}."
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{a}{expr_op}{factor}"
+marking_scheme:
+  - { mark: 1, type: A, description: "Correct value, with the decimal point in the right place." }
+answer:
+  type: decimal
+  unit: ""

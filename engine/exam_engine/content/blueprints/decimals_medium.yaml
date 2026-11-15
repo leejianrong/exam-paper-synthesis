@@ -1,0 +1,44 @@
+code: decimals_medium
+syllabus:
+  level: P5
+  strand: "Number and Algebra"
+  topic: "Decimals"
+  subtopic: "Money: the cost of a number of items by the unitary method"
+  skill_codes: ["DEC.MONEY.UNITARY"]    # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [item, n, cost, m]
+  properties:
+    item:
+      type: string
+    n: { type: integer, minimum: 2, maximum: 9 }         # items priced together
+    cost: { type: integer, minimum: 70, maximum: 9000 }  # their total cost, in cents
+    m: { type: integer, minimum: 2, maximum: 12 }        # items asked about
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  item: { role: item }
+  n:    { role: number }
+  cost: { role: number }
+  m:    { role: number }
+story_templates:
+  - stem: null
+    text: "{n} {item} cost {cost_text}. How much do {m} such {item} cost?"
+solution_template:
+  steps:
+    - text: "Cost of 1 = {cost_text} ÷ {n} = {unit_text}."
+      expr: "{cost_plain}/{n}"
+    - text: "Cost of {m} = {m} × {unit_text} = {answer_text}."
+      expr: "{m}*{unit_plain}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Cost of 1 item = total cost ÷ number of items." }
+  - { mark: 1, type: A, description: "Correct cost, with the $ unit and 2 decimal places." }
+answer:
+  type: decimal
+  unit: "$"

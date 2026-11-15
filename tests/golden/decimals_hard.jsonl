@@ -1,0 +1,2 @@
+{"params": {"name": "Mrs Lim", "goods": ["rice", "milk"], "qty": [3, 4], "price": [235, 340], "budget": 50}, "expected": {"answer": {"type": "decimal", "value": 29.35, "dp": 2, "unit": "$"}, "total_marks": 3}}
+{"params": {"name": "Mr Tan", "goods": ["bread", "eggs"], "qty": [2, 3], "price": [175, 425], "budget": 20}, "expected": {"answer": {"type": "decimal", "value": 3.75, "dp": 2, "unit": "$"}, "total_marks": 3}}

@@ -23,6 +23,7 @@ export const TOPICS: readonly Topic[] = [
   { label: 'Volume', prefix: 'volume' },
   { label: 'Average', prefix: 'average' },
   { label: 'Whole Numbers', prefix: 'whole_numbers' },
+  { label: 'Decimals', prefix: 'decimals' },
 ]
 
 export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'medium', 'hard']

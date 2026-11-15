@@ -1,0 +1,64 @@
+code: decimals_hard
+syllabus:
+  level: P5
+  strand: "Number and Algebra"
+  topic: "Decimals"
+  subtopic: "Money: the amount left after buying several items"
+  skill_codes: ["DEC.MONEY.CHANGE"]     # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Multiple concepts"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, goods, qty, price, budget]
+  properties:
+    name:
+      type: string
+    goods:
+      type: array
+      items: { type: string, enum: [rice, apples, milk, bread, eggs, juice] }
+      minItems: 2
+      maxItems: 2
+    qty:
+      type: array
+      items: { type: integer, minimum: 2, maximum: 6 }
+      minItems: 2
+      maxItems: 2
+    price:                              # cents, per kg or each
+      type: array
+      items: { type: integer, minimum: 105, maximum: 995 }
+      minItems: 2
+      maxItems: 2
+    budget: { type: integer, enum: [20, 30, 50, 100] }   # whole dollars
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  name:   { role: name }
+  goods:  { role: choice }
+  qty:    { role: number }
+  price:  { role: number }
+  budget: { role: number }
+# The solver builds the number-bearing fragments; the name is placed here only.
+story_templates:
+  - stem: null
+    text: "With {budget_text}, {name} bought {bought}. How much money did {name} have left?"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{expr1}"
+    - text: "{step2}"
+      expr: "{expr2}"
+    - text: "{step3}"
+      expr: "{expr3}"
+    - text: "{step4}"
+      expr: "{expr4}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Cost of each kind of item = quantity × price." }
+  - { mark: 1, type: M, description: "Total amount spent." }
+  - { mark: 1, type: A, description: "Correct amount left, with the $ unit and 2 decimal places." }
+answer:
+  type: decimal
+  unit: "$"
