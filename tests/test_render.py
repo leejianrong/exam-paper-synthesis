@@ -226,7 +226,7 @@ def _mcq_object() -> dict:
 
 def test_worksheet_never_reveals_mcq_correct_option():
     html = render_worksheet_html(TITLE, [_mcq_object()])
-    assert "option-correct" not in html
+    assert "option option-correct" not in html  # (the class name itself is in the inlined CSS)
     assert "Answer:" not in html
     assert '<span class="option-label">(1)</span>' in html
     assert '<span class="option-label">(2)</span>' in html

@@ -57,3 +57,23 @@ test('generate a P6 Booklet B: placeholders for what the content cannot fill yet
   await page.keyboard.type('What is 3 + 4?')
   await expect(page.getByTestId('placeholders-left')).toHaveText('4 placeholders to write')
 })
+
+test('generate a P6 Booklet A: multiple-choice questions with four options each', async ({ page }) => {
+  await page.goto('/')
+  const form = page.getByRole('form', { name: 'Generate a paper' })
+  await form.getByLabel('Paper to generate').selectOption('p1_booklet_a')
+  await form.getByLabel('Level').selectOption('P6')
+  await form.getByRole('button', { name: 'Generate paper' }).click()
+  await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
+  const id = page.url().split('/docs/')[1]
+
+  await expect(page.getByTestId('generate-report')).toContainText('Filled 8 of 15 questions')
+  await expect(page.getByTestId('generate-report')).toContainText('7 multiple-choice questions still to write')
+  await expect(page.getByTestId('placeholders-left')).toHaveText('7 placeholders to write')
+
+  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
+  expect(student.match(/<ol class="options">/g)).toHaveLength(8)
+  expect(student).not.toContain('class="option option-correct"') // the right option never reaches the paper
+  const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
+  expect(key.match(/option option-correct/g)).toHaveLength(8)
+})

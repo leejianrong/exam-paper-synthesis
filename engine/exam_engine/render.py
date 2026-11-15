@@ -316,13 +316,14 @@ def _render_part_head(
         out.append(f'<span class="marks">[{marks}]</span>')
     out.append("</div>")
 
-    answer = part.get("answer") or {}
-    if answer.get("type") == "choice":
-        out.extend(_render_options(answer, reveal_correct=answer_key))
-
+    # The figure belongs to the question, so it comes before an MCQ's options (P8b).
     spec = part.get("diagram")
     if spec is not None:
         out.append(f'<figure class="diagram">{diagram.render_svg(spec)}</figure>')
+
+    answer = part.get("answer") or {}
+    if answer.get("type") == "choice":
+        out.extend(_render_options(answer, reveal_correct=answer_key))
     return out
 
 

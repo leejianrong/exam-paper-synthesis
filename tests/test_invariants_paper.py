@@ -118,8 +118,16 @@ def test_generated_papers_keep_every_rule(code, level):
                 # fixed sections keep the real paper's slot layout, in order
                 want = [x["marks"] for x in tsec["slots"] for _ in range(x["count"])]
                 assert [_marks(n) for n in nodes] == want, where
-                if sec["mode"] == "mcq":  # no MCQ blueprints yet (P8b)
-                    assert all(n["type"] == "freeformQuestion" for n in nodes), where
+                if sec["mode"] == "mcq":  # P8b: multiple choice, or a placeholder
+                    for n in nodes:
+                        if n["type"] == "templatedQuestion":
+                            ans = n["attrs"]["question"]["question"]["parts"][0]["answer"]
+                            assert ans["type"] == "choice" and len(ans["options"]) == 4, where
+                else:
+                    for n in nodes:
+                        if n["type"] == "templatedQuestion":
+                            ans = n["attrs"]["question"]["question"]["parts"][0]["answer"]
+                            assert ans["type"] != "choice", where
 
         # the report agrees with the document
         placeholders = [n for n in _questions(doc) if n["attrs"].get("slot", {}).get("placeholder")]
@@ -133,11 +141,8 @@ def test_the_same_seed_gives_the_same_paper_and_another_seed_another(code):
     a, _ = generate_paper(code, "P6", 11)
     b, _ = generate_paper(code, "P6", 11)
     assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
-    if code != "p1_booklet_a":  # nothing to vary while Booklet A is all placeholders
-        others = {
-            json.dumps(generate_paper(code, "P6", s)[0], sort_keys=True) for s in range(12, 17)
-        }
-        assert json.dumps(a, sort_keys=True) not in others
+    others = {json.dumps(generate_paper(code, "P6", s)[0], sort_keys=True) for s in range(12, 17)}
+    assert json.dumps(a, sort_keys=True) not in others
 
 
 def test_topics_are_spread_when_choice_allows():
@@ -157,7 +162,8 @@ def test_what_todays_content_fills():
         _, r = generate_paper(code, level, 1)
         return r["filled"], r["placeholders"]
 
-    assert fill("p1_booklet_a", "P6") == (0, 15)
+    assert fill("p1_booklet_a", "P6") == (8, 7)  # 3 one-mark + 5 two-mark convertible
+    assert fill("p1_booklet_a", "P5") == (7, 8)
     assert fill("p1_booklet_b", "P6") == (10, 5)
     assert fill("p1_booklet_b", "P5") == (7, 8)
     assert fill("p2", "P6") == (19, 0)

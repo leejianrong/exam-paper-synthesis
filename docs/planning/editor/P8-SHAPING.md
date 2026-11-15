@@ -27,7 +27,7 @@ Only 11 are P5 (1: 3, 2: 4, 3: 4).
 
 | Paper part | Real composition | P6 paper today | P5 paper today |
 |---|---|---|---|
-| P1 Booklet A | 15 MCQ, 20 marks (10 × 1, 5 × 2) | **0 / 15**: no MCQ (P8b) | 0 / 15 |
+| P1 Booklet A | 15 MCQ, 20 marks (10 × 1, 5 × 2) | 8 / 15 since P8b (was 0) | 7 / 15 since P8b |
 | P1 Booklet B | 15 short answer, 25 marks (5 × 1, 10 × 2) | 10 / 15 slots, 17 / 25 marks | 7 / 15, 11 / 25 |
 | P2 Section A | 5 × 2 marks | 5 / 5 | 4 / 5 |
 | P2 Section B | ~12 multi-part, 45 marks | 45 / 45 with 14 stand-ins (one 2-mark, nine 3-mark, four 4-mark) | 12 / 45 (four 3-mark; no 2-mark left after Section A) |
@@ -98,7 +98,7 @@ A golden paper per template anchors regressions.
 | # | Slice | What | Depends on |
 |---|---|---|---|
 | **P8a** ✅ | Paper generator | Paper-template YAML (P4 templates move to it), `generate_paper` + placeholders + stand-ins + report, `slot` attr (schema 1.10.0), `POST /documents/generate`, the generate dialog, invariant test. | P4, P7 |
-| **P8b** | MCQ for Booklet A | Turn constructed-response blueprints into MCQ with deterministic distractors from common wrong answers (per-solver "wrong turn" hooks), or write MCQ blueprints; `choice` answers already exist in the canonical schema. Fills `mcq` slots. | P8a |
+| **P8b** ✅ | MCQ for Booklet A | Turn constructed-response blueprints into MCQ with deterministic distractors from common wrong answers (per-solver "wrong turn" hooks), or write MCQ blueprints; `choice` answers already exist in the canonical schema. Fills `mcq` slots. | P8a |
 | **P8d** | Keep / swap / lock | Per-question "another like this" (same slot: new seed or sibling blueprint), "another topic", "write my own" (turns it into a free-form question keeping the slot's marks and Ans: line), lock; "regenerate paper" refills unlocked slots only. | P8a |
 | **P8c** | Multi-part blueprints | Shared stem with (a)/(b)/(c), each part solver-proven; replaces Section B stand-ins. | P8a, P3 |
 | **P8e** | Coverage growth | More topics (whole numbers, decimals, average, algebra, rate, circles, data tables, …) and more 1-/2-mark and P5 blueprints, ordered by the report's placeholder counts. | — |
@@ -126,3 +126,22 @@ in generation (the engine stays deterministic).
   counting as soon as its body has text, so nothing is stored to clear.
 - Generated papers start with a cover page (level, subject, paper and instructions prefilled;
   school, exam and date for the teacher). Starting from an empty template doesn't add one.
+
+## P8b as built (2026-11-15)
+
+- Conversion, not new blueprints: `engine/exam_engine/mcq.py` `to_mcq(obj, seed)` works on any
+  generated single-part question with a numeric or fraction answer, so every new blueprint is
+  usable in Booklet A for free. Options are labelled (1)–(4), shuffled by seed.
+- Distractors, best first: intermediate values of the worked solution's steps (only within 8×
+  of the answer: farther ones are usually another quantity, e.g. km in a time question), then
+  ± one "step", ×2/÷2 and ×10/÷10; for fractions the unshaded part, shaded : unshaded,
+  off-by-one numerator/denominator. Never a value equal to the answer. Known limit: an
+  intermediate within 8× can still be another quantity in the answer's unit; per-solver
+  distractor hooks are the fix if teachers find these weak.
+- Proof: `verify_snapshot` re-solves the blueprint and requires the correct option's text to
+  equal `mcq.answer_text` of the proven answer, and all options to differ. No schema change.
+- A multiple-choice copy offers no edit ops (re-solving would turn it back into a written
+  answer); P8d's swap replaces it instead.
+- Booklet A's marks stay the blueprint's: 1-mark slots take 1-mark blueprints (only three
+  today), which is why P5/P6 Booklet A still has 7–8 placeholders; more 1-mark content (P8e)
+  closes the gap.

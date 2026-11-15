@@ -56,7 +56,7 @@ describe('reportSummary', () => {
     )
     expect(text).toContain('1 placeholder (1 mark)')
     expect(text).toContain('Section B uses 1 single-part question in place of multi-part ones.')
-    expect(text).toContain("Booklet A: multiple-choice questions can't be generated yet.")
+    expect(text).toContain('Booklet A: 1 multiple-choice question still to write (not enough convertible questions yet).')
   })
 })
 

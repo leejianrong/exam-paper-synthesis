@@ -52,6 +52,10 @@ def _part(obj: dict) -> dict:
 def available_ops(obj: dict) -> set[str]:
     """Which edit ops apply to ``obj`` (drives button availability, ADR-0009)."""
     code = obj["blueprint_code"]
+    if _part(obj).get("answer", {}).get("type") == "choice":
+        # A multiple-choice copy (P8b): re-solving would silently turn it back into a written
+        # answer, so no edit applies; the paper's swap actions replace it instead.
+        return set()
     ops: set[str] = {"regenerate"}
 
     if sibling(code, +1):
@@ -88,6 +92,9 @@ def applicable(op: str, obj: dict) -> bool:
     one-click edit buttons, while this op needs a form of values (names/items).
     """
     if op == cosmetic.OP:
+        # not on a multiple-choice copy (P8b): rebuilding it would drop the options
+        if _part(obj).get("answer", {}).get("type") == "choice":
+            return False
         return obj.get("source_type") == "generated" and bool(
             cosmetic.editable_slots(obj["blueprint_code"])
         )

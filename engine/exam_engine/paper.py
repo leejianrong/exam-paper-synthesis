@@ -18,8 +18,8 @@ Rules (owner's decisions, 2026-11-15):
 - A ``structured`` section with no multi-part blueprints (all of today's content) is filled
   with single-part **stand-ins** of 2 marks or more whose marks add up to the target; the slot
   count may then differ from the real paper's. Any shortfall becomes placeholders of 3–5 marks.
-- ``mcq`` slots need multiple-choice questions, which no blueprint produces yet (P8b), so they
-  are placeholders for now.
+- ``mcq`` slots take a blueprint whose answer is numeric or a fraction and turn its question
+  into four-option multiple choice (P8b, ``mcq.to_mcq``); the marks stay the blueprint's.
 - A paper of level P6 may use P5 and P6 blueprints; a P5 paper only P5 ones.
 - Topics are spread: each slot takes the least-used topic so far, ties broken by the seed.
 """
@@ -35,6 +35,7 @@ import yaml
 
 from .blueprints.registry import content_dir, load_blueprint
 from .document import DOCUMENT_SCHEMA_VERSION
+from .mcq import CONVERTIBLE, to_mcq
 from .pipeline import generate
 
 LEVELS = ("P5", "P6")
@@ -125,7 +126,8 @@ class Candidate:
     topic: str
     level: str
     marks: int
-    kind: str  # "constructed" today; "mcq" / "multipart" arrive with P8b / P8c
+    kind: str  # "constructed" today; "multipart" arrives with P8c
+    answer_type: str = ""
 
 
 @cache
@@ -140,6 +142,7 @@ def _pool() -> tuple[Candidate, ...]:
                 level=spec.syllabus.get("level", "P6"),
                 marks=spec.marks,
                 kind="constructed",
+                answer_type=str((spec.answer or {}).get("type", "")),
             )
         )
     return tuple(out)
@@ -152,6 +155,8 @@ def candidates(level: str) -> list[Candidate]:
 
 
 def _fits(c: Candidate, kind: str) -> bool:
+    if kind == "mcq":  # P8b: converted to multiple choice, so the answer must be convertible
+        return c.kind == "constructed" and c.answer_type in CONVERTIBLE
     # short-answer and (stand-in) structured slots take constructed-response questions.
     return kind in ("short", "structured") and c.kind == "constructed"
 
@@ -190,6 +195,8 @@ class _Filler:
 
     def question(self, c: Candidate, slot: dict) -> dict:
         obj = generate(c.code, self.rng.randrange(1, 2**31))
+        if slot["kind"] == "mcq":
+            obj = to_mcq(obj, self.rng.randrange(1, 2**31))
         return {
             "type": "templatedQuestion",
             "attrs": {"block_id": self.block_id(), "question": obj, "slot": slot},
