@@ -114,3 +114,43 @@ def test_stopping_early_is_a_distractor():
     m = to_mcq(generate("ratio_medium", 3), 1)
     texts = [o["text"] for o in m["question"]["parts"][0]["answer"]["options"]]
     assert "$344" in texts and "$43" in texts
+
+
+def test_forged_option_lists_are_caught():
+    m = to_mcq(generate("ratio_medium", 3), 7)
+    ans = m["question"]["parts"][0]["answer"]
+    right = next(o for o in ans["options"] if o["label"] == ans["correct"])
+
+    def forged(change):
+        f = copy.deepcopy(m)
+        change(f["question"]["parts"][0]["answer"])
+        return verify_snapshot(f)
+
+    # a look-alike of the correct option (trailing space)
+    assert forged(
+        lambda a: next(o for o in a["options"] if o["label"] != a["correct"]).update(
+            text=right["text"] + " "
+        )
+    )
+    # two options sharing the correct label
+    assert forged(
+        lambda a: next(o for o in a["options"] if o["label"] != a["correct"]).update(
+            label=a["correct"]
+        )
+    )
+    # fewer options
+    assert forged(
+        lambda a: a.update(
+            options=[o for o in a["options"] if o["label"] in ("1", "2", a["correct"])]
+        )
+    )
+    # an option figure
+    assert forged(lambda a: a["options"][0].update(diagram={"type": "bar_model"}))
+
+
+def test_a_question_shown_in_decimals_is_not_converted():
+    from exam_engine.edits import apply
+
+    obj = apply("change-to-decimals", generate("ratio_medium", 3), seed=1)
+    with pytest.raises(EditNotApplicable):
+        to_mcq(obj, 1)

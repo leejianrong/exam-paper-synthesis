@@ -378,9 +378,14 @@ def verify_snapshot(obj: dict) -> list[str]:
     if actual.get("type") == "choice":
         # P8b multiple choice: the correct option must read exactly as the proven answer does,
         # and no other option may read the same.
-        from .mcq import answer_text, correct_option_text
+        from .mcq import LABELS, answer_text, correct_option_text
 
-        texts = [o.get("text") for o in actual.get("options", [])]
+        options = actual.get("options", [])
+        if [o.get("label") for o in options] != list(LABELS) or any(
+            o.get("diagram") for o in options
+        ):
+            return [f"a generated multiple-choice question has text options {', '.join(LABELS)}"]
+        texts = [" ".join(str(o.get("text") or "").split()) for o in options]
         if len(set(texts)) != len(texts):
             return ["multiple-choice options must all differ"]
         if decimals_view or correct_option_text(actual) != answer_text(solution["answer"]):

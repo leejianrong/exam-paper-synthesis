@@ -172,6 +172,8 @@ def to_mcq(obj: dict, seed: int) -> dict:
     """A four-option multiple-choice copy of ``obj`` (see the module docstring)."""
     if not convertible(obj):
         raise EditNotApplicable("to-mcq", "only a generated question with a numeric answer")
+    if obj.get("validation", {}).get("checks", {}).get("representation") == "decimals":
+        raise EditNotApplicable("to-mcq", "not a question shown in decimals")
     out = copy.deepcopy(obj)
     part = out["question"]["parts"][0]
     answer = part["answer"]
@@ -199,7 +201,7 @@ def to_mcq(obj: dict, seed: int) -> dict:
 
 
 def correct_option_text(answer: dict) -> str | None:
-    """The text of a choice answer's correct option."""
+    """The text of a choice answer's correct option (exact, as stored)."""
     return next(
         (o.get("text") for o in answer.get("options", []) if o.get("label") == answer["correct"]),
         None,
