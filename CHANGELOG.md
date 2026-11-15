@@ -43,6 +43,9 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   Postgres; the `folder_id` column is added idempotently, so existing papers are unfiled.
   *Download my data* includes `folders.json`; deleting the account erases folders. The web UI
   follows.
+  The SQLite upgrade (adding `documents.folder_id`) works going forward only: code from before
+  O2 inserts 8 positional values and cannot create papers in an upgraded file; Postgres is
+  unaffected.
 - **Editor + SaaS (W1–W4)** — WYSIWYG document editor (ProseMirror-style document
   model, schema `1.5.0`), templated and free-form question blocks, question bank,
   assets, owner-scoped accounts with Google/Microsoft/GitHub OAuth, Postgres

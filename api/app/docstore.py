@@ -72,7 +72,9 @@ class InvalidFolderName(ValueError):
 
 def clean_folder_name(name: str) -> str:
     """O2: trimmed, 1-80 characters (duplicates are allowed)."""
-    cleaned = name.strip() if isinstance(name, str) else ""
+    # whitespace runs (incl. newlines and tabs) become one space; other control characters go
+    cleaned = " ".join(name.split()) if isinstance(name, str) else ""
+    cleaned = "".join(ch for ch in cleaned if ch.isprintable())
     if not 1 <= len(cleaned) <= FOLDER_NAME_MAX:
         raise InvalidFolderName(f"a folder name is 1-{FOLDER_NAME_MAX} characters")
     return cleaned
@@ -150,7 +152,11 @@ class SqliteDocumentStore:
             # O2: no migration tool — add the nullable column when an older file lacks it.
             columns = {r["name"] for r in conn.execute("PRAGMA table_info(documents)")}
             if "folder_id" not in columns:
-                conn.execute("ALTER TABLE documents ADD COLUMN folder_id TEXT")
+                try:
+                    conn.execute("ALTER TABLE documents ADD COLUMN folder_id TEXT")
+                except sqlite3.OperationalError as e:  # another process added it first
+                    if "duplicate column" not in str(e):
+                        raise
             conn.executescript(_DDL_AFTER_COLUMNS)
 
     def _connect(self) -> sqlite3.Connection:

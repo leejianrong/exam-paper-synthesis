@@ -232,3 +232,8 @@ def test_account_export_includes_folders_and_delete_erases_them():
     erased = _zip(client.get("/account/export", headers=ALICE))
     assert json.loads(erased.read("folders.json")) == []
     assert [f["name"] for f in _folders(BOB)] == ["Bob's"]
+
+
+def test_folder_names_collapse_whitespace_and_drop_control_characters():
+    resp = client.post("/folders", json={"name": "  2026\n Prelims\t set\x07 "}, headers=ALICE)
+    assert resp.status_code == 201 and resp.json()["name"] == "2026 Prelims set"
