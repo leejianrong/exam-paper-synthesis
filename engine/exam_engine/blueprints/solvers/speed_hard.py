@@ -15,6 +15,7 @@ check).
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -58,6 +59,20 @@ class SpeedHardSolver:
             "answer": {"type": "quantity", "value": t_meet, "unit": "h"},
             "intermediates": {"combined_speed": combined_speed, "t_meet": t_meet},
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong meeting times (h), best first (EXA-122). The gap is built from the
+        combined speed, so only the mean-speed slip is always a whole number of hours; the
+        others count only when they happen to divide exactly (mcq drops the rest)."""
+        s1, s2, gap = params["s1"], params["s2"], params["gap"]
+        out: list[tuple[int | Fraction, str]] = [
+            (Fraction(gap * 2, s1 + s2), "used the mean of the two speeds"),
+        ]
+        if s1 != s2:
+            out.append((Fraction(gap, abs(s1 - s2)), "used the difference of the speeds"))
+        out.append((Fraction(gap, s1), f"used only {params['name1']}'s speed"))
+        out.append((Fraction(gap, s2), f"used only {params['name2']}'s speed"))
+        return out
 
     def validate(self, params: dict, solution: dict) -> dict:
         s1, s2 = params["s1"], params["s2"]

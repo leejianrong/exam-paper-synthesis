@@ -18,6 +18,7 @@ step is a multiple of 5 (so the mean of five step-multiples is a whole number).
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
 from ..registry import register
 
@@ -136,6 +137,19 @@ class StatisticsChartEasySolver:
             },
         }
 
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (a count read off the bar graph), best first (EXA-122)."""
+        _, cats, _, _, _ = BAR_CONTEXTS[params["context"]]
+        v, a, b, step = params["values"], params["a"], params["b"], params["step"]
+        out: list[tuple[int | Fraction, str]] = [(v[a] + v[b], "the total, not the difference")]
+        for n in (b - 1, b + 1):  # the bar beside the one asked about
+            if 0 <= n < len(v) and n != a:
+                out.append((v[a] - v[n], f"read the bar for {cats[n]} instead of {cats[b]}"))
+        out.append((v[a], f"read the bar for {cats[a]} only"))
+        out.append((v[a] - v[b] - step, "misread a bar by one gridline"))
+        out.append((v[a] - v[b] + step, "misread a bar by one gridline"))
+        return out
+
     def validate(self, params: dict, solution: dict) -> dict:
         v, step, a, b = params["values"], params["step"], params["a"], params["b"]
         checks = {
@@ -176,6 +190,20 @@ class StatisticsChartMediumSolver:
                 "answer_value": ans,
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (a number of pupils), best first (EXA-122)."""
+        _, _, labels = PIE_CONTEXTS[params["context"]]
+        p, h, total = params["percents"], params["hidden"], params["total"]
+        missing = 100 - sum(x for i, x in enumerate(p) if i != h)
+        out: list[tuple[int | Fraction, str]] = [
+            (missing, "gave the percentage, not the number of pupils"),
+            (Fraction((100 - missing) * total, 100), "the pupils in the other sectors"),
+        ]
+        for i in ((h + 1) % 4, (h - 1) % 4):  # a sector beside the hidden one
+            out.append((Fraction(p[i] * total, 100), f"worked out the {labels[i]} sector"))
+        out.append((Fraction(total, 4), "shared the total equally among the four sectors"))
+        return out
 
     def validate(self, params: dict, solution: dict) -> dict:
         p, h, total = params["percents"], params["hidden"], params["total"]
@@ -228,6 +256,18 @@ class StatisticsChartHardSolver:
                 "answer_value": ans,
             },
         }
+
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+        """Common wrong answers (the May count), best first (EXA-122)."""
+        known, mean, step = params["known"], params["mean"], params["step"]
+        ans = 5 * mean - sum(known)
+        return [
+            (4 * mean - sum(known), "used 4 months for the total"),
+            (mean, "gave the mean, not May"),
+            (Fraction(sum(known), 4), "the mean of the four months shown"),
+            (ans - step, "misread a point by one gridline"),
+            (ans + step, "misread a point by one gridline"),
+        ]
 
     def validate(self, params: dict, solution: dict) -> dict:
         known, step, mean = params["known"], params["step"], params["mean"]
