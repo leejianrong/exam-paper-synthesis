@@ -37,7 +37,11 @@ import pytest  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def _isolated_assets_store(monkeypatch, tmp_path):
-    """Never let a test touch the real ~/.exam_engine asset / account stores (W2b, W3)."""
+    """Never let a test touch the real ~/.exam_engine stores (W2b, W3): documents (and the
+    settings and folders kept beside them) and the bank too, or a test run would write into
+    the database a running dev server uses."""
+    monkeypatch.setenv("EXAM_DOCS_PATH", str(tmp_path / "docs.sqlite3"))
+    monkeypatch.setenv("EXAM_BANK_PATH", str(tmp_path / "bank.sqlite3"))
     monkeypatch.setenv("EXAM_ASSETS_PATH", str(tmp_path / "assets.sqlite3"))
     monkeypatch.setenv("EXAM_AUTH_PATH", str(tmp_path / "accounts.sqlite3"))
     monkeypatch.setenv("EXAM_USAGE_PATH", str(tmp_path / "usage.sqlite3"))

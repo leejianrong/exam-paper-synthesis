@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { openClassic } from './helpers.js'
 
 /**
  * Browser acceptance test for the V4 review gate + worksheet tray.
@@ -10,7 +11,7 @@ import { test, expect } from '@playwright/test'
  * harness of generate.spec.js.
  */
 test('Approve adds to the worksheet tray; Discard removes a review card', async ({ page }) => {
-  await page.goto('/#/classic')
+  await openClassic(page)
 
   // Generate two cards (each click prepends one) so we can approve one and
   // discard a different one.

@@ -56,6 +56,11 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   template has none. A starter paper's student print therefore shows the cover in place of
   the sheet header, and the Preview counts the cover as page 1; its page list names cover,
   blank and rough-work pages.
+- **Settings, and the Classic generator hidden by default (O1)** — a Settings page
+  (`#/settings`, linked from Your papers) saved on the account (`GET/PUT /settings`, SQLite and
+  Postgres, included in *Download my data* and erased with the account). Its first switch,
+  *Show the Classic generator*, is off by default: the link is hidden and `#/classic` says the
+  page is turned off, with a button to turn it on.
 - **Better multiple-choice distractors (P8b follow-up)** — a solver may give its own
   "common wrong answers" (`distractors(params, solution)`: values in the answer's own
   quantity and unit, each with the reason pupils give it), and every one of the 39 ladder

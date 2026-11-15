@@ -25,6 +25,7 @@ const TEMPLATES = {
 import DocumentList from './DocumentList.svelte'
 import { get } from 'svelte/store'
 import { lastReport } from './paperReport'
+import { settings } from '../settings'
 
 const summary = (id: string, title: string) => ({
   id,
@@ -110,5 +111,17 @@ describe('DocumentList', () => {
     await waitFor(() => expect(location.hash).toBe('#/docs/g1'))
     expect(generatePaper).toHaveBeenCalledWith('p1_booklet_b', 'P5')
     expect(get(lastReport)).toEqual({ docId: 'g1', report })
+  })
+
+  it('hides the Classic generator link unless the setting is on (O1); Settings is always there', async () => {
+    listDocuments.mockResolvedValue([])
+    settings.set({ classic_generator: false })
+    const { unmount } = render(DocumentList)
+    expect(await screen.findByRole('link', { name: 'Settings' })).toHaveAttribute('href', '#/settings')
+    expect(screen.queryByRole('link', { name: 'Classic generator' })).toBeNull()
+    unmount()
+    settings.set({ classic_generator: true })
+    render(DocumentList)
+    expect(await screen.findByRole('link', { name: 'Classic generator' })).toHaveAttribute('href', '#/classic')
   })
 })

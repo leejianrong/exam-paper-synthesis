@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { openClassic } from './helpers.js'
 
 /**
  * Browser acceptance test for the real Generate flow.
@@ -10,7 +11,7 @@ import { test, expect } from '@playwright/test'
  * and the expandable M/A/B answer key.
  */
 test('Generate produces a validated ratio question card', async ({ page }) => {
-  await page.goto('/#/classic')
+  await openClassic(page)
 
   // The Generate button is the single call-to-action on the landing page.
   const generate = page.getByRole('button', { name: 'Generate' })

@@ -14,3 +14,13 @@ export async function settled(page) {
   await chip.filter({ hasNotText: 'Saved' }).waitFor({ timeout: 3000 }).catch(() => {})
   await expect(chip).toHaveText('Saved', { timeout: 15_000 })
 }
+
+/**
+ * Turn the Classic generator on for the dev owner (O1: it is hidden by default) and open it.
+ * `api` is the API origin the page talks to (the dev server, or the CSP spec's one origin).
+ */
+export async function openClassic(page, { api = 'http://localhost:8000', origin = '' } = {}) {
+  const res = await page.request.put(`${api}/settings`, { data: { classic_generator: true } })
+  expect(res.ok()).toBeTruthy()
+  await page.goto(`${origin}/#/classic`)
+}

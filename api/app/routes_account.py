@@ -2,9 +2,10 @@
 
 ``GET /account/export`` streams a zip of the owner's data: ``account.json``, every document
 (``documents/<id>.json``), every bank question (``bank/<n>-<id>.json``) and every uploaded image
-as its original bytes (``assets/<id>.<ext>`` plus ``assets/index.json``). ``DELETE /account``
-erases all of it — documents, images, bank rows, export events, sessions, linked sign-ins and the
-user row — and needs ``{"confirm": "DELETE"}`` so a stray request can never do it.
+as its original bytes (``assets/<id>.<ext>`` plus ``assets/index.json``), and ``settings.json``.
+``DELETE /account`` erases all of it — documents, settings, images, bank rows, export events,
+sessions, linked sign-ins and the user row — and needs ``{"confirm": "DELETE"}`` so a stray
+request can never do it.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from .assets import AssetStore, get_asset_store
 from .auth import SESSION_COOKIE, current_owner
 from .bankstore import open_owner_bank
 from .docstore import DocumentStore, get_store
+from .settings import SettingsStore, get_settings_store
 
 router = APIRouter(prefix="/account")
 
@@ -34,6 +36,7 @@ Owner = Annotated[str, Depends(current_owner)]
 Docs = Annotated[DocumentStore, Depends(get_store)]
 Assets = Annotated[AssetStore, Depends(get_asset_store)]
 Accounts = Annotated[AccountStore, Depends(get_account_store)]
+Settings = Annotated[SettingsStore, Depends(get_settings_store)]
 
 CONFIRM_WORD = "DELETE"
 _EXT = {"image/png": "png", "image/jpeg": "jpg"}
@@ -49,7 +52,9 @@ def _put_json(zf: zipfile.ZipFile, name: str, payload: object) -> None:
 
 
 @router.get("/export")
-def export_account(owner: Owner, docs: Docs, assets: Assets, accounts: Accounts) -> Response:
+def export_account(
+    owner: Owner, docs: Docs, assets: Assets, accounts: Accounts, settings: Settings
+) -> Response:
     user = accounts.get_user(owner)
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -72,6 +77,7 @@ def export_account(owner: Owner, docs: Docs, assets: Assets, accounts: Accounts)
                 },
             },
         )
+        _put_json(zf, "settings.json", settings.get(owner))
         for rec in documents:
             _put_json(zf, f"documents/{rec['id']}.json", rec)
         for n, obj in enumerate(questions, start=1):
@@ -101,11 +107,13 @@ def delete_account(
     docs: Docs,
     assets: Assets,
     accounts: Accounts,
+    settings: Settings,
 ) -> Response:
     if body.confirm != CONFIRM_WORD:
         raise HTTPException(status_code=422, detail=f'send {{"confirm": "{CONFIRM_WORD}"}}')
     docs.erase_owner(owner)
     assets.erase_owner(owner)
+    settings.erase_owner(owner)
     with closing(open_owner_bank(owner)) as bank:
         bank.erase()
     usage.get_ledger().erase_owner(owner)
