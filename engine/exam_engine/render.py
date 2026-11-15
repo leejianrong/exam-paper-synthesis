@@ -298,7 +298,12 @@ def _answer_space(layout: Layout | None, marks: int | None) -> str:
 
 
 def _render_part_head(
-    part: dict, *, multipart: bool, answer_key: bool, layout: Layout | None = None
+    part: dict,
+    *,
+    multipart: bool,
+    answer_key: bool,
+    layout: Layout | None = None,
+    hide_worked: bool = False,
 ) -> list[str]:
     """The ``.part`` block (optional label, text, right-aligned marks) + diagram.
 
@@ -322,7 +327,7 @@ def _render_part_head(
 
     # The figure belongs to the question, so it comes before an MCQ's options (P8b).
     spec = part.get("diagram")
-    if spec is not None and (answer_key or not diagram.is_worked_model(spec)):
+    if spec is not None and (answer_key or not (hide_worked and diagram.is_worked_model(spec))):
         out.append(f'<figure class="diagram">{diagram.render_svg(spec)}</figure>')
 
     answer = part.get("answer") or {}
@@ -434,14 +439,21 @@ def _render_question_item(
         out.append(f'<p class="question-stem">{_mathify(stem)}</p>')
     q_diagram = obj["question"].get("diagram")
     # A worked model (bar model) shows the solution: the student paper never prints it (EXA-132).
-    if q_diagram is not None and (answer_key or not diagram.is_worked_model(q_diagram)):
+    hide_worked = obj.get("source_type") == "generated"
+    if q_diagram is not None and (answer_key or not diagram.hides_worked_model(obj, q_diagram)):
         out.append(f'<figure class="diagram">{diagram.render_svg(q_diagram)}</figure>')
     q_table = obj["question"].get("table")
     if q_table is not None:
         out.append(_render_table(q_table, parts, answer_key=answer_key))
     for part in parts:
         out.extend(
-            _render_part_head(part, multipart=multipart, answer_key=answer_key, layout=layout)
+            _render_part_head(
+                part,
+                multipart=multipart,
+                answer_key=answer_key,
+                layout=layout,
+                hide_worked=hide_worked,
+            )
         )
         if answer_key:
             out.extend(
@@ -484,7 +496,7 @@ def _render_key_only_item(obj: dict, tag: str, key: KeyOptions) -> list[str]:
     out = [f'<{tag} class="question key-only">']
     # The question text is hidden here, but a worked model is part of the solution: keep it.
     for spec in (q_diagram, *(p.get("diagram") for p in parts)):
-        if diagram.is_worked_model(spec):
+        if diagram.hides_worked_model(obj, spec):
             out.append(f'<figure class="diagram">{diagram.render_svg(spec)}</figure>')
     for part in parts:
         out.append(_key_only_head(part.get("label") if len(parts) > 1 else None, part.get("marks")))

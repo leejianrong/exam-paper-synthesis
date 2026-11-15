@@ -110,7 +110,7 @@ describe('QuestionCard', () => {
       'Make easier',
       'Make harder',
       'Change to decimals',
-      'Show diagram',
+      'Show model in key',
     ]) {
       expect(screen.getByRole('button', { name })).toBeDisabled()
     }
@@ -121,7 +121,7 @@ describe('QuestionCard', () => {
 
   it('shows the toggle-diagram button when available_ops includes it', () => {
     render(QuestionCard, { props: { q: question } })
-    expect(screen.getByRole('button', { name: /diagram/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /model (in|from) key/i })).toBeInTheDocument()
   })
 
   it('hides toggle-diagram for a ratio card when available_ops omits it (no blueprint heuristic)', () => {
@@ -132,7 +132,7 @@ describe('QuestionCard', () => {
       available_ops: ['regenerate', 'make-easier', 'make-harder', 'change-to-decimals'],
     }
     render(QuestionCard, { props: { q } })
-    expect(screen.queryByRole('button', { name: /diagram/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /diagram|model (in|from) key/i })).not.toBeInTheDocument()
   })
 
   // A geometry card carries a mandatory figure: the API's available_ops omits
@@ -181,7 +181,7 @@ describe('QuestionCard', () => {
     expect(fig.querySelector('svg')).not.toBeNull()
 
     // Mandatory figure → no Show/Hide diagram control at all.
-    expect(screen.queryByRole('button', { name: /diagram/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /diagram|model (in|from) key/i })).not.toBeInTheDocument()
   })
 
   it('renders a shaded_fraction SVG and shows no toggle-diagram button', () => {
@@ -210,7 +210,7 @@ describe('QuestionCard', () => {
     const fig = screen.getByLabelText('fraction diagram')
     expect(fig.querySelector('svg')).not.toBeNull()
 
-    expect(screen.queryByRole('button', { name: /diagram/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /diagram|model (in|from) key/i })).not.toBeInTheDocument()
   })
 
   // KAN-310: a ratio_hard card carries a before-after bar model, so the API's

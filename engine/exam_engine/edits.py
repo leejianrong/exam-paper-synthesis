@@ -21,6 +21,7 @@ from collections.abc import Mapping
 from . import canonical, cosmetic
 from .blueprints.registry import get_solver, load_blueprint
 from .canonical import _fill
+from .diagram import WORKED_MODEL_TYPES
 from .errors import EditNotApplicable
 from .ladder import sibling
 from .pipeline import build_from_params, generate
@@ -42,7 +43,7 @@ KNOWN_OPS = frozenset(
 # reasoning and can be shown or hidden. Mandatory figures (shaded_fraction and
 # future geometry) carry information the question depends on, so they must never
 # be toggled off (ADR-0007/0009).
-AID_DIAGRAM_TYPES = frozenset({"bar_model", "bar_model_before_after"})
+AID_DIAGRAM_TYPES = WORKED_MODEL_TYPES  # one definition: aids are the worked models (EXA-132)
 
 
 def _part(obj: dict) -> dict:

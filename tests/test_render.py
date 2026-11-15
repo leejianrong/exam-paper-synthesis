@@ -351,3 +351,26 @@ def test_fragment_numbering_and_modes():
 def test_print_sheet_is_plain_white():
     html = render_worksheet_html("T", [generate("ratio_medium", 1)])
     assert "--paper-2: #ffffff" in html and "linear-gradient" not in html.split("</style>")[1]
+
+
+def test_a_bank_question_keeps_its_bar_model_on_the_paper():
+    """A sourced (bank) question prints its figures as the real paper did: there a bar model
+    may be the question itself ("The model shows…"), so only generated ones are key-only."""
+    import copy
+
+    from exam_engine import diagram
+
+    obj = copy.deepcopy(EASY)
+    obj["source_type"] = "sourced"
+    svg = diagram.render_svg(obj["question"]["parts"][0]["diagram"])
+    assert svg in render_worksheet_html(TITLE, [obj])
+    assert not diagram.hides_worked_model(obj, obj["question"]["parts"][0]["diagram"])
+
+
+def test_a_worked_model_inside_panels_counts():
+    from exam_engine import diagram
+
+    bar = EASY["question"]["parts"][0]["diagram"]
+    panels = {"type": "panels", "panels": [{"title": "Before", "figure": bar}]}
+    assert diagram.is_worked_model(panels)
+    assert not diagram.is_worked_model({"type": "panels", "panels": []})

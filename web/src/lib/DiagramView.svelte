@@ -7,9 +7,10 @@
   export let spec: DiagramSpec | null | undefined
   /** The tighter frame the editor body uses. */
   export let compact = false
-  // A bar model is the worked solution (it carries "1 unit = …" and can show the answer), so the
-  // paper never prints it; the teacher still sees it here, labelled (EXA-132).
-  $: worked = spec?.type === 'bar_model' || spec?.type === 'bar_model_before_after'
+  /** A generated question's figure: a bar model there is the worked solution (it carries
+   *  "1 unit = …" and can show the answer), so the paper prints it in the key only (EXA-132). */
+  export let keyOnly = false
+  $: worked = keyOnly && (spec?.type === 'bar_model' || spec?.type === 'bar_model_before_after')
   $: svg = renderDiagram(spec)
   // Accessible label reflects the diagram kind. Older ratio cards keep "bar model".
   $: aria =

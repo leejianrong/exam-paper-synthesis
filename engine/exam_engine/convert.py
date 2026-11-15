@@ -156,7 +156,7 @@ def to_freeform(obj: dict) -> dict:
         body.append(_para(str(q["stem"])))
     # A worked model (bar model) is part of the solution: it goes to the answer, never the
     # question body a pupil sees (EXA-132).
-    if q.get("diagram") and diagram.is_worked_model(q["diagram"]):
+    if q.get("diagram") and diagram.hides_worked_model(obj, q["diagram"]):
         answer.append(_figure(q["diagram"], "worked model", "Bar model of the solution"))
     elif q.get("diagram"):
         body.append(_figure(q["diagram"], "figure"))
@@ -171,7 +171,7 @@ def to_freeform(obj: dict) -> dict:
             body.extend(_options_blocks(part["answer"]))
         if part.get("diagram"):
             where = f"part ({part['label']}) figure" if part.get("label") else "figure"
-            if diagram.is_worked_model(part["diagram"]):
+            if diagram.hides_worked_model(obj, part["diagram"]):
                 answer.append(_figure(part["diagram"], f"{where} (worked model)"))
             else:
                 body.append(_figure(part["diagram"], where))

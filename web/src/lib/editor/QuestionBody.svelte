@@ -20,9 +20,9 @@
     </div>
   {/if}
   {#if q.question.stem}<p class="text"><MathText text={q.question.stem} /></p>{/if}
-  <DiagramView compact spec={q.question.diagram} />
+  <DiagramView compact keyOnly={q.source_type === 'generated'} spec={q.question.diagram} />
   <p class="text"><MathText text={part.text} /></p>
-  <DiagramView compact spec={part.diagram} />
+  <DiagramView compact keyOnly={q.source_type === 'generated'} spec={part.diagram} />
   {#if part.answer?.type === 'choice'}<ChoiceOptions options={part.answer.options ?? []} />{/if}
 </div>
 
