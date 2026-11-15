@@ -17,7 +17,7 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 - **Server-drawn diagrams and answer types (T1–T7)** — `chart`, `solid`,
   `number_line`, `panels`, `expression` answers, `cube_stack`, and the
   `statistics_chart` and `volume` ladders (canonical schema now `1.12.0`).
-- **Paper format (P1–P6d)** — icon toolbar, working space and `Ans: ____ unit`
+- **Paper format (P1–P7)** — icon toolbar, working space and `Ans: ____ unit`
   lines, marks placement, multi-part free-form questions, and paper structure:
   section blocks with derived question ranges / marks and an authored target, paper
   time, and Paper 1 Booklet A/B and Paper 2 starter templates; and answer-key options: hide the question text, omit the M/A
@@ -29,7 +29,11 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   measures the paper and prints explicit pages, so the PDF and the Preview agree; a question
   taller than a page has its blank working space trimmed rather than clipped; a multi-part
   question may break between its parts); the editor's Preview shows the page count, each
-  page's questions and tally, and any trimmed-space warning.
+  page's questions and tally, and any trimmed-space warning; and a cover page (school, exam,
+  level, subject, paper, date, instructions to candidates, Name / Class / Register No. lines,
+  and a "For examiner's use" table derived from the sections; it replaces the paper's header)
+  and blank pages ("This page is intentionally left blank." or rough work), each on a page of
+  its own and left out of the answer key (document schema `1.9.0`).
 
 ## [0.1.0] — 2026-07-25
 

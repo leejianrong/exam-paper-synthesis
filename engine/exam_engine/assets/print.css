@@ -412,3 +412,42 @@ main[data-tally] { width: 178mm; max-width: none; }
 /* the later page(s) of a multi-part question that broke between its parts (P6c): no new number */
 .question.cont { counter-increment: none; }
 .question.cont::before { content: none; }
+
+/* --- cover page and blank pages (P7) --- */
+.cover-page { break-after: page; }
+.cover-head { text-align: center; margin: 6mm 0 8mm; }
+.cover-head p { margin: 0 0 0.35rem; }
+.cover-school { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; }
+.cover-exam { font-size: 1.15rem; font-weight: 600; }
+.cover-subject { font-size: 1.3rem; font-weight: 700; }
+.cover-paper { font-size: 1.15rem; font-weight: 600; }
+.cover-facts {
+  display: flex; justify-content: center; flex-wrap: wrap; gap: 0.4rem 2rem;
+  margin: 0 0 8mm; font-weight: 600;
+}
+.cover-candidate { margin: 0 0 8mm; }
+.cover-candidate p { display: flex; align-items: flex-end; gap: 0.5rem; margin: 0 0 5mm; }
+.cover-label { font-weight: 600; white-space: nowrap; }
+.cover-line { flex: 1 1 auto; border-bottom: 1px solid var(--ink); height: 1.2em; }
+.cover-line.short { flex: 1 1 30%; }
+.cover-instructions { margin: 0 0 8mm; }
+.cover-instructions h2 { font-size: 1rem; margin: 0 0 0.3rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.cover-instructions ol { margin: 0; padding-left: 1.4rem; }
+.cover-instructions li { margin: 0 0 0.2rem; }
+.examiner-table { margin-left: auto; border-collapse: collapse; min-width: 55%; font-size: 0.95rem; }
+.examiner-table caption { text-align: left; font-weight: 600; margin-bottom: 0.3rem; }
+.examiner-table th, .examiner-table td { border: 1px solid var(--ink); padding: 0.35rem 0.6rem; text-align: center; }
+.examiner-table tbody th { text-align: left; font-weight: 600; }
+.examiner-table td { min-width: 6rem; }
+.examiner-table .total th, .examiner-table .total td { font-weight: 700; }
+
+.blank-page {
+  break-before: page; break-after: page;
+  min-height: 225mm; /* a whole page, kept inside the paginator's room above the tally strip */
+  display: flex; align-items: center; justify-content: center;
+}
+.blank-page.rough { align-items: flex-start; justify-content: flex-start; }
+.blank-text { margin: 0; font-style: italic; color: var(--ink-soft); }
+.blank-page.rough .blank-text { font-style: normal; font-weight: 700; color: var(--ink); }
+/* inside the paginator's page boxes the pages are already placed: no breaks of their own */
+.pg > .cover-page, .pg > .blank-page { break-before: auto; break-after: auto; }

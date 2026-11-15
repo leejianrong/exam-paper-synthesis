@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from . import diagram, expression
-from .document import block_marks, in_key, key_options, paper_outline
+from .document import block_marks, cover_page, in_key, key_options, paper_outline
 
 # ---------------------------------------------------------------------------
 # Vendored assets — read ONCE at import (no per-call I/O; keeps render_* pure).
@@ -890,7 +890,12 @@ _TALLY_TEMPLATE = f'<template id="tally-template">{render_tally_box(0)}</templat
 
 
 def _render_document_body(
-    doc: dict, *, answer_key: bool, assets: AssetResolver | None = None
+    doc: dict,
+    *,
+    answer_key: bool,
+    assets: AssetResolver | None = None,
+    title: str = "",
+    marks: int = 0,
 ) -> str:
     """Document blocks in order; questions and rich text share one numbering counter."""
     placement = _placement(doc)
@@ -898,7 +903,11 @@ def _render_document_body(
     outline = iter(paper_outline(doc))
     marking = False  # inside a section that prints the marking margin
     for node in doc["content"]["content"]:
-        if node["type"] == "section":
+        if node["type"] == "coverPage":
+            out.append(_render_cover(node["attrs"], doc, title=title, marks=marks))
+        elif node["type"] == "blankPage":
+            out.append(_render_blank_page(node["attrs"]))
+        elif node["type"] == "section":
             info = next(outline)
             marking = info["marking"] and not answer_key
             out.append(_render_section(info))
@@ -924,13 +933,97 @@ def _render_document_body(
     return "".join(out)
 
 
-def _time_field(doc: dict) -> str:
+def _time_label(doc: dict) -> str:
+    """The paper time as "1 h 15 min", or "" when unset."""
     minutes = (doc.get("settings") or {}).get("time_min")
     if not minutes:
         return ""
     h, m = divmod(int(minutes), 60)
-    label = " ".join(x for x in (f"{h} h" if h else "", f"{m} min" if m else "") if x)
-    return f'<span class="field-time">Time: {label}</span>'
+    return " ".join(x for x in (f"{h} h" if h else "", f"{m} min" if m else "") if x)
+
+
+def _time_field(doc: dict) -> str:
+    label = _time_label(doc)
+    return f'<span class="field-time">Time: {label}</span>' if label else ""
+
+
+_BLANK_TEXT = {
+    "blank": "This page is intentionally left blank.",
+    "rough": "Rough work",
+}
+
+
+def _render_blank_page(attrs: dict) -> str:
+    """A page of its own (P7): a centred "left blank" line, or a "Rough work" heading."""
+    kind = attrs.get("kind") or "blank"
+    text = (attrs.get("text") or "").strip() or _BLANK_TEXT[kind]
+    return f'<div class="blank-page {kind}"><p class="blank-text">{_esc(text)}</p></div>'
+
+
+def _examiner_table(doc: dict, marks: int) -> str:
+    """ "For examiner's use": a row per section that holds questions, then the paper total. The
+    marks are derived from the questions, like the section headers (P4)."""
+    rows = [
+        f'<tr><th scope="row">{_esc(s["title"] or "Section")}</th><td></td>'
+        f"<td>{s['marks']}</td></tr>"
+        for s in paper_outline(doc)
+        if s["count"]
+    ]
+    rows.append(f'<tr class="total"><th scope="row">Total</th><td></td><td>{marks}</td></tr>')
+    return (
+        '<table class="examiner-table"><caption>For examiner\'s use</caption>'
+        '<thead><tr><th scope="col"></th><th scope="col">Marks obtained</th>'
+        '<th scope="col">Marks available</th></tr></thead>'
+        f"<tbody>{''.join(rows)}</tbody></table>"
+    )
+
+
+def _render_cover(attrs: dict, doc: dict, *, title: str, marks: int) -> str:
+    """The paper's cover page (P7). Time, total and the examiner's table come from the paper."""
+    level_subject = " ".join(
+        x for x in ((attrs.get("level") or "").strip(), (attrs.get("subject") or "").strip()) if x
+    )
+    lines = [
+        (cls, value)
+        for cls, value in (
+            ("cover-school", (attrs.get("school") or "").strip()),
+            ("cover-exam", (attrs.get("exam") or "").strip()),
+            ("cover-subject", level_subject),
+            ("cover-paper", (attrs.get("paper") or "").strip()),
+        )
+        if value
+    ] or [("cover-paper", title)]  # an empty cover still says which paper it is
+    head = "".join(f'<p class="{c}">{_esc(v)}</p>' for c, v in lines)
+
+    facts = []
+    if (attrs.get("date") or "").strip():
+        facts.append(f"<span>Date: {_esc(attrs['date'].strip())}</span>")
+    if _time_label(doc):
+        facts.append(f"<span>Time: {_time_label(doc)}</span>")
+    facts.append(f"<span>Total: {marks} marks</span>")
+
+    candidate = (
+        '<div class="cover-candidate">'
+        '<p><span class="cover-label">Name:</span><span class="cover-line"></span></p>'
+        '<p><span class="cover-label">Class:</span><span class="cover-line short"></span>'
+        '<span class="cover-label">Register No.:</span><span class="cover-line short"></span></p>'
+        "</div>"
+    )
+
+    instr_lines = [x.strip() for x in (attrs.get("instructions") or "").splitlines() if x.strip()]
+    instructions = (
+        '<div class="cover-instructions"><h2>Instructions to candidates</h2><ol>'
+        + "".join(f"<li>{_esc(x)}</li>" for x in instr_lines)
+        + "</ol></div>"
+        if instr_lines
+        else ""
+    )
+    table = _examiner_table(doc, marks) if attrs.get("examiner_table") is not False else ""
+    return (
+        f'<div class="cover-page"><div class="cover-head">{head}</div>'
+        f'<p class="cover-facts">{"".join(facts)}</p>'
+        f"{candidate}{instructions}{table}</div>"
+    )
 
 
 def render_document_html(
@@ -979,17 +1072,22 @@ def render_document_html(
             root_class="sheet answer-key", title=title, header_html=header, body_html=body
         )
 
+    # A cover page (P7) carries the title, name, time and total, so it replaces the header.
     header = (
-        '<header class="sheet-header">'
-        f'<h1 class="sheet-title">{_esc(title)}</h1>'
-        '<p class="sheet-meta">'
-        '<span class="field-name">Name: ______________</span>'
-        f"{_time_field(doc)}"
-        f'<span class="field-marks">Total: {marks} marks</span>'
-        "</p>"
-        "</header>"
+        ""
+        if cover_page(doc)
+        else (
+            '<header class="sheet-header">'
+            f'<h1 class="sheet-title">{_esc(title)}</h1>'
+            '<p class="sheet-meta">'
+            '<span class="field-name">Name: ______________</span>'
+            f"{_time_field(doc)}"
+            f'<span class="field-marks">Total: {marks} marks</span>'
+            "</p>"
+            "</header>"
+        )
     )
-    body = _render_document_body(doc, answer_key=False, assets=assets)
+    body = _render_document_body(doc, answer_key=False, assets=assets, title=title, marks=marks)
     if mode == "full":
         key = _render_numbered_blocks(
             key_blocks,

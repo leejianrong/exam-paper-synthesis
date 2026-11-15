@@ -38,6 +38,7 @@
         bottom: r.bottom + scrollY,
         keepNext: cs.breakAfter === "avoid" || cs.breakAfter === "avoid-page",
         forced: cs.breakAfter === "page",
+        forcedBefore: cs.breakBefore === "page", // a blank page (P7) starts a page of its own
       };
     });
   }
@@ -84,6 +85,11 @@
     while (i < items.length) {
       var j = i;
       while (j < items.length - 1 && items[j].keepNext) j++;
+      if (items[i].forcedBefore && placed > 0) {
+        page++;
+        placed = 0;
+        base = items[i].top;
+      }
       if (items[j].bottom - base > avail && placed > 0) {
         page++;
         placed = 0;
