@@ -20,7 +20,11 @@ export function reportSummary(r: PaperReport): string {
     )
   }
   for (const s of r.sections) {
-    if (s.stand_ins) {
+    if (s.multipart && s.stand_ins) {
+      bits.push(
+        `${s.title} has ${plural(s.multipart, 'multi-part question')}; ${plural(s.stand_ins, 'single-part question')} ${s.stand_ins === 1 ? 'stands' : 'stand'} in for the rest.`,
+      )
+    } else if (s.stand_ins) {
       bits.push(
         `${s.title} uses ${plural(s.stand_ins, 'single-part question')} in place of multi-part ones.`,
       )

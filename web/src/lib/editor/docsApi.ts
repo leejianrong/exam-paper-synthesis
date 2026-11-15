@@ -120,6 +120,8 @@ export interface PaperReport {
     marks_target: number
     slots: number
     filled: number
+    /** P8c: real multi-part questions in a structured section (absent on older reports). */
+    multipart?: number
     stand_ins: number
     placeholders: number
     placeholder_marks: number

@@ -100,7 +100,7 @@ A golden paper per template anchors regressions.
 | **P8a** ✅ | Paper generator | Paper-template YAML (P4 templates move to it), `generate_paper` + placeholders + stand-ins + report, `slot` attr (schema 1.10.0), `POST /documents/generate`, the generate dialog, invariant test. | P4, P7 |
 | **P8b** ✅ | MCQ for Booklet A | Turn constructed-response blueprints into MCQ with deterministic distractors from common wrong answers (per-solver "wrong turn" hooks), or write MCQ blueprints; `choice` answers already exist in the canonical schema. Fills `mcq` slots. | P8a |
 | **P8d** ✅ | Keep / swap / lock | Per-question "another like this" (same slot: new seed or sibling blueprint), "another topic", "write my own" (turns it into a free-form question keeping the slot's marks and Ans: line), lock; "regenerate paper" refills unlocked slots only. | P8a |
-| **P8c** 🚧 | Multi-part blueprints | Shared stem with (a)/(b)/(c), each part solver-proven; replaces Section B stand-ins. First three built (see below). | P8a, P3 |
+| **P8c** 🚧 | Multi-part blueprints | Shared stem with (a)/(b)/(c), each part solver-proven; replaces Section B stand-ins. First three built and wired into the generator (see below). | P8a, P3 |
 | **P8e** | Coverage growth | More topics (whole numbers, decimals, average, algebra, rate, circles, data tables, …) and more 1-/2-mark and P5 blueprints, ordered by the report's placeholder counts. | — |
 
 ## Not in P8
@@ -215,10 +215,15 @@ in generation (the engine stays deterministic).
   `tests/test_invariants_structured.py` re-derives each part from the printed numbers.
 - **Edits.** Multi-part questions get only `regenerate` and `set-cosmetic`; the
   representation ops (decimals, diagram toggles) rebuild one part and are not offered.
-- **Not yet done (needs `paper.py`, owned elsewhere):** `_pool` still labels every blueprint
-  `kind="constructed"`, so today these three reach Paper 2 Section B through the *stand-in*
-  path (4-/5-mark stand-ins) and are flagged `stand_in: true`. With them the P6 Paper 2 at
-  seed 1 fills Section B with 12 questions (five 3-mark, five 4-mark, two 5-mark) instead of
-  14. The generator should set `kind="multipart"` when `spec.is_multipart`, let `structured`
-  slots take `multipart` candidates first (not flagged as stand-ins), and keep them out of
-  `short` slots.
+- **Generator.** `paper.py`'s pool marks a blueprint `kind="multipart"` when
+  `spec.is_multipart`. A `structured` section first takes real multi-part questions (least-used
+  topic first, seeded ties, each at most once, as many as fit the marks target and slot count;
+  slot `{marks, kind: "structured"}` with no `stand_in` flag), then fills the rest of the target
+  with single-part stand-ins through the same `_stand_in_plan` (target and slot count reduced by
+  what the multi-part questions took), then placeholders for any shortfall. Questions are
+  ordered by marks. Multi-part blueprints never fill `short` or `mcq` slots. The report counts
+  them per section (`multipart`, apart from `stand_ins`), and the editor's banner says "Section B
+  has 3 multi-part questions; 9 single-part questions stand in for the rest."
+- **What it fills now.** P6 Paper 2 Section B: 12 questions, 45 / 45 marks = the three
+  multi-part (4 + 5 + 5) and nine single-part stand-ins (five 3-mark, four 4-mark). A P5 paper
+  is unchanged (all three are P6).

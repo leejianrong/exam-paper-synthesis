@@ -75,7 +75,10 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   `document.verify_snapshot` re-solves and checks every part's label, answer and marks;
   a multi-part question is offered only whole-question edits (regenerate, edit names); the
   editor draws generated multi-part questions and their key entries with the engine's
-  renderer. No schema change (the canonical schema already allowed parts).
+  renderer. The paper generator fills Paper 2 Section B with these first (real multi-part
+  questions, not stand-ins; P6 now 3 multi-part + 9 single-part stand-ins) and never puts them
+  in short-answer or MCQ slots; the report counts them per section. No schema change (the
+  canonical schema already allowed parts).
 
 ## [0.1.0] — 2026-07-25
 
