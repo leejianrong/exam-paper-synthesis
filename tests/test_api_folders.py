@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import sqlite3
 import zipfile
 
@@ -190,6 +191,10 @@ def test_create_from_a_template_and_generate_into_a_folder():
     assert len(_doc_ids()) == 2
 
 
+@pytest.mark.skipif(
+    os.environ.get("EXAM_TEST_BACKEND") == "postgres",
+    reason="the SQLite file upgrade; Postgres adds the column in its own boot DDL",
+)
 def test_an_older_documents_file_gains_the_column_and_its_papers_are_unfiled(tmp_path, monkeypatch):
     path = tmp_path / "old-docs.sqlite3"
     with sqlite3.connect(path) as conn:
