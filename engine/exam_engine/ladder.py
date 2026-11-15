@@ -19,6 +19,7 @@ AVERAGE = ["average_easy", "average_medium", "average_hard"]
 WHOLE_NUMBERS = ["whole_numbers_easy", "whole_numbers_medium", "whole_numbers_hard"]
 DECIMALS = ["decimals_easy", "decimals_medium", "decimals_hard"]
 RATE = ["rate_easy", "rate_medium", "rate_hard"]
+ALGEBRA = ["algebra_easy", "algebra_medium", "algebra_hard"]
 
 # Keyed by topic; each value is the ordered list of rungs, easiest first.
 LADDERS: dict[str, list[str]] = {
@@ -34,6 +35,7 @@ LADDERS: dict[str, list[str]] = {
     "Whole Numbers": WHOLE_NUMBERS,
     "Decimals": DECIMALS,
     "Rate": RATE,
+    "Algebra": ALGEBRA,
 }
 
 

@@ -1,0 +1,2 @@
+{"params": {"name": "Ali", "items": "pen_file", "letter": "p", "kind": "more", "k1": 4, "k2": 2, "d": 3, "p": 5}, "expected": {"answer": {"type": "integer", "value": 36, "unit": "$"}, "total_marks": 2}}
+{"params": {"name": "Devi", "items": "cup_plate", "letter": "x", "kind": "times", "k1": 2, "k2": 3, "d": 3, "p": 4}, "expected": {"answer": {"type": "integer", "value": 44, "unit": "$"}, "total_marks": 2}}

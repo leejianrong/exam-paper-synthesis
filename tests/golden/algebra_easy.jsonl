@@ -1,0 +1,2 @@
+{"params": {"form": "sub", "letter": "n", "a": 5, "b": 7, "c": 1, "n": 9}, "expected": {"answer": {"type": "integer", "value": 38, "unit": ""}, "total_marks": 1}}
+{"params": {"form": "frac_sub", "letter": "y", "a": 3, "b": 2, "c": 4, "n": 6}, "expected": {"answer": {"type": "integer", "value": 4, "unit": ""}, "total_marks": 1}}
