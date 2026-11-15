@@ -276,4 +276,12 @@ describe('QuestionCard', () => {
     render(QuestionCard, { props: { q } })
     expect(screen.queryByRole('button', { name: /Slice into units|Group segments/ })).not.toBeInTheDocument()
   })
+
+  it('typesets maths in the working steps (EXA-131)', () => {
+    const alg = structuredClone(question)
+    alg.question.parts[0].solution_steps = [{ text: 'Cost of 3 cups = $\\(3x\\) = $36.' }]
+    const { container } = render(QuestionCard, { props: { q: alg } })
+    expect(container.textContent).not.toContain('\\(')
+    expect(container.querySelector('.math-host')?.getAttribute('data-latex')).toBe('3x')
+  })
 })
