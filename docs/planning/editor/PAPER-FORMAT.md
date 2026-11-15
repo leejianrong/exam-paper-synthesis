@@ -74,7 +74,7 @@ on 12 / 12 test papers; it also found a clipping hazard for taller-than-page que
 | # | Slice | What | Size |
 |---|---|---|---|
 | **P7** ✅ | Cover, title and blank pages | A title/cover page block (school, paper, level, time, candidate name/class/date fields, instructions) and an explicit blank page (e.g. "This page is intentionally left blank", or rough-work space). Shaped and shipped as below (document schema 1.9.0). | S–M |
-| **P8** | One-click full paper generation | See below. | L, its own shaping |
+| **P8** | One-click full paper generation | See below; shaped in [`P8-SHAPING.md`](P8-SHAPING.md) (decisions, model, sub-slices P8a–e). | L, its own shaping |
 
 ### P7 — cover and blank pages (shaped and shipped)
 
@@ -99,6 +99,9 @@ on 12 / 12 test papers; it also found a clipping hazard for taller-than-page que
   templates).
 
 ### P8 — generate an entire paper with one click
+
+> **Shaped** in [`P8-SHAPING.md`](P8-SHAPING.md) (2026-11-15): one paper per click, each blueprint
+> once per paper then a placeholder, single-part stand-ins for Section B until P8c, P8a first.
 
 **Workflow (owner).** A teacher presses one button and gets a whole paper, built to the real
 composition: **Paper 1** (Booklet A: 15 MCQ, 20 marks; Booklet B: 15 short-answer, 25 marks;
