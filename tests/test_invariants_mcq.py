@@ -252,3 +252,15 @@ def test_an_option_shows_exactly_the_wrong_answer_its_reason_describes(code):
                 assert shown == hooked[why] or any(
                     shown == v for v, w in mcq.common_wrong_answers(obj) if w == why
                 ), (code, seed, o["text"], why)
+
+
+@pytest.mark.parametrize("code", BLUEPRINTS)
+def test_money_options_read_whole_dollars_or_two_places(code):
+    """A cent-valued wrong answer to a whole-dollar question prints "$19.80", not "$19.8"."""
+    for seed in range(1, 61):
+        obj = generate(code, seed)
+        if not convertible(obj) or obj["question"]["parts"][0]["answer"].get("unit") != "$":
+            continue
+        for o in to_mcq(obj, seed)["question"]["parts"][0]["answer"]["options"]:
+            if o["text"].startswith("$"):
+                assert re.fullmatch(r"\$\d+(\.\d\d)?", o["text"]), (code, seed, o["text"])

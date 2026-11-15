@@ -119,6 +119,9 @@ def _with_value(answer: dict, value: Fraction) -> dict:
         out["value"] = round(float(value), places)
         if value.denominator == 1 and _kind(answer) != "money":
             out["value"] = int(value)  # a whole wrong answer reads "100 cm²", not "100.0 cm²"
+        elif _kind(answer) == "money" and value.denominator != 1:
+            # cents on a whole-dollar answer: a 2-dp amount ("$19.80", never "$19.8")
+            out["type"], out["dp"], out["value"] = "decimal", 2, round(float(value), 2)
     else:
         out["value"] = int(value)
     return out
