@@ -32,7 +32,11 @@ def _blueprint_meta() -> dict[str, dict]:
     out = {}
     for path in (content_dir() / "blueprints").glob("*.yaml"):
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
-        out[data["code"]] = {"level": data["syllabus"]["level"], "marks": data["marks"]}
+        out[data["code"]] = {
+            "level": data["syllabus"]["level"],
+            "marks": data["marks"],
+            "parts": len(data.get("parts") or []) or 1,  # P8c multi-part blueprints
+        }
     return out
 
 
@@ -108,12 +112,16 @@ def test_generated_papers_keep_every_rule(code, level):
                     blueprint = n["attrs"]["question"]["blueprint_code"]
                     assert META[blueprint]["marks"] == slot["marks"], where
             if sec["mode"] == "structured":
-                # stand-ins: 2+ marks, single-part; placeholders 3-5 marks unless tiny
+                # stand-ins: 2+ marks, every part of their blueprint (a P8c multi-part
+                # blueprint is drawn through the stand-in path until paper.py tells them
+                # apart); placeholders 3-5 marks unless tiny
                 for n in nodes:
                     if n["type"] == "templatedQuestion":
                         assert n["attrs"]["slot"]["stand_in"] is True, where
                         assert _marks(n) >= 2, where
-                        assert len(n["attrs"]["question"]["question"]["parts"]) == 1, where
+                        blueprint = n["attrs"]["question"]["blueprint_code"]
+                        parts = n["attrs"]["question"]["question"]["parts"]
+                        assert len(parts) == META[blueprint]["parts"], where
             else:
                 # fixed sections keep the real paper's slot layout, in order
                 want = [x["marks"] for x in tsec["slots"] for _ in range(x["count"])]
@@ -166,7 +174,7 @@ def test_what_todays_content_fills():
     assert fill("p1_booklet_a", "P5") == (9, 6)
     assert fill("p1_booklet_b", "P6") == (12, 3)
     assert fill("p1_booklet_b", "P5") == (9, 6)
-    assert fill("p2", "P6") == (19, 0)
+    assert fill("p2", "P6") == (17, 0)  # P8c's 4-/5-mark multi-part blueprints joined
     assert fill("p2", "P5") == (10, 6)
 
 

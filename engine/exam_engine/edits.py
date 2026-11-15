@@ -63,6 +63,12 @@ def available_ops(obj: dict) -> set[str]:
     if sibling(code, -1):
         ops.add("make-easier")
 
+    # P8c: the representation ops below rebuild a single part in place, so a multi-part
+    # question is offered only the resample ops (and set-cosmetic, which re-solves the
+    # whole question through the pipeline).
+    if load_blueprint(code).is_multipart:
+        return ops
+
     answer = _part(obj).get("answer", {})
     solver = get_solver(code)
     if answer.get("unit") == "$" and getattr(solver, "MONEY_KEYS", None):

@@ -100,7 +100,7 @@ A golden paper per template anchors regressions.
 | **P8a** ✅ | Paper generator | Paper-template YAML (P4 templates move to it), `generate_paper` + placeholders + stand-ins + report, `slot` attr (schema 1.10.0), `POST /documents/generate`, the generate dialog, invariant test. | P4, P7 |
 | **P8b** ✅ | MCQ for Booklet A | Turn constructed-response blueprints into MCQ with deterministic distractors from common wrong answers (per-solver "wrong turn" hooks), or write MCQ blueprints; `choice` answers already exist in the canonical schema. Fills `mcq` slots. | P8a |
 | **P8d** ✅ | Keep / swap / lock | Per-question "another like this" (same slot: new seed or sibling blueprint), "another topic", "write my own" (turns it into a free-form question keeping the slot's marks and Ans: line), lock; "regenerate paper" refills unlocked slots only. | P8a |
-| **P8c** | Multi-part blueprints | Shared stem with (a)/(b)/(c), each part solver-proven; replaces Section B stand-ins. | P8a, P3 |
+| **P8c** 🚧 | Multi-part blueprints | Shared stem with (a)/(b)/(c), each part solver-proven; replaces Section B stand-ins. First three built (see below). | P8a, P3 |
 | **P8e** | Coverage growth | More topics (whole numbers, decimals, average, algebra, rate, circles, data tables, …) and more 1-/2-mark and P5 blueprints, ordered by the report's placeholder counts. | — |
 
 ## Not in P8
@@ -196,3 +196,29 @@ in generation (the engine stays deterministic).
   "Regenerate unlocked" also refills generated questions added by hand (so they show Lock too);
   its tooltip says locked questions and the teacher's own writing are kept.
 - Not done: a preview of the candidate before swapping.
+
+## P8c as built so far (2026-11-15)
+
+- **Framework.** A blueprint YAML may carry `parts:` — one entry per part, in print order, each
+  `{label, text, marks, marking_scheme, solution_template, answer}` — instead of the top-level
+  `marking_scheme` / `solution_template` / `answer`. Its `story_templates` then hold only the
+  shared `stem`; `marks` stays the question total. The solver's `solve()` returns `"answers"`
+  (one per part) instead of `"answer"`. `load_blueprint` checks the parts (labels a, b, …;
+  each scheme sums to its part's marks; parts sum to `marks`). Single-part blueprints are
+  untouched.
+- **The marker the generator reads:** `load_blueprint(code).is_multipart` (and `.part_count`).
+- **Blueprints:** `ratio_structured` (5 = 2 + 3: total from a difference; then how many were
+  given, the total unchanged), `speed_structured` (4 = 1 + 3: the distance; then the
+  round-trip average speed) and `volume_structured` (5 = 2 + 3: litres in tank A; then the
+  water level once poured into tank B). All P6, not on any difficulty ladder.
+- **Proof.** `verify_snapshot` re-solves and checks every part's label, answer and marks;
+  `tests/test_invariants_structured.py` re-derives each part from the printed numbers.
+- **Edits.** Multi-part questions get only `regenerate` and `set-cosmetic`; the
+  representation ops (decimals, diagram toggles) rebuild one part and are not offered.
+- **Not yet done (needs `paper.py`, owned elsewhere):** `_pool` still labels every blueprint
+  `kind="constructed"`, so today these three reach Paper 2 Section B through the *stand-in*
+  path (4-/5-mark stand-ins) and are flagged `stand_in: true`. With them the P6 Paper 2 at
+  seed 1 fills Section B with 12 questions (five 3-mark, five 4-mark, two 5-mark) instead of
+  14. The generator should set `kind="multipart"` when `spec.is_multipart`, let `structured`
+  slots take `multipart` candidates first (not flagged as stand-ins), and keep them out of
+  `short` slots.

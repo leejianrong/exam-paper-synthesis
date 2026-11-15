@@ -1,0 +1,87 @@
+code: ratio_structured
+syllabus:
+  level: P6
+  strand: "Ratio"
+  topic: "Ratio"
+  subtopic: "Structured: total from a difference, then a transfer (constant total)"
+  skill_codes: ["RATIO.BEFOREAFTER.TOTAL"]   # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Reasoning depth", "Hidden structure"]
+marks: 5                                # the question total; each part's marks are below
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [names, item, ratio_before, more, ratio_after]
+  properties:
+    names:
+      type: array
+      items: { type: string }
+      minItems: 2
+      maxItems: 2
+    item: { type: string }
+    ratio_before:
+      type: array
+      items: { type: integer, minimum: 1, maximum: 9 }
+      minItems: 2
+      maxItems: 2
+    more: { type: integer, minimum: 1, maximum: 600 }
+    ratio_after:
+      type: array
+      items: { type: integer, minimum: 1, maximum: 9 }
+      minItems: 2
+      maxItems: 2
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  names:        { role: name }
+  item:         { role: item }
+  ratio_before: { role: number }
+  more:         { role: number }
+  ratio_after:  { role: number }
+# P8c multi-part: the story template holds the shared stem; `parts` holds each part's text,
+# marks, marking scheme, worked steps and answer type. The solver returns `answers`, one per
+# part, in this order. A multi-part blueprint has no top-level marking_scheme/solution/answer.
+story_templates:
+  - stem: >
+      {names[0]} and {names[1]} had some {item}. The ratio of the number of {item}
+      {names[0]} had to the number of {item} {names[1]} had was {ratio_before[0]} :
+      {ratio_before[1]}. {names[0]} had {more} more {item} than {names[1]}.
+parts:
+  - label: a
+    marks: 2
+    text: "How many {item} did they have altogether?"
+    solution_template:
+      steps:
+        - text: "{names[0]} had {ratio_before[0]} - {ratio_before[1]} = {diff_units_text} more than {names[1]}, so {diff_units_text} = {more}."
+          expr: "{ratio_before[0]}-{ratio_before[1]}"
+        - text: "1 unit = {more} ÷ {diff_units} = {u1}."
+          expr: "{more}/{diff_units}"
+        - text: "Altogether = {sum_before} units = {sum_before} × {u1} = {total}."
+          expr: "{sum_before}*{u1}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Uses the difference in units to find the value of one unit." }
+      - { mark: 1, type: A, description: "Correct total." }
+    answer: { type: integer }
+  - label: b
+    marks: 3
+    text: >
+      After {names[0]} gave some {item} to {names[1]}, the ratio of the number of
+      {item} {names[0]} had to the number of {item} {names[1]} had became
+      {ratio_after[0]} : {ratio_after[1]}. How many {item} did {names[0]} give to
+      {names[1]}?
+    solution_template:
+      steps:
+        - text: "The total does not change: it is still {total}."
+        - text: "In the end, {names[0]} had {ratio_after[0]} out of {sum_after} units: {total} ÷ {sum_after} × {ratio_after[0]} = {a_after}."
+          expr: "{total}/{sum_after}*{ratio_after[0]}"
+        - text: "At first, {names[0]} had {ratio_before[0]} × {u1} = {a_before}."
+          expr: "{ratio_before[0]}*{u1}"
+        - text: "{names[0]} gave {a_before} - {a_after} = {given}."
+          expr: "{a_before}-{a_after}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Uses the unchanged total from (a) to find the first person's share at the end." }
+      - { mark: 1, type: M, description: "Finds the first person's number at first." }
+      - { mark: 1, type: A, description: "Correct number given." }
+    answer: { type: integer }

@@ -6,7 +6,7 @@ import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { fireEvent, screen, waitFor } from '@testing-library/svelte'
 import { TemplatedQuestion, questionNode } from './templatedQuestion'
-import { makeBankQuestion, makeQuestion, routeFetch } from './fixtures'
+import { makeBankQuestion, makeMultipartQuestion, makeQuestion, routeFetch } from './fixtures'
 import type { DocJSON } from './doc'
 
 let editor: Editor | null = null
@@ -127,5 +127,30 @@ describe('templatedQuestion node view', () => {
     await waitFor(() =>
       expect(screen.getByTestId('fragment').shadowRoot?.textContent).toContain('bank question html'),
     )
+  })
+
+  it('draws a generated multi-part question with the engine renderer and keeps its edits', async () => {
+    const bodies: Array<{ question: { id: string } }> = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        routeFetch({
+          '/render/question.css': '.q{}',
+          '/render/katex.js': '',
+          '/render/question': (init?: RequestInit) => {
+            bodies.push(JSON.parse(String(init?.body)))
+            return { html: '<div class="frag">(a) distance (b) average speed</div>' }
+          },
+        }),
+      ),
+    )
+    make({ type: 'doc', content: [questionNode(makeMultipartQuestion())] })
+    await waitFor(() =>
+      expect(screen.getByTestId('fragment').shadowRoot?.textContent).toContain('(b) average speed'),
+    )
+    expect(bodies[0].question.id).toBe('speed_structured:1')
+    // The engine's whole-question edits stay; nothing else is offered.
+    expect(screen.getByRole('button', { name: 'Regenerate' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Make harder' })).not.toBeInTheDocument()
   })
 })

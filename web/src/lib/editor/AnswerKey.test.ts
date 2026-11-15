@@ -2,7 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/svelte'
 import { vi } from 'vitest'
 import AnswerKey from './AnswerKey.svelte'
-import { freeformDocNode, makeBankQuestion, makeQuestion, routeFetch, templatedNodes } from './fixtures'
+import {
+  freeformDocNode,
+  makeBankQuestion,
+  makeMultipartQuestion,
+  makeQuestion,
+  routeFetch,
+  templatedNodes,
+} from './fixtures'
 
 describe('AnswerKey', () => {
   it('lists answers, steps and marking in document order with matching numbers', () => {
@@ -52,6 +59,30 @@ describe('AnswerKey', () => {
       expect(screen.getByTestId('fragment').shadowRoot?.textContent).toContain('key for bank'),
     )
     expect(seen).toEqual([{ mode: 'key', number: 2 }])
+    vi.unstubAllGlobals()
+  })
+
+  it('draws a generated multi-part entry with the engine key markup, so every part shows', async () => {
+    const seen: Array<{ mode: string; number: number }> = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        routeFetch({
+          '/render/question.css': '.q{}',
+          '/render/katex.js': '',
+          '/render/question': (init?: RequestInit) => {
+            const b = JSON.parse(String(init?.body))
+            seen.push({ mode: b.mode, number: b.number })
+            return { html: '<div class="frag">(a) 120 km (b) 48 km/h</div>' }
+          },
+        }),
+      ),
+    )
+    render(AnswerKey, { props: { blocks: templatedNodes([makeMultipartQuestion()]) } })
+    await waitFor(() =>
+      expect(screen.getByTestId('fragment').shadowRoot?.textContent).toContain('(b) 48 km/h'),
+    )
+    expect(seen).toEqual([{ mode: 'key', number: 1 }])
     vi.unstubAllGlobals()
   })
 

@@ -1,0 +1,3 @@
+{"params": {"name": "Aisha", "speed_out": 60, "time_out": 2, "speed_back": 40}, "expected": {"answers": [{"type": "quantity", "value": 120, "unit": "km"}, {"type": "quantity", "value": 48, "unit": "km/h"}], "marks": [1, 3], "total_marks": 4}}
+{"params": {"name": "Ben", "speed_out": 90, "time_out": 3, "speed_back": 45}, "expected": {"answers": [{"type": "quantity", "value": 270, "unit": "km"}, {"type": "quantity", "value": 60, "unit": "km/h"}], "marks": [1, 3], "total_marks": 4}}
+{"params": {"name": "Chloe", "speed_out": 75, "time_out": 2, "speed_back": 50}, "expected": {"answers": [{"type": "quantity", "value": 150, "unit": "km"}, {"type": "quantity", "value": 60, "unit": "km/h"}], "marks": [1, 3], "total_marks": 4}}

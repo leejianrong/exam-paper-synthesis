@@ -108,9 +108,9 @@
       {:else}
       {@const q = block.attrs?.question as Question}
       {@const part = q.question.parts[0]}
-      {#if q.source_type === 'sourced'}
-        <!-- bank question: the engine's own key markup, so MCQ options, tables and
-             constructions are right; it carries its own number. -->
+      {#if q.source_type === 'sourced' || q.question.parts.length > 1}
+        <!-- bank or multi-part (P8c) question: the engine's own key markup, so MCQ options,
+             tables, constructions and every lettered part are right; it carries its own number. -->
         <li class="entry" class:excluded={!included(block)}>
           <div class="head">{@render include(block, i + 1)}</div>
           <FragmentView question={q} mode="key" number={i + 1} keyOptions={options} />

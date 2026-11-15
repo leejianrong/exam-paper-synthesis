@@ -120,6 +120,43 @@ def _fill(template: str, ctx: dict) -> str:
     return " ".join(template.format(**ctx).split())
 
 
+def _steps(solution_template: dict, ctx: dict) -> list[dict]:
+    steps = []
+    for step in solution_template.get("steps", []):
+        filled: dict[str, str | None] = {"text": _fill(step["text"], ctx)}
+        filled["expr"] = _fill(step["expr"], ctx) if step.get("expr") else None
+        steps.append(filled)
+    return steps
+
+
+def _multipart(
+    spec: BlueprintSpec, ctx: dict, template: dict, solution: dict, diagram: dict | None
+) -> tuple[str, list[dict]]:
+    """The shared stem and lettered parts of a multi-part blueprint (P8c).
+
+    Each part gets the solver's answer at its index and the YAML part's own marks,
+    marking scheme and solution steps. A figure (if any) goes on the first part.
+    """
+    answers = solution.get("answers") or []
+    if len(answers) != len(spec.parts):
+        raise CanonicalValidationError(
+            [f"<engine>: solver gave {len(answers)} answers for {len(spec.parts)} parts"]
+        )
+    parts = [
+        {
+            "label": p["label"],
+            "text": _fill(p["text"], ctx),
+            "marks": p["marks"],
+            "answer": answer,
+            "marking_scheme": p["marking_scheme"],
+            "solution_steps": _steps(p.get("solution_template") or {}, ctx),
+            "diagram": diagram if i == 0 else None,
+        }
+        for i, (p, answer) in enumerate(zip(spec.parts, answers, strict=True))
+    ]
+    return _fill(template["stem"], ctx), parts
+
+
 def assemble(
     spec: BlueprintSpec,
     *,
@@ -137,30 +174,27 @@ def assemble(
     ctx = {**params, **solution.get("intermediates", {})}
 
     template = spec.story_templates[seed % len(spec.story_templates)]
-    stem = template.get("stem")
-    part_text = _fill(template["text"], ctx)
-
-    steps = []
-    for step in spec.solution_template.get("steps", []):
-        filled: dict[str, str | None] = {"text": _fill(step["text"], ctx)}
-        filled["expr"] = _fill(step["expr"], ctx) if step.get("expr") else None
-        steps.append(filled)
-
-    marks_total = sum(m["mark"] for m in spec.marking_scheme)
-    if marks_total != spec.marks:
-        raise CanonicalValidationError(
-            [f"<engine>: marking_scheme sums to {marks_total} but blueprint marks={spec.marks}"]
-        )
-
-    part = {
-        "label": "",  # single-part (R1.7 multi-part exercised in later slices)
-        "text": part_text,
-        "marks": spec.marks,
-        "answer": solution["answer"],
-        "marking_scheme": spec.marking_scheme,
-        "solution_steps": steps,
-        "diagram": diagram,  # aid bar_model (A5); None when a blueprint has no diagram
-    }
+    stem: str | None
+    if spec.parts:
+        stem, parts = _multipart(spec, ctx, template, solution, diagram)
+    else:
+        stem = template.get("stem")
+        marks_total = sum(m["mark"] for m in spec.marking_scheme)
+        if marks_total != spec.marks:
+            raise CanonicalValidationError(
+                [f"<engine>: marking_scheme sums to {marks_total} but blueprint marks={spec.marks}"]
+            )
+        parts = [
+            {
+                "label": "",  # single-part
+                "text": _fill(template["text"], ctx),
+                "marks": spec.marks,
+                "answer": solution["answer"],
+                "marking_scheme": spec.marking_scheme,
+                "solution_steps": _steps(spec.solution_template, ctx),
+                "diagram": diagram,  # aid bar_model (A5); None when a blueprint has no diagram
+            }
+        ]
 
     obj = {
         "schema_version": SCHEMA_VERSION,
@@ -173,7 +207,7 @@ def assemble(
         "parameters": params,
         "question": {
             "stem": stem,
-            "parts": [part],
+            "parts": parts,
             "total_marks": spec.marks,
         },
         "validation": {

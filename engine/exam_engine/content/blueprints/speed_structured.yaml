@@ -1,0 +1,60 @@
+code: speed_structured
+syllabus:
+  level: P6
+  strand: "Speed"
+  topic: "Speed"
+  subtopic: "Structured: distance, then average speed for a round trip"
+  skill_codes: ["SPEED.AVG.ROUNDTRIP"]  # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Multiple concepts"]
+marks: 4                                # the question total; each part's marks are below
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, speed_out, time_out, speed_back]
+  properties:
+    name: { type: string }
+    speed_out: { type: integer, minimum: 30, maximum: 100 }
+    time_out: { type: integer, minimum: 2, maximum: 5 }
+    speed_back: { type: integer, minimum: 30, maximum: 100 }
+# Every parameter_schema property needs a role (W1a).
+param_roles:
+  name:       { role: name }
+  speed_out:  { role: number }
+  time_out:   { role: number }
+  speed_back: { role: number }
+# P8c multi-part: shared stem here, each part's text/marks/scheme/steps/answer under `parts`.
+story_templates:
+  - stem: >
+      {name} drove from Town P to Town Q at an average speed of {speed_out} km/h. The
+      journey took {time_out} hours. {name} then drove back from Town Q to Town P along
+      the same road at an average speed of {speed_back} km/h.
+parts:
+  - label: a
+    marks: 1
+    text: "What is the distance between Town P and Town Q?"
+    solution_template:
+      steps:
+        - text: "Distance = {speed_out} km/h × {time_out} h = {distance} km."
+          expr: "{speed_out}*{time_out}"
+    marking_scheme:
+      - { mark: 1, type: A, description: "Correct distance with the km unit." }
+    answer: { type: quantity, unit: "km" }
+  - label: b
+    marks: 3
+    text: "Find {name}'s average speed for the whole journey."
+    solution_template:
+      steps:
+        - text: "Time for the journey back = {distance} km ÷ {speed_back} km/h = {time_back} h."
+          expr: "{distance}/{speed_back}"
+        - text: "Total distance = 2 × {distance} km = {total_distance} km. Total time = {time_out} h + {time_back} h = {total_time} h."
+          expr: "{time_out}+{time_back}"
+        - text: "Average speed = {total_distance} km ÷ {total_time} h = {avg} km/h."
+          expr: "{total_distance}/{total_time}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Uses the distance from (a) to find the time for the journey back." }
+      - { mark: 1, type: M, description: "Divides the total distance by the total time (NOT the mean of the two speeds)." }
+      - { mark: 1, type: A, description: "Correct average speed with the km/h unit." }
+    answer: { type: quantity, unit: "km/h" }

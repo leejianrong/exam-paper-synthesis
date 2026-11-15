@@ -1,0 +1,71 @@
+code: volume_structured
+syllabus:
+  level: P6
+  strand: "Measurement"
+  topic: "Volume"
+  subtopic: "Structured: litres in one tank, then the water level in another"
+  skill_codes: ["MEAS.VOL.TANK.TRANSFER"]   # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Multiple concepts"]
+marks: 5                                # the question total; each part's marks are below
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [length, width, height, depth, length_b, width_b, height_b]
+  properties:
+    length: { type: integer, minimum: 10, maximum: 60 }
+    width: { type: integer, minimum: 10, maximum: 60 }
+    height: { type: integer, minimum: 10, maximum: 60 }
+    depth: { type: integer, minimum: 5, maximum: 60 }
+    length_b: { type: integer, minimum: 10, maximum: 60 }
+    width_b: { type: integer, minimum: 10, maximum: 60 }
+    height_b: { type: integer, minimum: 10, maximum: 60 }
+# Every parameter_schema property needs a role (W1a).
+param_roles:
+  length:   { role: number }
+  width:    { role: number }
+  height:   { role: number }
+  depth:    { role: number }
+  length_b: { role: number }
+  width_b:  { role: number }
+  height_b: { role: number }
+# P8c multi-part: shared stem here, each part's text/marks/scheme/steps/answer under `parts`.
+story_templates:
+  - stem: >
+      Tank A is a rectangular tank measuring {length} cm by {width} cm by {height} cm.
+      It contains water to a depth of {depth} cm. Tank B is an empty rectangular tank
+      measuring {length_b} cm by {width_b} cm by {height_b} cm. (1 l = 1000 cm³)
+parts:
+  - label: a
+    marks: 2
+    text: "How many litres of water are there in Tank A?"
+    solution_template:
+      steps:
+        - text: "Volume of water in Tank A = {length} × {width} × {depth} = {volume} cm³."
+          expr: "{length}*{width}*{depth}"
+        - text: "{volume} cm³ = {litres} l."
+          expr: "{volume}/1000"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Finds the volume of water in cm³." }
+      - { mark: 1, type: A, description: "Converts to litres correctly." }
+    answer: { type: integer, unit: "l" }
+  - label: b
+    marks: 3
+    text: >
+      All the water in Tank A is poured into Tank B. What is the height of the water
+      in Tank B?
+    solution_template:
+      steps:
+        - text: "The volume of water stays the same: {litres} l = {volume} cm³."
+          expr: "{litres}*1000"
+        - text: "Base area of Tank B = {length_b} × {width_b} = {base_b} cm²."
+          expr: "{length_b}*{width_b}"
+        - text: "Height of water in Tank B = {volume} ÷ {base_b} = {level_b} cm."
+          expr: "{volume}/{base_b}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Uses the volume of water from (a), in cm³." }
+      - { mark: 1, type: M, description: "Divides the volume by Tank B's base area." }
+      - { mark: 1, type: A, description: "Correct height with the cm unit." }
+    answer: { type: integer, unit: "cm" }

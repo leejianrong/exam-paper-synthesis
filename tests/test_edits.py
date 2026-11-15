@@ -155,6 +155,7 @@ def test_available_ops_hides_toggle_for_mandatory_shaded_fraction(monkeypatch):
 
     class _Stub:
         diagram = "shaded_fraction"
+        is_multipart = False
 
     monkeypatch.setattr(edits, "load_blueprint", lambda code: _Stub())
     ops = edits.available_ops(obj)

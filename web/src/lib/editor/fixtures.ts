@@ -1,6 +1,29 @@
 // Shared test fixtures for the editor (not a test file).
 import type { Question } from '../types'
 
+/** A generated multi-part question (P8c): a shared stem and parts (a) and (b). */
+export function makeMultipartQuestion(): Question {
+  const part = (label: string, text: string, marks: number, value: number) => ({
+    label,
+    text,
+    marks,
+    answer: { type: 'quantity', value, unit: 'km' },
+    solution_steps: [{ text: `Work for (${label}).` }],
+    marking_scheme: [{ type: 'A', mark: marks, description: 'Correct.' }],
+    diagram: null,
+  })
+  return makeQuestion({
+    id: 'speed_structured:1',
+    blueprint_code: 'speed_structured',
+    available_ops: ['regenerate'],
+    question: {
+      stem: 'Ben drove from Town P to Town Q.',
+      total_marks: 4,
+      parts: [part('a', 'Find the distance.', 1, 120), part('b', 'Find the average speed.', 3, 48)],
+    },
+  } as Partial<Question>)
+}
+
 export function makeQuestion(over: Partial<Question> = {}, text = 'Ann, Ben and Cal share $90 in the ratio 2 : 3 : 4.'): Question {
   return {
     id: 'ratio_medium:1',
