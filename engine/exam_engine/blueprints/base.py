@@ -30,6 +30,11 @@ class Solver(Protocol):
         ...
 
     # Optional: def diagram(self, params, solution) -> dict  (added in V2)
+    # Optional: def distractors(self, params, solution) -> list[tuple[number, str]]
+    #   (EXA-122) the "common wrong answers" for a multiple-choice copy (mcq.to_mcq): values
+    #   in the answer's own quantity and unit, each with the reason a pupil gives it, best
+    #   first. mcq filters out the answer itself and anything implausible, then falls back
+    #   to its generic candidates; the correct option is still proven by verify_snapshot.
 
 
 @dataclass
