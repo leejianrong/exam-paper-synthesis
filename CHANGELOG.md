@@ -20,7 +20,9 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 - **Starter templates get a cover page** — starting a paper from an empty template
   (Paper 1 Booklet A/B, Paper 2) now adds the same prefilled cover a generated paper gets
   (subject, paper and instructions); the level is left blank for the teacher, since an empty
-  template has none. The Preview's page list names cover, blank and rough-work pages.
+  template has none. A starter paper's student print therefore shows the cover in place of
+  the sheet header, and the Preview counts the cover as page 1; its page list names cover,
+  blank and rough-work pages.
 - **Coverage growth (P8e, batch 1)** — an `average` ladder at P5 (1 / 2 / 3 marks):
   the average of a set of numbers; a missing score or the money left from an average;
   the average when a child joins or leaves a group. Also in the web topic picker.

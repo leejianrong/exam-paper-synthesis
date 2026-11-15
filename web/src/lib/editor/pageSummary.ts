@@ -31,7 +31,7 @@ export function summarisePages(doc: Document): PageSummary {
       numbers.push(running)
     })
     const tally = box.querySelector('.tally-total')?.textContent
-    const kind = box.querySelector('.cover-page')
+    const kind: PageInfo['kind'] = box.querySelector('.cover-page')
       ? 'cover'
       : box.querySelector('.blank-page.rough')
         ? 'rough'
@@ -39,7 +39,7 @@ export function summarisePages(doc: Document): PageSummary {
           ? 'blank'
           : undefined
     return {
-      ...(kind && !numbers.length ? { kind: kind as PageInfo['kind'] } : {}),
+      ...(kind && !numbers.length ? { kind } : {}),
       page: i + 1,
       first: numbers.length ? numbers[0] : null,
       last: numbers.length ? numbers[numbers.length - 1] : null,

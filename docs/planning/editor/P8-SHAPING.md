@@ -126,8 +126,9 @@ in generation (the engine stays deterministic).
   top bar (and a hint on each placeholder) rather than an export warning. A placeholder stops
   counting as soon as its body has text, so nothing is stored to clear.
 - Generated papers start with a cover page (level, subject, paper and instructions prefilled;
-  school, exam and date for the teacher). Starting from an empty template adds the same cover since the follow-up (2026-11-15) with
-  the level left blank: an empty template has no level, and swaps then use the request's level.
+  school, exam and date for the teacher). Since EXA-124, starting from an empty template adds the same cover with the
+  level left blank (an empty template has none); swaps then fall back as for a paper without a
+  cover: the highest level of its generated questions, else P6.
 
 ## P8b as built (2026-11-15)
 
