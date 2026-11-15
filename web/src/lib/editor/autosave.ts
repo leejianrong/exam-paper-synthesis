@@ -15,6 +15,9 @@ export interface Autosaver {
   flush(): Promise<void>
   /** The version the next save is based on. */
   version(): number
+  /** The server saved a new version itself (P8d swap/regenerate): base the next save on it,
+   *  and forget any change scheduled (or conflict met) before it. */
+  rebase(version: number): void
   dispose(): void
 }
 
@@ -32,6 +35,10 @@ export function createAutosaver(opts: AutosaveOptions): Autosaver {
   let timer: ReturnType<typeof setTimeout> | null = null
   let inflight: Promise<void> | null = null
   let stopped = false // conflict or dispose: no further saves
+  let disposed = false
+  // Bumped by rebase(): a save in flight across it belongs to the old version, so its
+  // outcome (a new version, a conflict) is ignored.
+  let epoch = 0
 
   function clearTimer() {
     if (timer) clearTimeout(timer)
@@ -43,11 +50,14 @@ export function createAutosaver(opts: AutosaveOptions): Autosaver {
       const doc = pending
       pending = null
       status.set('saving')
+      const mine = epoch
       try {
         const saved = await opts.save(doc, version)
+        if (mine !== epoch) continue
         version = saved.version
         status.set(pending ? 'dirty' : 'saved')
       } catch (e) {
+        if (mine !== epoch) continue
         if (e instanceof ApiError && e.status === 409) {
           stopped = true
           pending = null
@@ -87,7 +97,18 @@ export function createAutosaver(opts: AutosaveOptions): Autosaver {
       await start()
     },
     version: () => version,
+    rebase(v) {
+      // The server's version supersedes everything before it: drop a snapshot taken earlier
+      // (saving it now would put the old document back) and any conflict it ran into.
+      epoch += 1
+      version = v
+      pending = null
+      clearTimer()
+      if (!disposed) stopped = false
+      status.set('saved')
+    },
     dispose() {
+      disposed = true
       stopped = true
       clearTimer()
     },

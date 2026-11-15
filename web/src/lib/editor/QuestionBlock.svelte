@@ -12,9 +12,12 @@
   import AnswerArea from './AnswerArea.svelte'
   import { DEFAULT_PLACEMENT, type BlockLayout } from './layout'
   import { paperSettings } from './paperSettings'
+  import type { SwapMode } from './docsApi'
+  import type { PaperSlot } from './templatedQuestion'
 
   export let store: Readable<Question>
   export let layout: Readable<BlockLayout>
+  export let paperSlot: Readable<PaperSlot>
   export let ctx: {
     replace: (q: Question) => void
     remove: () => void
@@ -22,6 +25,8 @@
     addBelow: () => void
     convert: () => Promise<void>
     setLayout: (patch: Partial<BlockLayout>) => void
+    swap: (mode: SwapMode) => Promise<void>
+    setLocked: (locked: boolean) => void
   }
 
   $: q = $store
@@ -38,6 +43,14 @@
   // none of the engine-only edits. Its status lives in the inspector, not on the page.
   $: fromBank = q.source_type === 'sourced'
   $: ops = q.available_ops ?? []
+  // P8d: a question the paper generator put here can be swapped for another, or locked.
+  $: generated = $paperSlot.generated
+  $: locked = $paperSlot.locked
+  const SWAPS: Array<[SwapMode, string, string]> = [
+    ['like', 'Another like this', 'Another question for this slot: same marks, same topic where possible'],
+    ['topic', 'Another topic', 'A question with the same marks from a topic this paper uses less'],
+    ['own', 'Write my own', 'Replace it with an empty question of the same marks for you to write'],
+  ]
   const OP_LABELS: Array<[EditOp, string]> = [
     ['regenerate', 'Regenerate'],
     ['make-easier', 'Make easier'],
@@ -105,6 +118,24 @@
 
     {#if error}
       <p class="error" role="alert">{error}</p>
+    {/if}
+
+    {#if generated}
+      <div class="toolbar paper" role="group" aria-label="paper tools">
+        {#each SWAPS as [mode, label, hint] (mode)}
+          <button
+            disabled={busy || locked}
+            title={locked ? 'Unlock it to swap it' : hint}
+            on:click={() => run(() => ctx.swap(mode))}>{label}</button
+          >
+        {/each}
+        <button
+          class="lock"
+          aria-pressed={locked}
+          title={locked ? 'Locked: kept when you regenerate the paper' : 'Keep this question when you regenerate the paper'}
+          on:click={() => ctx.setLocked(!locked)}>{locked ? 'Locked' : 'Lock'}</button
+        >
+      </div>
     {/if}
 
     <div class="toolbar" role="group" aria-label="question tools">
@@ -187,6 +218,14 @@
   }
   button.danger {
     color: var(--mark);
+  }
+  button.lock[aria-pressed='true'] {
+    background: var(--paper-sink);
+    font-weight: 600;
+  }
+  /* a locked question shows it without hovering */
+  .toolbar.paper:has(.lock[aria-pressed='true']) {
+    opacity: 1;
   }
   .error {
     color: var(--mark);

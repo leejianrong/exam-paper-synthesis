@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import random
 import re
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from exam_engine import document as docs
-from exam_engine import paper
+from exam_engine import paper, paper_swap
 from exam_engine.render import render_document_html
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
@@ -22,7 +23,13 @@ from . import export
 from .assets import AssetNotFound, AssetStore, get_asset_store
 from .auth import current_owner
 from .docstore import DocumentNotFound, DocumentStore, VersionConflict, get_store
-from .models import CreateDocumentRequest, GeneratePaperRequest, SaveDocumentRequest
+from .models import (
+    CreateDocumentRequest,
+    GeneratePaperRequest,
+    RegeneratePaperRequest,
+    SaveDocumentRequest,
+    SwapQuestionRequest,
+)
 from .ops import strip_document_hints, with_document_hints
 from .quota import check_export_quota, export_slot, refund_export
 
@@ -113,6 +120,77 @@ def generate_paper(req: GeneratePaperRequest, owner: Owner, store: Store) -> dic
             node["attrs"]["question"]["provenance"]["created_at"] = stamp
     record = store.create(owner, _valid_or_422(document), docs.total_marks(document))
     return {**with_document_hints(record), "report": report}
+
+
+def _conflict(current: int) -> HTTPException:
+    return HTTPException(
+        status_code=409,
+        detail={"message": "document changed elsewhere", "current_version": current},
+    )
+
+
+def _rework(
+    owner: str,
+    doc_id: str,
+    store: DocumentStore,
+    base_version: int,
+    change: Callable[[dict], tuple[dict, dict]],
+) -> dict:
+    """P8d: apply a pure engine change to the stored paper and save it, with the same
+    optimistic concurrency as PUT (the change is computed on ``base_version`` only). New
+    snapshots get ``created_at`` here; the result is re-validated before it is stored."""
+    try:
+        rec = store.get(owner, doc_id)
+    except DocumentNotFound:
+        raise _not_found() from None
+    if rec["version"] != base_version:
+        raise _conflict(rec["version"])
+    document, report = change(rec["document"])
+    stamp = datetime.now(UTC).isoformat()
+    for node in document["content"]["content"]:
+        if node["type"] == "templatedQuestion":
+            prov = node["attrs"]["question"]["provenance"]
+            if not prov.get("created_at"):
+                prov["created_at"] = stamp
+    document = _valid_or_422(document)
+    try:
+        saved = store.save(owner, doc_id, document, docs.total_marks(document), base_version)
+    except DocumentNotFound:
+        raise _not_found() from None
+    except VersionConflict as e:
+        raise _conflict(e.current) from None
+    return {**with_document_hints(saved), "report": report}
+
+
+@router.post("/{doc_id}/swap")
+def swap_question(doc_id: str, req: SwapQuestionRequest, owner: Owner, store: Store) -> dict:
+    """P8d: another question like this one, one from another topic, or a placeholder to
+    write, keeping the slot's marks and the paper's rules (engine ``paper_swap``)."""
+    seed = req.seed if req.seed is not None else random.randrange(1, _SEED_CEIL)
+
+    def change(document: dict) -> tuple[dict, dict]:
+        try:
+            return paper_swap.swap_question(document, req.block_id, req.mode, seed, req.level)
+        except paper_swap.BlockNotFound:
+            raise HTTPException(status_code=404, detail="question not found") from None
+        except paper_swap.SwapNotPossible as e:
+            raise HTTPException(status_code=422, detail=str(e)) from None
+
+    return _rework(owner, doc_id, store, req.base_version, change)
+
+
+@router.post("/{doc_id}/regenerate")
+def regenerate_paper(doc_id: str, req: RegeneratePaperRequest, owner: Owner, store: Store) -> dict:
+    """P8d: refill every unlocked generated question and empty placeholder; locked
+    questions and the teacher's own work stay exactly as they are."""
+    seed = req.seed if req.seed is not None else random.randrange(1, _SEED_CEIL)
+    return _rework(
+        owner,
+        doc_id,
+        store,
+        req.base_version,
+        lambda document: paper_swap.regenerate_unlocked(document, req.level, seed),
+    )
 
 
 @router.get("")

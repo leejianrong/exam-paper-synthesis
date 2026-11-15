@@ -244,6 +244,7 @@
             "ans_unit": { "type": ["string", "null"], "maxLength": 12 },
             "in_key": { "type": "boolean", "description": "false leaves this question out of the answer key (1.7.0); absent = included." },
             "slot": { "$ref": "#/$defs/slot" },
+            "locked": { "type": "boolean", "description": "true keeps this question when the paper is regenerated, and blocks swapping it (1.11.0, P8d); absent = unlocked." },
             "remark": { "$ref": "#/$defs/remark" }
           }
         }
@@ -265,6 +266,7 @@
             "answer": { "$ref": "#/$defs/answer_doc" },
             "in_key": { "type": "boolean", "description": "false leaves this question out of the answer key (1.7.0); absent = included." },
             "slot": { "$ref": "#/$defs/slot" },
+            "locked": { "type": "boolean", "description": "true keeps this question when the paper is regenerated, and blocks swapping it (1.11.0, P8d); absent = unlocked." },
             "remark": { "$ref": "#/$defs/remark" }
           }
         },

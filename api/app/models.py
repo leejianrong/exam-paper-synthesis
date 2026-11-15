@@ -51,6 +51,24 @@ class GeneratePaperRequest(BaseModel):
     seed: int | None = Field(default=None, ge=1, lt=2**31)
 
 
+class SwapQuestionRequest(BaseModel):
+    """P8d: replace one question of a paper (another like this / another topic / my own)."""
+
+    block_id: str = Field(min_length=1, max_length=64)
+    mode: Literal["like", "topic", "own"]
+    base_version: int
+    level: Literal["P5", "P6"] | None = None  # None = the paper's own (cover, else questions)
+    seed: int | None = Field(default=None, ge=1, lt=2**31)
+
+
+class RegeneratePaperRequest(BaseModel):
+    """P8d: refill every unlocked generated question and empty placeholder."""
+
+    base_version: int
+    level: Literal["P5", "P6"] | None = None
+    seed: int | None = Field(default=None, ge=1, lt=2**31)
+
+
 class SaveDocumentRequest(BaseModel):
     document: dict
     base_version: int
