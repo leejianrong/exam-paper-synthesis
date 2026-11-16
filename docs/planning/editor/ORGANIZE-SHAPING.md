@@ -99,6 +99,35 @@ gaps as cards.
   API tests in `tests/test_api_folders.py` (also run on Postgres with
   `EXAM_TEST_BACKEND=postgres`).
 
+## O2 as built (web)
+
+- **List.** `DocumentList.svelte` loads papers and folders together and groups them with
+  `folders.ts` `groupByFolder` (folders in the API's order, papers in list order; a paper whose
+  folder is gone counts as unfiled). Each folder is a `FolderSection.svelte` region; then an
+  *Unfiled* heading (only when folders exist, so a teacher without folders sees the old list).
+  Loading, empty-folder and every-paper-is-filed states; API errors go to the page's alert.
+- **Exam-set chips.** M3 filter chips on our tokens (32 px, 8 px corners, outline when off,
+  `--verify-soft` fill and a leading check when on). They report state, so they are not
+  buttons. **The part comes from the paper's title** (`paperPart`: "Booklet A", "Booklet B",
+  "Paper 2"), because the list response carries no content: the templates and the generator
+  title papers "Paper 1 Booklet A" / "P6 Paper 2", so a teacher's set lights up, but a paper
+  renamed without those words counts as none. The reliable signal is the cover page's `paper`
+  field ("Paper 1 (Booklet A)"); the smallest fix is a derived `paper_part` on each listed
+  summary, computed server-side from the cover (title as fallback) when the store lists papers
+  (it already reads the whole row). Not built: it touches both stores.
+- **Folder actions.** *+ New folder* opens an inline name field (Enter creates, Escape
+  cancels); *Rename* edits the name in place (stays open on a 422); *Delete* shows an inline
+  confirmation saying how many papers move to Unfiled and that none is deleted. Focus returns
+  to the button that opened each field; a polite status line announces what happened.
+- **Move.** `MoveMenu.svelte` on each paper row (only when folders exist): a menu button with
+  `menuitemradio` items (the folders, then Unfiled; the current place is checked). Arrow keys,
+  Home/End, Escape (back to the button) and Tab; clicking outside closes it. No drag-and-drop.
+  New papers inside a folder wait for the + New wizard (O3).
+- **Tests.** `folders.test.ts` (part detection, grouping), `DocumentList.test.ts` (grouping,
+  chips, keyboard move, move to Unfiled, rename incl. failure, delete with confirm, loading),
+  and `tests/e2e/folders.spec.js` (create a folder, move a paper in, chip fills, delete the
+  folder, the paper is unfiled and its version unchanged).
+
 ## Not in this round
 
 Nested folders, sharing folders between teachers, drag-and-drop, bulk export of a whole exam
