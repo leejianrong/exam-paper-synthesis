@@ -102,8 +102,9 @@ def test_a_section_printing_its_own_uniform_marks_still_states_them():
 def test_a_teachers_own_title_prints_but_generic_labels_do_not():
     for generic in ("Section A", "booklet b", " Part 2 ", ""):
         assert '<h2 class="section-title"' not in _student(make_doc(section(generic)))
-    html = _student(make_doc(section("Fractions revision")))
-    assert '<h2 class="section-title">Fractions revision</h2>' in html
+    for own in ("Fractions revision", "Part One"):
+        html = _student(make_doc(section(own)))
+        assert f'<h2 class="section-title">{own}</h2>' in html
 
 
 # --- marks placement per section ---------------------------------------------------------

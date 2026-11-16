@@ -106,6 +106,9 @@ test('the marking margin follows the section mode and can be switched per sectio
   await expect(pages).toContainText('Q16 · 2 marks') // Booklet B numbers on from A (EXA-134)
   await page.getByRole('button', { name: 'Close preview' }).click()
 
+  // Booklet B's first section is short-answer too (EXA-139): switch its margin off as well,
+  // so only the section under test decides whether a tally prints.
+  await page.locator('.section-block').first().getByLabel('Marking margin').uncheck()
   // Switch it off: no margin. Change the mode to multiple choice: still off. Choose it on: margin.
   await section.getByLabel('Marking margin').uncheck()
   await settled(page)

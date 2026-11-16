@@ -899,7 +899,7 @@ def _freeform_marks(node: dict) -> int:
 
 # A teacher's own section title prints; the generic labels the templates use ("Section A",
 # "Booklet B") do not, as real papers print no such label above the header (EXA-139).
-_GENERIC_TITLE = re.compile(r"^\s*(section|booklet|part)\s+[a-z0-9]{1,3}\s*$", re.IGNORECASE)
+_GENERIC_TITLE = re.compile(r"^\s*(section|booklet|part)\s+([a-z]|\d{1,2})\s*$", re.IGNORECASE)
 
 
 def _marks_word(n: int) -> str:
