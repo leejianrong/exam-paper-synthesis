@@ -1,8 +1,8 @@
 code: supposition_structured
 syllabus:
   level: P6
-  strand: "Whole Numbers"
-  topic: "Whole Numbers"
+  strand: "Measurement"
+  topic: "Money"
   subtopic: "Structured: supposition with two prices (how many of each, then a difference in money)"
   skill_codes: ["WHOLE.HEURISTIC.SUPPOSITION"]  # PROVISIONAL — remap to MOE outcomes (Q-M1)
 cognitive:

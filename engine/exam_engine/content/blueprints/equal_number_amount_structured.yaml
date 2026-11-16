@@ -1,8 +1,8 @@
 code: equal_number_amount_structured
 syllabus:
   level: P6
-  strand: "Whole Numbers"
-  topic: "Whole Numbers"
+  strand: "Measurement"
+  topic: "Money"
   subtopic: "Structured: equal number vs equal amount of money at two prices"
   skill_codes: ["WHOLE.HEURISTIC.EQUALNUMBERAMOUNT"]  # PROVISIONAL — remap to MOE outcomes (Q-M1)
 cognitive:

@@ -321,7 +321,7 @@ in generation (the engine stays deterministic).
   heuristics; ours had 3, with 9 single-part stand-ins of 1–2 steps (REAL-PAPER-COMPARISON.md
   Part 2, ranked gap 1).
 - **Blueprints** (all P6, `solvers/heuristics.py`, not on any ladder), each with a cheap lead-in:
-  - `supposition_structured` (Whole Numbers, 5 = 1 + 2 + 2): tickets at two prices, the number
+  - `supposition_structured` (Money, 5 = 1 + 2 + 2): tickets at two prices, the number
     sold and the money collected: the money if all were child tickets; how many adult
     tickets; how much more from adult tickets than child tickets.
   - `fraction_remainder_structured` (Fractions, 4 = 1 + 3): a fraction on a bag, a fraction of
@@ -330,7 +330,7 @@ in generation (the engine stays deterministic).
     number of each: the smallest number (LCM); the most of both a budget buys.
   - `age_difference_structured` (Ratio, 3 = 1 + 2): two ages now: the age difference ("how old
     was the parent when the child was born?"); in how many years the ages are r : s.
-  - `equal_number_amount_structured` (Whole Numbers, 4 = 2 + 2): two prices: an equal number
+  - `equal_number_amount_structured` (Money, 4 = 2 + 2): two prices: an equal number
     of each and a difference in money (how many altogether); an equal amount on each (how many
     more of the cheaper).
 - **Proof.** `tests/test_invariants_heuristics.py` re-derives every part from the printed
@@ -341,5 +341,49 @@ in generation (the engine stays deterministic).
   + 5) and 4 single-part stand-ins of 3 marks, 21 parts in all, on every seed 1–100 (was 3
   multi-part and 9 stand-ins). No generator change: the pool picks them up as `multipart`. P5
   papers are unchanged.
+- **Topics.** Supposition and equal number vs equal amount are filed under a new topic, Money
+  (the MOE topic these money heuristics belong to), so that no topic has two multi-part questions
+  alongside a Section A question of the same topic (EXA-146's at-most-two-per-topic rule).
 - **Goldens** `tests/golden/{supposition,fraction_remainder,lcm_packs,age_difference,
   equal_number_amount}_structured.jsonl`, 3 each, chosen by hand; a person checks them.
+
+## Difficulty follows marks (EXA-146, 2026-11-17)
+
+- **Why.** Marks were matched exactly but the rung was not, so a 2-mark Booklet A MCQ could be a
+  one-step d = s × t (`speed_easy`) and a 3-mark Section B stand-in a two-step medium. Real
+  2-mark items are multi-step and 3–5-mark items heuristic (REAL-PAPER-COMPARISON.md Part 2,
+  ranked gap 4).
+- **Signal.** The blueprint's ladder rung (`cognitive.difficulty`), not the step count: the
+  printed solution steps include the answer line and do not track depth (`fractions_hard` has
+  2 steps, the 1-mark `decimals_compare` 3), and the M marks are always marks − 1.
+- **Rule** (`paper.min_rung`, `paper.rung_shortfall`). A slot of 1 mark takes any rung, 2 marks
+  medium or harder, 3 marks or more hard. Every pick ranks candidates by how many rungs they
+  fall short, then by the least-used topic, then the seed. When no fitting blueprint is left
+  the closest rung below fills the slot, so the rule never adds a placeholder.
+- **Order.** A fixed section chooses for its 2-mark slots before its 1-mark ones (printing
+  stays in slot order): the scarcer rung picks first, and the 1-mark slots then spread around
+  the topics those took. Without it a P5 Booklet A put three questions on one topic.
+- **Swaps (P8d).** `like`, `topic`, placeholders and "regenerate unlocked" rank by the same
+  rule first. A swap never trades a generated question for an easier rung for its slot:
+  "another topic" is refused ("the ones left are easier than this one") rather than drop a
+  2-mark medium to an easy rung.
+- **Effect** (100 seeds per template and level; fit = share of filled slots at their rung):
+
+  | Paper | fit before → after | placeholders | topics per paper | most per topic |
+  |---|---|---|---|---|
+  | P5 Booklet A | 73% → 93% | 0 → 0 | 13 → 10 | 2 → 2 |
+  | P5 Booklet B | 69% → 69% | 2 → 2 | 10.8 → 10.7 | 2 → 2 |
+  | P5 Paper 2 | 50% → 50% | 3 → 3 | 9 → 9 | 2 → 2 |
+  | P6 Booklet A | 67% → 100% | 0 → 0 | 15 → 10 | 1 → 2 |
+  | P6 Booklet B | 67% → 80% | 0 → 0 | 13.6 → 11.5 | 1.9 → 2 |
+  | P6 Paper 2 | 75% → 100% | 0 → 0 | 12.1 → 13 | 2.4 → 2 |
+
+  The P5 rows are at the content's ceiling: four 2-mark medium and four 3-mark hard P5
+  blueprints. The topics lost from Booklet A are Ratio, Percentage, Speed and the two
+  Geometry ladders, whose only 2-mark blueprints are easy rungs; harder 2-mark items in those
+  topics (and P5 hard 3–5-markers) are content work, not a generator change.
+- **Tests.** `test_difficulty_follows_marks_without_costing_a_question` and a rung check in
+  `test_generated_papers_keep_every_rule` (`tests/test_invariants_paper.py`; the Booklet A
+  replay now ranks rung before topic); `_check_rungs` and the no-easier-swap assertion in
+  `tests/test_invariants_paper_swap.py`, plus
+  `test_a_swap_never_trades_a_question_for_an_easier_rung`.

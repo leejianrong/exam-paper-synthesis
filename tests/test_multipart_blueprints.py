@@ -28,11 +28,11 @@ CODES = {
     "speed_structured": ("Speed", [1, 3]),
     "volume_structured": ("Volume", [2, 3]),
     # P8c batch 2 (EXA-143): the named Paper 2 heuristics
-    "supposition_structured": ("Whole Numbers", [1, 2, 2]),
+    "supposition_structured": ("Money", [1, 2, 2]),
     "fraction_remainder_structured": ("Fractions", [1, 3]),
     "lcm_packs_structured": ("Whole Numbers", [1, 2]),
     "age_difference_structured": ("Ratio", [1, 2]),
-    "equal_number_amount_structured": ("Whole Numbers", [2, 2]),
+    "equal_number_amount_structured": ("Money", [2, 2]),
 }
 SEEDS = range(1, 151)
 

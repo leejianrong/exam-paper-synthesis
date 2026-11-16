@@ -27,6 +27,12 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Changed
 
+- **Generated papers match difficulty to marks (EXA-146).** A 2-mark slot now takes a medium or
+  hard question and a 3-to-5-mark one a hard question whenever the content has one left, so a
+  2-mark Booklet A MCQ is no longer a one-step distance = speed x time. P6 Booklet A and Paper 2
+  now fit fully (from 67% and 75% of slots), with no new placeholders. Swaps and "Regenerate
+  unlocked" follow the same rule, and "another topic" is refused rather than swap in an easier
+  question.
 - **Multiple-choice options read like a real Booklet A (EXA-141).** Options print in one column,
   (1) to (4) under the question, on the paper, in the answer key and in the editor; only picture
   options keep a 2 x 2 grid. Number options are listed smallest first, as on real papers; the
