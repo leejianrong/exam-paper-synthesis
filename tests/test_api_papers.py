@@ -122,10 +122,10 @@ def test_export_refuses_empty_placeholders_unless_told_to_print_anyway(monkeypat
     monkeypatch.setattr(routes_documents, "check_export_quota", charged.append)
     gen = client.post(
         "/documents/generate",
-        json={"template": "p1_booklet_a", "level": "P6", "seed": 1},
+        json={"template": "p1_booklet_b", "level": "P5", "seed": 1},
         headers=ALICE,
     ).json()
-    assert gen["report"]["placeholders"] == 2  # today's content: 8 one-mark MCQs for 10 slots
+    assert gen["report"]["placeholders"] == 2  # today's content: 8 two-mark P5 for 10 slots
     url = f"/documents/{gen['id']}/export"
 
     for mode in ("student", "key", "full"):
@@ -133,8 +133,8 @@ def test_export_refuses_empty_placeholders_unless_told_to_print_anyway(monkeypat
         assert resp.status_code == 409, mode
         detail = resp.json()["detail"]
         assert detail["code"] == "unfilled_placeholders"
-        assert detail["questions"] == [9, 10]  # the last two 1-mark slots
-        assert "Questions 9, 10 are still empty" in detail["message"]
+        assert detail["questions"] == [29, 30]  # the last two 2-mark slots (Q16-30)
+        assert "Questions 29, 30 are still empty" in detail["message"]
     assert charged == []  # refused before any export allowance is spent
 
     ok = client.post(f"{url}/student?allow_placeholders=true", headers=ALICE)
@@ -157,7 +157,7 @@ def test_export_refuses_empty_placeholders_unless_told_to_print_anyway(monkeypat
         headers=ALICE,
     ).json()
     one = client.post(f"{url}/student", headers=ALICE).json()["detail"]
-    assert one["questions"] == [10] and "Question 10 is still empty" in one["message"]
+    assert one["questions"] == [30] and "Question 30 is still empty" in one["message"]
     _write(phs[1], "And 2 + 2?")
     resp = client.put(
         f"/documents/{gen['id']}",

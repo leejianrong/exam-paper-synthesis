@@ -6,3 +6,4 @@ skills:
   FRAC.SHADED: "Read a fraction of a figure that is shaded"              # used by fractions_easy
   FRAC.OF.REMAINDER: "Fraction of a remainder (two-step)"                # used by fractions_medium
   FRAC.REVERSE: "Successive fractions of a remainder; unknown whole (inverse)"  # used by fractions_hard
+  FRAC.COMPARE: "Compare and order fractions with different denominators"   # used by fractions_compare (no ladder)

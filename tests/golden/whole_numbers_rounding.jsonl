@@ -1,0 +1,3 @@
+{"params": {"number": 6916, "place": 10}, "expected": {"answer": {"type": "integer", "value": 6920, "unit": ""}, "total_marks": 1}}
+{"params": {"number": 2948, "place": 100}, "expected": {"answer": {"type": "integer", "value": 2900, "unit": ""}, "total_marks": 1}}
+{"params": {"number": 7786, "place": 1000}, "expected": {"answer": {"type": "integer", "value": 8000, "unit": ""}, "total_marks": 1}}

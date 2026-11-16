@@ -371,15 +371,26 @@ def test_swaps_are_deterministic_and_leave_the_input_alone():
 
 
 def test_a_placeholder_is_filled_by_like_and_topic_when_content_allows():
-    # P6 Booklet A has ten 1-mark slots and fewer 1-mark blueprints (P8e batch 2: eight), so a
-    # 1-mark placeholder is left and every 1-mark blueprint is used already ...
-    doc, _ = generate_paper("p1_booklet_a", "P6", 1)
-    ph = _first(doc, lambda n: n["type"] == "freeformQuestion" and n["attrs"]["slot"]["marks"] == 1)
+    # P5 Booklet B has ten 2-mark slots and fewer 2-mark P5 blueprints, so a 2-mark
+    # placeholder is left and every 2-mark blueprint is used already ...
+    doc, _ = generate_paper("p1_booklet_b", "P5", 1)
+    ph = _first(doc, lambda n: n["type"] == "freeformQuestion" and n["attrs"]["slot"]["marks"] == 2)
     with pytest.raises(SwapNotPossible):
         swap_question(doc, ph["attrs"]["block_id"], "like", 1)
     # ... until the teacher writes their own instead of one of them
+    used = _first(doc, lambda n: n["type"] == "templatedQuestion" and _marks(n) == 2)
+    doc, _ = swap_question(doc, used["attrs"]["block_id"], "own", 1)
+    new, _ = swap_question(doc, ph["attrs"]["block_id"], "like", 1)
+    filled = _first(new, lambda n: n["attrs"].get("block_id") == ph["attrs"]["block_id"])
+    assert filled["type"] == "templatedQuestion" and _marks(filled) == 2
+    _check_rules(new, "P5", "filled")
+
+    # P6 Booklet A is full since P8e batch 3 (EXA-145); a 1-mark placeholder the teacher
+    # makes is filled again with an unused 1-mark blueprint, still as multiple choice
+    doc, _ = generate_paper("p1_booklet_a", "P6", 1)
     used = _first(doc, lambda n: n["type"] == "templatedQuestion" and _marks(n) == 1)
     doc, _ = swap_question(doc, used["attrs"]["block_id"], "own", 1)
+    ph = _first(doc, lambda n: n["type"] == "freeformQuestion" and n["attrs"]["slot"]["marks"] == 1)
     new, report = swap_question(doc, ph["attrs"]["block_id"], "like", 1)
     filled = _first(new, lambda n: n["attrs"].get("block_id") == ph["attrs"]["block_id"])
     assert filled["type"] == "templatedQuestion" and _marks(filled) == 1

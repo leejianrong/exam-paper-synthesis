@@ -1,0 +1,46 @@
+code: time_duration
+# P8e batch 3 (EXA-145): a 1-mark Booklet A question, on no difficulty ladder.
+syllabus:
+  level: P5                             # durations are first taught in P3-P4; PSLE assumes it
+  strand: "Measurement"
+  topic: "Time"
+  subtopic: "Duration between two times on the 12-hour clock"
+  skill_codes: ["TIME.DURATION"]        # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Reasoning depth"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [event, start, duration]
+  properties:
+    event: { type: string }
+    # minutes after midnight (7 a.m. to 10.55 p.m.)
+    start: { type: integer, minimum: 420, maximum: 1375 }
+    duration: { type: integer, minimum: 25, maximum: 170 }
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  event:    { role: item }
+  start:    { role: number }
+  duration: { role: number }
+story_templates:
+  - stem: null
+    text: >
+      A {event} started at {start_text} and ended at {end_text} on the same day. How
+      many minutes did the {event} last?
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{e1}"
+    - text: "{step2}"
+      expr: "{e2}"
+    - text: "{step3}"
+      expr: "{e3}"
+marking_scheme:
+  - { mark: 1, type: A, description: "Correct number of minutes." }
+answer:
+  type: integer
+  unit: min

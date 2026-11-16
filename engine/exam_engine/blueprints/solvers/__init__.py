@@ -13,6 +13,8 @@ from . import (
     geometry_area_easy,  # noqa: F401
     geometry_area_hard,  # noqa: F401
     geometry_area_medium,  # noqa: F401
+    measurement,  # noqa: F401
+    number_sense,  # noqa: F401
     percentage_easy,  # noqa: F401
     percentage_hard,  # noqa: F401
     percentage_medium,  # noqa: F401
@@ -42,6 +44,8 @@ __all__ = [
     "geometry_area_easy",
     "geometry_area_hard",
     "geometry_area_medium",
+    "measurement",
+    "number_sense",
     "percentage_easy",
     "percentage_hard",
     "percentage_medium",
