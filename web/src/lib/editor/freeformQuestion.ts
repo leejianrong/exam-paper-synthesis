@@ -12,10 +12,10 @@ import { moveBlock } from './templatedQuestion'
 import { FreeformPart, MAX_PARTS, PART_NODE, jsonAttr, partLetter } from './freeformPart'
 import { hasContent } from './paperReport'
 import { mount, unmount } from 'svelte'
-import { get, writable } from 'svelte/store'
+import { writable } from 'svelte/store'
 import FreeformArea from './FreeformArea.svelte'
-import { DEFAULT_PLACEMENT, layoutOf } from './layout'
-import { paperSettings } from './paperSettings'
+import { layoutOf, marksBeside } from './layout'
+import { trackPlacement } from './sections'
 import type { SwapMode } from './docsApi'
 
 export interface FreeformQuestionOptions {
@@ -255,6 +255,13 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         tr.setNodeMarkup(pos(), undefined, { ...current.attrs, ...patch })
         editor.view.dispatch(tr)
       }
+      // The [n] follow the section the question sits in (EXA-152); live as sections change.
+      let ready = false
+      const tracker = trackPlacement(editor, getPos, () => {
+        if (!ready) return
+        sync()
+        areaState.set(areaProps())
+      })
       const areaState = writable(areaProps())
       const area = mount(FreeformArea, {
         target: areaHost,
@@ -270,7 +277,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
           marks: (current.attrs.marks as number | null) ?? null,
           spaceMm: l.space_mm,
           unit: l.ans_unit,
-          placement: get(paperSettings).marks_placement ?? DEFAULT_PLACEMENT,
+          placement: tracker.current(),
         }
       }
 
@@ -313,16 +320,13 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
           dom.querySelectorAll('.ffp-label').forEach((n, i) => (n.textContent = `(${partLetter(i)})`)),
         )
         const marks = current.attrs.marks as number | null
-        const placement = get(paperSettings).marks_placement ?? DEFAULT_PLACEMENT
         marksEl.textContent =
-          marks === null || marks === undefined || placement === 'answer' ? '' : `[${marks}]`
+          marks === null || marks === undefined || !marksBeside(tracker.current()) ? '' : `[${marks}]`
         if (document.activeElement !== input) input.value = marks === null ? '' : String(marks)
       }
       sync()
-      const unsubscribe = paperSettings.subscribe(() => {
-        sync()
-        areaState.set(areaProps())
-      })
+      ready = true
+      const unsubscribe = () => tracker.destroy()
 
       return {
         dom,
@@ -333,6 +337,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
           dom.setAttribute('data-block-id', String(updated.attrs.block_id))
           sync()
           areaState.set(areaProps())
+          tracker.refresh()
           return true
         },
         destroy() {

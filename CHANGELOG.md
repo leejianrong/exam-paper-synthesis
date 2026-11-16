@@ -10,6 +10,11 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Changed
 
+- **The editing page shows each question's marks as the paper prints them (EXA-152).** Question
+  blocks used to show [n] by the paper-wide setting even inside a multiple-choice or short-answer
+  section that prints none. Now every kind of block (generated, multiple choice, bank, multi-part,
+  free-form and its parts) follows the section it sits in, and changes at once when a section's
+  "Marks shown" or mode changes or a question moves to another section.
 - **Section headers, marks and the Ans: line print as on real papers (EXA-139).** A section header
   is now a sentence built from its questions ("Questions 16 to 20 carry 1 mark each.", or for a
   structured section "The number of marks available is shown in brackets [ ] …"), then the

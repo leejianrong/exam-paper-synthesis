@@ -81,7 +81,7 @@ class RenderQuestionRequest(BaseModel):
     question: dict
     mode: Literal["student", "key"] = "student"
     number: int | None = None
-    placement: Literal["question", "answer", "both"] | None = None
+    placement: Literal["none", "question", "answer", "both"] | None = None
     answer_area: bool = True
 
 

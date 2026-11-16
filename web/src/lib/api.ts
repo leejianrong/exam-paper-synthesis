@@ -1,5 +1,5 @@
 import { apiFetch } from './http'
-import type { MarksPlacement } from './editor/layout'
+import type { SectionPlacement } from './editor/doc'
 import type { Question } from './types'
 
 const BASE: string = import.meta.env.VITE_API ?? 'http://localhost:8000'
@@ -252,7 +252,7 @@ export async function renderQuestionHtml(
   question: Question,
   mode: 'student' | 'key' = 'student',
   number: number | null = null,
-  paper?: { placement: MarksPlacement; answerArea: boolean },
+  paper?: { placement: SectionPlacement; answerArea: boolean },
 ): Promise<string> {
   const res = await apiFetch(`${BASE}/render/question`, {
     method: 'POST',

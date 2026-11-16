@@ -7,11 +7,11 @@
 import { Node } from '@tiptap/core'
 import type { NodeViewRendererProps } from '@tiptap/core'
 import { mount, unmount } from 'svelte'
-import { get, writable } from 'svelte/store'
+import { writable } from 'svelte/store'
 import { EMPTY_ANSWER } from './doc'
 import FreeformArea from './FreeformArea.svelte'
-import { DEFAULT_PLACEMENT, layoutOf } from './layout'
-import { paperSettings } from './paperSettings'
+import { layoutOf, marksBeside } from './layout'
+import { trackPlacement } from './sections'
 
 export const PART_NODE = 'freeformPart'
 export const MAX_PARTS = 10
@@ -148,13 +148,17 @@ export const FreeformPart = Node.create({
       }
       input.addEventListener('change', () => patch({ marks: clampMarks(input.value) }))
 
+      let ready = false
+      const tracker = trackPlacement(editor, getPos, () => {
+        if (ready) sync()
+      })
       const areaProps = () => {
         const l = layoutOf(current.attrs)
         return {
           marks: (current.attrs.marks as number | null) ?? null,
           spaceMm: l.space_mm,
           unit: l.ans_unit,
-          placement: get(paperSettings).marks_placement ?? DEFAULT_PLACEMENT,
+          placement: tracker.current(),
           label: letter(),
         }
       }
@@ -170,14 +174,15 @@ export const FreeformPart = Node.create({
 
       const sync = () => {
         const marks = (current.attrs.marks as number | null) ?? null
-        const placement = get(paperSettings).marks_placement ?? DEFAULT_PLACEMENT
-        marksEl.textContent = marks === null || placement === 'answer' ? '' : `[${marks}]`
+        marksEl.textContent = marks === null || !marksBeside(tracker.current()) ? '' : `[${marks}]`
         label.textContent = `(${letter()})`
         if (document.activeElement !== input) input.value = marks === null ? '' : String(marks)
         areaState.set(areaProps())
       }
       sync()
-      const unsubscribe = paperSettings.subscribe(sync)
+      ready = true
+      // A part prints by its question's section (the tracker resolves it to the top-level block).
+      const unsubscribe = tracker.destroy
       dom.append(head, areaHost, bar)
 
       return {
@@ -187,6 +192,7 @@ export const FreeformPart = Node.create({
           if (updated.type !== node.type) return false
           current = updated
           sync()
+          tracker.refresh()
           return true
         },
         destroy() {

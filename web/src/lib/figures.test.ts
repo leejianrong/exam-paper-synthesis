@@ -62,7 +62,7 @@ describe("stem figures and multiple-choice options", () => {
     ["QuestionBody", QuestionBody],
   ] as const) {
     it(`${name} draws the stem, its figure and every option with its figure`, async () => {
-      render(Comp, { props: { q: mcq } });
+      render(Comp as typeof QuestionBody, { props: { q: mcq } });
       expect(
         screen.getByText("The figure shows a stack of cubes."),
       ).toBeInTheDocument();
