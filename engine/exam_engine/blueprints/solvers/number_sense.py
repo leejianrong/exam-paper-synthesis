@@ -184,6 +184,10 @@ class DecimalsCompareSolver:
     """``ask`` — greatest or smallest; ``thousandths`` — the four decimals, as whole
     thousandths (``150`` is 0.15), in print order."""
 
+    # "which is the greatest?" with its options in ascending order is always (1) or (4):
+    # the multiple-choice copy keeps a seeded order instead, as real papers do (EXA-141)
+    mcq_ascending = False
+
     def sample(self, schema: dict, rng: random.Random) -> dict:
         while True:
             whole = rng.choice([0, 0, 0, 1, 2, 3, 4, 5])
@@ -290,6 +294,10 @@ def _slash(f: Fraction, denominator: int | None = None) -> str:
 class FractionsCompareSolver:
     """``ask`` — greatest or smallest; ``fractions`` — four proper fractions in lowest terms,
     with different denominators, as ``[numerator, denominator]`` in print order."""
+
+    # "which is the greatest?" with its options in ascending order is always (1) or (4):
+    # the multiple-choice copy keeps a seeded order instead, as real papers do (EXA-141)
+    mcq_ascending = False
 
     def sample(self, schema: dict, rng: random.Random) -> dict:
         while True:

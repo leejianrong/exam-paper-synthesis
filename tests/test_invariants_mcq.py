@@ -275,3 +275,53 @@ def test_a_fraction_option_never_has_denominator_one(code):
             continue
         for o in to_mcq(obj, seed)["question"]["parts"][0]["answer"]["options"]:
             assert not re.search(r"\\frac\{\d+\}\{1\}", o["text"]), (code, seed, o["text"])
+
+
+# EXA-141: real papers list numeric options in ascending order, except "which is the greatest /
+# smallest?", where that order would make the answer always (1) or (4).
+EXTREME = ("decimals_compare", "fractions_compare")
+
+
+def _correct_positions(code: str, seeds: range) -> list[int]:
+    out = []
+    for seed in seeds:
+        obj = generate(code, seed)
+        if not convertible(obj):
+            continue
+        answer = to_mcq(obj, seed)["question"]["parts"][0]["answer"]
+        out.append(int(answer["correct"]))
+    return out
+
+
+@pytest.mark.parametrize("code", [c for c in BLUEPRINTS if c not in EXTREME])
+def test_numeric_options_are_in_ascending_order(code):
+    for seed in range(1, 41):
+        obj = generate(code, seed)
+        if not convertible(obj):
+            continue
+        texts = [o["text"] for o in to_mcq(obj, seed)["question"]["parts"][0]["answer"]["options"]]
+        values = [_value(t) for t in texts]
+        assert values == sorted(values), (code, seed, texts)  # type: ignore[type-var]
+
+
+@pytest.mark.parametrize("code", EXTREME)
+def test_a_greatest_or_smallest_question_keeps_a_mixed_order(code):
+    positions = _correct_positions(code, range(1, 61))
+    assert {2, 3} & set(positions), positions  # not always first or last
+
+
+def test_the_correct_option_is_not_predictable_from_its_place():
+    """Over every convertible blueprint, the correct option sits in each place often enough,
+    and no blueprint puts it in the same place nearly every time (which ascending order
+    alone would: a rate's "amount in 1 unit" wrong answers are all smaller than the answer)."""
+    total = {p: 0 for p in (1, 2, 3, 4)}
+    for code in BLUEPRINTS:
+        positions = _correct_positions(code, range(1, 41))
+        if not positions:
+            continue
+        for p in positions:
+            total[p] += 1
+        top = max(positions.count(p) for p in (1, 2, 3, 4))
+        assert top <= 0.8 * len(positions), (code, {p: positions.count(p) for p in total})
+    n = sum(total.values())
+    assert all(0.12 * n <= total[p] <= 0.4 * n for p in total), total

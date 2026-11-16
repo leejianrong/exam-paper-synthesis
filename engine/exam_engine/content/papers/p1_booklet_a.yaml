@@ -23,7 +23,10 @@ sections:
   - title: Booklet A
     mode: mcq
     marks_target: 20
-    instructions: For each question, choose the correct answer.
+    # the real Booklet A sentence; it prints after the derived "Questions 1 to 10 carry ..."
+    instructions: >-
+      For each question, four options are given. One of them is the correct answer. Make your
+      choice (1, 2, 3 or 4) and shade your answer on the Optical Answer Sheet.
     slots:
       - { marks: 1, count: 10 }
       - { marks: 2, count: 5 }

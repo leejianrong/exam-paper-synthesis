@@ -237,10 +237,15 @@ def _render_options(answer: dict, *, reveal_correct: bool) -> list[str]:
     worksheet and the answer key. Only which one is ``correct`` is secret, so
     ``reveal_correct`` (the answer-key branch) is the sole gate on the
     ``option-correct`` class.
+
+    Text options print as one column under the stem, as on every real Booklet A (EXA-141, even
+    short numbers); picture options keep a 2 x 2 grid (``options-grid``).
     """
     correct = answer.get("correct")
-    out: list[str] = ['<ol class="options">']
-    for opt in answer.get("options", []):
+    opts = answer.get("options", [])
+    grid = any(o.get("diagram") for o in opts)
+    out: list[str] = ['<ol class="options options-grid">' if grid else '<ol class="options">']
+    for opt in opts:
         is_correct = reveal_correct and opt.get("label") == correct
         cls = "option option-correct" if is_correct else "option"
         out.append(f'<li class="{cls}">')
