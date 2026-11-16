@@ -99,8 +99,10 @@ date, question count, parent's signature, page count) and the standard "Question
 11. **Cover fields.** School, exam name and year, date, "Total time for Booklets A and B: 1 h", "n questions", Name with
     "( )" for the register number, Parent's signature, page-count line, underlined heading, and **NOT** bold and underlined.
 12. **Examiner's table.** Diagonal-split score cells. Booklet B cover: A, B, Paper 1 total. Paper 2 cover: P1, P2, Total /100.
-13. **MCQ options in one column** for text options (2×2 only for short or picture options), and a recording method: OAS wording
-    in the cover and header, or an optional "( )" answer bracket.
+13. ~~**MCQ options in one column** for text options (2×2 only for short or picture options), and a recording method: OAS wording
+    in the cover and header, or an optional "( )" answer bracket.~~ Done in #223 (EXA-141): one column for all text options
+    (all 4 schools do so even for short numbers), 2×2 for picture options; numeric options ascending; the OAS sentence ends
+    the Booklet A header.
 14. ~~**Continuous marking strip.** One rule per page with the caption once at the top; optional per-question score box beside each
     `Ans:` line (CHS style); smaller (about 12 mm) labelled tally box on the footer line.~~ Done in #220 (EXA-138): strip
     and 12 mm tally on the footer line; the CHS score box and a tally label are not built.
@@ -304,7 +306,7 @@ fraction comparison and ordering, number-line reading, discount and GST, and ref
   partial-step and slip distractors. Most are plausible (for example "the amount in 1 hour", or
   "added instead of multiplied").
 - **Our problems:**
-  - **Options are shuffled, not sorted.**
+  - ~~**Options are shuffled, not sorted.**~~ Sorted ascending since #223 (EXA-141).
   - **Some distractors are implausible:** 4/1 for a shaded fraction (fixed in #205), 243° for an angle on a straight
     line, 234 for m/6 + 18.
   - **Several MCQs are converted from 1-step easy questions**, even in 2-mark slots.
@@ -388,7 +390,7 @@ such items.
     - Real: about 6. The `expression` answer type exists; the algebra solvers currently force numeric answers.
     - No new diagram.
 11. **MCQ polish.**
-    - Sort numeric options ascending.
+    - ~~Sort numeric options ascending.~~ Done in #223 (EXA-141).
     - Filter implausible distractors (angles over 180° for an angle on a line; the improper "4/1" is fixed in #205).
     - Drop "simplest form" wording from MCQ stems.
     - Add picture-option and "which statements are true" MCQs once the grid, net and chart families exist.
