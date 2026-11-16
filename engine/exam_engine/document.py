@@ -82,6 +82,38 @@ def numbered_blocks(doc: dict) -> list[dict]:
     return [n for n in doc["content"]["content"] if n.get("type") in QUESTION_TYPES]
 
 
+def has_content(nodes: list[dict]) -> bool:
+    """Any non-blank text, or an image / equation, anywhere in these nodes (parts included)."""
+    for n in nodes:
+        if n["type"] == "text" and n.get("text", "").strip():
+            return True
+        if n["type"] in ("image", "math"):
+            return True
+        if has_content(n.get("content", [])):
+            return True
+    return False
+
+
+def is_unfilled_placeholder(node: dict) -> bool:
+    """A generator placeholder (P8a: a ``freeformQuestion`` whose ``slot.placeholder`` is
+    set) the teacher hasn't written yet: nothing in the stem or any part. The written answer
+    doesn't count: an answer with no question still prints nothing to answer."""
+    return (
+        node.get("type") == "freeformQuestion"
+        and bool(((node.get("attrs") or {}).get("slot") or {}).get("placeholder"))
+        and not has_content(node.get("content", []))
+    )
+
+
+def unfilled_placeholder_numbers(doc: dict) -> list[int]:
+    """The printed question numbers of the unfilled placeholders (EXA-137), in order. They
+    count from the paper's ``number_from`` (Booklet B: 16 onwards, EXA-134)."""
+    start = number_from(doc)
+    return [
+        n for n, node in enumerate(numbered_blocks(doc), start) if is_unfilled_placeholder(node)
+    ]
+
+
 def freeform_parts(node: dict) -> list[dict]:
     """The lettered ``freeformPart`` children of a free-form question (P3), in order."""
     return [c for c in node.get("content", []) if c.get("type") == "freeformPart"]

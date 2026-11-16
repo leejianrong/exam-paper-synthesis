@@ -37,6 +37,7 @@ from .document import (
     block_marks,
     cover_page,
     in_key,
+    is_unfilled_placeholder,
     key_options,
     number_from,
     paper_outline,
@@ -711,13 +712,28 @@ def _render_freeform_item(
     assets: AssetResolver | None = None,
     layout: Layout | None = None,
     key: KeyOptions | None = None,
+    mcq: bool = False,
 ) -> list[str]:
     """A teacher-written question (W2a): body + ``[marks]``, then answer space or key answer.
 
     Free-form blocks carry no verification, so nothing here claims any. In the key an empty
     answer prints a quiet placeholder, so a blank is never mistaken for a written answer.
+
+    An unwritten generator placeholder in a multiple-choice section (``mcq``, printed only
+    when the teacher chose to print anyway, EXA-137) keeps its number and marks over a blank
+    gap the teacher can write into, with no Ans: line: an MCQ never has one.
     """
     attrs = node["attrs"]
+    if mcq and not answer_key and is_unfilled_placeholder(node):
+        marks = attrs.get("marks")
+        return [
+            f'<{tag} class="question freeform unwritten">',
+            '<div class="part"><div class="part-text"></div>',
+            f'<span class="marks">[{marks}]</span>' if marks is not None else "",
+            "</div>",
+            _answer_space(layout, marks),
+            f"</{tag}>",
+        ]
     parts = [c for c in node["content"] if c.get("type") == "freeformPart"]
     body = "".join(
         _render_rich_block(b, assets) for b in node["content"] if b.get("type") != "freeformPart"
@@ -954,6 +970,7 @@ def _render_document_body(
     out: list[str] = [f'<div class="doc-body questions"{reset}>']
     outline = iter(paper_outline(doc))
     marking = False  # inside a section that prints the marking margin
+    mcq = False  # inside a multiple-choice section
     for node in doc["content"]["content"]:
         if node["type"] == "coverPage":
             out.append(_render_cover(node["attrs"], doc, title=title, marks=marks))
@@ -962,6 +979,7 @@ def _render_document_body(
         elif node["type"] == "section":
             info = next(outline)
             marking = info["marking"] and not answer_key
+            mcq = info["mode"] == "mcq"
             out.append(_render_section(info))
         elif node["type"] == "freeformQuestion":
             item = _render_freeform_item(
@@ -969,6 +987,7 @@ def _render_document_body(
                 answer_key=answer_key,
                 assets=assets,
                 layout=_block_layout(node, placement),
+                mcq=mcq,
             )
             out.extend(_mark_unit(item, block_marks(node), marking))
         elif node["type"] == "templatedQuestion":

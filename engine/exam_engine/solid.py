@@ -23,10 +23,12 @@ from __future__ import annotations
 import math
 import re
 
-_INK = "#1f2433"
-_WATER = "#cfe0ff"
-_WATER_TOP = "#e6eeff"
-_TOP = "#f1f3f9"
+from exam_engine import palette
+
+_INK = palette.INK
+_WATER = palette.TINT_MID
+_WATER_TOP = palette.TINT
+_TOP = palette.TINT
 _MAX = 1_000_000
 _MIN_DIM = 0.001
 _DIMS = ("length", "width", "height")

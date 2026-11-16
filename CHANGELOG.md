@@ -8,6 +8,17 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
+### Changed
+
+- **Papers print black on white, like a photocopied school paper (EXA-135).** Figures were blue
+  line art with pale-blue fills, pie sectors differed only by blue/grey tone, marks were red,
+  question numbers grey, working space a grey box and answer-key panels green. Now every figure
+  (geometry, bar models, fractions, charts, solids, number lines, cube stacks) uses black lines
+  and white or light-grey fills from one grey palette (`exam_engine/palette.py`, mirrored in
+  `print.css`); pie sectors are white, outlined and labelled; bar series differ by grey tone and
+  line series by dash pattern; numbers and marks print in black; the working space is plain
+  white space; the key's panels are light grey with a black rule. The editor shows the same.
+
 ### Fixed
 
 - **Paper 1 Booklet B numbers on from Booklet A (EXA-134)**: Q16–30, as in every real P6 paper,
@@ -15,6 +26,17 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   (`settings.number_from`, document schema 1.12.0, a "First Q" field in the editor), moves the
   section ranges, the student paper, the answer key and the editor's numbering; the Booklet B
   template sets it to 16. Older papers still number from 1.
+- **Figure labels sit clear of the lines (EXA-136).** Side lengths printed over a rectangle's
+  edge, a height's length over the height, and vertex letters over right-angle marks, angle arcs
+  and their own corner. Geometry figures now put side lengths outside the edge (a height that has
+  no room gets its length turned to run beside it), angle values inside the angle past the arc,
+  and vertex letters outside the corner; the canvas grows to keep every label on it. A test reads
+  every generated and hand-built figure and fails if any label touches a line or another label.
+- **An empty placeholder never prints by accident (EXA-137).** A generated Booklet A printed
+  two unwritten placeholders as grey boxes with `Ans:` lines. Exporting a paper with
+  placeholders nobody has written is now refused with the question numbers; the editor lists
+  them and offers *Fill them* (goes to the first) or *Print anyway*. Printed anyway, an empty
+  placeholder in a multiple-choice section is a numbered blank gap with no `Ans:` line.
 - **A fraction option never reads "4/1" (EXA-133)**, and **working steps typeset their maths**
   in the editor's answer key and on the Classic page (algebra showed raw `\\(3x\\)`, EXA-131).
 

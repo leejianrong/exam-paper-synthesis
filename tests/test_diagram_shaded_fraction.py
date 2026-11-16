@@ -69,9 +69,9 @@ def test_consistency_rejects_shaded_out_of_range():
 
 # --- SVG render -------------------------------------------------------------
 
-_SHADE = 'fill="#93b8f2"'  # light-blue shaded fill (distinct from the outline)
-_STROKE = 'stroke="#2f5fe0"'  # darker-blue segment outline
-_EMPTY = 'fill="#eef2fb"'  # pale empty fill
+_SHADE = 'fill="#d0d0d0"'  # grey shaded fill (distinct from the outline)
+_STROKE = 'stroke="#1a1a1a"'  # black segment outline
+_EMPTY = 'fill="#ffffff"'  # white empty fill
 
 
 def _filled_cells(svg: str) -> int:

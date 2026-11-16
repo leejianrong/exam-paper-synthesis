@@ -40,6 +40,7 @@
     regeneratePaper,
     saveDocument,
     swapQuestion,
+    unfilledDetail,
     type ExportMode,
     type SwapMode,
   } from './docsApi'
@@ -51,7 +52,14 @@
   import { PageBreak } from './pageBreak'
   import { BlankPage, CoverPage, blankPageNode, coverNode } from './pages'
   import { lastReport, reportSummary, unfilledPlaceholders } from './paperReport'
-  import { applyServerContent, hasGeneratedSlots, regenerateNotice, swapNotice } from './paperOps'
+  import {
+    applyServerContent,
+    goToQuestion,
+    hasGeneratedSlots,
+    regenerateNotice,
+    swapNotice,
+  } from './paperOps'
+  import PrintWarning from './PrintWarning.svelte'
   import { Section, outline } from './sections'
   import { loadQuota, type Quota } from '../session'
   import { TemplatedQuestion, questionNode } from './templatedQuestion'
@@ -72,6 +80,8 @@
   let busy = ''
   let actionError = ''
   let notice = ''
+  /** EXA-137: the export refused a paper with empty placeholders; ask before printing it. */
+  let unfilled: { mode: ExportMode; questions: number[] } | null = null
   let quota: Quota | null = null
   let selectedId: string | null = null // the block the author is in (for the inspector)
   let previewHtml: string | null = null
@@ -362,12 +372,13 @@
   $: act = readActive(tick)
   $: headingActive = [act.h1, act.h2, act.h3]
 
-  async function download(mode: ExportMode) {
+  async function download(mode: ExportMode, allowPlaceholders = false) {
     busy = `export-${mode}`
     actionError = ''
+    unfilled = null
     try {
       await autosaver?.flush()
-      const blob = await exportDocument(id, mode)
+      const blob = await exportDocument(id, mode, allowPlaceholders)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -375,11 +386,19 @@
       a.click()
       URL.revokeObjectURL(url)
     } catch (e) {
-      actionError = e instanceof Error ? e.message : String(e)
+      const empty = unfilledDetail(e)
+      if (empty) unfilled = { mode, questions: empty.questions }
+      else actionError = e instanceof Error ? e.message : String(e)
     } finally {
       busy = ''
       void loadQuota().then((q) => (quota = q))
     }
+  }
+
+  function fillPlaceholders() {
+    const first = unfilled?.questions[0]
+    unfilled = null
+    if (editor && first !== undefined) goToQuestion(editor, first, start)
   }
 
   /** P8d: a server-side change to the saved paper (swap, regenerate). Pending edits are saved
@@ -758,6 +777,15 @@
     on:insert={(e) => insertQuestion(e.detail.question)}
     on:freeform={insertFreeformQuestion}
     on:close={() => (pickerAt = undefined)}
+  />
+{/if}
+
+{#if unfilled}
+  <PrintWarning
+    questions={unfilled.questions}
+    on:fill={fillPlaceholders}
+    on:print={() => unfilled && download(unfilled.mode, true)}
+    on:cancel={() => (unfilled = null)}
   />
 {/if}
 
