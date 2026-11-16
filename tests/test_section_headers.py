@@ -36,7 +36,8 @@ def _student(doc) -> str:
 
 
 def _headers(html: str) -> list[str]:
-    return re.findall(r'<div class="paper-section">.*?</div>', html)
+    # a marking section's header keeps clear of the strip, a structured one starts a page (EXA-138)
+    return re.findall(r'<div [^>]*class="paper-section[^"]*">.*?</div>', html)
 
 
 def _intro_text(header: str) -> str:
