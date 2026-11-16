@@ -55,6 +55,14 @@ more steps) — that is the mechanism.
 - **make harder / make easier** = swap to the sibling one rung up/down the same
   topic ladder. **regenerate** = resample within the same rung.
 
+## Rung and marks in a generated paper (EXA-146)
+
+A paper slot's marks set the easiest rung it should take: 1 mark any rung, 2 marks medium or
+harder, 3 marks or more hard. The paper generator and its swaps rank candidates by this first
+and by topic spread second, and fall back to the closest rung below only when the content has
+no fitting blueprint left (see `docs/planning/editor/P8-SHAPING.md`). The rung, not the printed
+step count, is the signal: step counts include the answer line and do not track depth.
+
 ## Caveat (calibration)
 
 Difficulty is partly **empirical**: a "hard" blueprint may test as "medium" with

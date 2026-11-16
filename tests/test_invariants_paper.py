@@ -38,6 +38,7 @@ def _blueprint_meta() -> dict[str, dict]:
             "parts": len(data.get("parts") or []) or 1,  # P8c multi-part blueprints
             "topic": data["syllabus"]["topic"],
             "answer_type": (data.get("answer") or {}).get("type"),
+            "rung": data["cognitive"]["difficulty"],
         }
     return out
 
@@ -47,6 +48,24 @@ MULTIPART = {
     level: [c for c, m in META.items() if m["parts"] > 1 and m["level"] in LEVELS[: i + 1]]
     for i, level in enumerate(LEVELS)
 }
+
+
+# EXA-146: difficulty follows marks. The easiest rung a slot of m marks should take, written out
+# from the rule (P8-SHAPING.md "Difficulty follows marks"), not imported from the generator.
+_RUNG = {"easy": 0, "medium": 1, "hard": 2}
+
+
+def _shortfall(code: str, marks: int) -> int:
+    need = 0 if marks <= 1 else 1 if marks == 2 else 2
+    return max(0, need - _RUNG[META[code]["rung"]])
+
+
+def _takes(code: str, kind: str, level: str) -> bool:
+    """Whether a single-part blueprint could fill a slot of ``kind`` in a ``level`` paper."""
+    m = META[code]
+    if m["level"] not in LEVELS[: LEVELS.index(level) + 1] or m["parts"] != 1:
+        return False
+    return kind != "mcq" or m["answer_type"] in _CONVERTIBLE
 
 
 def _questions(doc):
@@ -175,6 +194,25 @@ def test_generated_papers_keep_every_rule(code, level):
                             ans = n["attrs"]["question"]["question"]["parts"][0]["answer"]
                             assert ans["type"] != "choice", where
 
+        # difficulty follows marks (EXA-146): a question falls below its slot's rung only when
+        # every blueprint that could have filled the slot at that rung is already in the paper
+        for sec, nodes in _by_section(doc):
+            for n in nodes:
+                if n["type"] != "templatedQuestion":
+                    continue
+                bp, marks = n["attrs"]["question"]["blueprint_code"], _marks(n)
+                if META[bp]["parts"] > 1 or _shortfall(bp, marks) == 0:
+                    continue
+                better = [
+                    c
+                    for c, m in META.items()
+                    if m["marks"] == marks
+                    and _takes(c, sec["mode"], level)
+                    and _shortfall(c, marks) < _shortfall(bp, marks)
+                    and c not in codes
+                ]
+                assert not better, (where, bp, better)
+
         # the report agrees with the document
         placeholders = [n for n in _questions(doc) if n["attrs"].get("slot", {}).get("placeholder")]
         assert report["placeholders"] == len(placeholders) == unfilled_placeholders(doc)
@@ -223,35 +261,35 @@ _CONVERTIBLE = {"integer", "decimal", "quantity", "fraction"}  # a number: multi
 @pytest.mark.parametrize("level", LEVELS)
 def test_booklet_a_fills_every_slot_and_spreads_topics(level):
     """EXA-145: P5 and P6 Booklet A have no placeholders, and replaying the fill from the
-    document shows each question came from a least-used topic among the blueprints still
-    free for its slot, so the new one-mark topics never crowd out an older one."""
+    document shows each question came from the best-fitting rung for its marks (EXA-146), then
+    a least-used topic, among the blueprints still free for its slot, so the new one-mark
+    topics never crowd out an older one. The 2-mark slots choose first (their rung rule leaves
+    the fewest blueprints), then the 1-mark ones, each group in print order."""
     allowed = LEVELS[: LEVELS.index(level) + 1]
     for seed in SEEDS:
         doc, report = generate_paper("p1_booklet_a", level, seed)
         assert report["placeholders"] == unfilled_placeholders(doc) == 0, seed
         used: set[str] = set()
         counts: Counter[str] = Counter()
-        one_mark_topics = set()
-        for n in _questions(doc):  # a fixed section fills its slots in print order
-            code = n["attrs"]["question"]["blueprint_code"]
+        paper_topics = set()
+        codes = [n["attrs"]["question"]["blueprint_code"] for n in _questions(doc)]
+        for code in sorted(codes, key=lambda c: -META[c]["marks"]):  # stable: print order
             marks = META[code]["marks"]
             free = [
                 c
                 for c, m in META.items()
-                if c not in used
-                and m["level"] in allowed
-                and m["marks"] == marks
-                and m["parts"] == 1
-                and m["answer_type"] in _CONVERTIBLE
+                if c not in used and m["marks"] == marks and _takes(c, "mcq", level)
             ]
             assert code in free, (seed, code)
-            least = min(counts[META[c]["topic"]] for c in free)
+            fit = min(_shortfall(c, marks) for c in free)
+            assert _shortfall(code, marks) == fit, (seed, code)
+            least = min(counts[META[c]["topic"]] for c in free if _shortfall(c, marks) == fit)
             assert counts[META[code]["topic"]] == least, (seed, code, dict(counts))
             used.add(code)
             counts[META[code]["topic"]] += 1
-            if marks == 1:
-                one_mark_topics.add(META[code]["topic"])
-        # every topic with a one-mark multiple-choice blueprint gets a one-mark question
+            paper_topics.add(META[code]["topic"])
+        # every topic with a one-mark multiple-choice blueprint gets a question (a topic whose
+        # 2-mark question was chosen first may give its 1-mark slot to a less-used topic)
         eligible = {
             m["topic"]
             for m in META.values()
@@ -260,7 +298,39 @@ def test_booklet_a_fills_every_slot_and_spreads_topics(level):
             and m["parts"] == 1
             and m["answer_type"] in _CONVERTIBLE
         }
-        assert one_mark_topics == eligible, (seed, eligible - one_mark_topics)
+        assert eligible <= paper_topics, (seed, eligible - paper_topics)
+
+
+@pytest.mark.parametrize("level", LEVELS)
+@pytest.mark.parametrize("code", TEMPLATES)
+def test_difficulty_follows_marks_without_costing_a_question(code, level):
+    """EXA-146: in each group of slots of the same marks and kind, either every single-part
+    question has the rung its marks ask for (2 marks: medium or harder; 3+: hard) or every
+    blueprint that has it is already in the paper. And one topic never takes more than two
+    questions of a paper. (No placeholder is added: see test_what_todays_content_fills.)"""
+    for seed in SEEDS:
+        doc, _ = generate_paper(code, level, seed)
+        qs = [
+            (n["attrs"]["slot"], n["attrs"]["question"])
+            for n in _questions(doc)
+            if n["type"] == "templatedQuestion"
+        ]
+        used = {q["blueprint_code"] for _, q in qs}
+        groups: dict[tuple[int, str], list[str]] = {}
+        for slot, q in qs:
+            if META[q["blueprint_code"]]["parts"] == 1:
+                groups.setdefault((slot["marks"], slot["kind"]), []).append(q["blueprint_code"])
+        for (marks, kind), bps in groups.items():
+            if all(_shortfall(bp, marks) == 0 for bp in bps):
+                continue
+            fitting = {
+                c
+                for c, m in META.items()
+                if m["marks"] == marks and _takes(c, kind, level) and _shortfall(c, marks) == 0
+            }
+            assert fitting <= used, (code, level, seed, marks, kind, fitting - used)
+        topics = Counter(q["syllabus"]["topic"] for _, q in qs)
+        assert max(topics.values()) <= 2, (code, level, seed, topics)
 
 
 def test_what_todays_content_fills():
