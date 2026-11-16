@@ -926,8 +926,8 @@ def _render_sf_circle(total_parts: int, shaded_parts: int) -> str:
 # A general 2D figure: named points (figure coords) + segments (with tick marks
 # and length labels) + arcs + angle marks (right-angle square when marked) +
 # shaded regions + free labels. Figure coordinates are floats scaled uniformly
-# into a fixed canvas; all output coordinates are rounded via ``_r`` (floor(v+.5))
-# so Python and the TS mirror (web/src/lib/barModel.ts) agree byte-for-byte.
+# into a fixed canvas; all output coordinates are rounded via ``_r`` (floor(v+.5)).
+# The web shows this same drawing via POST /render/diagram (EXA-151).
 # Labelled *values* stay exact (they come from the label strings / params, not
 # from measuring the drawing). Convention: figure coordinates are screen-like
 # (x right, y DOWN); arc/angle degrees are measured with the same y-down frame,

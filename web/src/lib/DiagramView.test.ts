@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/svelte'
 import DiagramView from './DiagramView.svelte'
-import type { DiagramSpec } from './barModel'
+import type { DiagramSpec } from './diagram'
 
 describe('DiagramView worked-model note (EXA-132)', () => {
   it('labels a bar model as key-only: the student paper never prints it', () => {
