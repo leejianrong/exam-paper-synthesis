@@ -16,7 +16,11 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   no room gets its length turned to run beside it), angle values inside the angle past the arc,
   and vertex letters outside the corner; the canvas grows to keep every label on it. A test reads
   every generated and hand-built figure and fails if any label touches a line or another label.
-
+- **An empty placeholder never prints by accident (EXA-137).** A generated Booklet A printed
+  two unwritten placeholders as grey boxes with `Ans:` lines. Exporting a paper with
+  placeholders nobody has written is now refused with the question numbers; the editor lists
+  them and offers *Fill them* (goes to the first) or *Print anyway*. Printed anyway, an empty
+  placeholder in a multiple-choice section is a numbered blank gap with no `Ans:` line.
 - **A fraction option never reads "4/1" (EXA-133)**, and **working steps typeset their maths**
   in the editor's answer key and on the Classic page (algebra showed raw `\\(3x\\)`, EXA-131).
 
