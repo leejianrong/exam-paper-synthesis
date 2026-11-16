@@ -86,11 +86,13 @@ date, question count, parent's signature, page count) and the standard "Question
    Booklet A/B" / "End of Paper", and an optional footer tag (school, year, paper).
 7. **Fill the page with working space.** When the next question moves to a new page, stretch the last question's working space
    to the bottom margin. Give Paper 2 structured questions a page each by default.
-8. **Real section-header wording.** Generate "Questions X to Y carry n mark(s) each. ... (N marks)" with marks right-aligned and
-   a rule beneath. Split Booklet B into 1-mark and 2-mark sections. Drop "Section A/B" and the meta line from print.
-9. **Marks placement per section.** No `[n]` in MCQ, short-answer and 2-mark sections; `[n]` after the `Ans:` line only in the
-   structured section. Default the P8 templates to this.
-10. **Short right-aligned `Ans:` line.** About 55 mm, unit after the line, `$` before; borderless working space.
+8. ~~**Real section-header wording.** Generate "Questions X to Y carry n mark(s) each. ... (N marks)" with marks right-aligned and
+   a rule beneath. Split Booklet B into 1-mark and 2-mark sections. Drop "Section A/B" and the meta line from print.~~ Done in
+   #214 (EXA-139): a teacher's own section title still prints, generic ones do not.
+9. ~~**Marks placement per section.** No `[n]` in MCQ, short-answer and 2-mark sections; `[n]` after the `Ans:` line only in the
+   structured section. Default the P8 templates to this.~~ Done in #214 (EXA-139): `section.marks_placement`, schema 1.13.0.
+10. ~~**Short right-aligned `Ans:` line.** About 55 mm, unit after the line, `$` before; borderless working space.~~ Done in
+    #214 (EXA-139).
 11. **Cover fields.** School, exam name and year, date, "Total time for Booklets A and B: 1 h", "n questions", Name with
     "( )" for the register number, Parent's signature, page-count line, underlined heading, and **NOT** bold and underlined.
 12. **Examiner's table.** Diagonal-split score cells. Booklet B cover: A, B, Paper 1 total. Paper 2 cover: P1, P2, Total /100.
