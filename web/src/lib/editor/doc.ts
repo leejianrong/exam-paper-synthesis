@@ -5,7 +5,7 @@ import type { Question } from '../types'
 import { assetUrl } from './assets'
 import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.14.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.15.0'
 
 export interface DocNode {
   type: string
@@ -201,7 +201,8 @@ export function cleanNode(node: DocNode): DocNode {
       const v = typeof a[k] === 'string' ? (a[k] as string).trim() : ''
       if (v) attrs[k] = v
     }
-    if (typeof a.examiner_table === 'boolean') attrs.examiner_table = a.examiner_table
+    for (const k of ['examiner_table', 'parent_signature', 'even_pages'])
+      if (typeof a[k] === 'boolean') attrs[k] = a[k]
     out = { ...out, attrs }
   }
   if (out.type === 'blankPage') {

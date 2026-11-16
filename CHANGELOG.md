@@ -20,6 +20,19 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Changed
 
+- **The cover page looks and reads like a real P6 cover (EXA-140).** The title block is centred
+  and bold, one line each: school, exam, level, subject, paper and "(Booklet A)". The fields are
+  "Name: ____ (  )" with brackets for the register number, "Class: Primary 6 ____", the date, the
+  number of questions and marks, and an optional "Parent's signature" line (document schema
+  1.15.0). Paper 1 covers say "Total time for Booklets A and B: 1 h". The examiner's table has
+  diagonal-split score cells and, on an exam-set paper, the set's rows: Booklet B shows A /20,
+  B /25 and the Paper 1 total /45; Paper 2 shows Paper 1 /45, Paper 2 /55 and the total /100;
+  Booklet A has none by default. "INSTRUCTIONS TO CANDIDATES" is underlined, a capitalised NOT
+  in an instruction prints bold and underlined, and the templates use the standard instruction
+  lines (OAS shading for Booklet A; pen, correction fluid and highlighter lines for Booklet B and
+  Paper 2; "approved calculator ... expected" for Paper 2). The foot of the cover says "This
+  booklet consists of N printed pages (and 1 blank page)." The templates add a blank back of the
+  cover and pad each booklet to an even page count (a cover switch, `even_pages`).
 - **Every printed page has its furniture, and pages end full (EXA-138).** Each question page now
   has a footer: the page number in the centre (the cover counts as page 1, as on real booklets),
   "(Go on to the next page)" at the right on all but the last page, and a small school · exam ·

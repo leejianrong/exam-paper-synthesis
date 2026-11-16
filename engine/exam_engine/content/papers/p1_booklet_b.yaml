@@ -13,8 +13,13 @@ cover:
     Do not turn over this page until you are told to do so.
     Follow all instructions carefully.
     Answer all questions.
-    Write your answers in the spaces provided.
-    The use of calculators is not allowed.
+    Use a dark blue or black ballpoint pen to write your answers in the spaces provided.
+    Do not use correction fluid or tape.
+    Do not use highlighters on any part of your answers.
+    The use of calculators is NOT allowed.
+  parent_signature: true
+  blank_back: true
+  even_pages: true
 # Two sections, as every real Booklet B has: Q16-20 at 1 mark, then Q21-30 at 2 marks. The
 # titles are for the editor; generic ones like these do not print (EXA-139).
 sections:

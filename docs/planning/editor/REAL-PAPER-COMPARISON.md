@@ -96,9 +96,11 @@ date, question count, parent's signature, page count) and the standard "Question
    the editing page shows it per section too since #219 (EXA-152).
 10. ~~**Short right-aligned `Ans:` line.** About 55 mm, unit after the line, `$` before; borderless working space.~~ Done in
     #214 (EXA-139).
-11. **Cover fields.** School, exam name and year, date, "Total time for Booklets A and B: 1 h", "n questions", Name with
-    "( )" for the register number, Parent's signature, page-count line, underlined heading, and **NOT** bold and underlined.
-12. **Examiner's table.** Diagonal-split score cells. Booklet B cover: A, B, Paper 1 total. Paper 2 cover: P1, P2, Total /100.
+11. ~~**Cover fields.** School, exam name and year, date, "Total time for Booklets A and B: 1 h", "n questions", Name with
+    "( )" for the register number, Parent's signature, page-count line, underlined heading, and **NOT** bold and underlined.~~
+    Done in #222 (EXA-140): the crest image is not built.
+12. ~~**Examiner's table.** Diagonal-split score cells. Booklet B cover: A, B, Paper 1 total. Paper 2 cover: P1, P2, Total /100.~~
+    Done in #222 (EXA-140): the other papers' maxima are the templates' standard ones; Booklet A has no table by default.
 13. **MCQ options in one column** for text options (2×2 only for short or picture options), and a recording method: OAS wording
     in the cover and header, or an optional "( )" answer bracket.
 14. ~~**Continuous marking strip.** One rule per page with the caption once at the top; optional per-question score box beside each
@@ -107,7 +109,8 @@ date, question count, parent's signature, page count) and the standard "Question
 15. ~~**Compact answer key.** Header block, Booklet A answer grid, two-column working table with "Ans:", optional M1/A1. Fix the
     raw `^2`/`^3` and the x/- operators in key text.~~ Done in #221 (EXA-142): `key_options.layout: compact`, schema 1.14.0;
     units print cm²/cm³, operators × and −, angles 51°, with a lint test over every blueprint.
-16. **Blank pages and type size.** Blank back of cover and pad to an even page count via templates; body text about 11 pt; maths fonts fixed in #204
+16. **Blank pages and type size.** ~~Blank back of cover and pad to an even page count via templates;~~ (done in #222,
+    EXA-140) body text about 11 pt; maths fonts fixed in #204
     serif fallback (known bug).
 
 ---

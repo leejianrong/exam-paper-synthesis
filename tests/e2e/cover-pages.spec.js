@@ -32,27 +32,30 @@ test('a starter template comes with its cover; fill it, add a blank page, reload
   await expect(page.locator('.surface .ProseMirror > *').first()).toHaveClass(/cover-block/)
   await expect(cover.getByLabel('Cover paper')).toHaveValue('Paper 2')
   await expect(cover.getByLabel('Cover level')).toHaveValue('')
-  await expect(cover.getByLabel('Cover instructions')).toHaveValue(/You may use a calculator\./)
+  await expect(cover.getByLabel('Cover instructions')).toHaveValue(/approved calculator is expected/)
   await cover.getByLabel('Cover school').fill('Pandan Primary School')
   await cover.getByLabel('Cover level').fill('Primary 6')
   await cover.getByLabel('Cover instructions').fill('Answer all questions.\nShow your working.')
 
-  // A blank page lands where the cursor is; make it rough work.
-  await page.locator('.surface .ProseMirror').click()
-  await page.getByRole('button', { name: 'Blank page', exact: true }).click()
+  // The template has a blank back of the cover (EXA-140). A blank page lands where the cursor
+  // is; make one of the two rough work.
   const blank = page.locator('.blank-block')
   await expect(blank).toHaveCount(1)
-  await blank.getByLabel('Blank page kind').selectOption('rough')
+  await page.locator('.surface .ProseMirror').click()
+  await page.getByRole('button', { name: 'Blank page', exact: true }).click()
+  await expect(blank).toHaveCount(2)
+  await blank.nth(1).getByLabel('Blank page kind').selectOption('rough')
 
   await settled(page)
   await page.reload()
   await expect(cover).toHaveCount(1)
   await expect(cover.getByLabel('Cover school')).toHaveValue('Pandan Primary School')
-  await expect(blank.getByLabel('Blank page kind')).toHaveValue('rough')
+  await expect(blank).toHaveCount(2)
+  await expect(page.locator('.blank-block[data-kind="rough"]')).toHaveCount(1)
 
   const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
   expect(student).toContain('<p class="cover-school">Pandan Primary School</p>')
-  expect(student).toContain('<p class="cover-subject">Primary 6 Mathematics</p>')
+  expect(student).toContain('<p class="cover-level">Primary 6</p><p class="cover-subject">Mathematics</p>')
   expect(student).toContain('<li>Answer all questions.</li><li>Show your working.</li>')
   expect(student).toContain('Time: 1 h 30 min')
   expect(student).not.toContain('<header class="sheet-header">')
