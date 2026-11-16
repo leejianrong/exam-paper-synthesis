@@ -16,6 +16,7 @@ import re
 from collections.abc import Callable
 from itertools import chain
 
+from . import palette
 from .chart import check_chart_consistency, render_chart_svg
 from .cube_stack import check_cube_stack_consistency, render_cube_stack_svg
 from .label_layout import (
@@ -431,7 +432,7 @@ def _render_panels(spec: dict) -> str:
     if spec.get("title"):
         out.append(
             f'<text x="{width / 2:g}" y="18" text-anchor="middle" font-weight="600" '
-            f'fill="#1f2433">{_esc(spec["title"])}</text>'
+            f'fill="{palette.INK}">{_esc(spec["title"])}</text>'
         )
     x = float(pad + (width - (pad * 2 + sum(cols) + gap * (len(cols) - 1))) / 2)
     tallest = max(h for _, h in sizes)
@@ -441,7 +442,7 @@ def _render_panels(spec: dict) -> str:
         if panel.get("title"):
             out.append(
                 f'<text x="{x + col / 2:g}" y="{head - 8}" text-anchor="middle" '
-                f'font-weight="600" fill="#1f2433">{_esc(panel["title"])}</text>'
+                f'font-weight="600" fill="{palette.INK}">{_esc(panel["title"])}</text>'
             )
         cy = head + (tallest - h) / 2  # centre shorter figures against the tallest
         out.append(svg.replace("<svg ", f'<svg x="{x + (col - w) / 2:g}" y="{cy:g}" ', 1))
@@ -452,7 +453,7 @@ def _render_panels(spec: dict) -> str:
                 out.append(
                     f'<path d="M {x + 8:g} {ay:g} L {x + gap - 12:g} {ay:g} M {x + gap - 20:g} '
                     f'{ay - 6:g} L {x + gap - 12:g} {ay:g} L {x + gap - 20:g} {ay + 6:g}" '
-                    f'fill="none" stroke="#1f2433" stroke-width="1.8"/>'
+                    f'fill="none" stroke="{palette.INK}" stroke-width="1.8"/>'
                 )
             x += gap
     out.append("</svg>")
@@ -487,7 +488,7 @@ def render_svg(spec: dict, given: dict | None = None) -> str:
 
     ``given`` (answer-key figures only): the figure the student was handed. In a
     completed ``geometry_figure`` everything *not* already in ``given`` is drawn in
-    the answer accent, so the key shows what the student had to add.
+    the answer ink with a heavier stroke, so the key shows what the student had to add.
     """
     dtype = spec.get("type")
     if dtype == "bar_model":
@@ -581,14 +582,14 @@ def _render_bar_model(spec: dict) -> str:
         # Outer bar rectangle.
         lines.append(
             f'<rect x="{_LABEL_W}" y="{y}" width="{bar_w}" height="{_BAR_H}" '
-            f'fill="#eef2fb" stroke="#2f5fe0" stroke-width="1.5"/>'
+            f'fill="{palette.PAPER}" stroke="{palette.INK}" stroke-width="1.5"/>'
         )
         # Per-unit divider lines so units are countable.
         for u in range(1, units):
             x = _LABEL_W + u * _UNIT_W
             lines.append(
                 f'<line x1="{x}" y1="{y}" x2="{x}" y2="{y + _BAR_H}" '
-                f'stroke="#2f5fe0" stroke-width="0.75"/>'
+                f'stroke="{palette.INK}" stroke-width="0.75"/>'
             )
         y += _BAR_H + _ROW_GAP
 
@@ -604,10 +605,10 @@ def _render_bar_model(spec: dict) -> str:
             f"M {bx} {y_top} C {cx} {y_top}, {bx} {y_mid}, {cx} {y_mid} "
             f"C {bx} {y_mid}, {cx} {y_bot}, {bx} {y_bot}"
         )
-        lines.append(f'<path d="{d}" fill="none" stroke="#66708a" stroke-width="1.25"/>')
+        lines.append(f'<path d="{d}" fill="none" stroke="{palette.INK}" stroke-width="1.25"/>')
         lines.append(
             f'<text x="{cx + _BRACE_LABEL_GAP}" y="{y_mid + 4}" text-anchor="start" '
-            f'fill="#66708a">{_esc(total_bracket["label"])}</text>'
+            f'fill="{palette.INK}">{_esc(total_bracket["label"])}</text>'
         )
 
     # --- annotations (spanning braces + label under the bars) ---
@@ -623,19 +624,19 @@ def _render_bar_model(spec: dict) -> str:
             # Span line with end ticks.
             lines.append(
                 f'<line x1="{x1}" y1="{tick_y}" x2="{x2}" y2="{tick_y}" '
-                f'stroke="#66708a" stroke-width="1"/>'
+                f'stroke="{palette.INK}" stroke-width="1"/>'
             )
             lines.append(
                 f'<line x1="{x1}" y1="{tick_y - 4}" x2="{x1}" y2="{tick_y + 4}" '
-                f'stroke="#66708a" stroke-width="1"/>'
+                f'stroke="{palette.INK}" stroke-width="1"/>'
             )
             lines.append(
                 f'<line x1="{x2}" y1="{tick_y - 4}" x2="{x2}" y2="{tick_y + 4}" '
-                f'stroke="#66708a" stroke-width="1"/>'
+                f'stroke="{palette.INK}" stroke-width="1"/>'
             )
             lines.append(
                 f'<text x="{mid}" y="{y + _ANN_ROW_H - 2}" text-anchor="middle" '
-                f'fill="#66708a">{_esc(ann["label"])}</text>'
+                f'fill="{palette.INK}">{_esc(ann["label"])}</text>'
             )
             y += _ANN_ROW_H
 
@@ -751,7 +752,7 @@ def _render_bar_model_before_after(spec: dict) -> str:
             )
             lines.append(
                 f'<rect x="{_LABEL_W}" y="{y}" width="{bar_w}" height="{_BAR_H}" '
-                f'fill="#eef2fb" stroke="#2f5fe0" stroke-width="1.5"/>'
+                f'fill="{palette.PAPER}" stroke="{palette.INK}" stroke-width="1.5"/>'
             )
             if grouped:
                 # One divider per original-ratio boundary — a small, bounded count.
@@ -759,13 +760,13 @@ def _render_bar_model_before_after(spec: dict) -> str:
                     x = _LABEL_W + u * _UNIT_W
                     lines.append(
                         f'<line x1="{x}" y1="{y}" x2="{x}" y2="{y + _BAR_H}" '
-                        f'stroke="#2f5fe0" stroke-width="{_DIV_HEAVY}"/>'
+                        f'stroke="{palette.INK}" stroke-width="{_DIV_HEAVY}"/>'
                     )
                 if row == 0:  # A bar → label a segment's unit-worth (per-stage)
                     wx = _LABEL_W + bar_w + _WORTH_GAP
                     lines.append(
                         f'<text x="{wx}" y="{text_y}" text-anchor="start" '
-                        f'fill="#66708a">= {worth(bar)}u</text>'
+                        f'fill="{palette.INK}">= {worth(bar)}u</text>'
                     )
             else:
                 # Full common-unit grid: heavy on original-ratio boundaries, light
@@ -777,7 +778,7 @@ def _render_bar_model_before_after(spec: dict) -> str:
                     sw = _DIV_HEAVY if heavy else _DIV_LIGHT
                     lines.append(
                         f'<line x1="{x}" y1="{y}" x2="{x}" y2="{y + _BAR_H}" '
-                        f'stroke="#2f5fe0" stroke-width="{sw}"/>'
+                        f'stroke="{palette.INK}" stroke-width="{sw}"/>'
                     )
             if row == 1:  # B (the invariant person) — remember its extent
                 last_b_top = y
@@ -796,10 +797,10 @@ def _render_bar_model_before_after(spec: dict) -> str:
             f"M {bx} {y_top} C {cx} {y_top}, {bx} {y_mid}, {cx} {y_mid} "
             f"C {bx} {y_mid}, {cx} {y_bot}, {bx} {y_bot}"
         )
-        lines.append(f'<path d="{d}" fill="none" stroke="#66708a" stroke-width="1.25"/>')
+        lines.append(f'<path d="{d}" fill="none" stroke="{palette.INK}" stroke-width="1.25"/>')
         lines.append(
             f'<text x="{cx + _BRACE_LABEL_GAP}" y="{y_mid + 4}" text-anchor="start" '
-            f'fill="#66708a">{_esc(total_bracket["label"])}</text>'
+            f'fill="{palette.INK}">{_esc(total_bracket["label"])}</text>'
         )
 
     # --- annotations (plain labelled lines under the stages) ---
@@ -808,7 +809,7 @@ def _render_bar_model_before_after(spec: dict) -> str:
         for ann in annotations:
             lines.append(
                 f'<text x="{_LABEL_W}" y="{y + _ANN_ROW_H - 8}" text-anchor="start" '
-                f'fill="#66708a">{_esc(ann["label"])}</text>'
+                f'fill="{palette.INK}">{_esc(ann["label"])}</text>'
             )
             y += _ANN_ROW_H
 
@@ -828,12 +829,12 @@ _SF_BAR_W = 72  # bar total width
 _SF_CIRCLE_R = 60  # circle radius
 _SF_PAD = 8  # padding around the figure
 # Distinct fill vs stroke so every segment border stays visible (KAN-311):
-# a light-blue shaded fill under a darker-blue outline; the pale empty fill
-# carries the same outline. All three differ, so shaded and unshaded segment
-# borders are countable on screen and in print.
-_SF_SHADE = "#93b8f2"  # filled cell (light-blue fill)
-_SF_EMPTY = "#eef2fb"  # empty cell (pale neutral fill)
-_SF_STROKE = "#2f5fe0"  # cell border (darker-blue outline)
+# a grey shaded fill under a black outline; the white empty fill carries the
+# same outline. All three differ, so shaded and unshaded segment borders are
+# countable on screen and in a photocopy (EXA-135).
+_SF_SHADE = palette.SHADE  # filled cell (grey fill)
+_SF_EMPTY = palette.PAPER  # empty cell (white)
+_SF_STROKE = palette.INK  # cell border (black outline)
 
 
 def _render_shaded_fraction(spec: dict) -> str:
@@ -939,10 +940,10 @@ _GF_RIGHT = 14  # right-angle square side (canvas px)
 _GF_TICK = 6  # equal-length tick half-length (canvas px)
 _GF_TICK_SP = 4  # spacing between adjacent tick marks
 _GF_FONT = 13  # label font size (the <svg> default)
-_GF_STROKE = "#2f5fe0"  # figure edges / arcs
-_GF_FILL = "#dbe4fb"  # shaded region fill
-_GF_ANSWER = "#d6336c"  # what the student must add (answer-key completed figures)
-_GF_TEXT = "#334155"  # text labels
+_GF_STROKE = palette.INK  # figure edges / arcs
+_GF_FILL = palette.SHADE  # shaded region fill
+_GF_ANSWER = palette.ANSWER  # what the student must add (answer-key completed figures)
+_GF_TEXT = palette.INK  # text labels
 _GF_DASH = "4 3"  # stroke-dasharray for dashed dimension lines (KAN-314)
 _GF_DIM_CAP = 5  # dimension-line end-cap half-length (canvas px, KAN-314)
 
@@ -1054,7 +1055,7 @@ def _gf_grid_extent(grid: dict) -> tuple[float, float, float, float]:
     return ox, oy, ox + grid["cols"] * size, oy + grid["rows"] * size
 
 
-_GF_GRID = "#c7d0e0"  # grid backdrop lines
+_GF_GRID = palette.GRID  # grid backdrop lines
 
 
 def _gf_draw_grid(lines: list[str], grid: dict, tx: Callable, ty: Callable, lay: Layout) -> None:

@@ -29,12 +29,15 @@ const SF_BAR_W = 72
 const SF_CIRCLE_R = 60
 const SF_PAD = 8
 // Distinct fill vs stroke so every segment border stays visible (KAN-311):
-// light-blue shaded fill under a darker-blue outline; pale empty fill, same
-// outline. All three differ, so segment borders stay countable. Mirrors the
-// _SF_* constants in engine/exam_engine/diagram.py.
-const SF_SHADE = '#93b8f2' // filled cell (light-blue fill)
-const SF_EMPTY = '#eef2fb' // empty cell (pale neutral fill)
-const SF_STROKE = '#2f5fe0' // cell border (darker-blue outline)
+// grey shaded fill under a black outline; white empty fill, same outline. All
+// three differ, so segment borders stay countable. Black on white like a
+// photocopied paper (EXA-135); the values mirror engine/exam_engine/palette.py.
+const INK = '#1a1a1a'
+const PAPER = '#ffffff'
+const SHADE = '#d0d0d0'
+const SF_SHADE = SHADE // filled cell (grey fill)
+const SF_EMPTY = PAPER // empty cell (white)
+const SF_STROKE = INK // cell border (black outline)
 
 export interface BarSpec {
   label: string
@@ -251,13 +254,13 @@ function renderBarModel(spec: BarModelSpec): string {
     )
     out.push(
       `<rect x="${LABEL_W}" y="${y}" width="${barW}" height="${BAR_H}" ` +
-        `fill="#eef2fb" stroke="#2f5fe0" stroke-width="1.5"/>`,
+        `fill="${PAPER}" stroke="${INK}" stroke-width="1.5"/>`,
     )
     for (let u = 1; u < units; u++) {
       const x = LABEL_W + u * UNIT_W
       out.push(
         `<line x1="${x}" y1="${y}" x2="${x}" y2="${y + BAR_H}" ` +
-          `stroke="#2f5fe0" stroke-width="0.75"/>`,
+          `stroke="${INK}" stroke-width="0.75"/>`,
       )
     }
     y += BAR_H + ROW_GAP
@@ -273,9 +276,9 @@ function renderBarModel(spec: BarModelSpec): string {
     const d =
       `M ${bx} ${yTop} C ${cx} ${yTop}, ${bx} ${yMid}, ${cx} ${yMid} ` +
       `C ${bx} ${yMid}, ${cx} ${yBot}, ${bx} ${yBot}`
-    out.push(`<path d="${d}" fill="none" stroke="#66708a" stroke-width="1.25"/>`)
+    out.push(`<path d="${d}" fill="none" stroke="${INK}" stroke-width="1.25"/>`)
     out.push(
-      `<text x="${cx + BRACE_LABEL_GAP}" y="${yMid + 4}" text-anchor="start" fill="#66708a">${esc(totalBracket.label)}</text>`,
+      `<text x="${cx + BRACE_LABEL_GAP}" y="${yMid + 4}" text-anchor="start" fill="${INK}">${esc(totalBracket.label)}</text>`,
     )
   }
 
@@ -289,16 +292,16 @@ function renderBarModel(spec: BarModelSpec): string {
       const mid = Math.floor((x1 + x2) / 2)
       const tickY = y + 8
       out.push(
-        `<line x1="${x1}" y1="${tickY}" x2="${x2}" y2="${tickY}" stroke="#66708a" stroke-width="1"/>`,
+        `<line x1="${x1}" y1="${tickY}" x2="${x2}" y2="${tickY}" stroke="${INK}" stroke-width="1"/>`,
       )
       out.push(
-        `<line x1="${x1}" y1="${tickY - 4}" x2="${x1}" y2="${tickY + 4}" stroke="#66708a" stroke-width="1"/>`,
+        `<line x1="${x1}" y1="${tickY - 4}" x2="${x1}" y2="${tickY + 4}" stroke="${INK}" stroke-width="1"/>`,
       )
       out.push(
-        `<line x1="${x2}" y1="${tickY - 4}" x2="${x2}" y2="${tickY + 4}" stroke="#66708a" stroke-width="1"/>`,
+        `<line x1="${x2}" y1="${tickY - 4}" x2="${x2}" y2="${tickY + 4}" stroke="${INK}" stroke-width="1"/>`,
       )
       out.push(
-        `<text x="${mid}" y="${y + ANN_ROW_H - 2}" text-anchor="middle" fill="#66708a">${esc(ann.label)}</text>`,
+        `<text x="${mid}" y="${y + ANN_ROW_H - 2}" text-anchor="middle" fill="${INK}">${esc(ann.label)}</text>`,
       )
       y += ANN_ROW_H
     }
@@ -404,7 +407,7 @@ function renderBarModelBeforeAfter(spec: BarModelBeforeAfterSpec): string {
       )
       out.push(
         `<rect x="${LABEL_W}" y="${y}" width="${barW}" height="${BAR_H}" ` +
-          `fill="#eef2fb" stroke="#2f5fe0" stroke-width="1.5"/>`,
+          `fill="${PAPER}" stroke="${INK}" stroke-width="1.5"/>`,
       )
       if (grouped) {
         // One divider per original-ratio boundary — a small, bounded count.
@@ -412,14 +415,14 @@ function renderBarModelBeforeAfter(spec: BarModelBeforeAfterSpec): string {
           const x = LABEL_W + u * UNIT_W
           out.push(
             `<line x1="${x}" y1="${y}" x2="${x}" y2="${y + BAR_H}" ` +
-              `stroke="#2f5fe0" stroke-width="${DIV_HEAVY}"/>`,
+              `stroke="${INK}" stroke-width="${DIV_HEAVY}"/>`,
           )
         }
         if (row === 0) {
           // A bar → label a segment's unit-worth (per-stage).
           const wx = LABEL_W + barW + WORTH_GAP
           out.push(
-            `<text x="${wx}" y="${textY}" text-anchor="start" fill="#66708a">= ${worth(bar)}u</text>`,
+            `<text x="${wx}" y="${textY}" text-anchor="start" fill="${INK}">= ${worth(bar)}u</text>`,
           )
         }
       } else {
@@ -432,7 +435,7 @@ function renderBarModelBeforeAfter(spec: BarModelBeforeAfterSpec): string {
           const sw = heavy ? DIV_HEAVY : DIV_LIGHT
           out.push(
             `<line x1="${x}" y1="${y}" x2="${x}" y2="${y + BAR_H}" ` +
-              `stroke="#2f5fe0" stroke-width="${sw}"/>`,
+              `stroke="${INK}" stroke-width="${sw}"/>`,
           )
         }
       }
@@ -455,9 +458,9 @@ function renderBarModelBeforeAfter(spec: BarModelBeforeAfterSpec): string {
     const d =
       `M ${bx} ${yTop} C ${cx} ${yTop}, ${bx} ${yMid}, ${cx} ${yMid} ` +
       `C ${bx} ${yMid}, ${cx} ${yBot}, ${bx} ${yBot}`
-    out.push(`<path d="${d}" fill="none" stroke="#66708a" stroke-width="1.25"/>`)
+    out.push(`<path d="${d}" fill="none" stroke="${INK}" stroke-width="1.25"/>`)
     out.push(
-      `<text x="${cx + BRACE_LABEL_GAP}" y="${yMid + 4}" text-anchor="start" fill="#66708a">${esc(totalBracket.label)}</text>`,
+      `<text x="${cx + BRACE_LABEL_GAP}" y="${yMid + 4}" text-anchor="start" fill="${INK}">${esc(totalBracket.label)}</text>`,
     )
   }
 
@@ -466,7 +469,7 @@ function renderBarModelBeforeAfter(spec: BarModelBeforeAfterSpec): string {
     y = PAD_TOP + stageGroupH + STAGE_GAP + stageGroupH + ANN_GAP
     for (const ann of annotations) {
       out.push(
-        `<text x="${LABEL_W}" y="${y + ANN_ROW_H - 8}" text-anchor="start" fill="#66708a">${esc(ann.label)}</text>`,
+        `<text x="${LABEL_W}" y="${y + ANN_ROW_H - 8}" text-anchor="start" fill="${INK}">${esc(ann.label)}</text>`,
       )
       y += ANN_ROW_H
     }
@@ -565,9 +568,9 @@ const GF_RIGHT = 14
 const GF_TICK = 6
 const GF_TICK_SP = 4
 const GF_LABEL_OFF = 13
-const GF_STROKE = '#2f5fe0'
-const GF_FILL = '#dbe4fb'
-const GF_TEXT = '#334155'
+const GF_STROKE = INK
+const GF_FILL = SHADE
+const GF_TEXT = INK
 const GF_DASH = '4 3' // stroke-dasharray for dashed dimension lines (KAN-314)
 const GF_DIM_CAP = 5 // dimension-line end-cap half-length (canvas px, KAN-314)
 
