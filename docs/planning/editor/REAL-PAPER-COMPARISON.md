@@ -104,8 +104,9 @@ date, question count, parent's signature, page count) and the standard "Question
 14. ~~**Continuous marking strip.** One rule per page with the caption once at the top; optional per-question score box beside each
     `Ans:` line (CHS style); smaller (about 12 mm) labelled tally box on the footer line.~~ Done in #220 (EXA-138): strip
     and 12 mm tally on the footer line; the CHS score box and a tally label are not built.
-15. **Compact answer key.** Header block, Booklet A answer grid, two-column working table with "Ans:", optional M1/A1. Fix the
-    raw `^2`/`^3` and the x/- operators in key text.
+15. ~~**Compact answer key.** Header block, Booklet A answer grid, two-column working table with "Ans:", optional M1/A1. Fix the
+    raw `^2`/`^3` and the x/- operators in key text.~~ Done in #221 (EXA-142): `key_options.layout: compact`, schema 1.14.0;
+    units print cm²/cm³, operators × and −, angles 51°, with a lint test over every blueprint.
 16. **Blank pages and type size.** Blank back of cover and pad to an even page count via templates; body text about 11 pt; maths fonts fixed in #204
     serif fallback (known bug).
 
