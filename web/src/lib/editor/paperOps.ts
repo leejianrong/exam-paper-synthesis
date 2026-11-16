@@ -96,10 +96,10 @@ function byId(doc: DocJSON): Map<string, DocNode> {
 
 /** EXA-137 "Fill them": put the caret in question `number` (its printed number) and scroll
  *  to it. False if the paper has no such question (it changed since the export). */
-export function goToQuestion(editor: Editor, number: number): boolean {
+export function goToQuestion(editor: Editor, number: number, start = 1): boolean {
   const { doc } = editor.state
   let pos = -1
-  let n = 0
+  let n = start - 1 // the printed number of the question before the first (Booklet B: 15)
   doc.forEach((child, offset) => {
     if (pos < 0 && QUESTION_TYPES.includes(child.type.name) && ++n === number) pos = offset
   })

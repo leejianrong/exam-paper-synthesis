@@ -21,6 +21,7 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
+# 1.12.0 (EXA-134): + settings.number_from (Booklet B continues Booklet A's numbering).
 # 1.11.0 (P8d): + question `locked` (kept by "regenerate unlocked").
 # 1.10.0 (P8a): + question `slot` (what the paper generator asked for).
 # 1.9.0 (P7): + coverPage (first block only) and blankPage blocks.
@@ -31,7 +32,7 @@ from .schema import validate_object
 # 1.4.0 (P2): + settings.marks_placement, per-question space_mm / ans_unit.
 # 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math; 1.3.0 (W5): + question `remark`.
 # Older documents stay valid (every addition is optional).
-DOCUMENT_SCHEMA_VERSION = "1.11.0"
+DOCUMENT_SCHEMA_VERSION = "1.12.0"
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000
@@ -105,8 +106,12 @@ def is_unfilled_placeholder(node: dict) -> bool:
 
 
 def unfilled_placeholder_numbers(doc: dict) -> list[int]:
-    """The printed question numbers of the unfilled placeholders (EXA-137), in order."""
-    return [n for n, node in enumerate(numbered_blocks(doc), 1) if is_unfilled_placeholder(node)]
+    """The printed question numbers of the unfilled placeholders (EXA-137), in order. They
+    count from the paper's ``number_from`` (Booklet B: 16 onwards, EXA-134)."""
+    start = number_from(doc)
+    return [
+        n for n, node in enumerate(numbered_blocks(doc), start) if is_unfilled_placeholder(node)
+    ]
 
 
 def freeform_parts(node: dict) -> list[dict]:
@@ -136,6 +141,12 @@ def key_options(doc: dict) -> dict:
     }
 
 
+def number_from(doc: dict) -> int:
+    """The paper's first question number (default 1): Paper 1 Booklet B carries on from
+    Booklet A, so its first question is 16, not 1 (EXA-134)."""
+    return (doc.get("settings") or {}).get("number_from") or 1
+
+
 def in_key(node: dict) -> bool:
     """Whether a numbered block appears in the answer key (default yes)."""
     return node["attrs"].get("in_key", True) is not False
@@ -162,10 +173,11 @@ def paper_outline(doc: dict) -> list[dict]:
     Each entry: ``title``, ``instructions``, ``mode``, ``marks_target``, ``marking`` (authored or
     defaulted), and
     ``first``/``last`` question numbers (both ``None`` when empty), ``count`` and ``marks``
-    (derived). Questions before the first section are not in any section.
+    (derived). Questions before the first section are not in any section. Numbering starts at
+    the paper's ``number_from``.
     """
     out: list[dict] = []
-    number = 0
+    number = number_from(doc) - 1
     for node in doc["content"]["content"]:
         if node["type"] == "section":
             a = node["attrs"]

@@ -3,7 +3,13 @@
   import ToolIcon from './ToolIcon.svelte'
   import { describePage, summarisePages, type PageSummary } from './pageSummary'
   import { paperSettings } from './paperSettings'
-  import { DEFAULT_PLACEMENT, keyOptionsOf, type KeyOptions, type MarksPlacement } from './layout'
+  import {
+    DEFAULT_PLACEMENT,
+    keyOptionsOf,
+    numberFrom,
+    type KeyOptions,
+    type MarksPlacement,
+  } from './layout'
   // The WYSIWYG page (W1c): an A4-width column of rich text and question blocks, a "+"
   // to add questions, the answer key below, autosave, and the export/preview menu.
   import { onDestroy, onMount } from 'svelte'
@@ -91,7 +97,8 @@
   $: canRegenerate = hasGeneratedSlots(content)
   // The generator's report (P8a), shown once on the paper it made.
   $: generated = $lastReport && $lastReport.docId === id ? reportSummary($lastReport.report) : ''
-  $: outline.set(paperOutline(content))
+  $: start = numberFrom($paperSettings)
+  $: outline.set(paperOutline(content, start))
   $: keyOpts = keyOptionsOf($paperSettings)
   $: statusLabel = {
     saved: 'Saved',
@@ -119,6 +126,14 @@
     const raw = (e.currentTarget as HTMLInputElement).value
     const n = raw === '' ? null : Math.max(1, Math.min(600, Math.round(+raw)))
     paperSettings.update((s) => ({ ...s, time_min: n }))
+    scheduleSave()
+  }
+
+  // EXA-134: Booklet B carries on from Booklet A, so its first question is 16, not 1.
+  function setNumberFrom(e: Event) {
+    const raw = (e.currentTarget as HTMLInputElement).value
+    const n = raw === '' ? null : Math.max(1, Math.min(999, Math.round(+raw)))
+    paperSettings.update((s) => ({ ...s, number_from: n }))
     scheduleSave()
   }
 
@@ -383,7 +398,7 @@
   function fillPlaceholders() {
     const first = unfilled?.questions[0]
     unfilled = null
-    if (editor && first !== undefined) goToQuestion(editor, first)
+    if (editor && first !== undefined) goToQuestion(editor, first, start)
   }
 
   /** P8d: a server-side change to the saved paper (swap, regenerate). Pending edits are saved
@@ -454,7 +469,7 @@
       const d = frame.contentDocument
       if (mine !== readToken || !d || previewHtml === null) return
       if (d.documentElement.getAttribute('data-paginated') === 'true') {
-        const s = summarisePages(d)
+        const s = summarisePages(d, start)
         pageSummary = s.paginated ? s : null
       } else if (tries++ < 200) setTimeout(look, 150) // heavy papers can take a while
     }
@@ -505,6 +520,19 @@
       aria-label="Paper time in minutes"
       value={$paperSettings.time_min ?? ''}
       on:input={setTime}
+    />
+  </label>
+  <label class="placement">
+    First Q
+    <input
+      class="time"
+      type="number"
+      min="1"
+      max="999"
+      placeholder="1"
+      aria-label="First question number"
+      value={$paperSettings.number_from ?? ''}
+      on:input={setNumberFrom}
     />
   </label>
   <fieldset class="keyopts">
@@ -709,6 +737,7 @@
     <p class="sheetmeta"><span>Name: ______________</span><span>Total: {marks} marks</span></p>
     <div
       class="surface"
+      style:--q-start={start - 1}
       role="presentation"
       bind:this={element}
       on:click={trackBlock}
@@ -723,6 +752,7 @@
 
   <AnswerKey
     {blocks}
+    {start}
     options={keyOpts}
     on:include={(e) => setInKey(e.detail.blockId, e.detail.included)}
     on:answer={(e) => setAnswer(e.detail.blockId, e.detail.answer)}
@@ -734,6 +764,7 @@
   {blocks}
   {marks}
   {selectedId}
+  {start}
   on:remark={(e) => setRemark(e.detail.blockId, e.detail.remark)}
   on:review={(e) => setReviewed(e.detail.blockId, e.detail.reviewed)}
 />
@@ -1000,7 +1031,7 @@
   .surface :global(.ProseMirror) {
     outline: none;
     min-height: 120mm;
-    counter-reset: q;
+    counter-reset: q var(--q-start, 0);
     font-family: var(--serif);
   }
   .surface :global(.qblock) {

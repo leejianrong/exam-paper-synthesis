@@ -381,6 +381,35 @@ describe('EditorPage empty placeholders (EXA-137)', () => {
     expect(blocks).toHaveLength(3)
     expect(blocks[1].contains(sel?.anchorNode ?? null)).toBe(true)
   })
+
+  it('Fill them finds the question by its printed number on a paper numbered from 16 (EXA-134)', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith('/auth/quota')) return { ok: true, status: 200, json: async () => ({ per_day: 30, left_day: 4 }) }
+      if (String(url).includes('/export/')) {
+        return {
+          ok: false,
+          status: 409,
+          json: async () => ({ detail: { code: 'unfilled_placeholders', message: 'Questions 17, 18 are still empty.', questions: [17, 18] } }),
+        }
+      }
+      const content = [freeformDocNode({ body: 'Q16', marks: 1 }), placeholder('p2'), placeholder('p3')]
+      const r = record(content)
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ...r, document: { ...r.document, settings: { number_from: 16 } } }),
+        text: async () => '',
+      }
+    })
+    const { container } = render(EditorPage, { props: { id: 'd1' } })
+    await screen.findByTestId('placeholders-left')
+    await fireEvent.click(screen.getByRole('button', { name: 'Full copy PDF' }))
+    const dialog = await screen.findByRole('alertdialog')
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Fill them' }))
+    const sel = window.getSelection()
+    const blocks = container.querySelectorAll('.ffblock')
+    expect(blocks[1].contains(sel?.anchorNode ?? null)).toBe(true)
+  })
 })
 
 describe('toolbar (P1)', () => {
@@ -455,6 +484,19 @@ describe('paper layout (P2)', () => {
     await fireEvent.change(select, { target: { value: 'answer' } })
     await waitFor(() => expect(document.querySelector('.ffblock .ff-marks')).toHaveTextContent(''))
     expect(document.querySelector('.ff-area .marks')).toHaveTextContent('[2]')
+  })
+
+  it('numbers the page and the key from a saved first question number (EXA-134)', async () => {
+    renderWith({ number_from: 16 })
+    await screen.findByText('Find x.')
+    const field = screen.getByLabelText('First question number') as HTMLInputElement
+    await waitFor(() => expect(field.value).toBe('16'))
+    const surface = document.querySelector('.surface') as HTMLElement
+    expect(surface.style.getPropertyValue('--q-start')).toBe('15')
+    const nums = Array.from(document.querySelectorAll('.entry .n')).map((n) => n.textContent)
+    expect(nums).toEqual(['16.', '17.'])
+    await fireEvent.input(field, { target: { value: '' } })
+    await waitFor(() => expect(surface.style.getPropertyValue('--q-start')).toBe('0'))
   })
 
   it('resizes a free-form block in place: the handle survives so a drag or key run continues', async () => {

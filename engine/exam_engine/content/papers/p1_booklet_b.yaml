@@ -4,6 +4,8 @@ label: "Paper 1 · Booklet B"
 title: "Paper 1 Booklet B"
 order: 2
 time_min: 60
+# Booklet B carries on from Booklet A's 15 questions, as every real Paper 1 does.
+number_from: 16
 cover:
   subject: Mathematics
   paper: "Paper 1 (Booklet B)"

@@ -76,3 +76,11 @@ def test_the_key_still_says_no_answer_written_yet():
     html = render_document_html("P", _doc(), mode="key")
     assert "unwritten" not in html
     assert html.count("No answer written yet") >= 2
+
+
+def test_numbers_count_from_the_papers_first_question_number():
+    """Booklet B numbers on from 16 (EXA-134): the refusal names the printed numbers."""
+    doc = _doc()
+    doc["settings"] = {**(doc.get("settings") or {}), "number_from": 16}
+    assert validate_document(doc) == []
+    assert unfilled_placeholder_numbers(doc) == [17, 20]
