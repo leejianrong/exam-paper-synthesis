@@ -19,8 +19,10 @@ from __future__ import annotations
 
 from fractions import Fraction
 
-_INK = "#1f2433"
-_ACCENT = "#2f5fe0"
+from exam_engine import palette
+
+_INK = palette.INK
+_ACCENT = palette.INK  # a marked point is a solid black pointer
 _MAX = 1_000_000
 _MAX_DIVISIONS = 100
 _SPAN = 480  # drawn line length (px)

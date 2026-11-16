@@ -9,8 +9,9 @@ chart described by the object. Three pure, deterministic pieces:
   pie sums to 100). Used by the canonical load gate, so a sourced chart whose
   numbers disagree with its own axis is rejected on import.
 * :func:`render_chart_svg` — deterministic spec -> inline ``<svg>``. Inter only
-  (EXA-94); series are told apart by fill *and* line style so a greyscale print
-  stays readable. A value with ``show_value: false`` is drawn at its true size
+  (EXA-94); black on white (EXA-135): bar series are told apart by grey tone
+  and a legend, line series by dash pattern and marker fill, pie sectors are
+  white, outlined and labelled. A value with ``show_value: false`` is drawn at its true size
   but is never written as text.
 * :func:`leaked_hidden_values` — the "no leak" proof: the hidden numbers of a
   spec must not appear in any text node or ``aria-label`` of its own SVG.
@@ -24,14 +25,16 @@ from __future__ import annotations
 import math
 import re
 
+from exam_engine import palette
+
 _EPS = 1e-9
 _MAX_TICKS = 50
 
-_FILLS = ("#2f5fe0", "#9fb0e8", "#66708a", "#c9cedb", "#1d3a8a", "#e7ebf7")
+_FILLS = palette.SERIES
 _DASHES = ("", "7 4", "2 4", "9 3 2 3")
-_INK = "#1f2433"
-_GRID = "#d9dde8"
-_AXIS = "#66708a"
+_INK = palette.INK
+_GRID = palette.GRID
+_AXIS = palette.INK
 
 
 # ---------------------------------------------------------------------------
@@ -280,6 +283,7 @@ def _render_axes_chart(spec: dict) -> str:
                     )
     else:
         for si, s in enumerate(series):
+            # every line is ink; the dash pattern and the marker fill tell series apart
             color, dash = _FILLS[si % len(_FILLS)], _DASHES[si % len(_DASHES)]
             dash_attr = f' stroke-dasharray="{dash}"' if dash else ""
             run: list[str] = []
@@ -289,7 +293,7 @@ def _render_axes_chart(spec: dict) -> str:
                     continue
                 if len(run) > 1:
                     out.append(
-                        f'<polyline points="{" ".join(run)}" fill="none" stroke="{color}" '
+                        f'<polyline points="{" ".join(run)}" fill="none" stroke="{_INK}" '
                         f'stroke-width="2"{dash_attr}/>'
                     )
                 run = []
@@ -332,7 +336,7 @@ def _render_pie(spec: dict) -> str:
     total = sum(s["value"] for s in sectors)
     out = [_header(width, height, spec), _title(spec, width)]
     angle = -math.pi / 2  # 12 o'clock, clockwise
-    for i, s in enumerate(sectors):
+    for s in sectors:
         sweep = s["value"] / total * 2 * math.pi
         a0, a1 = angle, angle + sweep
         x0, y0 = cx + r * math.cos(a0), cy + r * math.sin(a0)
@@ -341,7 +345,7 @@ def _render_pie(spec: dict) -> str:
         out.append(
             f'<path d="M {_n(cx)} {_n(cy)} L {_n(x0)} {_n(y0)} '
             f'A {r} {r} 0 {large} 1 {_n(x1)} {_n(y1)} Z" '
-            f'fill="{_FILLS[i % len(_FILLS)]}" stroke="#ffffff" stroke-width="2"/>'
+            f'fill="{palette.PAPER}" stroke="{_INK}" stroke-width="1.5"/>'
         )
         mid = (a0 + a1) / 2
         lx, ly = cx + (r + 16) * math.cos(mid), cy + (r + 16) * math.sin(mid)
