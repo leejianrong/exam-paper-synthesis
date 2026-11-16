@@ -27,7 +27,7 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
   await expect(page.getByLabel('Paper time in minutes')).toHaveValue('90')
 
   const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
-  expect(student).toContain('<p class="cover-subject">Primary 6 Mathematics</p>')
+  expect(student).toContain('<p class="cover-level">Primary 6</p><p class="cover-subject">Mathematics</p>')
   // Real section headers (EXA-139): Section A states its marks, structured Section B points at the [n]
   expect(student).toContain('Questions <b>1</b> to <b>5</b> carry 2 marks each.')
   expect(student).toContain('The number of marks available is shown in brackets [ ]')

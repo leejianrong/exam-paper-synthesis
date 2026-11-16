@@ -41,8 +41,9 @@ def test_a_document_can_start_from_a_template():
     rec = client.post("/documents", json={"template": "p2"}, headers=ALICE).json()
     blocks = rec["document"]["content"]["content"]
     assert rec["title"] == "Paper 2"
-    cover, *sections = blocks
+    cover, back, *sections = blocks
     assert cover["type"] == "coverPage" and cover["attrs"]["paper"] == "Paper 2"
+    assert back["type"] == "blankPage"  # the blank back of the cover (EXA-140)
     assert "level" not in cover["attrs"]  # left for the teacher
     assert [b["attrs"]["title"] for b in sections] == ["Section A", "Section B"]
     assert rec["document"]["settings"] == {"time_min": 90}

@@ -104,9 +104,11 @@ test('the marking margin follows the section mode and can be switched per sectio
   // The editor's Preview reads what the paginator decided: pages, their questions and tallies.
   await page.getByRole('button', { name: 'Preview' }).click()
   const pages = page.getByLabel('Pages')
-  // The template's cover page is a page of its own, before the questions.
-  await expect(pages).toContainText('2 pages')
+  // The template's cover page is a page of its own, then the blank back of the cover, before
+  // the questions; the booklet is padded to an even page count (EXA-140).
+  await expect(pages).toContainText('4 pages')
   await expect(pages).toContainText('cover page')
+  await expect(pages).toContainText('blank page')
   await expect(pages).toContainText('Q16 · 2 marks') // Booklet B numbers on from A (EXA-134)
   await page.getByRole('button', { name: 'Close preview' }).click()
 
