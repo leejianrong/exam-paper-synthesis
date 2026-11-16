@@ -153,3 +153,24 @@ Real Paper 1s number Booklet B on from Booklet A (Q16–30); Paper 2 starts agai
 key, inspector and preview page summary all start there. The `p1_booklet_b` template sets 16, for
 starter and generated papers alike; swap and regenerate keep it. The editor's top bar has a
 "First Q" field next to the time.
+
+### Section headers and marks per section (EXA-139, document schema 1.13.0)
+
+Real papers print no "Section A" label: the header is a sentence from the derived range and marks
+("Questions 1 to 10 carry 1 mark each. Questions 11 to 15 carry 2 marks each."), the authored
+instructions, "(20 marks)" at the right of the last line, then a rule. A section that prints its
+own [n] and is structured (or mixes marks) says "The number of marks available is shown in
+brackets [ ] at the end of each question or part question." instead. A title prints only when it
+is the teacher's own: generic labels ("Section A", "Booklet B", "Part 2") stay editor-only, so the
+templates' titles never print while a teacher who names a section "Fractions revision" sees it.
+
+`section.marks_placement` (`none` / `question` / `answer` / `both`, null = derive) chooses where
+the section's [n] print; derived, it is `none` for `mcq` and `short` sections and the paper-wide
+`settings.marks_placement` otherwise (so structured sections keep "after the Ans: line"). The
+derived default applies to old papers too: their headers now state each question's marks, so a
+per-question [n] in an MCQ or short-answer section would only repeat it. The answer key always
+shows marks. Booklet B is two sections (Q16–20 at 1 mark, 5 marks; Q21–30 at 2 marks, 20 marks).
+The editor's section bar has "Marks shown"; the on-page question blocks still follow the
+paper-wide setting (the Preview shows the printed result).
+
+The Ans: line is right-aligned and short (55 mm): "Ans: $ ____ cm² [2]", parts "Ans: (a) ____".

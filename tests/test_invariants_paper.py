@@ -106,9 +106,12 @@ def test_generated_papers_keep_every_rule(code, level):
         assert validate_document(doc) == [], where
         assert doc["content"]["content"][0]["type"] == "coverPage", where
 
-        # each section's marks equal its target (placeholders count)
+        # each section's marks equal its target (placeholders count), and its [n] print as on
+        # real papers: in the header for MCQ and short answer, after the Ans: line in structured
         for info in paper_outline(doc):
             assert info["marks"] == info["marks_target"], (where, info)
+            want = "answer" if info["mode"] == "structured" else "none"
+            assert info["marks_placement"] == want, (where, info["title"])
 
         codes = [
             n["attrs"]["question"]["blueprint_code"]
@@ -185,8 +188,10 @@ def test_booklet_b_numbering_carries_on_from_booklet_a(level):
         b = generate_paper("p1_booklet_b", level, seed)[0]
         p2 = generate_paper("p2", level, seed)[0]
         (sec_a,) = paper_outline(a)
-        (sec_b,) = paper_outline(b)
-        assert sec_a["first"] == 1 and sec_b["first"] == sec_a["last"] + 1, (level, seed)
+        sec_b1, sec_b2 = paper_outline(b)  # 1-mark then 2-mark questions, as real papers (EXA-139)
+        assert sec_a["first"] == 1 and sec_b1["first"] == sec_a["last"] + 1, (level, seed)
+        assert (sec_b1["first"], sec_b1["last"], sec_b1["marks"]) == (16, 20, 5), (level, seed)
+        assert (sec_b2["first"], sec_b2["last"], sec_b2["marks"]) == (21, 30, 20), (level, seed)
         assert paper_outline(p2)[0]["first"] == 1
         assert template_document("p1_booklet_b")["settings"] == b["settings"]
 
