@@ -107,3 +107,62 @@ def test_generate_without_a_seed_picks_one_and_rejects_bad_input():
 def test_generate_needs_an_identity(monkeypatch):
     monkeypatch.delenv("EXAM_DEV_AUTH")
     assert client.post("/documents/generate", json={"template": "p2"}).status_code == 401
+
+
+def _write(node: dict, text: str) -> None:
+    node["content"] = [{"type": "paragraph", "content": [{"type": "text", "text": text}]}]
+
+
+def test_export_refuses_empty_placeholders_unless_told_to_print_anyway(monkeypatch):
+    """EXA-137: a generated paper with unwritten placeholders never prints by accident."""
+    from app import routes_documents
+
+    monkeypatch.setattr(routes_documents.export, "html_to_pdf", lambda html: b"%PDF-1.7 fake")
+    charged: list[str] = []
+    monkeypatch.setattr(routes_documents, "check_export_quota", charged.append)
+    gen = client.post(
+        "/documents/generate",
+        json={"template": "p1_booklet_a", "level": "P6", "seed": 1},
+        headers=ALICE,
+    ).json()
+    assert gen["report"]["placeholders"] == 2  # today's content: 8 one-mark MCQs for 10 slots
+    url = f"/documents/{gen['id']}/export"
+
+    for mode in ("student", "key", "full"):
+        resp = client.post(f"{url}/{mode}", headers=ALICE)
+        assert resp.status_code == 409, mode
+        detail = resp.json()["detail"]
+        assert detail["code"] == "unfilled_placeholders"
+        assert detail["questions"] == [9, 10]  # the last two 1-mark slots
+        assert "Questions 9, 10 are still empty" in detail["message"]
+    assert charged == []  # refused before any export allowance is spent
+
+    ok = client.post(f"{url}/student?allow_placeholders=true", headers=ALICE)
+    assert ok.status_code == 200 and ok.content.startswith(b"%PDF")
+    assert charged == ["alice"]
+    # the in-app preview still shows the paper as it is (the editor flags the gaps)
+    assert client.get(f"/documents/{gen['id']}/preview/student", headers=ALICE).status_code == 200
+
+    # once the teacher writes one, only the other is listed; once both, it prints
+    doc = strip_document_hints(gen["document"])
+    phs = [
+        n
+        for n in doc["content"]["content"]
+        if (n.get("attrs") or {}).get("slot", {}).get("placeholder")
+    ]
+    _write(phs[0], "What is 1 + 1?")
+    saved = client.put(
+        f"/documents/{gen['id']}",
+        json={"document": doc, "base_version": gen["version"]},
+        headers=ALICE,
+    ).json()
+    one = client.post(f"{url}/student", headers=ALICE).json()["detail"]
+    assert one["questions"] == [10] and "Question 10 is still empty" in one["message"]
+    _write(phs[1], "And 2 + 2?")
+    resp = client.put(
+        f"/documents/{gen['id']}",
+        json={"document": doc, "base_version": saved["version"]},
+        headers=ALICE,
+    )
+    assert resp.status_code == 200
+    assert client.post(f"{url}/student", headers=ALICE).status_code == 200

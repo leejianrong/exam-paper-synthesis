@@ -41,9 +41,9 @@ from __future__ import annotations
 import copy
 import random
 
-from .document import QUESTION_TYPES
+from .document import QUESTION_TYPES, has_content, is_unfilled_placeholder
 from .mcq import to_mcq
-from .paper import KINDS, LEVELS, Candidate, _fits, _has_content, candidates
+from .paper import KINDS, LEVELS, Candidate, _fits, candidates
 from .pipeline import generate
 
 MODES = ("like", "topic", "own")
@@ -114,10 +114,6 @@ def _is_placeholder(node: dict) -> bool:
     return node["type"] == "freeformQuestion" and bool(
         ((node.get("attrs") or {}).get("slot") or {}).get("placeholder")
     )
-
-
-def _is_empty_placeholder(node: dict) -> bool:
-    return _is_placeholder(node) and not _has_content(node.get("content", []))
 
 
 def _is_generated(node: dict) -> bool:
@@ -306,7 +302,7 @@ def swap_question(
     if node["type"] == "freeformQuestion":
         if not _is_placeholder(node):
             raise SwapNotPossible("Only generated questions and placeholders can be swapped.")
-        if _has_content(node.get("content", [])):
+        if has_content(node.get("content", [])):
             raise SwapNotPossible("You have started writing this question, so it is kept.")
         if mode == "own":
             raise SwapNotPossible("This is already a question for you to write.")
@@ -365,7 +361,7 @@ def swap_question(
 def _refillable(node: dict) -> bool:
     if node["type"] not in QUESTION_TYPES or node["attrs"].get("locked"):
         return False
-    return _is_generated(node) or _is_empty_placeholder(node)
+    return _is_generated(node) or is_unfilled_placeholder(node)
 
 
 def regenerate_unlocked(doc: dict, level: str | None, seed: int) -> tuple[dict, dict]:

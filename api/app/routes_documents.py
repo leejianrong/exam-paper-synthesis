@@ -274,14 +274,38 @@ def delete_document(doc_id: str, owner: Owner, store: Store) -> Response:
     return Response(status_code=204)
 
 
+def _unfilled_conflict(numbers: list[int]) -> HTTPException:
+    many = len(numbers) > 1
+    listed = ", ".join(map(str, numbers))
+    return HTTPException(
+        status_code=409,
+        detail={
+            "code": "unfilled_placeholders",
+            "message": (
+                f"Question{'s' if many else ''} {listed} {'are' if many else 'is'} still empty. "
+                f"Write or fill {'them' if many else 'it'} first, or print anyway."
+            ),
+            "questions": numbers,
+        },
+    )
+
+
 def _html_for(
-    store: DocumentStore, assets: AssetStore, owner: str, doc_id: str, mode: Mode
+    store: DocumentStore,
+    assets: AssetStore,
+    owner: str,
+    doc_id: str,
+    mode: Mode,
+    allow_placeholders: bool = True,
 ) -> tuple[str, str]:
     try:
         rec = store.get(owner, doc_id)
     except DocumentNotFound:
         raise _not_found() from None
     document = rec["document"]
+    unfilled = docs.unfilled_placeholder_numbers(document)
+    if unfilled and not allow_placeholders:
+        raise _unfilled_conflict(unfilled)
     if mode == "key" and not docs.numbered_blocks(document):
         raise HTTPException(status_code=422, detail="no questions to put in an answer key")
     return rec["title"], render_document_html(
@@ -308,8 +332,12 @@ def export_document(
     owner: Owner,
     store: Store,
     assets: Assets,
+    allow_placeholders: bool = False,
 ) -> Response:
-    title, html = _html_for(store, assets, owner, doc_id, mode)
+    """The paper as a PDF. A paper with generator placeholders the teacher hasn't written is
+    refused with 409 before any export allowance is spent, unless ``allow_placeholders``
+    says to print it anyway (EXA-137): an empty question never prints by accident."""
+    title, html = _html_for(store, assets, owner, doc_id, mode, allow_placeholders)
     ticket = check_export_quota(owner)
     try:
         with export_slot():
