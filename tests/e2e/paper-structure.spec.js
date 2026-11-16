@@ -97,7 +97,7 @@ test('the marking margin follows the section mode and can be switched per sectio
   // The template's cover page is a page of its own, before the questions.
   await expect(pages).toContainText('2 pages')
   await expect(pages).toContainText('cover page')
-  await expect(pages).toContainText('Q1 · 2 marks')
+  await expect(pages).toContainText('Q16 · 2 marks') // Booklet B numbers on from A (EXA-134)
   await page.getByRole('button', { name: 'Close preview' }).click()
 
   // Switch it off: no margin. Change the mode to multiple choice: still off. Choose it on: margin.
