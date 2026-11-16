@@ -79,8 +79,9 @@ date, question count, parent's signature, page count) and the standard "Question
    black marks and question numbers, no grey working boxes or green key panels.
 4. **Fix figure label collisions.** Offset edge labels outward, put vertex letters outside along the bisector, keep angle values
    clear of arcs; add a label-vs-stroke overlap test in `diagram.py`.
-5. **Never print empty placeholders.** Block or warn on export when `unfilled_placeholders` is non-empty, especially inside an
-   MCQ section (ours A p4 Q9–Q10).
+5. ~~**Never print empty placeholders.** Block or warn on export when `unfilled_placeholders` is non-empty, especially inside an
+   MCQ section (ours A p4 Q9–Q10).~~ Done in #211 (EXA-137): export asks first (Fill them / Print anyway); printed anyway, an
+   MCQ placeholder is a numbered gap with no `Ans:` line.
 6. **Page furniture.** Page number on every question page, "(Go on to the next page)" except on the last page, "End of
    Booklet A/B" / "End of Paper", and an optional footer tag (school, year, paper).
 7. **Fill the page with working space.** When the next question moves to a new page, stretch the last question's working space

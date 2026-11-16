@@ -1,6 +1,7 @@
 # CLAUDE.md
 
-Guidance for Claude Code sessions/agents working in this repo.
+Guidance for Claude Code sessions/agents working in this repo. Agent working rules (subagent
+limits) are in [AGENTS.md](AGENTS.md).
 
 ## Overview
 
