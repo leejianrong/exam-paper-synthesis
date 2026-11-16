@@ -1,0 +1,46 @@
+code: decimals_compare
+# P8e batch 3 (EXA-145): a 1-mark Booklet A question, not on the decimals ladder.
+syllabus:
+  level: P5                             # comparing decimals is first taught in P4; PSLE assumes it
+  strand: "Number and Algebra"
+  topic: "Decimals"
+  subtopic: "Comparing and ordering decimals"
+  skill_codes: ["DEC.COMPARE"]          # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Number type / magnitude"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [ask, thousandths]
+  properties:
+    ask: { type: string, enum: [greatest, smallest] }
+    # the four decimals as whole thousandths (150 is 0.15), in print order
+    thousandths:
+      type: array
+      items: { type: integer, minimum: 1, maximum: 9999 }
+      minItems: 4
+      maxItems: 4
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  ask:         { role: choice }
+  thousandths: { role: number }
+story_templates:
+  - stem: null
+    text: "Which is the {ask} of the decimals {listing}?"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: null
+    - text: "{step2}"
+      expr: null
+    - text: "{step3}"
+      expr: null
+marking_scheme:
+  - { mark: 1, type: A, description: "Correct decimal (compare place by place from the tenths)." }
+answer:
+  type: decimal
+  unit: ""

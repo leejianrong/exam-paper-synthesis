@@ -61,6 +61,14 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Booklet A fills all fifteen questions (P8e batch 3, EXA-145)** — five new 1-mark P5
+  questions of the kinds real Booklet A papers open with: round a 4-digit number to the
+  nearest ten, hundred or thousand; the greatest or smallest of four decimals; the greatest or
+  smallest of four fractions; a km / kg / ℓ measurement in m / g / mℓ; and how many minutes
+  between two clock times. Each has its own wrong-answer reasons, and in multiple choice the
+  "which is the greatest" options are the four listed numbers. A generated P5 or P6 Paper 1
+  Booklet A now has no placeholders (was 3 and 2). Two new topics, Measurement and Time. The
+  five are not on a harder / easier ladder.
 - **The + New wizard (O3, EXA-127)** — *+ New* on "Your papers" opens one dialog in place of
   the old *+ New paper* button, template buttons, generate form and *+ New folder* field. Pick
   *New folder*, *Exam set* (Booklet A, Booklet B and Paper 2 into a new or existing folder,

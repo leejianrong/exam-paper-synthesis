@@ -59,13 +59,14 @@ test('generate a P6 Booklet A: multiple-choice questions with four options each'
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
-  await expect(page.getByTestId('generate-report')).toContainText('Filled 13 of 15 questions')
-  await expect(page.getByTestId('generate-report')).toContainText('2 multiple-choice questions still to write')
-  await expect(page.getByTestId('placeholders-left')).toHaveText('2 placeholders to write')
+  // every slot filled since P8e batch 3 (EXA-145): ten 1-mark and five 2-mark questions
+  await expect(page.getByTestId('generate-report')).toContainText('Filled 15 of 15 questions')
+  await expect(page.getByTestId('generate-report')).not.toContainText('still to write')
+  await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
 
   const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
-  expect(student.match(/<ol class="options">/g)).toHaveLength(13)
+  expect(student.match(/<ol class="options">/g)).toHaveLength(15)
   expect(student).not.toContain('class="option option-correct"') // the right option never reaches the paper
   const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
-  expect(key.match(/option option-correct/g)).toHaveLength(13)
+  expect(key.match(/option option-correct/g)).toHaveLength(15)
 })

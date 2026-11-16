@@ -6,3 +6,4 @@ skills:
   DEC.MULDIV.WHOLE: "Multiply / divide a decimal by a whole number, tens and hundreds"  # decimals_easy
   DEC.MONEY.UNITARY: "Money: cost of a number of items by the unitary method"          # decimals_medium
   DEC.MONEY.CHANGE: "Money: amount left after buying several items"                    # decimals_hard
+  DEC.COMPARE: "Compare and order decimals (up to 3 decimal places)"                  # decimals_compare (no ladder)
