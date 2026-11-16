@@ -237,6 +237,38 @@
       boxes.push({ pg: pg, marks: p.marks });
     });
 
+    // The cover may ask for an even page count (EXA-140): real booklets are printed double-sided.
+    var cover = body.querySelector(".cover-page");
+    if (cover && cover.hasAttribute("data-even-pages") && boxes.length % 2 === 1) {
+      boxes[boxes.length - 1].pg.style.breakAfter = "";
+      var pad = document.createElement("div");
+      pad.className = "pg";
+      pad.style.height = PAGE_H - SLACK + "px";
+      pad.style.breakAfter = "auto";
+      var blankPage = document.createElement("div");
+      blankPage.className = "blank-page blank";
+      var blankText = document.createElement("p");
+      blankText.className = "blank-text";
+      blankText.textContent = "This page is intentionally left blank.";
+      blankPage.appendChild(blankText);
+      pad.appendChild(blankPage);
+      body.appendChild(pad);
+      boxes.push({ pg: pad, marks: 0 });
+    }
+    // "This booklet consists of N printed pages (and 1 blank page)." The cover is page 1; a page
+    // left blank is not a printed page, a rough-work page is.
+    var countLine = cover && cover.querySelector(".cover-pages");
+    if (countLine) {
+      var blanks = boxes.filter(function (b) {
+        return b.pg.querySelector(".blank-page.blank");
+      }).length;
+      var printed = boxes.length - blanks;
+      countLine.textContent =
+        "This booklet consists of " + printed + " printed page" + (printed === 1 ? "" : "s") +
+        (blanks ? " and " + blanks + " blank page" + (blanks === 1 ? "" : "s") : "") + ".";
+      countLine.hidden = false;
+    }
+
     // A cover or blank page carries no footer; the page number still counts it (the cover is
     // page 1, as on real booklets). The last question page ends the paper: no "Go on" there.
     var questionPage = function (b) {

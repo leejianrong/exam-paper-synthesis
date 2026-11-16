@@ -36,7 +36,7 @@ from functools import cache
 import yaml
 
 from .blueprints.registry import content_dir, load_blueprint
-from .document import DOCUMENT_SCHEMA_VERSION, unfilled_placeholder_numbers
+from .document import DOCUMENT_SCHEMA_VERSION, _part_of, unfilled_placeholder_numbers
 from .mcq import CONVERTIBLE, to_mcq
 from .pipeline import generate
 
@@ -116,17 +116,43 @@ def _settings(t: dict) -> dict:
     return {"time_min": t["time_min"], **({"number_from": start} if start != 1 else {})}
 
 
+_COVER_SWITCHES = ("examiner_table", "parent_signature", "even_pages")
+
+
 def _cover_node(t: dict, level: str | None) -> dict:
-    """The template's cover page (P7): subject, paper and instructions prefilled. The level is
-    stated only when known (a generated paper); school, exam and date are the teacher's."""
+    """The template's cover page (P7): subject, paper, instructions and the template's cover
+    switches prefilled. The level is stated only when known (a generated paper); school, exam
+    and date are the teacher's."""
     attrs = {
         "subject": t["cover"].get("subject", SUBJECT),
         "paper": t["cover"]["paper"],
         "instructions": t["cover"].get("instructions"),
+        **{k: t["cover"][k] for k in _COVER_SWITCHES if k in t["cover"]},
     }
     if level is not None:
         attrs = {"level": _LEVEL_NAMES[level], **attrs}
     return {"type": "coverPage", "attrs": attrs}
+
+
+def _cover_blocks(t: dict, level: str | None) -> list[dict]:
+    """The cover, then a blank back of the cover when the template asks for one (EXA-140): real
+    booklets are printed double-sided, so the questions start on a right-hand page."""
+    back = (
+        [{"type": "blankPage", "attrs": {"kind": "blank"}}] if t["cover"].get("blank_back") else []
+    )
+    return [_cover_node(t, level), *back]
+
+
+def standard_paper_marks() -> dict[str, int]:
+    """The standard marks of each exam-set paper (``document.paper_part``), from the templates'
+    section targets: Booklet A 20, Booklet B 25, Paper 2 55. The cover's examiner's table uses
+    them for the papers of the set that are not in the document (EXA-140)."""
+    out: dict[str, int] = {}
+    for t in _load_all().values():
+        part = _part_of(t["cover"]["paper"])
+        if part:
+            out[part] = sum(s["marks_target"] for s in t["sections"])
+    return out
 
 
 def template_document(code: str) -> dict:
@@ -136,7 +162,7 @@ def template_document(code: str) -> dict:
     return _empty_doc(
         t["title"],
         _settings(t),
-        [_cover_node(t, None), *(_section_node(s) for s in t["sections"])],
+        [*_cover_blocks(t, None), *(_section_node(s) for s in t["sections"])],
     )
 
 
@@ -362,7 +388,7 @@ def generate_paper(template_code: str, level: str, seed: int) -> tuple[dict, dic
     t = paper_template(template_code)
     f = _Filler(t, level, seed)
 
-    blocks: list[dict] = [_cover_node(t, level)]
+    blocks: list[dict] = _cover_blocks(t, level)
     sections_report = []
     for section in t["sections"]:
         rep = {

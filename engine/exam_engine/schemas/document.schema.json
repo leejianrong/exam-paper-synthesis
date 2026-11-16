@@ -206,13 +206,15 @@
           "type": "object", "additionalProperties": false,
           "properties": {
             "school": { "type": "string", "maxLength": 120 },
-            "exam": { "type": "string", "maxLength": 120, "description": "e.g. 2026 Preliminary Examination" },
+            "exam": { "type": "string", "maxLength": 120, "description": "e.g. Preliminary Examination (2026)" },
             "level": { "type": "string", "maxLength": 60, "description": "e.g. Primary 6" },
             "subject": { "type": "string", "maxLength": 60, "description": "e.g. Mathematics" },
             "paper": { "type": "string", "maxLength": 120, "description": "e.g. Paper 1 (Booklet A)" },
             "date": { "type": ["string", "null"], "maxLength": 60, "description": "Free text, printed as written" },
-            "instructions": { "type": ["string", "null"], "maxLength": 2000, "description": "Instructions to candidates, one per line; printed as a numbered list" },
-            "examiner_table": { "type": ["boolean", "null"], "description": "Print the 'For examiner's use' marks table (one row per section with questions, then the total). null/absent = on." }
+            "instructions": { "type": ["string", "null"], "maxLength": 2000, "description": "Instructions to candidates, one per line; printed as a numbered list. A word written NOT in capitals prints bold and underlined, as on real covers (EXA-140)." },
+            "examiner_table": { "type": ["boolean", "null"], "description": "Print the 'For examiner's use' marks table with diagonal-split score cells. For an exam-set paper (paper_part) it is the set's rows: Booklet A alone; Booklet A, Booklet B and the Paper 1 total; Paper 1, Paper 2 and the total out of 100 (the other papers' maxima are the standard ones from the paper templates). Otherwise one row per section with questions, then the total. null/absent = on." },
+            "parent_signature": { "type": ["boolean", "null"], "description": "Print a 'Parent's signature' line (1.15.0, EXA-140). null/absent = off." },
+            "even_pages": { "type": ["boolean", "null"], "description": "Pad the printed booklet to an even page count with a blank last page (1.15.0, EXA-140). null/absent = off." }
           }
         }
       }

@@ -1145,74 +1145,147 @@ def _render_blank_page(attrs: dict) -> str:
     return f'<div class="blank-page {kind}"><p class="blank-text">{_esc(text)}</p></div>'
 
 
-def _examiner_table(doc: dict, marks: int) -> str:
-    """ "For examiner's use": a row per section that holds questions, then the paper total. The
-    marks are derived from the questions, like the section headers (P4); questions before the
-    first section get an "Other questions" row, so the rows always add up to the total."""
+def _score_cell(maximum: int) -> str:
+    """A score cell split by a diagonal: the mark is written above it, the maximum prints in the
+    lower right (EXA-140), as on real covers."""
+    return (
+        '<td class="score"><svg class="score-diag" viewBox="0 0 10 10" preserveAspectRatio="none"'
+        ' aria-hidden="true"><line x1="0" y1="10" x2="10" y2="0"/></svg>'
+        f'<span class="score-max">{maximum}</span></td>'
+    )
+
+
+def _examiner_rows(doc: dict, marks: int) -> list[tuple[str, int, bool]]:
+    """The examiner's table as ``(label, maximum, is_total)`` rows (EXA-140). An exam-set paper
+    gets the set's rows, as real covers print them: Booklet A alone; Booklet A, Booklet B and
+    the Paper 1 total; Paper 1, Paper 2 and the total out of 100. This paper's maximum is its own
+    (derived) total; the other papers' are the standard ones from the paper templates. Any other
+    paper gets a row per section that holds questions, then its total; questions before the
+    first section get an "Other questions" row, so the rows always add up."""
+    from .paper import standard_paper_marks  # paper imports the pipeline; keep render light
+
+    std = standard_paper_marks()
+    part = paper_part(doc)
+    if part == "booklet_a":
+        return [("Paper 1 (Booklet A)", marks, False)]
+    if part == "booklet_b":
+        a = std["booklet_a"]
+        return [
+            ("Booklet A", a, False),
+            ("Booklet B", marks, False),
+            ("Total (Paper 1)", a + marks, True),
+        ]
+    if part == "paper_2":
+        p1 = std["booklet_a"] + std["booklet_b"]
+        return [("Paper 1", p1, False), ("Paper 2", marks, False), ("Total", p1 + marks, True)]
     sections = [s for s in paper_outline(doc) if s["count"]]
-    rows = [
-        f'<tr><th scope="row">{_esc(s["title"] or "Section")}</th><td></td>'
-        f"<td>{s['marks']}</td></tr>"
-        for s in sections
-    ]
+    rows = [(s["title"] or "Section", s["marks"], False) for s in sections]
     loose = marks - sum(s["marks"] for s in sections)
     if sections and loose > 0:
-        rows.insert(0, f'<tr><th scope="row">Other questions</th><td></td><td>{loose}</td></tr>')
-    rows.append(f'<tr class="total"><th scope="row">Total</th><td></td><td>{marks}</td></tr>')
+        rows.insert(0, ("Other questions", loose, False))
+    return [*rows, ("Total", marks, True)]
+
+
+def _examiner_table(doc: dict, marks: int) -> str:
+    """ "For examiner's use": a part name and a diagonal-split score cell per row (EXA-140)."""
+    rows = "".join(
+        f'<tr{' class="total"' if total else ""}><th scope="row">{_esc(label)}</th>'
+        f"{_score_cell(maximum)}</tr>"
+        for label, maximum, total in _examiner_rows(doc, marks)
+    )
     return (
         '<table class="examiner-table"><caption>For examiner\'s use</caption>'
-        '<thead><tr><th scope="col"></th><th scope="col">Marks obtained</th>'
-        '<th scope="col">Marks available</th></tr></thead>'
-        f"<tbody>{''.join(rows)}</tbody></table>"
+        f"<tbody>{rows}</tbody></table>"
     )
+
+
+def _cover_time(doc: dict) -> str:
+    """Paper 1's time is shared by its two booklets, and real covers say so (EXA-140)."""
+    label = _time_label(doc)
+    if not label:
+        return ""
+    if paper_part(doc) in ("booklet_a", "booklet_b"):
+        return f"Total time for Booklets A and B: {label}"
+    return f"Time: {label}"
+
+
+_BOOKLET_LINE = re.compile(r"^(.*?)\s*(\([^()]*\))$")
+
+
+def _emphasise(text: str) -> str:
+    """Escape one instruction line; a word written NOT in capitals prints bold and underlined,
+    as real covers print "The use of calculators is NOT allowed." (EXA-140)."""
+    return re.sub(r"\bNOT\b", '<strong class="cover-not">NOT</strong>', _esc(text))
+
+
+def _field(label: str, inner: str) -> str:
+    return f'<p class="cover-field"><span class="cover-label">{label}</span>{inner}</p>'
 
 
 def _render_cover(attrs: dict, doc: dict, *, title: str, marks: int) -> str:
-    """The paper's cover page (P7). Time, total and the examiner's table come from the paper."""
-    level_subject = " ".join(
-        x for x in ((attrs.get("level") or "").strip(), (attrs.get("subject") or "").strip()) if x
-    )
+    """The paper's cover page (P7), laid out like a real P6 cover (EXA-140): a centred title block,
+    the candidate's fields, the time and the question count, the examiner's table, the
+    instructions, and a page-count line the paginator fills in. Time, counts and the table
+    come from the paper."""
+
+    def text(key: str) -> str:
+        return str(attrs.get(key) or "").strip()
+
+    paper, booklet = text("paper"), ""
+    if m := _BOOKLET_LINE.match(paper):
+        paper, booklet = m.group(1), m.group(2)
     lines = [
         (cls, value)
         for cls, value in (
-            ("cover-school", (attrs.get("school") or "").strip()),
-            ("cover-exam", (attrs.get("exam") or "").strip()),
-            ("cover-subject", level_subject),
-            ("cover-paper", (attrs.get("paper") or "").strip()),
+            ("cover-school", text("school")),
+            ("cover-exam", text("exam")),
+            ("cover-level", text("level")),
+            ("cover-subject", text("subject")),
+            ("cover-paper", paper),
+            ("cover-booklet", booklet),
         )
         if value
     ] or [("cover-paper", title)]  # an empty cover still says which paper it is
     head = "".join(f'<p class="{c}">{_esc(v)}</p>' for c, v in lines)
 
-    facts = []
-    if (attrs.get("date") or "").strip():
-        facts.append(f"<span>Date: {_esc(attrs['date'].strip())}</span>")
-    if _time_label(doc):
-        facts.append(f"<span>Time: {_time_label(doc)}</span>")
-    facts.append(f"<span>Total: {marks} marks</span>")
-
-    candidate = (
-        '<div class="cover-candidate">'
-        '<p><span class="cover-label">Name:</span><span class="cover-line"></span></p>'
-        '<p><span class="cover-label">Class:</span><span class="cover-line short"></span>'
-        '<span class="cover-label">Register No.:</span><span class="cover-line short"></span></p>'
-        "</div>"
+    line = '<span class="cover-line"></span>'
+    date = f'<span class="cover-value">{_esc(text("date"))}</span>' if text("date") else line
+    level = f'<span class="cover-value">{_esc(text("level"))}</span>' if text("level") else ""
+    count = sum(1 for n in doc["content"]["content"] if n["type"] in _QUESTION_KINDS)
+    fields = [
+        _field("Name:", f'{line}<span class="cover-reg">(<span></span>)</span>'),
+        _field("Class:", f'{level}<span class="cover-line short"></span>'),
+        _field("Date:", date),
+    ]
+    if _cover_time(doc):
+        fields.append(f'<p class="cover-time">{_cover_time(doc)}</p>')
+    fields.append(
+        f'<p class="cover-count"><span>{count} question{"" if count == 1 else "s"}</span>'
+        f"<span>{marks} mark{'' if marks == 1 else 's'}</span></p>"
     )
+    if attrs.get("parent_signature"):
+        fields.append(_field("Parent's signature:", line))
 
-    instr_lines = [x.strip() for x in (attrs.get("instructions") or "").splitlines() if x.strip()]
+    table = _examiner_table(doc, marks) if attrs.get("examiner_table") is not False else ""
+    instr_lines = [x.strip() for x in text("instructions").splitlines() if x.strip()]
     instructions = (
         '<div class="cover-instructions"><h2>Instructions to candidates</h2><ol>'
-        + "".join(f"<li>{_esc(x)}</li>" for x in instr_lines)
+        + "".join(f"<li>{_emphasise(x)}</li>" for x in instr_lines)
         + "</ol></div>"
         if instr_lines
         else ""
     )
-    table = _examiner_table(doc, marks) if attrs.get("examiner_table") is not False else ""
+    even = " data-even-pages" if attrs.get("even_pages") else ""
     return (
-        f'<div class="cover-page"><div class="cover-head">{head}</div>'
-        f'<p class="cover-facts">{"".join(facts)}</p>'
-        f"{candidate}{instructions}{table}</div>"
+        f'<div class="cover-page"{even}><div class="cover-head">{head}</div>'
+        f'<div class="cover-main"><div class="cover-fields">{"".join(fields)}</div>{table}</div>'
+        f"{instructions}"
+        # the paginator knows the page count: it fills this line in (EXA-140)
+        '<p class="cover-pages" hidden></p></div>'
     )
+
+
+_QUESTION_KINDS = ("freeformQuestion", "templatedQuestion")
 
 
 # ---------------------------------------------------------------------------

@@ -90,7 +90,9 @@ def test_a_starter_paper_has_the_generated_papers_cover_without_a_level(code):
     assert starter[0]["type"] == generated[0]["type"] == "coverPage"
     assert "level" not in starter[0]["attrs"]
     assert {**starter[0]["attrs"], "level": "Primary 6"} == generated[0]["attrs"]
-    assert [n["type"] for n in starter[1:]] == ["section"] * (len(starter) - 1)
+    # then the blank back of the cover (EXA-140) and the sections
+    assert starter[1] == generated[1] == {"type": "blankPage", "attrs": {"kind": "blank"}}
+    assert [n["type"] for n in starter[2:]] == ["section"] * (len(starter) - 2)
 
 
 @pytest.mark.parametrize("level", LEVELS)

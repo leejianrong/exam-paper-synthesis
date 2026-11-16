@@ -88,6 +88,37 @@ describe('cover page (P7)', () => {
   })
 })
 
+describe('cover switches (EXA-140)', () => {
+  it('serialises the parent signature and even-page switches only when set', () => {
+    expect(
+      cleanNode({ type: 'coverPage', attrs: { parent_signature: true, even_pages: false } }).attrs,
+    ).toEqual({ parent_signature: true, even_pages: false })
+    expect(
+      cleanNode({ type: 'coverPage', attrs: { parent_signature: null, even_pages: null } }).attrs,
+    ).toEqual({})
+  })
+
+  it('shows each switch as a checkbox, off by default, that writes the attribute', () => {
+    const element = document.createElement('div')
+    document.body.append(element)
+    editor = new Editor({
+      element,
+      extensions: [StarterKit, CoverPage, BlankPage],
+      content: { type: 'doc', content: [coverNode({ even_pages: true }), para('a')] },
+    })
+    const box = (label: string) =>
+      element.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!
+    expect(box("Parent's signature line").checked).toBe(false)
+    expect(box('Pad to an even number of pages').checked).toBe(true)
+    box("Parent's signature line").click()
+    expect(editor.getJSON().content?.[0]?.attrs).toMatchObject({
+      parent_signature: true,
+      even_pages: true,
+    })
+    element.remove()
+  })
+})
+
 describe('blank page (P7)', () => {
   it('inserts anywhere and serialises its kind and only a real text', () => {
     const e = make([para('a'), blankPageNode('rough'), para('b')])

@@ -118,7 +118,13 @@ def test_every_question_page_has_its_printed_page_number(booklet_b):
     pages, text, warnings = booklet_b
     assert warnings is None and len(text) == len(pages) >= 4
     assert pages[0]["kind"] == "cover" and pages[0]["number"] is None  # the cover: no footer
-    for k, p in enumerate(pages[1:], start=2):
+    # the template's blank back of the cover (EXA-140): no footer, but it counts
+    assert pages[1]["kind"] == "blank" and pages[1]["number"] is None
+    assert len(pages) % 2 == 0  # padded to an even page count; a pad page is blank too
+    for k, p in enumerate(pages[2:], start=3):
+        if p["kind"] == "blank":
+            assert k == len(pages) and p["number"] is None
+            continue
         assert p["kind"] == "q" and p["number"] == str(k)  # the cover counts as page 1
         assert re.search(rf"(?m)\b{k}\b", text[k - 1])
 
