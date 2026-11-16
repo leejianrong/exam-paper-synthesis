@@ -13,6 +13,8 @@ import { freeformNode, newBlockId } from './doc'
 import type { SwapMode } from './docsApi'
 import { isGeneratedPosition } from './paperOps'
 import { layoutOf, type BlockLayout } from './layout'
+import { trackPlacement } from './sections'
+import type { SectionPlacement } from './doc'
 
 export interface TemplatedQuestionOptions {
   /** Open the "add question" picker to insert after the block at `pos`. */
@@ -65,6 +67,8 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
       const store = writable<Question>(node.attrs.question as Question)
       const layout = writable<BlockLayout>(layoutOf(node.attrs))
       const paperSlot = writable<PaperSlot>(slotOf(node.attrs))
+      const placement = writable<SectionPlacement>('answer')
+      const tracker = trackPlacement(editor, getPos, (p) => placement.set(p))
       let current = node // the live node: attrs the inspector sets (remark) must survive edits here
       let latest = node.attrs.question as Question
       const store_value = () => latest
@@ -79,6 +83,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
           store: { subscribe: store.subscribe },
           layout: { subscribe: layout.subscribe },
           paperSlot: { subscribe: paperSlot.subscribe },
+          placement: { subscribe: placement.subscribe },
           ctx: {
             replace: (q: Question) => {
               const { tr } = editor.state
@@ -146,12 +151,14 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
           store.set(latest)
           layout.set(layoutOf(updated.attrs))
           paperSlot.set(slotOf(updated.attrs))
+          tracker.refresh()
           return true
         },
         // The Svelte component owns all interaction inside the block.
         stopEvent: () => true,
         ignoreMutation: () => true,
         destroy() {
+          tracker.destroy()
           void unmount(component)
         },
       }

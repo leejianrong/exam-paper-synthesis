@@ -4,10 +4,11 @@
 // drift from the questions (the engine's `paper_outline` computes the same for the PDF).
 import { Node } from '@tiptap/core'
 import type { NodeViewRendererProps } from '@tiptap/core'
-import { writable, type Readable } from 'svelte/store'
+import type { Node as PMNode } from '@tiptap/pm/model'
+import { derived, writable, type Readable } from 'svelte/store'
 import { get } from 'svelte/store'
 import type { SectionInfo, SectionMode, SectionPlacement } from './doc'
-import { DEFAULT_PLACEMENT } from './layout'
+import { DEFAULT_PLACEMENT, paperPlacement } from './layout'
 import { paperSettings } from './paperSettings'
 
 /** Derived section figures, set by the page and read by the node views (outside its tree). */
@@ -59,12 +60,87 @@ export function sectionPlacement(
   return attrs.mode === 'mcq' || attrs.mode === 'short' ? 'none' : paper
 }
 
+/** Each top-level block's effective marks placement, in document order: the placement of the
+ * section it sits in, or the paper's before the first section (the engine's render loop). */
+export function blockPlacements(
+  blocks: ReadonlyArray<{ type: string; attrs?: Record<string, unknown> | null }>,
+  paper: SectionPlacement,
+): SectionPlacement[] {
+  let current = paper
+  return blocks.map((b) =>
+    b.type === 'section' ? (current = sectionPlacement(b.attrs ?? {}, paper)) : current,
+  )
+}
+
+/** The top-level blocks' types and attrs, refreshed once per doc change by the Section extension. */
+const docBlocks = writable<Array<{ type: string; attrs: Record<string, unknown> }>>([])
+
+/** Every top-level block's placement, recomputed once per doc or paper-setting change and read by
+ * the question node views, so each question shows its [n] exactly as it will print (EXA-152). */
+export const placements: Readable<{ paper: SectionPlacement; blocks: SectionPlacement[] }> = derived(
+  [docBlocks, paperSettings],
+  ([blocks, settings]) => {
+    const paper = paperPlacement(settings)
+    return { paper, blocks: blockPlacements(blocks, paper) }
+  },
+)
+
+function publishBlocks(doc: PMNode) {
+  const blocks: Array<{ type: string; attrs: Record<string, unknown> }> = []
+  doc.forEach((child) => blocks.push({ type: child.type.name, attrs: child.attrs }))
+  docBlocks.set(blocks)
+}
+
+/** Follow the placement of the block at `getPos()` (a question, or a part inside one): calls
+ * `apply` now and whenever it changes. `refresh` re-reads it after the node view moved. */
+export function trackPlacement(
+  editor: { state: { doc: PMNode } },
+  getPos: () => number | undefined,
+  apply: (p: SectionPlacement) => void,
+): { refresh: () => void; current: () => SectionPlacement; destroy: () => void } {
+  let state = { paper: DEFAULT_PLACEMENT as SectionPlacement, blocks: [] as SectionPlacement[] }
+  let last: SectionPlacement | null = null
+  const read = (): SectionPlacement => {
+    try {
+      const pos = getPos()
+      if (typeof pos !== 'number') return state.paper
+      return state.blocks[editor.state.doc.resolve(pos).index(0)] ?? state.paper
+    } catch {
+      return state.paper // the node view is being torn down
+    }
+  }
+  const refresh = () => {
+    const p = read()
+    if (p !== last) {
+      last = p
+      apply(p)
+    }
+  }
+  const destroy = placements.subscribe((v) => {
+    state = v
+    refresh()
+  })
+  return { refresh, current: () => last ?? state.paper, destroy }
+}
+
 export const Section = Node.create({
   name: 'section',
   group: 'block',
   atom: true,
   selectable: true,
   draggable: true,
+
+  onCreate() {
+    publishBlocks(this.editor.state.doc)
+  },
+
+  onUpdate() {
+    publishBlocks(this.editor.state.doc)
+  },
+
+  onDestroy() {
+    docBlocks.set([])
+  },
 
   addAttributes() {
     return {

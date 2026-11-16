@@ -93,7 +93,11 @@ test('the marking margin follows the section mode and can be switched per sectio
   expect(await preview()).toMatch(/<main [^>]*data-tally/) // the paginator gives each page a tally box
   // A short-answer section prints no [n]: the header gives the marks (EXA-139). Opt in per section.
   expect(await preview()).not.toContain('<span class="marks">[2]</span>')
+  // The editing page shows the question as it prints (EXA-152): no [2] in this section yet.
+  const ff = page.locator('.ffblock')
+  await expect(ff.locator('.ff-area .marks')).toHaveCount(0)
   await section.getByLabel('Marks shown').selectOption('answer')
+  await expect(ff.locator('.ff-area .marks')).toHaveText('[2]')
   await settled(page)
   expect(await preview()).toMatch(/<span class="ans-blank"><\/span><span class="marks">\[2\]<\/span>/)
 

@@ -3,7 +3,7 @@
 
 import { fetchFragmentAssets, renderQuestionHtml } from '../api'
 import type { Question } from '../types'
-import type { MarksPlacement } from './layout'
+import type { SectionPlacement } from './doc'
 
 const htmlCache = new Map<string, Promise<string>>()
 
@@ -12,7 +12,7 @@ export function renderQuestion(
   q: Question,
   mode: 'student' | 'key',
   number: number | null,
-  paper?: { placement: MarksPlacement; answerArea: boolean },
+  paper?: { placement: SectionPlacement; answerArea: boolean },
 ): Promise<string> {
   const key = `${mode}|${number ?? ''}|${paper ? `${paper.placement}${paper.answerArea}` : ''}|${JSON.stringify(q)}`
   let hit = htmlCache.get(key)

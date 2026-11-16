@@ -2,8 +2,28 @@
 // and where a question's marks print. The engine (render.py) draws the same thing into the PDF;
 // these are the editor-side mirrors of its defaults so the page matches the paper.
 
+import type { SectionPlacement } from "./doc";
+
 export type MarksPlacement = "question" | "answer" | "both";
 export const DEFAULT_PLACEMENT: MarksPlacement = "answer";
+
+/** The paper-wide placement: the setting when it is a known one, else `answer` (engine
+ * `paper_placement`). */
+export function paperPlacement(settings: { marks_placement?: unknown } | undefined): MarksPlacement {
+  const chosen = settings?.marks_placement;
+  return chosen === "question" || chosen === "answer" || chosen === "both" ? chosen : DEFAULT_PLACEMENT;
+}
+
+/** Whether [n] prints beside the question text (engine `_marks_beside` on a paper): for
+ * `answer` only when there is no Ans: line to carry it; never in a `none` section. */
+export function marksBeside(placement: SectionPlacement, hasLine = true): boolean {
+  return placement === "question" || placement === "both" || (placement === "answer" && !hasLine);
+}
+
+/** Whether [n] prints after the Ans: line (engine `_answer_line`). */
+export function marksOnLine(placement: SectionPlacement): boolean {
+  return placement === "answer" || placement === "both";
+}
 
 export interface PaperSettings {
   marks_placement?: MarksPlacement;
