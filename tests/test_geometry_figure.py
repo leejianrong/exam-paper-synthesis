@@ -219,7 +219,7 @@ def test_area_render_has_arc_shaded_and_right_angle():
     assert svg.startswith("<svg")
     assert "viewBox" in svg
     assert svg.count("<line") >= 4  # four rectangle edges (+ tick marks)
-    assert 'fill="#dbe4fb"' in svg  # shaded region fill
+    assert 'fill="#d0d0d0"' in svg  # shaded region fill
     assert "<polyline" in svg  # right-angle square
     assert " A " in svg  # an SVG arc path command (the quarter circle)
     assert ">8 cm</text>" in svg and ">6 cm</text>" in svg
@@ -231,7 +231,7 @@ def test_shaded_polygon_minus_arc_fills_with_arc_path():
     import re
 
     svg = render_svg(SHADED_ARC_SPEC)
-    fills = re.findall(r'<path d="([^"]*)" fill="#dbe4fb" stroke="none"/>', svg)
+    fills = re.findall(r'<path d="([^"]*)" fill="#d0d0d0" stroke="none"/>', svg)
     assert len(fills) == 1, svg
     d = fills[0]
     assert d.startswith("M ")

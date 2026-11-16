@@ -161,10 +161,10 @@ def test_worksheet_and_key_render_the_number_line(name):
 def test_key_draws_what_the_student_adds_in_the_answer_accent():
     obj = canonical.load(json.loads((SOURCED / "psle_2023_construction.json").read_text("utf-8")))
     key = render_answer_key_html("K", [obj])
-    accented = re.findall(r'<line [^>]*stroke="#d6336c"[^>]*/>', key)
-    assert len(accented) == 2  # the two new edges CD and DA; AB and BC stay the given blue
-    assert key.count('fill="#d6336c"') == 1  # the new point's label D
-    assert "#d6336c" not in render_worksheet_html("K", [obj])  # student sheet has no answer
+    accented = re.findall(r'<line [^>]*stroke="#000000"[^>]*/>', key)
+    assert len(accented) == 2  # the two new edges CD and DA; AB and BC stay the given ink
+    assert key.count('fill="#000000"') == 1  # the new point's label D
+    assert "#000000" not in render_worksheet_html("K", [obj])  # student sheet has no answer
 
 
 def test_a_figure_with_no_given_is_not_restyled():
@@ -173,7 +173,7 @@ def test_a_figure_with_no_given_is_not_restyled():
     spec = json.loads((SOURCED / "psle_2023_construction.json").read_text("utf-8"))["question"][
         "parts"
     ][0]["answer"]["diagram"]
-    assert "#d6336c" not in diagram.render_svg(spec)
+    assert "#000000" not in diagram.render_svg(spec)
 
 
 def test_crowded_labels_and_points_are_rejected():
@@ -225,4 +225,4 @@ def test_accent_matching_tolerates_float_noise():
     }
     answer = copy.deepcopy(given)
     answer["points"][0]["x"] = 0.1 + 0.2
-    assert "#d6336c" not in diagram.render_svg(answer, given=given)
+    assert "#000000" not in diagram.render_svg(answer, given=given)

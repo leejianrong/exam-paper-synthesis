@@ -215,8 +215,8 @@ describe('bar_model_before_after view modes (KAN-310)', () => {
 })
 
 describe('shaded_fraction geometry', () => {
-  const SHADE = 'fill="#93b8f2"'
-  const STROKE = 'stroke="#2f5fe0"'
+  const SHADE = 'fill="#d0d0d0"'
+  const STROKE = 'stroke="#1a1a1a"'
   const filled = (svg: string): number => count(svg, SHADE)
 
   const spec = (
@@ -260,9 +260,9 @@ describe('shaded_fraction geometry', () => {
     // distinct colour from either fill, else the borders vanish.
     const svg = renderDiagram(spec('rectangle', 4, 2))
     expect(SHADE).not.toBe(STROKE)
-    expect(svg).toContain(SHADE) // light-blue shaded fill
-    expect(svg).toContain('fill="#eef2fb"') // pale empty fill
-    expect(count(svg, STROKE)).toBe(4) // darker-blue outline on every segment
+    expect(svg).toContain(SHADE) // grey shaded fill
+    expect(svg).toContain('fill="#ffffff"') // white empty fill
+    expect(count(svg, STROKE)).toBe(4) // black outline on every segment
   })
 
   it('is deterministic', () => {
@@ -329,7 +329,7 @@ describe('geometry_figure geometry', () => {
     const svg = renderDiagram(areaSpec)
     expect(svg.startsWith('<svg')).toBe(true)
     expect(count(svg, '<line')).toBeGreaterThanOrEqual(4) // four rectangle edges (+ tick)
-    expect(svg).toContain('fill="#dbe4fb"') // shaded region
+    expect(svg).toContain('fill="#d0d0d0"') // shaded region
     expect(svg).toContain('<polyline') // right-angle square
     expect(svg).toContain(' A ') // an SVG arc command (the quarter circle)
     expect(svg).toContain('>8 cm</text>')
@@ -367,7 +367,7 @@ describe('geometry_figure geometry', () => {
 
   it('polygon-minus-arc shaded region → a filled path closed by an arc', () => {
     const svg = renderDiagram(shadedArcSpec)
-    const m = svg.match(/<path d="([^"]*)" fill="#dbe4fb" stroke="none"\/>/)
+    const m = svg.match(/<path d="([^"]*)" fill="#d0d0d0" stroke="none"\/>/)
     expect(m).not.toBeNull()
     const d = m![1]
     expect(d.startsWith('M ')).toBe(true)

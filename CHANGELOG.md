@@ -8,6 +8,17 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
+### Changed
+
+- **Papers print black on white, like a photocopied school paper (EXA-135).** Figures were blue
+  line art with pale-blue fills, pie sectors differed only by blue/grey tone, marks were red,
+  question numbers grey, working space a grey box and answer-key panels green. Now every figure
+  (geometry, bar models, fractions, charts, solids, number lines, cube stacks) uses black lines
+  and white or light-grey fills from one grey palette (`exam_engine/palette.py`, mirrored in
+  `print.css`); pie sectors are white, outlined and labelled; bar series differ by grey tone and
+  line series by dash pattern; numbers and marks print in black; the working space is plain
+  white space; the key's panels are light grey with a black rule. The editor shows the same.
+
 ### Fixed
 
 - **An empty placeholder never prints by accident (EXA-137).** A generated Booklet A printed
