@@ -7,7 +7,7 @@
     DEFAULT_PLACEMENT,
     keyOptionsOf,
     numberFrom,
-    type KeyOptions,
+    type KeyLayout,
     type MarksPlacement,
   } from './layout'
   // The WYSIWYG page (W1c): an A4-width column of rich text and question blocks, a "+"
@@ -114,8 +114,14 @@
     scheduleSave()
   }
 
-  function setKeyOption(name: keyof KeyOptions, value: boolean) {
+  function setKeyOption(name: 'show_question' | 'show_scheme', value: boolean) {
     paperSettings.update((s) => ({ ...s, key_options: { ...s.key_options, [name]: value } }))
+    scheduleSave()
+  }
+
+  function setKeyLayout(e: Event) {
+    const layout = (e.currentTarget as HTMLSelectElement).value as KeyLayout
+    paperSettings.update((s) => ({ ...s, key_options: { ...s.key_options, layout } }))
     scheduleSave()
   }
 
@@ -537,10 +543,20 @@
   </label>
   <fieldset class="keyopts">
     <legend>Answer key</legend>
+    <select
+      aria-label="Answer key layout"
+      title="Full: each question with its worked solution. Compact: an answer grid for multiple choice, then a table of working with Ans:, like a school key."
+      value={keyOpts.layout}
+      on:change={setKeyLayout}
+    >
+      <option value="full">Full</option>
+      <option value="compact">Compact</option>
+    </select>
     <label>
       <input
         type="checkbox"
         aria-label="Answer key repeats each question"
+        disabled={keyOpts.layout === 'compact'}
         checked={keyOpts.show_question}
         on:change={(e) => setKeyOption('show_question', e.currentTarget.checked)}
       />

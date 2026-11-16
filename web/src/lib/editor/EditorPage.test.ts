@@ -66,6 +66,31 @@ describe('EditorPage', () => {
     expect(screen.getByRole('button', { name: 'Student PDF' })).toBeEnabled()
   })
 
+  it('the answer-key layout option saves "compact" and greys out the question option', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => record([questionNode(makeQuestion({ id: 'a' }, 'First.'))]),
+      })
+      render(EditorPage, { props: { id: 'd1' } })
+      await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
+      const layout = screen.getByLabelText('Answer key layout') as HTMLSelectElement
+      expect(layout.value).toBe('full')
+      expect(screen.getByLabelText('Answer key repeats each question')).toBeEnabled()
+      layout.value = 'compact'
+      await fireEvent.change(layout)
+      await waitFor(() => expect(screen.getByLabelText('Answer key repeats each question')).toBeDisabled())
+      await vi.advanceTimersByTimeAsync(1500)
+      const put = fetchMock.mock.calls.find((c) => c[1]?.method === 'PUT')
+      expect(put).toBeTruthy()
+      expect(JSON.parse(put![1].body).document.settings.key_options).toEqual({ layout: 'compact' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   describe('free-form questions (W2a)', () => {
     const load = async (content: unknown[]) => {
       fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => record(content) })

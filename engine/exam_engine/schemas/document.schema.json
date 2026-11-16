@@ -23,7 +23,8 @@
           "description": "How the answer key prints (1.7.0, P5). Both default to true, i.e. the pre-P5 key.",
           "properties": {
             "show_question": { "type": "boolean", "description": "Repeat each question's text, figure and options above its answer; false = steps and answer only." },
-            "show_scheme": { "type": "boolean", "description": "Print the M/A/B marking breakdown under each answer." }
+            "show_scheme": { "type": "boolean", "description": "Print the M/A/B marking breakdown under each answer." },
+            "layout": { "enum": ["full", "compact"], "description": "1.14.0 (EXA-142): full (default) = each question with its worked solution; compact = a school-style key: an answer grid for multiple-choice sections, then a two-column table of working with a right-aligned Ans:. show_question does not apply to compact." }
           }
         },
         "time_min": { "type": ["integer", "null"], "minimum": 1, "maximum": 600, "description": "Paper time in minutes (1.6.0); printed in the paper header." },
