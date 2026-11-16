@@ -176,8 +176,11 @@ body {
 }
 
 /* --- paper: the Ans: line (unit printed so students need not choose one) --- */
+/* Right-aligned and short, as on real papers: "Ans: $ ______ cm² [2]" at the bottom right of the
+   working space (EXA-139). */
 .answer-line {
   display: flex;
+  justify-content: flex-end;
   align-items: baseline;
   gap: 0.4rem;
   margin: 0.5rem 0 0.9rem;
@@ -189,13 +192,14 @@ body {
   font-weight: 600;
 }
 .answer-line .ans-blank {
-  flex: 1 1 auto;
+  flex: 0 1 55mm;
   min-width: 4rem;
   border-bottom: 1px solid var(--ink);
 }
 .answer-line .ans-unit {
   white-space: nowrap;
 }
+.answer-line .marks { margin-left: 0.3rem; }
 
 /* --- answer key: worked solution --- */
 .solution {
@@ -334,9 +338,12 @@ body {
   border-bottom: 1.5px solid var(--ink);
   break-after: avoid;
 }
-.section-title { margin: 0; font-size: 1.15rem; }
-.section-meta { margin: 0.15rem 0 0; font-size: 0.85rem; color: var(--ink-soft); font-weight: 600; }
-.section-instructions { margin: 0.3rem 0 0; font-size: 0.9rem; font-style: italic; }
+.section-title { margin: 0 0 0.3rem; font-size: 1.15rem; text-decoration: underline; }
+/* "Questions 1 to 10 carry 1 mark each. … (20 marks)": the total sits at the right of the last
+   line (a float after the text lands on that line when there is room, else on its own). */
+.section-intro { margin: 0; font-size: 0.95rem; line-height: 1.45; }
+.section-intro::after { content: ""; display: block; clear: both; }
+.section-total { float: right; margin-left: 1rem; font-weight: 600; white-space: nowrap; }
 .field-time { flex: 0 0 auto; }
 
 /* --- marking margin and page tally (P6) --- */

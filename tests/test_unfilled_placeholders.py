@@ -65,7 +65,8 @@ def test_an_empty_mcq_placeholder_prints_a_numbered_gap_without_an_ans_line():
     assert len(qs) == 5
     gap = qs[1]
     assert 'class="question freeform unwritten"' in gap
-    assert "[1]" in gap and "answer-space" in gap
+    # its marks are in the MCQ header, as for every MCQ question (EXA-139)
+    assert "[1]" not in gap and "answer-space" in gap
     assert "answer-line" not in gap and "Ans:" not in gap
     # a written placeholder, and an empty one outside an MCQ section, print as before
     assert "unwritten" not in qs[2] and "unwritten" not in qs[4]

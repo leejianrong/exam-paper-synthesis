@@ -10,6 +10,16 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Changed
 
+- **Section headers, marks and the Ans: line print as on real papers (EXA-139).** A section header
+  is now a sentence built from its questions ("Questions 16 to 20 carry 1 mark each.", or for a
+  structured section "The number of marks available is shown in brackets [ ] …"), then the
+  instructions and "(5 marks)" at the right, then a rule; the "Section A" label and the grey
+  "Questions 1–15 · 20 marks · Multiple choice" line are gone (a teacher's own title still prints).
+  Booklet B is two sections, Q16–20 at 1 mark and Q21–30 at 2 marks. Each section chooses where
+  its [n] marks print (new `marks_placement`, document schema 1.13.0): by default nowhere in
+  multiple-choice and short-answer sections (the header gives them) and after the Ans: line in
+  structured ones; the editor's section bar has a "Marks shown" choice. The Ans: line is short
+  (55 mm) and right-aligned.
 - **Papers print black on white, like a photocopied school paper (EXA-135).** Figures were blue
   line art with pale-blue fills, pie sectors differed only by blue/grey tone, marks were red,
   question numbers grey, working space a grey box and answer-key panels green. Now every figure

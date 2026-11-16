@@ -58,10 +58,11 @@ def test_outline_ranges_start_at_number_from():
 def test_student_paper_starts_the_counter_and_prints_the_range():
     html = render_document_html("B", _doc(), mode="student")
     assert '<div class="doc-body questions" style="counter-reset: q 15">' in html
-    assert "Questions 16–18" in html
+    assert "Question <b>16</b> carries 2 marks." in html  # the header sentence (EXA-139)
     # an old document is untouched
     plain = render_document_html("B", _doc(None), mode="student")
-    assert '<div class="doc-body questions">' in plain and "Questions 1–3" in plain
+    assert '<div class="doc-body questions">' in plain
+    assert "Question <b>1</b> carries 2 marks." in plain
 
 
 def test_answer_key_keeps_the_papers_numbers():

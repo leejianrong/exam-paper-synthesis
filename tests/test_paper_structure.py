@@ -60,11 +60,16 @@ def test_outline_derives_ranges_and_marks_and_continues_numbers():
 
 def test_student_paper_prints_each_section_header_with_range_marks_and_instructions():
     html = _html(_doc())
+    # Generic labels ("Booklet A") print no title (EXA-139); a teacher's own title does.
     titles = re.findall(r'<h2 class="section-title">([^<]*)</h2>', html)
-    assert titles == ["Booklet A", "Booklet B", "Empty section"]
-    assert "Questions 2–3 · 5 marks · Multiple choice" in html
-    assert "Question 4 · " in html  # a single-question section says "Question", not a range
+    assert titles == ["Empty section"]
+    assert (
+        "Questions <b>2</b> and <b>3</b> carry 2 marks each." not in html
+    )  # 2 and 3 marks differ: one run each
+    assert "Question <b>2</b> carries 2 marks. Question <b>3</b> carries 3 marks." in html
     assert "Shade your answer." in html
+    assert '<span class="section-total">(5 marks)</span>' in html
+    assert "section-meta" not in html
     # An empty section prints a title only: no range, no 0 marks.
     assert "Empty section</h2></div>" in html
 

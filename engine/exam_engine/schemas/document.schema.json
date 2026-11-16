@@ -189,7 +189,8 @@
             "instructions": { "type": ["string", "null"], "maxLength": 1000 },
             "mode": { "enum": ["mcq", "short", "structured", null] },
             "marks_target": { "type": ["integer", "null"], "minimum": 0, "maximum": 500 },
-            "marking": { "type": ["boolean", "null"], "description": "Marking margin (\"Do not write in this space\") beside this section's questions (1.8.0, P6a). null/absent = on for working sections (short, structured), off otherwise." }
+            "marking": { "type": ["boolean", "null"], "description": "Marking margin (\"Do not write in this space\") beside this section's questions (1.8.0, P6a). null/absent = on for working sections (short, structured), off otherwise." },
+            "marks_placement": { "enum": ["none", "question", "answer", "both", null], "description": "Where this section's per-question [n] prints (1.13.0, EXA-139): none (the header sentence gives the marks), beside the question, after the Ans: line, or both. null/absent = none for mcq and short sections, the paper-wide settings.marks_placement otherwise." }
           }
         }
       }
