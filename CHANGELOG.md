@@ -10,6 +10,11 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **Paper 1 Booklet B numbers on from Booklet A (EXA-134)**: Q16–30, as in every real P6 paper,
+  instead of starting again at 1. A new paper setting, the first question number
+  (`settings.number_from`, document schema 1.12.0, a "First Q" field in the editor), moves the
+  section ranges, the student paper, the answer key and the editor's numbering; the Booklet B
+  template sets it to 16. Older papers still number from 1.
 - **A fraction option never reads "4/1" (EXA-133)**, and **working steps typeset their maths**
   in the editor's answer key and on the Classic page (algebra showed raw `\\(3x\\)`, EXA-131).
 

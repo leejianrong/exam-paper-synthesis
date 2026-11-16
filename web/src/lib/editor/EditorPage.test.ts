@@ -395,6 +395,19 @@ describe('paper layout (P2)', () => {
     expect(document.querySelector('.ff-area .marks')).toHaveTextContent('[2]')
   })
 
+  it('numbers the page and the key from a saved first question number (EXA-134)', async () => {
+    renderWith({ number_from: 16 })
+    await screen.findByText('Find x.')
+    const field = screen.getByLabelText('First question number') as HTMLInputElement
+    await waitFor(() => expect(field.value).toBe('16'))
+    const surface = document.querySelector('.surface') as HTMLElement
+    expect(surface.style.getPropertyValue('--q-start')).toBe('15')
+    const nums = Array.from(document.querySelectorAll('.entry .n')).map((n) => n.textContent)
+    expect(nums).toEqual(['16.', '17.'])
+    await fireEvent.input(field, { target: { value: '' } })
+    await waitFor(() => expect(surface.style.getPropertyValue('--q-start')).toBe('0'))
+  })
+
   it('resizes a free-form block in place: the handle survives so a drag or key run continues', async () => {
     renderWith()
     await screen.findByText('Find x.')

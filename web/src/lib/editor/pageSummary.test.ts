@@ -33,6 +33,16 @@ describe('summarisePages', () => {
     expect(s.pages.map(describePage)).toEqual(['Q1–2 · 5 marks', 'Q3 · 3 marks'])
   })
 
+  it('numbers from the paper\'s first question number (Booklet B: 16 on)', () => {
+    const s = summarisePages(
+      paper(
+        `<div class="pg"><section class="question"></section><section class="question"></section>${tally(5)}</div>`,
+      ),
+      16,
+    )
+    expect(describePage(s.pages[0])).toBe('Q16–17 · 5 marks')
+  })
+
   it('does not count the continuation of a split question as a new one', () => {
     const s = summarisePages(
       paper(

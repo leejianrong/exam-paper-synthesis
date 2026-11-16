@@ -109,6 +109,13 @@ def _empty_doc(title: str, settings: dict, blocks: list[dict]) -> dict:
     }
 
 
+def _settings(t: dict) -> dict:
+    """A template's paper settings: its time, and where its numbering starts when that is not 1
+    (Booklet B carries on from Booklet A, EXA-134)."""
+    start = t.get("number_from", 1)
+    return {"time_min": t["time_min"], **({"number_from": start} if start != 1 else {})}
+
+
 def _cover_node(t: dict, level: str | None) -> dict:
     """The template's cover page (P7): subject, paper and instructions prefilled. The level is
     stated only when known (a generated paper); school, exam and date are the teacher's."""
@@ -128,7 +135,7 @@ def template_document(code: str) -> dict:
     t = paper_template(code)
     return _empty_doc(
         t["title"],
-        {"time_min": t["time_min"]},
+        _settings(t),
         [_cover_node(t, None), *(_section_node(s) for s in t["sections"])],
     )
 
@@ -378,7 +385,7 @@ def generate_paper(template_code: str, level: str, seed: int) -> tuple[dict, dic
         sections_report.append(rep)
 
     title = f"{level} {t['title']}"
-    doc = _empty_doc(title, {"time_min": t["time_min"]}, blocks)
+    doc = _empty_doc(title, _settings(t), blocks)
     report = {
         "template": t["code"],
         "level": level,

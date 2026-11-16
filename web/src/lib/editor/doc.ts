@@ -5,7 +5,7 @@ import type { Question } from '../types'
 import { assetUrl } from './assets'
 import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.11.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.12.0'
 
 export interface DocNode {
   type: string
@@ -108,9 +108,9 @@ export interface SectionInfo {
  * The derived figures of every section, in order (mirror of the engine's `paper_outline`):
  * questions after a section divider belong to it until the next one; numbers continue.
  */
-export function paperOutline(doc: DocJSON): SectionInfo[] {
+export function paperOutline(doc: DocJSON, start = 1): SectionInfo[] {
   const out: SectionInfo[] = []
-  let number = 0
+  let number = start - 1
   for (const n of doc.content ?? []) {
     if (n.type === 'section') {
       const t = n.attrs?.marks_target

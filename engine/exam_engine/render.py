@@ -33,7 +33,14 @@ from pathlib import Path
 from typing import NamedTuple
 
 from . import diagram, expression
-from .document import block_marks, cover_page, in_key, key_options, paper_outline
+from .document import (
+    block_marks,
+    cover_page,
+    in_key,
+    key_options,
+    number_from,
+    paper_outline,
+)
 from .units import printed_unit
 
 # ---------------------------------------------------------------------------
@@ -942,7 +949,9 @@ def _render_document_body(
 ) -> str:
     """Document blocks in order; questions and rich text share one numbering counter."""
     placement = _placement(doc)
-    out: list[str] = ['<div class="doc-body questions">']
+    start = number_from(doc)
+    reset = f' style="counter-reset: q {start - 1}"' if start != 1 else ""
+    out: list[str] = [f'<div class="doc-body questions"{reset}>']
     outline = iter(paper_outline(doc))
     marking = False  # inside a section that prints the marking margin
     for node in doc["content"]["content"]:
@@ -1094,7 +1103,7 @@ def render_document_html(
     ]
     marks = _doc_total_marks(blocks)
     key_opts = _key_options(doc)
-    numbered = [(n, b) for n, b in enumerate(blocks, 1) if in_key(b)]
+    numbered = [(n, b) for n, b in enumerate(blocks, number_from(doc)) if in_key(b)]
     key_blocks = [b for _, b in numbered]
     # The key counts up by itself unless a question was left out: then it keeps the paper's numbers.
     all_numbers = [n for n, _ in numbered]
