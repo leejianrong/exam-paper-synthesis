@@ -13,6 +13,11 @@ describe('Inspector remarks (W5)', () => {
     expect(screen.getByText(/never printed/)).toBeInTheDocument()
   })
 
+  it('names the selected question by its number on the paper (EXA-134)', () => {
+    render(Inspector, { props: { blocks: blocks(), marks: 5, selectedId: 'ff_9', start: 16 } })
+    expect(screen.getByText('Question 17')).toBeInTheDocument()
+  })
+
   it('shows the existing remark and reports edits with the block id', async () => {
     const [q, ff] = blocks()
     const withRemark = { ...ff, attrs: { ...ff.attrs, remark: 'ask Ms Tan' } }

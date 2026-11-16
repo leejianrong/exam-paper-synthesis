@@ -31,6 +31,15 @@ describe('AnswerKey', () => {
     expect(entries[1]).toHaveTextContent('7 cm')
   })
 
+  it('numbers from the paper\'s first question number (EXA-134)', () => {
+    const qs = [makeQuestion({ id: 'a' }, 'First.'), makeQuestion({ id: 'b' }, 'Second.')]
+    render(AnswerKey, { props: { blocks: templatedNodes(qs), start: 16 } })
+    const entries = document.querySelectorAll('.entry')
+    expect(entries[0].querySelector('.n')).toHaveTextContent('16.')
+    expect(entries[1].querySelector('.n')).toHaveTextContent('17.')
+    expect(screen.getByLabelText('Include question 17 in the answer key')).toBeInTheDocument()
+  })
+
   it('shows a placeholder when there are no questions', () => {
     render(AnswerKey, { props: { blocks: [] } })
     expect(screen.getByText('Answers appear here as you add questions.')).toBeInTheDocument()

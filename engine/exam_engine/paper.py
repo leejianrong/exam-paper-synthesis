@@ -36,7 +36,7 @@ from functools import cache
 import yaml
 
 from .blueprints.registry import content_dir, load_blueprint
-from .document import DOCUMENT_SCHEMA_VERSION
+from .document import DOCUMENT_SCHEMA_VERSION, unfilled_placeholder_numbers
 from .mcq import CONVERTIBLE, to_mcq
 from .pipeline import generate
 
@@ -109,6 +109,13 @@ def _empty_doc(title: str, settings: dict, blocks: list[dict]) -> dict:
     }
 
 
+def _settings(t: dict) -> dict:
+    """A template's paper settings: its time, and where its numbering starts when that is not 1
+    (Booklet B carries on from Booklet A, EXA-134)."""
+    start = t.get("number_from", 1)
+    return {"time_min": t["time_min"], **({"number_from": start} if start != 1 else {})}
+
+
 def _cover_node(t: dict, level: str | None) -> dict:
     """The template's cover page (P7): subject, paper and instructions prefilled. The level is
     stated only when known (a generated paper); school, exam and date are the teacher's."""
@@ -128,7 +135,7 @@ def template_document(code: str) -> dict:
     t = paper_template(code)
     return _empty_doc(
         t["title"],
-        {"time_min": t["time_min"]},
+        _settings(t),
         [_cover_node(t, None), *(_section_node(s) for s in t["sections"])],
     )
 
@@ -378,7 +385,7 @@ def generate_paper(template_code: str, level: str, seed: int) -> tuple[dict, dic
         sections_report.append(rep)
 
     title = f"{level} {t['title']}"
-    doc = _empty_doc(title, {"time_min": t["time_min"]}, blocks)
+    doc = _empty_doc(title, _settings(t), blocks)
     report = {
         "template": t["code"],
         "level": level,
@@ -393,24 +400,6 @@ def generate_paper(template_code: str, level: str, seed: int) -> tuple[dict, dic
     return doc, report
 
 
-def _has_content(nodes: list[dict]) -> bool:
-    """Any non-blank text, or an image / equation, anywhere in these nodes (parts included)."""
-    for n in nodes:
-        if n["type"] == "text" and n.get("text", "").strip():
-            return True
-        if n["type"] in ("image", "math"):
-            return True
-        if _has_content(n.get("content", [])):
-            return True
-    return False
-
-
 def unfilled_placeholders(doc: dict) -> int:
     """Placeholders the teacher hasn't written yet: nothing in the stem or any part."""
-    return sum(
-        1
-        for node in doc["content"]["content"]
-        if node["type"] == "freeformQuestion"
-        and ((node.get("attrs") or {}).get("slot") or {}).get("placeholder")
-        and not _has_content(node.get("content", []))
-    )
+    return len(unfilled_placeholder_numbers(doc))

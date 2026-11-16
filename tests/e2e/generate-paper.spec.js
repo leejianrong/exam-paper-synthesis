@@ -50,7 +50,7 @@ test('generate a P5 Booklet B: placeholders for what the content cannot fill yet
   const hints = page.locator('.ff-placeholder-hint:visible')
   await expect(hints).toHaveCount(2)
   await expect(hints.first()).toHaveText(/write a [12]-mark short-answer question here/)
-  await expect(page.locator('.section-block .section-summary')).toHaveText('Questions 1–15 · 25 / 25 marks')
+  await expect(page.locator('.section-block .section-summary')).toHaveText('Questions 16–30 · 25 / 25 marks') // Booklet B numbers on from A (EXA-134)
 
   // Writing a placeholder's question clears it.
   await page.locator('.ffblock.placeholder-slot .ff-body').first().click()

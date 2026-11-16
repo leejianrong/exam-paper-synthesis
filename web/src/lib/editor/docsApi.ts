@@ -79,8 +79,26 @@ export async function previewDocument(id: string, mode: ExportMode): Promise<str
   return res.text()
 }
 
-export async function exportDocument(id: string, mode: ExportMode): Promise<Blob> {
-  const res = await apiFetch(`${BASE}/documents/${id}/export/${mode}`, { method: 'POST' })
+/** The API's 409 when a paper still has empty generator placeholders (EXA-137). */
+export interface UnfilledPlaceholders {
+  code: 'unfilled_placeholders'
+  message: string
+  questions: number[]
+}
+
+export function unfilledDetail(e: unknown): UnfilledPlaceholders | null {
+  if (!(e instanceof ApiError) || e.status !== 409) return null
+  const d = e.detail as Partial<UnfilledPlaceholders> | null
+  return d && d.code === 'unfilled_placeholders' && Array.isArray(d.questions)
+    ? (d as UnfilledPlaceholders)
+    : null
+}
+
+/** The paper as a PDF. A paper with empty placeholders is refused (`unfilledDetail`) unless
+ *  `allowPlaceholders` says to print it anyway. */
+export async function exportDocument(id: string, mode: ExportMode, allowPlaceholders = false): Promise<Blob> {
+  const query = allowPlaceholders ? '?allow_placeholders=true' : ''
+  const res = await apiFetch(`${BASE}/documents/${id}/export/${mode}${query}`, { method: 'POST' })
   if (res.status === 429) {
     // The account's export allowance: the server's message already says when to retry.
     const body = (await res.json().catch(() => ({}))) as { detail?: unknown }

@@ -144,3 +144,12 @@ A real paper needs far more:
 So P8 is a programme, not one slice: P8a paper templates + generator on the existing blueprints,
 P8b MCQ conversion, P8c multi-part blueprints, P8d keep/swap/lock UI, P8e coverage growth. It sits
 after P2–P4, because a paper needs sections, answer lines and multi-part questions to land in.
+
+### Numbering across booklets (EXA-134, document schema 1.12.0)
+
+Real Paper 1s number Booklet B on from Booklet A (Q16–30); Paper 2 starts again at 1.
+`settings.number_from` (integer ≥ 1, absent or null = 1) is the paper's first question number.
+`paper_outline` (section ranges), the student paper's counter, the answer key, the editor's page,
+key, inspector and preview page summary all start there. The `p1_booklet_b` template sets 16, for
+starter and generated papers alike; swap and regenerate keep it. The editor's top bar has a
+"First Q" field next to the time.

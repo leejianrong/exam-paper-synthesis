@@ -175,6 +175,20 @@ def test_generated_papers_keep_every_rule(code, level):
         assert report["filled"] == len(codes)
 
 
+@pytest.mark.parametrize("level", LEVELS)
+def test_booklet_b_numbering_carries_on_from_booklet_a(level):
+    """EXA-134: Paper 1 is one numbering across both booklets; Paper 2 starts again at 1."""
+    for seed in SEEDS[:5]:
+        a = generate_paper("p1_booklet_a", level, seed)[0]
+        b = generate_paper("p1_booklet_b", level, seed)[0]
+        p2 = generate_paper("p2", level, seed)[0]
+        (sec_a,) = paper_outline(a)
+        (sec_b,) = paper_outline(b)
+        assert sec_a["first"] == 1 and sec_b["first"] == sec_a["last"] + 1, (level, seed)
+        assert paper_outline(p2)[0]["first"] == 1
+        assert template_document("p1_booklet_b")["settings"] == b["settings"]
+
+
 @pytest.mark.parametrize("code", TEMPLATES)
 def test_the_same_seed_gives_the_same_paper_and_another_seed_another(code):
     a, _ = generate_paper(code, "P6", 11)

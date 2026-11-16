@@ -11,6 +11,13 @@ export interface PaperSettings {
   time_min?: number | null;
   /** How the answer key prints (P5); both default to shown. */
   key_options?: KeyOptions;
+  /** The first question's number (EXA-134); Booklet B carries on from Booklet A at 16. */
+  number_from?: number | null;
+}
+
+/** The paper's first question number (the engine's `number_from`). */
+export function numberFrom(settings: PaperSettings | undefined): number {
+  return settings?.number_from || 1;
 }
 
 export interface KeyOptions {

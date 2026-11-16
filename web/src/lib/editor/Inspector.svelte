@@ -10,6 +10,8 @@
   export let blocks: DocNode[] = []
   export let marks = 0
   export let selectedId: string | null = null
+  /** The paper's first question number (EXA-134). */
+  export let start = 1
 
   const dispatch = createEventDispatcher<{
     remark: { blockId: string; remark: string }
@@ -18,7 +20,7 @@
   const MAX_REMARK = 2000
 
   $: index = blocks.findIndex((b) => b.attrs?.block_id === selectedId)
-  $: facts = index >= 0 ? describeBlock(blocks[index], index + 1) : null
+  $: facts = index >= 0 ? describeBlock(blocks[index], start + index) : null
   $: summary = summarise(blocks, marks)
   $: bankQuestion =
     index >= 0 && blocks[index].type === 'templatedQuestion' &&

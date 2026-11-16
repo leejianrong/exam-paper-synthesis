@@ -17,10 +17,11 @@ export interface PageSummary {
   warnings: number // questions whose working space had to be trimmed to fit a page
 }
 
-export function summarisePages(doc: Document): PageSummary {
+/** `start` is the paper's first question number (Booklet B carries on from Booklet A). */
+export function summarisePages(doc: Document, start = 1): PageSummary {
   const warnings = Number(doc.documentElement.getAttribute('data-pagination-warnings') ?? 0)
   const boxes = Array.from(doc.querySelectorAll('.pg'))
-  let running = 0
+  let running = start - 1
   const pages = boxes.map((box, i) => {
     const numbers: number[] = []
     let continued = false

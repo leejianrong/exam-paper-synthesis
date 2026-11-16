@@ -26,7 +26,8 @@
             "show_scheme": { "type": "boolean", "description": "Print the M/A/B marking breakdown under each answer." }
           }
         },
-        "time_min": { "type": ["integer", "null"], "minimum": 1, "maximum": 600, "description": "Paper time in minutes (1.6.0); printed in the paper header." }
+        "time_min": { "type": ["integer", "null"], "minimum": 1, "maximum": 600, "description": "Paper time in minutes (1.6.0); printed in the paper header." },
+        "number_from": { "type": ["integer", "null"], "minimum": 1, "maximum": 999, "description": "The first question's number (1.12.0, EXA-134); null or absent = 1. Paper 1 Booklet B continues Booklet A's numbering (16 onwards)." }
       }
     },
     "doc": {
