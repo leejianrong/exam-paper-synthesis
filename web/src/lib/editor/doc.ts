@@ -35,6 +35,8 @@ export interface DocumentRecord {
   version: number
   created_at: string
   updated_at: string
+  /** O2: the folder the paper is filed in (null = unfiled). */
+  folder_id?: string | null
   document: PaperDocument
 }
 

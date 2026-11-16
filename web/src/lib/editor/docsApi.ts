@@ -191,3 +191,47 @@ export async function regeneratePaper(
   if (!res.ok) return fail(res)
   return (await res.json()) as DocumentRecord & { report: RegenerateReport }
 }
+
+/** O2: a folder of papers (owner-scoped). `papers` is the server's count when listed. */
+export interface Folder {
+  id: string
+  name: string
+  created_at: string
+  updated_at: string
+  papers?: number
+}
+
+export async function listFolders(): Promise<Folder[]> {
+  const res = await apiFetch(`${BASE}/folders`)
+  if (!res.ok) return fail(res)
+  return ((await res.json()) as { folders: Folder[] }).folders
+}
+
+export async function createFolder(name: string): Promise<Folder> {
+  const res = await apiFetch(`${BASE}/folders`, { method: 'POST', headers: json, body: JSON.stringify({ name }) })
+  if (!res.ok) return fail(res)
+  return (await res.json()) as Folder
+}
+
+export async function renameFolder(id: string, name: string): Promise<Folder> {
+  const res = await apiFetch(`${BASE}/folders/${id}`, { method: 'PATCH', headers: json, body: JSON.stringify({ name }) })
+  if (!res.ok) return fail(res)
+  return (await res.json()) as Folder
+}
+
+/** Delete a folder: its papers become unfiled on the server, never deleted. */
+export async function deleteFolder(id: string): Promise<void> {
+  const res = await apiFetch(`${BASE}/folders/${id}`, { method: 'DELETE' })
+  if (!res.ok) return fail(res)
+}
+
+/** File a paper in a folder, or `null` to unfile it. Not an edit: the version stays. */
+export async function moveDocument(id: string, folderId: string | null): Promise<DocumentSummary> {
+  const res = await apiFetch(`${BASE}/documents/${id}`, {
+    method: 'PATCH',
+    headers: json,
+    body: JSON.stringify({ folder_id: folderId }),
+  })
+  if (!res.ok) return fail(res)
+  return (await res.json()) as DocumentSummary
+}

@@ -34,6 +34,12 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Folders on "Your papers" (O2, web, EXA-126)** — the paper list is grouped by folder, then
+  *Unfiled*. Each folder shows its papers and an exam-set chip for *Booklet A · Booklet B ·
+  Paper 2*, filled when the folder holds that paper (read from the paper's title). Make a
+  folder with *+ New folder*, rename it, or delete it (it asks first; its papers move to
+  Unfiled, none is deleted). A paper's *Move* menu files it in a folder or back in Unfiled,
+  by mouse or keyboard.
 - **Folders (O2, API)** — papers can be kept in folders (one exam set, drafts, practice).
   `GET/POST /folders`, `PATCH /folders/{id}` (rename), `DELETE /folders/{id}` (its papers
   become unfiled, never deleted), `PATCH /documents/{id}` `{folder_id}` to move a paper (not an
