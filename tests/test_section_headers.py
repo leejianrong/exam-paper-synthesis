@@ -58,6 +58,11 @@ def test_booklet_a_header_states_each_run_of_marks_then_the_total():
         "Questions 1 to 10 carry 1 mark each. Questions 11 to 15 carry 2 marks each. For each"
     )
     assert header.endswith('<span class="section-total">(20 marks)</span></p></div>')
+    # how to record the answer, as every real Booklet A says it (EXA-141)
+    assert _intro_text(header).endswith(
+        "Make your choice (1, 2, 3 or 4) and shade your answer on the Optical Answer Sheet."
+        "(20 marks)"
+    )
     assert "<b>1</b> to <b>10</b>" in header  # the numbers are bold, as printed
     # no "Booklet A" label, no grey meta line
     assert "section-title" not in header and "section-meta" not in header

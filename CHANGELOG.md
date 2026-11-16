@@ -20,6 +20,12 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Changed
 
+- **Multiple-choice options read like a real Booklet A (EXA-141).** Options print in one column,
+  (1) to (4) under the question, on the paper, in the answer key and in the editor; only picture
+  options keep a 2 x 2 grid. Number options are listed smallest first, as on real papers; the
+  last wrong option is chosen so the right answer's place still varies (a "which is the
+  greatest?" question keeps a mixed order). The Booklet A header now ends "Make your choice
+  (1, 2, 3 or 4) and shade your answer on the Optical Answer Sheet."
 - **Every printed page has its furniture, and pages end full (EXA-138).** Each question page now
   has a footer: the page number in the centre (the cover counts as page 1, as on real booklets),
   "(Go on to the next page)" at the right on all but the last page, and a small school · exam ·

@@ -14,6 +14,11 @@ the answer key prints it; the three distractors are plausible wrong answers:
 The answer is never left exactly between two other options, evenly (``7 / 8 / 9``) or by a
 factor (``14 / 28 / 56``), when the candidates allow another choice.
 
+The options print in ascending order, as real papers list numeric options (EXA-141); the seed
+picks the last wrong option so the answer's place in that order varies. A solver whose answer
+is an extreme of the options ("which is the greatest?") opts out with ``mcq_ascending = False``
+and gets a seeded order instead.
+
 Pure and deterministic: the same ``(obj, seed)`` gives the same options in the same order.
 ``document.verify_snapshot`` re-solves the blueprint and checks the correct option's text
 equals the proven answer, so a converted question stays engine-proven.
@@ -273,6 +278,35 @@ def _gives_it_away(answer: Fraction, chosen: list[Fraction]) -> bool:
     return between or odd
 
 
+def _ascending(obj: dict) -> bool:
+    """Options print in ascending order unless the solver opts out (``mcq_ascending = False``:
+    "which is the greatest?", whose answer would then always be (1) or (4))."""
+    try:
+        solver = get_solver(obj.get("blueprint_code") or "")
+    except Exception:  # a sourced or unknown blueprint
+        return True
+    return bool(getattr(solver, "mcq_ascending", True))
+
+
+def _last_pick(
+    answer: Fraction,
+    chosen: list[Fraction],
+    fits: list[tuple[Fraction, str, str]],
+    rng: random.Random,
+) -> tuple[Fraction, str, str]:
+    """The last wrong option, picked so the answer's place in the ascending list varies.
+
+    Options print in ascending order, so a solver whose common wrong answers all lie on one
+    side of the answer would always put it first or last (a rate's "the amount in 1 unit" is
+    always smaller). The first wrong options stay the best candidates; for the last one the
+    seed picks one of the places the remaining candidates allow, then the best candidate that
+    puts the answer there."""
+    below = sum(c < answer for c in chosen)
+    places = sorted({below + (v < answer) for v, _, _ in fits})
+    place = rng.choice(places)
+    return next(f for f in fits if below + (f[0] < answer) == place)
+
+
 def to_mcq(obj: dict, seed: int) -> dict:
     """A four-option multiple-choice copy of ``obj`` (see the module docstring)."""
     if not convertible(obj):
@@ -285,11 +319,14 @@ def to_mcq(obj: dict, seed: int) -> dict:
     correct_text = answer_text(answer)
     value = _value(answer)
 
+    rng = random.Random(f"mcq|{obj['id']}|{seed}")
+    ascending = _ascending(obj)
     texts = [correct_text]
     why: dict[str, str] = {}
     chosen: list[Fraction] = []
     candidates = distractor_candidates(obj)
     for strict in (True, False):  # avoid a give-away set when the candidates allow it
+        fits: list[tuple[Fraction, str, str]] = []
         for v, reason in candidates:
             shown = _with_value(answer, v)
             if _value(shown) != v:  # printed rounded: its reason would not match what is shown
@@ -297,17 +334,27 @@ def to_mcq(obj: dict, seed: int) -> dict:
             t = answer_text(shown)
             if t in texts or (strict and _gives_it_away(value, [*chosen, v])):
                 continue
+            if len(texts) < len(LABELS) - 1:
+                texts.append(t)
+                why[t] = reason
+                chosen.append(v)
+            elif all(t != have for _, _, have in fits):
+                fits.append((v, reason, t))
+        if fits:  # the last wrong option: see _last_pick
+            v, reason, t = _last_pick(value, chosen, fits, rng) if ascending else fits[0]
             texts.append(t)
             why[t] = reason
             chosen.append(v)
-            if len(texts) == len(LABELS):
-                break
         if len(texts) == len(LABELS):
             break
     assert len(texts) == len(LABELS), texts
 
-    rng = random.Random(f"mcq|{obj['id']}|{seed}")
-    rng.shuffle(texts)
+    if ascending:
+        # as real papers list numeric options (about 36 of 40 in the 2025 prelims): every
+        # option here is a number in the answer's own unit and form
+        texts = [t for _, t in sorted(zip([value, *chosen], texts, strict=True))]
+    else:
+        rng.shuffle(texts)
     options = [{"label": label, "text": text} for label, text in zip(LABELS, texts, strict=True)]
     correct = LABELS[texts.index(correct_text)]
     part["answer"] = {"type": "choice", "options": options, "correct": correct}
