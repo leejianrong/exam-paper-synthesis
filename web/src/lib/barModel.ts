@@ -301,7 +301,7 @@ function renderBarModel(spec: BarModelSpec): string {
         `<line x1="${x2}" y1="${tickY - 4}" x2="${x2}" y2="${tickY + 4}" stroke="${INK}" stroke-width="1"/>`,
       )
       out.push(
-        `<text x="${mid}" y="${y + ANN_ROW_H - 4}" text-anchor="middle" fill="${INK}">${esc(ann.label)}</text>`,
+        `<text x="${mid}" y="${y + ANN_ROW_H - 2}" text-anchor="middle" fill="${INK}">${esc(ann.label)}</text>`,
       )
       y += ANN_ROW_H
     }
