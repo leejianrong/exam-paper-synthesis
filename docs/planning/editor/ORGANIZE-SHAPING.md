@@ -134,7 +134,7 @@ gaps as cards.
   replaces the list's *+ New paper* button, the template buttons, the *Generate a paper* form and
   the inline *+ New folder* field. Choices, as M3 option cards (outlined, 12 px corners, a
   leading icon on `--verify-soft`, the 8 % / 12 % state layer), in order: *New folder*, *Exam
-  set*, *Single paper*, *Template*, *Blank paper*. Single choices inside a step (where the exam
+  set*, *Single paper*, *Blank paper* (a *Template* choice was dropped, see below). Single choices inside a step (where the exam
   set goes) are M3 filter chips over native radios; levels are compact cards ("Generate at P5",
   "Generate at P6", "Empty starters" / "Start it empty").
 - **Steps.** New folder: name → create → the dialog closes and the folder's heading is scrolled
