@@ -31,6 +31,12 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **The editor and the Classic page show the engine's figures (EXA-151).** Bar models, shaded
+  fractions and geometry figures were drawn in the browser by a TypeScript copy of the old
+  renderer, so the editor still showed labels over the lines after the PDF was fixed (EXA-136).
+  The web now fetches every figure except a raster image from `POST /render/diagram`, with the
+  same loading and error states as charts and solids, and the TypeScript renderer is gone: one
+  renderer and one label-collision test cover the screen and the paper.
 - **Paper 1 Booklet B numbers on from Booklet A (EXA-134)**: Q16–30, as in every real P6 paper,
   instead of starting again at 1. A new paper setting, the first question number
   (`settings.number_from`, document schema 1.12.0, a "First Q" field in the editor), moves the
