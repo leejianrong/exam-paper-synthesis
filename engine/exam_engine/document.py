@@ -21,6 +21,7 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
+# 1.13.0 (EXA-139): + section.marks_placement (none/question/answer/both; null follows the mode).
 # 1.12.0 (EXA-134): + settings.number_from (Booklet B continues Booklet A's numbering).
 # 1.11.0 (P8d): + question `locked` (kept by "regenerate unlocked").
 # 1.10.0 (P8a): + question `slot` (what the paper generator asked for).
@@ -32,7 +33,7 @@ from .schema import validate_object
 # 1.4.0 (P2): + settings.marks_placement, per-question space_mm / ans_unit.
 # 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math; 1.3.0 (W5): + question `remark`.
 # Older documents stay valid (every addition is optional).
-DOCUMENT_SCHEMA_VERSION = "1.12.0"
+DOCUMENT_SCHEMA_VERSION = "1.13.0"
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000
@@ -167,17 +168,50 @@ def section_marking(attrs: dict) -> bool:
     return attrs.get("mode") in ("short", "structured")
 
 
+MARKS_PLACEMENTS = ("none", "question", "answer", "both")
+
+
+def paper_placement(doc: dict) -> str:
+    """The paper-wide marks placement (P2): where [n] prints outside a section's own choice."""
+    chosen = (doc.get("settings") or {}).get("marks_placement")
+    return chosen if chosen in ("question", "answer", "both") else "answer"
+
+
+def section_placement(attrs: dict, paper: str) -> str:
+    """Where a section's per-question [n] prints (EXA-139): its own choice, else what real papers
+    do: ``none`` in multiple-choice and short-answer sections (the header gives the marks),
+    the paper-wide placement in structured sections and sections with no mode."""
+    chosen = attrs.get("marks_placement")
+    if chosen in MARKS_PLACEMENTS:
+        return chosen
+    return "none" if attrs.get("mode") in ("mcq", "short") else paper
+
+
+def marks_groups(marks: list[int], first: int) -> list[tuple[int, int, int]]:
+    """Runs of consecutive questions worth the same marks, as ``(first, last, marks)``."""
+    groups: list[tuple[int, int, int]] = []
+    for i, m in enumerate(marks):
+        n = first + i
+        if groups and groups[-1][2] == m:
+            groups[-1] = (groups[-1][0], n, m)
+        else:
+            groups.append((n, n, m))
+    return groups
+
+
 def paper_outline(doc: dict) -> list[dict]:
     """The paper's sections with derived figures (P4), in order.
 
     Each entry: ``title``, ``instructions``, ``mode``, ``marks_target``, ``marking`` (authored or
     defaulted), and
     ``first``/``last`` question numbers (both ``None`` when empty), ``count`` and ``marks``
-    (derived). Questions before the first section are not in any section. Numbering starts at
-    the paper's ``number_from``.
+    (derived), ``marks_placement`` (authored or derived, EXA-139) and ``question_marks`` (each
+    question's marks, in order). Questions before the first section are not in any section.
+    Numbering starts at the paper's ``number_from``.
     """
     out: list[dict] = []
     number = number_from(doc) - 1
+    paper = paper_placement(doc)
     for node in doc["content"]["content"]:
         if node["type"] == "section":
             a = node["attrs"]
@@ -188,6 +222,8 @@ def paper_outline(doc: dict) -> list[dict]:
                     "mode": a.get("mode"),
                     "marks_target": a.get("marks_target"),
                     "marking": section_marking(a),
+                    "marks_placement": section_placement(a, paper),
+                    "question_marks": [],
                     "first": None,
                     "last": None,
                     "count": 0,
@@ -202,6 +238,7 @@ def paper_outline(doc: dict) -> list[dict]:
                 sec["last"] = number
                 sec["count"] += 1
                 sec["marks"] += block_marks(node)
+                sec["question_marks"].append(block_marks(node))
     return out
 
 

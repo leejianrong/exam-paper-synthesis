@@ -5,7 +5,7 @@ import type { Question } from '../types'
 import { assetUrl } from './assets'
 import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.12.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.13.0'
 
 export interface DocNode {
   type: string
@@ -96,6 +96,9 @@ export function blockMarks(node: DocNode): number {
 }
 
 export type SectionMode = 'mcq' | 'short' | 'structured'
+/** Where a section's per-question [n] print (EXA-139); `none` = only in the header sentence. */
+export type SectionPlacement = 'none' | 'question' | 'answer' | 'both'
+export const SECTION_PLACEMENTS: SectionPlacement[] = ['none', 'question', 'answer', 'both']
 
 /** A section's figures: authored target, derived question range / count / marks (P4). */
 export interface SectionInfo {
@@ -179,6 +182,9 @@ export function cleanNode(node: DocNode): DocNode {
     if (typeof out.attrs.marks_target === 'number') attrs.marks_target = out.attrs.marks_target
     // Only an explicit choice of the marking margin is stored; unset follows the mode.
     if (typeof out.attrs.marking === 'boolean') attrs.marking = out.attrs.marking
+    // EXA-139: where the [n] print; unset follows the mode (none for MCQ / short answer).
+    if (typeof out.attrs.marks_placement === 'string' && SECTION_PLACEMENTS.includes(out.attrs.marks_placement as SectionPlacement))
+      attrs.marks_placement = out.attrs.marks_placement
     out = { ...out, attrs }
   }
   if (out.type === 'coverPage') {

@@ -34,13 +34,16 @@ from typing import NamedTuple
 
 from . import diagram, expression
 from .document import (
+    MARKS_PLACEMENTS,
     block_marks,
     cover_page,
     in_key,
     is_unfilled_placeholder,
     key_options,
+    marks_groups,
     number_from,
     paper_outline,
+    paper_placement,
 )
 from .units import printed_unit
 
@@ -261,7 +264,7 @@ class Layout:
         space_mm: int | None = None,
         ans_unit: str | None = None,
     ) -> None:
-        self.placement = placement if placement in ("question", "answer", "both") else "answer"
+        self.placement = placement if placement in MARKS_PLACEMENTS else "answer"
         self.space_mm = space_mm
         self.ans_unit = ans_unit
 
@@ -311,6 +314,16 @@ def _answer_line(
     )
 
 
+def _marks_beside(layout: Layout | None, answer_key: bool, has_line: bool = True) -> bool:
+    """Whether [n] prints beside the question text: always in the key and off a paper, else when
+    the placement asks for it, or for ``answer`` when the part has no Ans: line to carry it."""
+    if layout is None or answer_key:
+        return True
+    return layout.placement in ("question", "both") or (
+        layout.placement == "answer" and not has_line
+    )
+
+
 def _answer_space(layout: Layout | None, marks: int | None) -> str:
     if layout is None:
         return (
@@ -348,9 +361,7 @@ def _render_part_head(
     # On a paper the [n] sits beside the question and/or the Ans: line (the key always has it).
     # A part with no Ans: line (MCQ, construction) has nowhere else, so it keeps it here.
     has_line = (part.get("answer") or {}).get("type") not in ("choice", "construction")
-    if marks is not None and (
-        layout is None or answer_key or layout.placement != "answer" or not has_line
-    ):
+    if marks is not None and _marks_beside(layout, answer_key, has_line):
         out.append(f'<span class="marks">[{marks}]</span>')
     out.append("</div>")
 
@@ -729,7 +740,9 @@ def _render_freeform_item(
         return [
             f'<{tag} class="question freeform unwritten">',
             '<div class="part"><div class="part-text"></div>',
-            f'<span class="marks">[{marks}]</span>' if marks is not None else "",
+            f'<span class="marks">[{marks}]</span>'
+            if marks is not None and (layout is None or layout.placement != "none")
+            else "",
             "</div>",
             _answer_space(layout, marks),
             f"</{tag}>",
@@ -749,7 +762,7 @@ def _render_freeform_item(
         return out
     out = [f'<{tag} class="question freeform">', '<div class="part">']
     out.append(f'<div class="part-text">{body}</div>')
-    if marks is not None and (layout is None or answer_key or layout.placement != "answer"):
+    if marks is not None and _marks_beside(layout, answer_key):
         out.append(f'<span class="marks">[{marks}]</span>')
     out.append("</div>")
     out.extend(_freeform_answer(attrs, marks, answer_key, assets, layout, ""))
@@ -796,6 +809,7 @@ def _render_freeform_parts(
     if not hide_question:
         out.append(f'<div class="part"><div class="part-text">{body}</div></div>')
     placement = layout.placement if layout else "question"
+    head_layout = Layout(placement)
     for i, part in enumerate(parts):
         letter = chr(ord("a") + i)
         pattrs = part["attrs"]
@@ -809,7 +823,7 @@ def _render_freeform_parts(
             out.append('<div class="part">')
             out.append(f'<span class="part-label">({letter})</span>')
             out.append(f'<div class="part-text">{text}</div>')
-            if marks is not None and (layout is None or answer_key or placement != "answer"):
+            if marks is not None and _marks_beside(head_layout, answer_key):
                 out.append(f'<span class="marks">[{marks}]</span>')
             out.append("</div>")
         part_layout = Layout(placement, pattrs.get("space_mm"), pattrs.get("ans_unit"))
@@ -826,10 +840,6 @@ def _part_marks(part: dict) -> int:
 def _block_layout(node: dict, placement: str) -> Layout:
     attrs = node["attrs"]
     return Layout(placement, attrs.get("space_mm"), attrs.get("ans_unit"))
-
-
-def _placement(doc: dict) -> str:
-    return (doc.get("settings") or {}).get("marks_placement", "answer")
 
 
 def _render_numbered_blocks(
@@ -887,36 +897,63 @@ def _freeform_marks(node: dict) -> int:
     return node["attrs"].get("marks") or 0
 
 
-_SECTION_MODE_LABEL = {
-    "mcq": "Multiple choice",
-    "short": "Short answer",
-    "structured": "Structured",
-}
+# A teacher's own section title prints; the generic labels the templates use ("Section A",
+# "Booklet B") do not, as real papers print no such label above the header (EXA-139).
+_GENERIC_TITLE = re.compile(r"^\s*(section|booklet|part)\s+[a-z0-9]{1,3}\s*$", re.IGNORECASE)
+
+
+def _marks_word(n: int) -> str:
+    return f"{n} mark" if n == 1 else f"{n} marks"
+
+
+def _range_sentence(first: int, last: int, marks: int) -> str:
+    """ "Questions <b>1</b> to <b>10</b> carry 1 mark each." (one question: "carries")."""
+    if first == last:
+        return f"Question <b>{first}</b> carries {_marks_word(marks)}."
+    joiner = "and" if last == first + 1 else "to"
+    return f"Questions <b>{first}</b> {joiner} <b>{last}</b> carry {_marks_word(marks)} each."
+
+
+_BRACKETS_SENTENCE = (
+    "The number of marks available is shown in brackets [ ] at the end of each question or "
+    "part question."
+)
+
+
+def section_sentence(info: dict) -> str:
+    """The marks sentence of a section header (EXA-139), from the derived range and marks.
+
+    A section whose questions print their own [n] and differ in marks (or a structured one)
+    says so, as real Paper 2 does; any other states each run of equal marks."""
+    marks = info["question_marks"]
+    if not marks:
+        return ""
+    shows_own = info["marks_placement"] != "none"
+    if shows_own and (info["mode"] == "structured" or len(set(marks)) > 1):
+        return _BRACKETS_SENTENCE
+    return " ".join(_range_sentence(*g) for g in marks_groups(marks, info["first"]))
 
 
 def _render_section(info: dict) -> str:
-    """A paper section header (P4): title, question range, marks, instructions."""
-    bits = []
-    if info["first"] is not None:
-        rng = (
-            f"Question {info['first']}"
-            if info["first"] == info["last"]
-            else f"Questions {info['first']}–{info['last']}"
-        )
-        bits.append(rng)
-        bits.append(f"{info['marks']} marks")
-    if info["mode"]:
-        bits.append(_SECTION_MODE_LABEL[info["mode"]])
-    meta = f'<p class="section-meta">{_esc(" · ".join(bits))}</p>' if bits else ""
-    instr = (
-        f'<p class="section-instructions">{_esc(info["instructions"])}</p>'
-        if info["instructions"]
+    """A paper section header as real papers print it (EXA-139): the marks sentence and the
+    authored instructions in one paragraph, "(20 marks)" at the right of its last line, then
+    a rule. A teacher's own title prints above it; the generic "Section A" labels do not."""
+    title = info["title"].strip()
+    head = (
+        f'<h2 class="section-title">{_esc(title)}</h2>'
+        if title and not _GENERIC_TITLE.match(title)
         else ""
     )
-    return (
-        '<div class="paper-section">'
-        f'<h2 class="section-title">{_esc(info["title"])}</h2>{meta}{instr}</div>'
+    text = " ".join(
+        t for t in (section_sentence(info), _esc(info["instructions"] or "").strip()) if t
     )
+    total = (
+        f'<span class="section-total">({_marks_word(info["marks"])})</span>'
+        if info["count"]
+        else ""
+    )
+    body = f'<p class="section-intro">{text}{total}</p>' if text or total else ""
+    return f'<div class="paper-section">{head}{body}</div>'
 
 
 def _mark_unit(item: list[str], marks: int, marked: bool) -> list[str]:
@@ -964,7 +1001,7 @@ def _render_document_body(
     marks: int = 0,
 ) -> str:
     """Document blocks in order; questions and rich text share one numbering counter."""
-    placement = _placement(doc)
+    placement = paper_placement(doc)
     start = number_from(doc)
     reset = f' style="counter-reset: q {start - 1}"' if start != 1 else ""
     out: list[str] = [f'<div class="doc-body questions"{reset}>']
@@ -980,6 +1017,7 @@ def _render_document_body(
             info = next(outline)
             marking = info["marking"] and not answer_key
             mcq = info["mode"] == "mcq"
+            placement = info["marks_placement"]
             out.append(_render_section(info))
         elif node["type"] == "freeformQuestion":
             item = _render_freeform_item(
@@ -1139,7 +1177,7 @@ def render_document_html(
             key_blocks,
             answer_key=True,
             assets=assets,
-            placement=_placement(doc),
+            placement=paper_placement(doc),
             key=key_opts,
             numbers=key_numbers,
         )
@@ -1168,7 +1206,7 @@ def render_document_html(
             key_blocks,
             answer_key=True,
             assets=assets,
-            placement=_placement(doc),
+            placement=paper_placement(doc),
             key=key_opts,
             numbers=key_numbers,
         )

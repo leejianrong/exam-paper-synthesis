@@ -15,11 +15,22 @@ cover:
     Answer all questions.
     Write your answers in the spaces provided.
     The use of calculators is not allowed.
+# Two sections, as every real Booklet B has: Q16-20 at 1 mark, then Q21-30 at 2 marks. The
+# titles are for the editor; generic ones like these do not print (EXA-139).
 sections:
-  - title: Booklet B
+  - title: Section A
     mode: short
-    marks_target: 25
-    instructions: Write your answer in the space provided.
+    marks_target: 5
+    instructions: >-
+      Write your answers in the spaces provided. For questions which require units, give your
+      answers in the units stated.
     slots:
       - { marks: 1, count: 5 }
+  - title: Section B
+    mode: short
+    marks_target: 20
+    instructions: >-
+      Show your working clearly in the spaces provided and write your answers in the spaces
+      provided. For questions which require units, give your answers in the units stated.
+    slots:
       - { marks: 2, count: 10 }

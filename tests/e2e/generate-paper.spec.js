@@ -30,7 +30,10 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
 
   const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
   expect(student).toContain('<p class="cover-subject">Primary 6 Mathematics</p>')
-  expect(student).toContain('Questions 6–17 · 45 marks · Structured')
+  // Real section headers (EXA-139): Section A states its marks, structured Section B points at the [n]
+  expect(student).toContain('Questions <b>1</b> to <b>5</b> carry 2 marks each.')
+  expect(student).toContain('The number of marks available is shown in brackets [ ]')
+  expect(student).toContain('<span class="section-total">(45 marks)</span>')
 
   // The banner goes away when dismissed and does not come back on reload.
   await page.getByTestId('generate-report').getByRole('button', { name: 'Dismiss' }).click()
@@ -50,7 +53,11 @@ test('generate a P5 Booklet B: placeholders for what the content cannot fill yet
   const hints = page.locator('.ff-placeholder-hint:visible')
   await expect(hints).toHaveCount(2)
   await expect(hints.first()).toHaveText(/write a [12]-mark short-answer question here/)
-  await expect(page.locator('.section-block .section-summary')).toHaveText('Questions 16–30 · 25 / 25 marks') // Booklet B numbers on from A (EXA-134)
+  // Booklet B numbers on from A (EXA-134), in a 1-mark and a 2-mark section as real papers (EXA-139)
+  await expect(page.locator('.section-block .section-summary')).toHaveText([
+    'Questions 16–20 · 5 / 5 marks',
+    'Questions 21–30 · 20 / 20 marks',
+  ])
 
   // Writing a placeholder's question clears it.
   await page.locator('.ffblock.placeholder-slot .ff-body').first().click()
