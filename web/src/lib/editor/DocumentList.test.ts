@@ -33,7 +33,6 @@ const TEMPLATES = {
 }
 
 import DocumentList from './DocumentList.svelte'
-import { get } from 'svelte/store'
 import { lastReport } from './paperReport'
 import { settings } from '../settings'
 
@@ -75,12 +74,21 @@ describe('DocumentList', () => {
     expect(await screen.findByText(/No papers yet/)).toBeInTheDocument()
   })
 
-  it('creates a paper and navigates into it', async () => {
+  it('+ New opens the wizard; a blank paper opens in the editor; Escape gives focus back', async () => {
     listDocuments.mockResolvedValue([])
     createDocument.mockResolvedValue({ ...summary('new1', 'Untitled paper'), document: {} })
     render(DocumentList)
-    await fireEvent.click(await screen.findByRole('button', { name: '+ New paper' }))
+    const trigger = await screen.findByRole('button', { name: '+ New' })
+    trigger.focus()
+    await fireEvent.click(trigger)
+    const dialog = await screen.findByRole('dialog', { name: 'New' })
+    await fireEvent.keyDown(dialog, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(trigger).toHaveFocus())
+    await fireEvent.click(trigger)
+    await fireEvent.click(await screen.findByRole('button', { name: 'Blank paper' }))
     await waitFor(() => expect(location.hash).toBe('#/docs/new1'))
+    expect(createDocument).toHaveBeenCalledWith(undefined, undefined, null)
   })
 
   it('deletes only after a second confirming click', async () => {
@@ -100,30 +108,41 @@ describe('DocumentList', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('authentication required')
   })
 
-  it('starts a paper from an engine template by its code', async () => {
+  it('makes an exam set into a new folder, adds the papers and shows the folder (O3)', async () => {
     listDocuments.mockResolvedValue([])
-    createDocument.mockResolvedValue({ ...summary('t1', 'Paper 2'), document: {} })
+    createFolder.mockResolvedValue(folder('fs', 'P6 exam set'))
+    const parts = { p1_booklet_a: 'booklet_a', p1_booklet_b: 'booklet_b', p2: 'paper_2' } as const
+    createDocument.mockImplementation(async (_t: unknown, code: keyof typeof parts, fid: string) => ({
+      ...summary(`d-${code}`, 'Renamed', fid),
+      paper_part: parts[code],
+      document: {},
+    }))
     render(DocumentList)
-    await fireEvent.click(await screen.findByRole('button', { name: 'Paper 2' }))
-    await waitFor(() => expect(location.hash).toBe('#/docs/t1'))
-    expect(createDocument).toHaveBeenCalledWith(undefined, 'p2')
+    await fireEvent.click(await screen.findByRole('button', { name: '+ New' }))
+    await fireEvent.click(await screen.findByRole('button', { name: 'Exam set' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await fireEvent.click(await screen.findByRole('button', { name: 'Empty starters' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    const chips = await screen.findByRole('list', { name: 'Exam set in “P6 exam set”' })
+    // Titled "Renamed": the chips come from the server's paper_part, not the title.
+    expect(within(chips).getAllByRole('listitem').map((li) => li.classList.contains('on'))).toEqual([true, true, true])
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'P6 exam set' })).toHaveFocus())
+    expect(screen.getByRole('status')).toHaveTextContent('Folder “P6 exam set” created.')
   })
 
-  it('generates a whole paper for the chosen template and level, and hands on the report', async () => {
+  it('a folder’s “+ New in folder” files what the wizard makes there', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
     listDocuments.mockResolvedValue([])
-    const report = { template: 'p1_booklet_b', level: 'P5', filled: 7, placeholders: 8 }
-    generatePaper.mockResolvedValue({ ...summary('g1', 'P5 Paper 1 Booklet B'), document: {}, report })
+    createDocument.mockResolvedValue({ ...summary('t1', 'Paper 2', 'f1'), document: {} })
     render(DocumentList)
-    const form = await screen.findByRole('form', { name: 'Generate a paper' })
-    expect(form).toBeInTheDocument()
-    // Paper 2 is preselected (the last template); pick Booklet B at P5
-    await waitFor(() => expect(screen.getByLabelText('Paper to generate')).toHaveValue('p2'))
-    await fireEvent.change(screen.getByLabelText('Paper to generate'), { target: { value: 'p1_booklet_b' } })
-    await fireEvent.change(screen.getByLabelText('Level'), { target: { value: 'P5' } })
-    await fireEvent.click(screen.getByRole('button', { name: 'Generate paper' }))
-    await waitFor(() => expect(location.hash).toBe('#/docs/g1'))
-    expect(generatePaper).toHaveBeenCalledWith('p1_booklet_b', 'P5')
-    expect(get(lastReport)).toEqual({ docId: 'g1', report })
+    const here = await screen.findByRole('button', { name: '+ New in folder “Prelims 2026”' })
+    await fireEvent.click(here)
+    const dialog = await screen.findByRole('dialog', { name: 'New' })
+    expect(dialog).toHaveTextContent('Papers go in Prelims 2026.')
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Template' }))
+    await fireEvent.click(await screen.findByRole('button', { name: 'Paper 2' }))
+    await waitFor(() => expect(location.hash).toBe('#/docs/t1'))
+    expect(createDocument).toHaveBeenCalledWith(undefined, 'p2', 'f1')
   })
 
   it('hides the Classic generator link unless the setting is on (O1); Settings is always there', async () => {
@@ -196,28 +215,21 @@ describe('DocumentList folders (O2)', () => {
     expect(await screen.findByText(/No papers in this folder yet/)).toBeInTheDocument()
   })
 
-  it('creates a folder from the inline field', async () => {
+  it('creates a folder from the wizard and focuses it in the list', async () => {
     listDocuments.mockResolvedValue([])
     createFolder.mockResolvedValue(folder('f1', 'Prelims 2026'))
     render(DocumentList)
-    await fireEvent.click(await screen.findByRole('button', { name: '+ New folder' }))
+    await fireEvent.click(await screen.findByRole('button', { name: '+ New' }))
+    await fireEvent.click(await screen.findByRole('button', { name: 'New folder' }))
     const input = screen.getByRole('textbox', { name: 'Folder name' })
     await waitFor(() => expect(input).toHaveFocus())
     await fireEvent.input(input, { target: { value: '  Prelims 2026 ' } })
     await fireEvent.click(screen.getByRole('button', { name: 'Create folder' }))
     await waitFor(() => expect(createFolder).toHaveBeenCalledWith('Prelims 2026'))
     expect(await screen.findByRole('heading', { name: 'Prelims 2026' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByRole('status')).toHaveTextContent('Folder “Prelims 2026” created.')
-    await waitFor(() => expect(screen.getByRole('button', { name: '+ New folder' })).toHaveFocus())
-  })
-
-  it('Escape cancels the new-folder field', async () => {
-    listDocuments.mockResolvedValue([])
-    render(DocumentList)
-    await fireEvent.click(await screen.findByRole('button', { name: '+ New folder' }))
-    await fireEvent.keyDown(screen.getByRole('textbox', { name: 'Folder name' }), { key: 'Escape' })
-    expect(screen.queryByRole('textbox', { name: 'Folder name' })).toBeNull()
-    expect(createFolder).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Prelims 2026' })).toHaveFocus())
   })
 
   it('moves a paper into a folder from its Move menu, by keyboard', async () => {

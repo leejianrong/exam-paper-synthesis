@@ -37,11 +37,15 @@ export async function listDocuments(): Promise<DocumentSummary[]> {
   return ((await res.json()) as { documents: DocumentSummary[] }).documents
 }
 
-export async function createDocument(title?: string, template?: string): Promise<DocumentRecord> {
+export async function createDocument(
+  title?: string,
+  template?: string,
+  folderId?: string | null,
+): Promise<DocumentRecord> {
   const res = await apiFetch(`${BASE}/documents`, {
     method: 'POST',
     headers: json,
-    body: JSON.stringify({ title: title ?? null, template: template ?? null }),
+    body: JSON.stringify({ title: title ?? null, template: template ?? null, folder_id: folderId ?? null }),
   })
   if (!res.ok) return fail(res)
   return (await res.json()) as DocumentRecord
@@ -150,11 +154,12 @@ export interface PaperReport {
 export async function generatePaper(
   template: string,
   level: string,
+  folderId?: string | null,
 ): Promise<DocumentRecord & { report: PaperReport }> {
   const res = await apiFetch(`${BASE}/documents/generate`, {
     method: 'POST',
     headers: json,
-    body: JSON.stringify({ template, level }),
+    body: JSON.stringify({ template, level, folder_id: folderId ?? null }),
   })
   if (!res.ok) return fail(res)
   return (await res.json()) as DocumentRecord & { report: PaperReport }

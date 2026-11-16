@@ -11,6 +11,7 @@ re-solve check that keeps the "engine-proven" claim unforgeable).
 from __future__ import annotations
 
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -209,6 +210,32 @@ def cover_page(doc: dict) -> dict | None:
     """The paper's cover block (P7), or ``None``. Validation keeps it first and unique."""
     blocks = doc["content"]["content"]
     return blocks[0] if blocks and blocks[0]["type"] == "coverPage" else None
+
+
+_PART_PATTERNS = (
+    ("booklet_a", re.compile(r"\bbooklet\s*a\b", re.IGNORECASE)),
+    ("booklet_b", re.compile(r"\bbooklet\s*b\b", re.IGNORECASE)),
+    ("paper_2", re.compile(r"\bpaper\s*(2|two|ii)\b", re.IGNORECASE)),
+)
+
+
+def _part_of(text: object) -> str | None:
+    if not isinstance(text, str):
+        return None
+    return next((part for part, pat in _PART_PATTERNS if pat.search(text)), None)
+
+
+def paper_part(doc: dict) -> str | None:
+    """Which exam-set paper this is (O3): ``"booklet_a"``, ``"booklet_b"``, ``"paper_2"`` or
+    ``None``. Read from the cover page's ``paper`` field (the templates write "Paper 1
+    (Booklet A)", "Paper 2"), so renaming the paper does not change it; the title is the
+    fallback for a paper without a cover, or whose cover names none of the three."""
+    try:
+        cover = cover_page(doc)
+    except (KeyError, TypeError):
+        cover = None
+    from_cover = _part_of(((cover or {}).get("attrs") or {}).get("paper"))
+    return from_cover or _part_of(doc.get("title"))
 
 
 def total_marks(doc: dict) -> int:

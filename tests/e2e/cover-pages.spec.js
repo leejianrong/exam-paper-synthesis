@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { settled } from './helpers.js'
+import { settled, newBlankPaper, newFromTemplate } from './helpers.js'
 
 /**
  * Browser acceptance for P7: add a cover page and a blank page from the toolbar, fill the cover,
@@ -8,7 +8,7 @@ import { settled } from './helpers.js'
  */
 test('the toolbar adds a cover page to a new paper, first and only once', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: '+ New paper' }).click()
+  await newBlankPaper(page)
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const coverButton = page.getByRole('button', { name: 'Cover page', exact: true })
   await expect(coverButton).toBeEnabled()
@@ -20,7 +20,7 @@ test('the toolbar adds a cover page to a new paper, first and only once', async 
 
 test('a starter template comes with its cover; fill it, add a blank page, reload, preview', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'Paper 2', exact: true }).click()
+  await newFromTemplate(page, 'Paper 2')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
@@ -64,7 +64,7 @@ test('a starter template comes with its cover; fill it, add a blank page, reload
 
 test('a selected cover is never replaced by a toolbar insert or typing (EXA-129)', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'Paper 2', exact: true }).click()
+  await newFromTemplate(page, 'Paper 2')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const cover = page.locator('.cover-block')
   await cover.locator('.page-block-title').click() // one click selects the whole cover block

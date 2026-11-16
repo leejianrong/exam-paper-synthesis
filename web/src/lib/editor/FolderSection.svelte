@@ -7,6 +7,8 @@
   export let group: FolderGroup
   export let onRename: (name: string) => Promise<boolean>
   export let onDelete: () => Promise<void>
+  /** O3: open the + New wizard with this folder as the home for what it makes. */
+  export let onNew: (e: Event) => void
 
   let renaming = false
   let name = ''
@@ -87,9 +89,12 @@
       </form>
       <h2 id={headingId} class="sr">{f.name}</h2>
     {:else}
-      <h2 id={headingId}>{f.name}</h2>
+      <h2 id={headingId} tabindex="-1">{f.name}</h2>
       <span class="count">{papers(count)}</span>
       <div class="actions">
+        <button class="act" aria-haspopup="dialog" aria-label={`+ New in folder “${f.name}”`} on:click={onNew}>
+          + New in folder
+        </button>
         <button class="act" bind:this={renameButton} aria-label={`Rename folder “${f.name}”`} on:click={startRename}>
           Rename
         </button>
@@ -124,7 +129,7 @@
   {/if}
 
   {#if count === 0}
-    <p class="empty">No papers in this folder yet. Use <b>Move</b> on a paper to file it here.</p>
+    <p class="empty">No papers in this folder yet. Use <b>+ New in folder</b>, or <b>Move</b> on a paper to file it here.</p>
   {:else}
     <slot />
   {/if}
@@ -139,6 +144,7 @@
   }
   .fhead {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem;
     min-height: 32px;
@@ -162,7 +168,19 @@
   .actions {
     margin-left: auto;
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 0.4rem;
+  }
+  h2:focus {
+    outline: none;
+  }
+  h2 {
+    scroll-margin-top: 1.5rem;
+  }
+  h2:focus-visible {
+    outline: 2px solid var(--verify);
+    outline-offset: 2px;
   }
   .rename {
     flex: 1;
