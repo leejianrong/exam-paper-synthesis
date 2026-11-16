@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { settled } from './helpers.js'
+import { settled, newFromTemplate } from './helpers.js'
 
 /**
  * Browser acceptance for P4 paper structure: start from the Paper 2 template, see its sections
@@ -9,7 +9,7 @@ import { settled } from './helpers.js'
  */
 test('start from the Paper 2 template, structure the paper, reload, preview and export', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'Paper 2', exact: true }).click()
+  await newFromTemplate(page, 'Paper 2')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
@@ -73,7 +73,7 @@ test('start from the Paper 2 template, structure the paper, reload, preview and 
 
 test('the marking margin follows the section mode and can be switched per section', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'Paper 1 · Booklet B' }).click()
+  await newFromTemplate(page, 'Paper 1 · Booklet B')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 

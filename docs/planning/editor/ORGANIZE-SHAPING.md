@@ -128,6 +128,67 @@ gaps as cards.
   and `tests/e2e/folders.spec.js` (create a folder, move a paper in, chip fills, delete the
   folder, the paper is unfiled and its version unchanged).
 
+## O3 as built (EXA-127)
+
+- **One entry point.** *+ New* on "Your papers" opens `NewWizard.svelte` (a modal dialog). It
+  replaces the list's *+ New paper* button, the template buttons, the *Generate a paper* form and
+  the inline *+ New folder* field. Choices, as M3 option cards (outlined, 12 px corners, a
+  leading icon on `--verify-soft`, the 8 % / 12 % state layer), in order: *New folder*, *Exam
+  set*, *Single paper*, *Template*, *Blank paper*. Single choices inside a step (where the exam
+  set goes) are M3 filter chips over native radios; levels are compact cards ("Generate at P5",
+  "Generate at P6", "Empty starters" / "Start it empty").
+- **Steps.** New folder: name → create → the dialog closes and the folder's heading is scrolled
+  to and focused. Exam set: *Put them in* a new folder (default name "P6 exam set", editable) or
+  an existing one → *Next* → *Generate at P5 / P6* (`POST /documents/generate` per template with
+  `folder_id`) or *Empty starters* (`POST /documents` with `template` + `folder_id`). The folder
+  is created first; if that fails nothing else is tried. The three papers are made **one at a
+  time** (each generation is a full solve; three at once would only contend for the server) with
+  a row each (waiting / making / made / failed). Each made paper is added to the list as it
+  arrives. If all three succeed the folder is shown; if any fails the dialog stays, says which
+  part failed and why, names the parts that were kept, and offers *Try … again* (only the failed
+  parts, into the same folder) and *Show the folder*. Single paper: pick Booklet A / B / Paper 2
+  → optional folder (a select, "No folder" by default) → generate at a level (the fill report
+  goes to the editor's banner as before) or start it empty; opens in the editor. Template: the
+  templates from `GET /papers` (today the same three starters, shown with sections, questions,
+  marks and time) → opens in the editor. Blank paper: opens in the editor.
+- **Current folder.** There is no "current folder" on the list (all folders are shown expanded),
+  so none was invented. Instead each folder has **+ New in folder**, which opens the same wizard
+  with that folder as its home: the dialog says "Papers go in X", the exam set preselects it,
+  the single-paper folder select defaults to it, and Template / Blank paper file into it. From
+  the top *+ New* nothing is assumed: the exam set defaults to a new folder and the rest are
+  unfiled unless the teacher picks a folder.
+- **Keyboard and focus.** Arrow keys (and Home / End) move between the option cards of a group,
+  wrapping; Enter / Space picks. Escape steps back (or closes on the first step; while a set is
+  being made it does nothing). A back arrow is shown from the second step on. Tab and Shift+Tab
+  wrap inside the dialog. Closing returns focus to the button that opened it (*+ New* or the
+  folder's *+ New in folder*); after a folder or set is made, focus goes to that folder's heading
+  instead, so the teacher lands on the result. Cards are named by their title, with the
+  description as `aria-describedby`; progress changes are announced in a polite status line.
+  At phone width the dialog fills the screen less a 16 px gutter and the cards stack.
+- **`paper_part` (from #210's review).** `exam_engine.document.paper_part(doc)` returns
+  `booklet_a` / `booklet_b` / `paper_2` / `None` from the cover page's `paper` field ("Paper 1
+  (Booklet A)", "Paper 2"), falling back to the title when there is no cover or it names none.
+  Both stores add it to every document record (`_record` / `_doc_record`), so `GET /documents`,
+  the `PATCH` move summary and the full records all carry it. The cheapest correct place: the
+  list query already selects the whole row (`SELECT *`), so this costs one JSON parse per paper
+  on SQLite (Postgres hands back the decoded JSONB) and no extra query or column; the route
+  layer could not do it because the list records it gets have no content. A stored column
+  would need a migration and a backfill for no measurable gain at today's list sizes.
+  `folders.ts` `partOf` prefers `paper_part` and falls back to the title regex only when a
+  summary lacks the field.
+- **Tests.** `tests/test_paper_part.py` (engine), a store contract test in
+  `tests/test_docstore.py` (SQLite and Postgres), an API test in `tests/test_api_folders.py`;
+  `NewWizard.test.ts` (each choice, both exam-set branches, existing vs new folder, partial
+  failure and retry, folder failure, keyboard, Escape / Back, Tab wrap), `DocumentList.test.ts`
+  (opening, focus return, *+ New in folder*, the exam set filling the chips), `folders.test.ts`
+  (`partOf`); e2e `folders.spec.js` (+ New → Exam set → new folder → Empty starters → three
+  papers, three chips filled, survives a reload). The specs that used the old list controls go
+  through the wizard with `helpers.js` `newBlankPaper` / `newFromTemplate` /
+  `generateSinglePaper`.
+- **Open question.** *Template* and *Single paper → Start it empty* make the same paper today,
+  because the only templates are the three exam papers. Template becomes distinct when other
+  starters (a worksheet, a topic test) are added; until then the owner may prefer to drop one.
+
 ## Not in this round
 
 Nested folders, sharing folders between teachers, drag-and-drop, bulk export of a whole exam

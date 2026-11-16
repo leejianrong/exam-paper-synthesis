@@ -61,6 +61,16 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **The + New wizard (O3, EXA-127)** — *+ New* on "Your papers" opens one dialog in place of
+  the old *+ New paper* button, template buttons, generate form and *+ New folder* field. Pick
+  *New folder*, *Exam set* (Booklet A, Booklet B and Paper 2 into a new or existing folder,
+  generated at P5 / P6 or as empty starters, with progress for each paper; if one fails it says
+  which, keeps the others and offers to try it again), *Single paper* (generated or empty,
+  optionally in a folder), *Template* or *Blank paper*. Each folder has *+ New in folder*, which
+  opens the wizard with that folder as the home for what it makes. Keyboard operable (arrow keys
+  between options, Escape steps back or closes, focus stays in the dialog). Each listed paper now
+  carries a `paper_part` read from its cover page, so the exam-set chips stay right after a
+  rename.
 - **Folders on "Your papers" (O2, web, EXA-126)** — the paper list is grouped by folder, then
   *Unfiled*. Each folder shows its papers and an exam-set chip for *Booklet A · Booklet B ·
   Paper 2*, filled when the folder holds that paper (read from the paper's title). Make a
