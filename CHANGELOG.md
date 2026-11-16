@@ -10,6 +10,15 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Changed
 
+- **Every printed page has its furniture, and pages end full (EXA-138).** Each question page now
+  has a footer: the page number in the centre (the cover counts as page 1, as on real booklets),
+  "(Go on to the next page)" at the right on all but the last page, and a small school · exam ·
+  paper tag at the left when the cover names them. "End of Booklet A", "End of Booklet B" or
+  "End of Paper" follows the last question. When the next question moves to a new page, the last
+  working space on the page is stretched down to the footer, with its Ans: line at the bottom. A
+  structured section (Paper 2's second half) gives each question a page of its own. The tally box
+  is 12 mm and sits on the footer line; the marking margin is one strip per page, captioned once
+  at the top. Answer-key pages are numbered too.
 - **Section headers, marks and the Ans: line print as on real papers (EXA-139).** A section header
   is now a sentence built from its questions ("Questions 16 to 20 carry 1 mark each.", or for a
   structured section "The number of marks available is shown in brackets [ ] …"), then the

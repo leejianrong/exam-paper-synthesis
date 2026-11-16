@@ -3,7 +3,7 @@
 // what the PDF will print; the editor does not try to guess page breaks from its own layout.
 
 export interface PageInfo {
-  page: number
+  page: number // the printed page number: the cover counts as page 1 (EXA-138)
   first: number | null // first / last question number on the page (null: no question)
   last: number | null
   continued: boolean // the page opens with the rest of a question that began earlier
@@ -12,7 +12,7 @@ export interface PageInfo {
 }
 
 export interface PageSummary {
-  paginated: boolean // false: the paper has no marking section, so the paper is not paginated
+  paginated: boolean // false: the preview was not paginated (every paper is since EXA-138)
   pages: PageInfo[]
   warnings: number // questions whose working space had to be trimmed to fit a page
 }

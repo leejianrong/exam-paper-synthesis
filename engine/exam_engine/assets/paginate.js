@@ -1,16 +1,21 @@
-/* P6b paginator: gives each printed page its own tally box.
+/* The paper's paginator (P6b, EXA-138): lays a printed paper out page by page.
  *
- * Only runs on a paper the renderer flagged with a tally attribute on <main>. It measures the laid-out
+ * Runs on a paper the renderer flagged with data-paginate on <main>. It measures the laid-out
  * paper once, works out where Chromium will start each page (questions never split, a heading
- * stays with the next block), then wraps each page's blocks in a fixed-height box and adds a
- * tally box with that page's marks. Printing the wrapped paper therefore gives exactly the pages
- * computed here (see docs/planning/editor/P6-SPIKE.md). Sets <html data-paginated="true"> when
- * done, also on papers it leaves alone, so the PDF step can always wait for it.
+ * stays with the next block, a multi-part question may break between its parts), then wraps
+ * each page's blocks in a fixed-height box and gives every question page its furniture: a
+ * footer (tag, page number, "(Go on to the next page)" except on the last page), the marking
+ * strip down the right when the page holds marked questions, and the tally box with that page's
+ * marks (data-tally). When a page ends because the next question did not fit, the last working
+ * space on it is stretched down to the footer. Printing the wrapped paper therefore gives
+ * exactly the pages computed here (see docs/planning/editor/P6-SPIKE.md). Sets
+ * <html data-paginated="true"> when done, also on papers it leaves alone, so the PDF step can
+ * always wait for it.
  */
 (function () {
   var MM = 96 / 25.4;
   var PAGE_H = (297 - 2 * 18) * MM; // content height of an A4 page under @page margin 18mm 16mm
-  var TALLY_H = 22 * MM; // room kept clear at the foot of every page for the tally box
+  var FOOT_H = 16 * MM; // room kept clear at the foot of every page for the footer and tally
   var SLACK = 2; // px: rounding must never spill a blank page
   var MIN_SPACE_MM = 10; // working space is never clamped below this
 
@@ -28,7 +33,7 @@
     );
   }
 
-  function measure(kids) {
+  function measure(kids, startsPage) {
     return kids.map(function (el) {
       var r = el.getBoundingClientRect();
       var cs = getComputedStyle(el);
@@ -37,10 +42,24 @@
         top: r.top + scrollY,
         bottom: r.bottom + scrollY,
         keepNext: cs.breakAfter === "avoid" || cs.breakAfter === "avoid-page",
+        keepPrev: cs.breakBefore === "avoid" || cs.breakBefore === "avoid-page", // the end marker
         forced: cs.breakAfter === "page",
-        forcedBefore: cs.breakBefore === "page", // a blank page (P7) starts a page of its own
+        // a blank page (P7) or a structured question (EXA-138) starts a page of its own
+        forcedBefore: cs.breakBefore === "page" || startsPage.has(el),
       };
     });
+  }
+
+  // The last index of the run that must share a page with items[i].
+  function runEnd(items, i) {
+    var j = i;
+    while (
+      j < items.length - 1 &&
+      (items[j].keepNext || items[j + 1].keepPrev) &&
+      !items[j + 1].forcedBefore
+    )
+      j++;
+    return j;
   }
 
   // A question taller than a page would be clipped. Shrink its blank working space (never below
@@ -50,8 +69,7 @@
     var changed = false;
     var i = 0;
     while (i < items.length) {
-      var j = i;
-      while (j < items.length - 1 && items[j].keepNext && !items[j + 1].forcedBefore) j++;
+      var j = runEnd(items, i);
       var from = i === 0 ? sheetTop : items[i].top; // page 1 also holds the paper's header
       var over = items[j].bottom - from - avail;
       if (over > 0) {
@@ -83,8 +101,7 @@
     var placed = 0; // groups already on the current page: never leave a page empty
     var i = 0;
     while (i < items.length) {
-      var j = i;
-      while (j < items.length - 1 && items[j].keepNext && !items[j + 1].forcedBefore) j++;
+      var j = runEnd(items, i);
       if (items[i].forcedBefore && placed > 0) {
         page++;
         placed = 0;
@@ -124,32 +141,64 @@
     return box;
   }
 
+  function marginStrip() {
+    var strip = document.createElement("div");
+    strip.className = "margin-strip";
+    strip.setAttribute("aria-hidden", "true");
+    strip.innerHTML = "<span>Do not write in this space</span>";
+    return strip;
+  }
+
+  // Stretch the working space of the last question on a page that ends early down to the
+  // footer, so the page does not end on a white gap under a small box. Its Ans: lines move down
+  // with it; the parts of a multi-part question share the extra room equally.
+  function fill(pg) {
+    var flow = Array.prototype.filter.call(pg.children, function (c) {
+      return !c.classList.contains("page-foot") && !c.classList.contains("margin-strip");
+    });
+    var last = flow[flow.length - 1];
+    var spaces = last ? last.querySelectorAll(".answer-space") : [];
+    if (!spaces.length) return;
+    var bottom = last.getBoundingClientRect().bottom + parseFloat(getComputedStyle(last).marginBottom);
+    var free = pg.getBoundingClientRect().top + pg.clientHeight - FOOT_H - bottom - SLACK;
+    if (free <= 1) return;
+    var each = free / spaces.length;
+    Array.prototype.forEach.call(spaces, function (space) {
+      space.style.height = space.getBoundingClientRect().height + each + "px";
+      space.style.minHeight = "0";
+      space.setAttribute("data-filled", "");
+    });
+  }
+
   function build() {
-    var main = document.querySelector("main[data-tally]");
+    var main = document.querySelector("main[data-paginate]");
     var body = main && main.querySelector(".doc-body");
-    var template = document.getElementById("tally-template");
-    if (!body || !template || !body.children.length) return done();
+    var footTemplate = document.getElementById("page-foot-template");
+    var tallyTemplate = document.getElementById("tally-template");
+    if (!body || !footTemplate || !body.children.length) return done();
 
     // A multi-part question is counted part by part, so it may break between its parts: its
     // parts stand in for it, and `owner` remembers which question each one belongs to.
     var owner = new Map();
+    var startsPage = new Set(); // the first part of a question that starts a page of its own
     var kids = [];
     Array.prototype.forEach.call(body.children, function (el) {
-      var units = el.querySelectorAll(":scope > .part-unit[data-marks]");
+      var units = el.querySelectorAll(":scope > .part-unit");
       if (!units.length) return kids.push(el);
+      if (getComputedStyle(el).breakBefore === "page") startsPage.add(units[0]);
       Array.prototype.forEach.call(units, function (u) {
         owner.set(u, el);
         kids.push(u);
       });
     });
     var sheetTop = main.getBoundingClientRect().top + scrollY;
-    var avail = PAGE_H - TALLY_H;
+    var avail = PAGE_H - FOOT_H;
     var warnings = [];
 
-    var items = measure(kids);
+    var items = measure(kids, startsPage);
     // The header sits above the first block on page 1, so that page has less room.
     var head = items[0].top - sheetTop;
-    if (clamp(items, sheetTop, avail, warnings)) items = measure(kids);
+    if (clamp(items, sheetTop, avail, warnings)) items = measure(kids, startsPage);
 
     var pageOf = paginate(items, sheetTop, avail);
     var pages = [];
@@ -160,6 +209,7 @@
       pages[pageOf[i]].marks += marksOf(it.el);
     });
 
+    var boxes = [];
     pages.forEach(function (p, n) {
       if (!p) return;
       var pg = document.createElement("div");
@@ -184,11 +234,36 @@
         }
         frag.node.appendChild(el);
       });
-      if (p.marks > 0) pg.appendChild(tallyBox(template, p.marks));
+      boxes.push({ pg: pg, marks: p.marks });
+    });
+
+    // A cover or blank page carries no footer; the page number still counts it (the cover is
+    // page 1, as on real booklets). The last question page ends the paper: no "Go on" there.
+    var questionPage = function (b) {
+      return !b.pg.querySelector(".cover-page, .blank-page");
+    };
+    var last = boxes.length - 1;
+    boxes.forEach(function (b, n) {
+      if (b.pg.querySelector(".end-marker")) last = n;
+    });
+    boxes.forEach(function (b, n) {
+      var pg = b.pg;
+      if (!questionPage(b)) return;
+      if (pg.querySelector(".question.marked")) {
+        pg.classList.add("marked");
+        pg.appendChild(marginStrip());
+      }
+      var foot = footTemplate.content.firstElementChild.cloneNode(true);
+      foot.querySelector(".foot-num").textContent = String(n + 1);
+      if (n >= last) foot.querySelector(".foot-go").remove();
+      if (b.marks > 0 && tallyTemplate) foot.querySelector(".foot-end").appendChild(tallyBox(tallyTemplate, b.marks));
+      pg.appendChild(foot);
       // Whatever could not be made to fit is printed in full (Chromium splits it) rather than cut.
       if (pg.scrollHeight > pg.clientHeight + 1) {
         pg.style.height = "auto";
         pg.style.overflow = "visible";
+      } else if (n < last) {
+        fill(pg);
       }
     });
     done(warnings);
