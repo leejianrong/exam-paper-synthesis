@@ -1,6 +1,7 @@
 <script lang="ts">
-  // O3: the "+ New" dialog. Five choices as option cards (new folder, exam set, single paper,
-  // template, blank paper), then a step or two each. A single paper opens in the editor; an exam
+  // O3: the "+ New" dialog. Four choices as option cards (new folder, exam set, single paper,
+  // blank paper), then a step or two each. (A separate Template choice made the same papers as
+  // Single paper → Start it empty, so it was dropped.) A single paper opens in the editor; an exam
   // set makes its three papers one after the other into one folder, says which failed (and keeps
   // what was made), then shows the folder. Escape goes back a step, or closes on the first;
   // focus stays in the dialog, and the list puts it back on the button that opened it.
@@ -29,14 +30,13 @@
   /** Close the wizard and bring the folder into view (after an exam set). */
   export let onShowFolder: (id: string) => void
 
-  type Step = 'choose' | 'folder' | 'set-folder' | 'set-content' | 'set-progress' | 'single' | 'single-how' | 'template'
-  type Choice = 'folder' | 'set' | 'single' | 'template' | 'blank'
+  type Step = 'choose' | 'folder' | 'set-folder' | 'set-content' | 'set-progress' | 'single' | 'single-how'
+  type Choice = 'folder' | 'set' | 'single' | 'blank'
 
   const CHOICES: { key: Choice; title: string; desc: string }[] = [
     { key: 'folder', title: 'New folder', desc: 'An empty folder to keep papers together.' },
     { key: 'set', title: 'Exam set', desc: 'Paper 1 Booklet A, Booklet B and Paper 2 in one folder.' },
-    { key: 'single', title: 'Single paper', desc: 'One Booklet A, Booklet B or Paper 2, generated or empty.' },
-    { key: 'template', title: 'Template', desc: 'A starter paper: cover, sections and time, no questions.' },
+    { key: 'single', title: 'Single paper', desc: 'One Booklet A, Booklet B or Paper 2: generated, or empty with its cover and sections.' },
     { key: 'blank', title: 'Blank paper', desc: 'An empty paper to write from scratch.' },
   ]
   const TITLES: Record<Step, string> = {
@@ -47,7 +47,6 @@
     'set-progress': 'Exam set',
     single: 'Single paper',
     'single-how': 'Single paper',
-    template: 'Template',
   }
 
   let step: Step = 'choose'
@@ -173,7 +172,6 @@
     if (c === 'folder') return go('folder')
     if (c === 'set') return go('set-folder')
     if (c === 'single') return go('single')
-    if (c === 'template') return go('template')
     await openNew(() => createDocument(undefined, undefined, contextFolder?.id ?? null))
   }
 
@@ -320,8 +318,6 @@
                 <svg viewBox="0 0 24 24"><path d="M8 2h10a2 2 0 0 1 2 2v12h-2V4H8zM4 6h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" /></svg>
               {:else if c.key === 'single'}
                 <svg viewBox="0 0 24 24"><path d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5zM7 12v2h10v-2zm0 4v2h7v-2z" /></svg>
-              {:else if c.key === 'template'}
-                <svg viewBox="0 0 24 24"><path d="M4 3h16a1 1 0 0 1 1 1v4H3V4a1 1 0 0 1 1-1zm-1 7h7v11H4a1 1 0 0 1-1-1zm9 0h9v10a1 1 0 0 1-1 1h-8z" /></svg>
               {:else}
                 <svg viewBox="0 0 24 24"><path d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5z" /></svg>
               {/if}
@@ -466,26 +462,6 @@
         <button class="card compact" data-opt disabled={busy} on:click={() => openNew(() => createDocument(undefined, singleCode, singleFolder || null))}>
           <span class="ctitle">Start it empty</span>
         </button>
-      </div>
-    {:else if step === 'template'}
-      {#if contextFolder}<p class="lead">The paper goes in <b>{contextFolder.name}</b>.</p>{/if}
-      <div class="cards" role="group" aria-label="Starter templates" data-options>
-        {#each templates as t, i (t.code)}
-          <button
-            class="card"
-            data-opt
-            data-autofocus={i === 0 ? '' : undefined}
-            aria-labelledby={`nw-tl-${t.code}`}
-            aria-describedby={`nw-t-${t.code}`}
-            disabled={busy}
-            on:click={() => openNew(() => createDocument(undefined, t.code, contextFolder?.id ?? null))}
-          >
-            <span class="ctext">
-              <span class="ctitle" id={`nw-tl-${t.code}`}>{t.label}</span>
-              <span class="cdesc" id={`nw-t-${t.code}`}>{describe(t)}</span>
-            </span>
-          </button>
-        {/each}
       </div>
     {/if}
 

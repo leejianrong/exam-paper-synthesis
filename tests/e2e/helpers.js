@@ -40,10 +40,12 @@ export async function newBlankPaper(page) {
 }
 
 /** `label` is the template's label from GET /papers, e.g. "Paper 2", "Paper 1 · Booklet B". */
+/** A starter paper (cover and sections, no questions): + New → Single paper → Start it empty. */
 export async function newFromTemplate(page, label) {
   const dialog = await openNew(page)
-  await dialog.getByRole('button', { name: 'Template', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Single paper', exact: true }).click()
   await dialog.getByRole('button', { name: label, exact: true }).click()
+  await dialog.getByRole('button', { name: 'Start it empty', exact: true }).click()
 }
 
 export async function generateSinglePaper(page, label, level) {

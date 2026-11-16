@@ -185,9 +185,10 @@ gaps as cards.
   papers, three chips filled, survives a reload). The specs that used the old list controls go
   through the wizard with `helpers.js` `newBlankPaper` / `newFromTemplate` /
   `generateSinglePaper`.
-- **Open question.** *Template* and *Single paper → Start it empty* make the same paper today,
-  because the only templates are the three exam papers. Template becomes distinct when other
-  starters (a worksheet, a topic test) are added; until then the owner may prefer to drop one.
+- **Template dropped (owner, 2026-11-17).** *Template* and *Single paper → Start it empty* made
+  the same paper (the only templates are the three exam papers), so the *Template* choice is
+  gone: four choices remain. Bring it back when other starters (a worksheet, a topic test)
+  exist. `helpers.newFromTemplate` now goes through *Single paper → Start it empty*.
 
 ## Not in this round
 
