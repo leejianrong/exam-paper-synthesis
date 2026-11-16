@@ -1,11 +1,11 @@
 <script lang="ts" module>
   import { renderDiagramSvg } from './api'
-  import type { ServerSpec } from './barModel'
+  import type { DiagramSpec } from './diagram'
 
   // One fetch per distinct spec for the life of the page; a failure is never cached.
   const cache: Record<string, Promise<string>> = {}
 
-  function load(spec: ServerSpec): Promise<string> {
+  function load(spec: DiagramSpec): Promise<string> {
     const key = JSON.stringify(spec)
     if (!(key in cache)) {
       cache[key] = renderDiagramSvg(spec)
@@ -16,9 +16,8 @@
 </script>
 
 <script lang="ts">
-  // A figure the engine draws and the web has no mirror for (chart, solid, number_line, cube_stack,
-  // panels): fetch the SVG from POST /render/diagram.
-  export let spec: ServerSpec
+  // A figure the engine draws (every type but raster): fetch the SVG from POST /render/diagram.
+  export let spec: DiagramSpec
 </script>
 
 {#await load(spec)}

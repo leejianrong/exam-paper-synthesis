@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/svelte'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/svelte'
 import QuestionCard from './QuestionCard.svelte'
 import type { Question } from './types'
 
@@ -26,6 +26,17 @@ const question: Question = {
     ],
   },
 }
+
+// Figures come from the engine (POST /render/diagram, EXA-151): answer with a tagged SVG.
+beforeEach(() => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (_url: string, init: { body: string }) => ({
+      ok: true,
+      json: async () => ({ svg: `<svg data-testid="engine-${JSON.parse(init.body).diagram.type}"></svg>` }),
+    })),
+  )
+})
 
 describe('QuestionCard', () => {
   it('renders the question text, pass badge, and $-formatted answer', () => {
@@ -173,18 +184,18 @@ describe('QuestionCard', () => {
     },
   }
 
-  it('renders a geometry_figure SVG and shows no toggle-diagram button', () => {
+  it('renders a geometry_figure SVG and shows no toggle-diagram button', async () => {
     render(QuestionCard, { props: { q: geometryQuestion } })
 
-    // The figure renders as an inline SVG, labelled as a geometry figure.
+    // The figure is the engine's inline SVG, labelled as a geometry figure.
     const fig = screen.getByLabelText('geometry figure')
-    expect(fig.querySelector('svg')).not.toBeNull()
+    await waitFor(() => expect(fig.querySelector('[data-testid="engine-geometry_figure"]')).not.toBeNull())
 
     // Mandatory figure → no Show/Hide diagram control at all.
     expect(screen.queryByRole('button', { name: /diagram|model (in|from) key/i })).not.toBeInTheDocument()
   })
 
-  it('renders a shaded_fraction SVG and shows no toggle-diagram button', () => {
+  it('renders a shaded_fraction SVG and shows no toggle-diagram button', async () => {
     const shadedQuestion: Question = {
       id: 'f1',
       seed: 3,
@@ -208,7 +219,7 @@ describe('QuestionCard', () => {
     render(QuestionCard, { props: { q: shadedQuestion } })
 
     const fig = screen.getByLabelText('fraction diagram')
-    expect(fig.querySelector('svg')).not.toBeNull()
+    await waitFor(() => expect(fig.querySelector('[data-testid="engine-shaded_fraction"]')).not.toBeNull())
 
     expect(screen.queryByRole('button', { name: /diagram|model (in|from) key/i })).not.toBeInTheDocument()
   })

@@ -1,14 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/svelte'
 import ServerDiagram from './ServerDiagram.svelte'
+import DiagramView from './DiagramView.svelte'
 import QuestionCard from './QuestionCard.svelte'
-import { isServerDiagram, renderDiagram, type ServerSpec } from './barModel'
+import * as diagramModule from './diagram'
+import type { DiagramSpec, ServerSpec } from './diagram'
 import type { Question } from './types'
 
 const fetchMock = vi.fn()
 beforeEach(() => {
   fetchMock.mockReset()
   vi.stubGlobal('fetch', fetchMock)
+})
+
+const svgReply = (testid: string) => ({
+  ok: true,
+  json: async () => ({ svg: `<svg data-testid="${testid}"><text>engine</text></svg>` }),
 })
 
 const chart: ServerSpec = {
@@ -20,21 +27,43 @@ const chart: ServerSpec = {
   ],
 }
 
+// The types the web used to draw with its own TypeScript renderer (EXA-151).
+const formerlyClientDrawn: Array<[string, DiagramSpec]> = [
+  ['bar model', { type: 'bar_model', bars: [{ label: 'Ali', units: 2 }] }],
+  [
+    'bar model',
+    {
+      type: 'bar_model_before_after',
+      view_mode: 'sliced',
+      stages: [{ name: 'Before', bars: [{ label: 'Ali', units: 2 }] }],
+    },
+  ],
+  ['fraction diagram', { type: 'shaded_fraction', shape: 'circle', total_parts: 6, shaded_parts: 5 }],
+  [
+    'geometry figure',
+    {
+      type: 'geometry_figure',
+      points: [
+        { id: 'A', x: 0, y: 0 },
+        { id: 'B', x: 4, y: 0 },
+      ],
+      segments: [{ from: 'A', to: 'B', label: '4 cm' }],
+    },
+  ],
+]
+
 describe('server-rendered figures', () => {
-  it('identifies the types the web cannot draw itself', () => {
-    for (const type of ['chart', 'solid', 'number_line', 'panels', 'cube_stack'] as const) {
-      expect(isServerDiagram({ type })).toBe(true)
-      expect(renderDiagram({ type })).toBe('') // no TS mirror, by design
+  it('the TypeScript renderers are gone: the diagram module draws nothing itself', () => {
+    const exported = Object.keys(diagramModule)
+    for (const name of ['renderDiagram', 'renderGeometryFigure', 'renderBarModel', 'isServerDiagram']) {
+      expect(exported).not.toContain(name)
     }
-    expect(isServerDiagram({ type: 'bar_model', bars: [] } as never)).toBe(false)
-    expect(isServerDiagram(null)).toBe(false)
+    const modules = import.meta.glob('./barModel.ts')
+    expect(Object.keys(modules)).toHaveLength(0)
   })
 
   it('fetches the engine SVG and shows it', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ svg: '<svg data-testid="fig"><text>Apple</text></svg>' }),
-    })
+    fetchMock.mockResolvedValue(svgReply('fig'))
     render(ServerDiagram, { props: { spec: chart } })
     expect(screen.getByText(/Drawing figure/)).toBeInTheDocument()
     await waitFor(() => expect(screen.getByTestId('fig')).toBeInTheDocument())
@@ -49,11 +78,29 @@ describe('server-rendered figures', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/could not be drawn/))
   })
 
-  it('a generated chart question card draws its figure via the engine', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ svg: '<svg data-testid="card-fig"></svg>' }),
+  it.each(formerlyClientDrawn)('a %s is drawn by the engine, not the browser', async (aria, spec) => {
+    fetchMock.mockResolvedValue(svgReply(`server-${spec.type}`))
+    const { container } = render(DiagramView, { props: { spec } })
+    expect(container.querySelector('svg')).toBeNull() // nothing drawn locally while it loads
+    expect(screen.getByText(/Drawing figure/)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId(`server-${spec.type}`)).toBeInTheDocument())
+    expect(screen.getByLabelText(aria)).toContainElement(screen.getByTestId(`server-${spec.type}`))
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toMatch(/\/render\/diagram$/)
+    expect(JSON.parse(init.body)).toEqual({ diagram: spec })
+  })
+
+  it('a raster stays a plain image and needs no engine round trip', () => {
+    render(DiagramView, {
+      props: { spec: { type: 'raster', asset_ref: 'data:image/png;base64,iVBORw0KGgo=', alt_text: 'A & <B>' } },
     })
+    const img = screen.getByAltText('A & <B>')
+    expect(img).toHaveAttribute('src', 'data:image/png;base64,iVBORw0KGgo=')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('a generated chart question card draws its figure via the engine', async () => {
+    fetchMock.mockResolvedValue(svgReply('card-fig'))
     const q: Question = {
       id: 'statistics_chart_medium:1',
       seed: 1,

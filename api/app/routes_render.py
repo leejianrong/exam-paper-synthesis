@@ -45,8 +45,8 @@ def render_question(req: RenderQuestionRequest) -> dict:
 
 @router.post("/diagram")
 def render_diagram(req: RenderDiagramRequest) -> dict:
-    """One diagram's inline SVG (the engine renderer). The web app uses this for the
-    figure types it has no TypeScript mirror for (chart, solid, number_line, panels, cube_stack)."""
+    """One diagram's inline SVG (the engine renderer). The web app draws every figure but a
+    raster with it, so the editor shows what the PDF prints (EXA-151)."""
     try:
         spec = canonical.load_diagram(req.diagram)
     except CanonicalValidationError as e:
