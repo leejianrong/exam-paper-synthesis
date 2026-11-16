@@ -5,7 +5,10 @@
 import { Node } from '@tiptap/core'
 import type { NodeViewRendererProps } from '@tiptap/core'
 import { writable, type Readable } from 'svelte/store'
-import type { SectionInfo, SectionMode } from './doc'
+import { get } from 'svelte/store'
+import type { SectionInfo, SectionMode, SectionPlacement } from './doc'
+import { DEFAULT_PLACEMENT } from './layout'
+import { paperSettings } from './paperSettings'
 
 /** Derived section figures, set by the page and read by the node views (outside its tree). */
 export const outline = writable<SectionInfo[]>([])
@@ -38,6 +41,24 @@ export function markingOn(attrs: { marking?: unknown; mode?: unknown }): boolean
   return attrs.mode === 'short' || attrs.mode === 'structured'
 }
 
+export const PLACEMENT_LABELS: Record<SectionPlacement, string> = {
+  none: 'In the header only',
+  question: 'Beside each question',
+  answer: 'After each Ans: line',
+  both: 'Beside the question and after Ans:',
+}
+
+/** Where the section's [n] print: its own choice, else none for MCQ and short-answer sections
+ * (the header sentence gives the marks), else the paper-wide setting (engine mirror, EXA-139). */
+export function sectionPlacement(
+  attrs: { marks_placement?: unknown; mode?: unknown },
+  paper: SectionPlacement,
+): SectionPlacement {
+  const chosen = attrs.marks_placement
+  if (typeof chosen === 'string' && chosen in PLACEMENT_LABELS) return chosen as SectionPlacement
+  return attrs.mode === 'mcq' || attrs.mode === 'short' ? 'none' : paper
+}
+
 export const Section = Node.create({
   name: 'section',
   group: 'block',
@@ -52,6 +73,7 @@ export const Section = Node.create({
       mode: { default: null },
       marks_target: { default: null },
       marking: { default: null }, // marking margin; null follows the mode (P6a)
+      marks_placement: { default: null }, // where the [n] print; null follows the mode (EXA-139)
     }
   },
 
@@ -114,6 +136,12 @@ export const Section = Node.create({
       marking.setAttribute('aria-label', 'Marking margin')
       marking.addEventListener('change', () => setAttr({ marking: marking.checked }))
 
+      const placement = document.createElement('select')
+      placement.setAttribute('aria-label', 'Marks shown')
+      placement.add(new Option('', ''))
+      for (const [value, label] of Object.entries(PLACEMENT_LABELS)) placement.add(new Option(label, value))
+      placement.addEventListener('change', () => setAttr({ marks_placement: placement.value || null }))
+
       const instructions = document.createElement('textarea')
       instructions.className = 'section-instructions-input'
       instructions.rows = 2
@@ -128,7 +156,7 @@ export const Section = Node.create({
 
       const row = document.createElement('div')
       row.className = 'section-row'
-      row.append(title, field('Mode', mode), field('Target marks', target), field('Marking margin', marking))
+      row.append(title, field('Mode', mode), field('Target marks', target), field('Marks shown', placement), field('Marking margin', marking))
       dom.append(row, instructions, summary)
 
       const sync = () => {
@@ -142,6 +170,10 @@ export const Section = Node.create({
         set(target, a.marks_target === null || a.marks_target === undefined ? '' : String(a.marks_target))
         set(instructions, String(a.instructions ?? ''))
         marking.checked = markingOn(a)
+        // The unset choice is labelled with what it means for this section's mode.
+        const paper = get(paperSettings).marks_placement ?? DEFAULT_PLACEMENT
+        placement.options[0].text = `Default: ${PLACEMENT_LABELS[sectionPlacement({ mode: a.mode }, paper)].toLowerCase()}`
+        set(placement, String(a.marks_placement ?? ''))
       }
 
       const indexOfSelf = (): number => {

@@ -160,8 +160,10 @@
   .grip:focus-visible::after {
     background: var(--ink-soft);
   }
+  /* Right-aligned and short, as the printed paper draws it (EXA-139). */
   .line {
     display: flex;
+    justify-content: flex-end;
     align-items: baseline;
     gap: 0.4rem;
     margin: 0.5rem 0 0.2rem;
@@ -171,7 +173,7 @@
     font-weight: 600;
   }
   .blank {
-    flex: 1 1 auto;
+    flex: 0 1 calc(55 * 96px / 25.4);
     min-width: 4rem;
     border-bottom: 1px solid var(--ink);
   }
