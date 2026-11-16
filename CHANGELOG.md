@@ -10,6 +10,13 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **A P6 Circles ladder (EXA-149).** Three blueprints with a drawn figure: the circumference or
+  area of a circle, semicircle or quarter circle (1 mark); the perimeter or area of a square or
+  rectangle with a semicircle, or a quarter circle's perimeter (2 marks); and shaded regions made
+  by quarter circles and semicircles in a square or rectangle (3 marks), some answered "in terms
+  of π". Stems say "Take π = 3.14" or "22/7" with numbers that give tidy answers, and the
+  multiple-choice copies offer real slips (radius for diameter, a whole circle for a half, the
+  inside edge counted). Every generated P6 paper part now has a circle question.
 - **A compact answer key, like a real school key (EXA-142).** A new answer-key layout,
   "Compact" (document schema 1.14.0, `key_options.layout`; "Full" stays the default): a header
   block (school, level, subject, exam) from the cover, an answer grid for each multiple-choice

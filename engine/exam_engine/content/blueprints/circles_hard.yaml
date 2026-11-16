@@ -1,0 +1,64 @@
+code: circles_hard
+syllabus:
+  level: P6
+  strand: "Measurement"
+  topic: "Circles"
+  subtopic: "Shaded region bounded by quarter circles / semicircles in a square or rectangle"
+  skill_codes: ["CIRC.SHADED"]          # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Hidden structure", "Reasoning depth"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [template, pi, givens, lengths]
+  properties:
+    template:
+      type: string
+      enum:
+        - leaf_area
+        - quarter_semicircle_area
+        - quarter_semicircle_perimeter
+        - rectangle_quarters_area
+        - rectangle_quarters_perimeter
+    pi:                                 # the π the stem states; "terms" = in terms of π
+      type: string
+      enum: ["3.14", "22/7", "terms"]
+    givens:
+      type: object
+      additionalProperties:
+        type: integer
+    lengths:                            # labelled-length contract map (diagram check)
+      type: object
+      additionalProperties:
+        type: number
+    radii:                              # arc-radius contract map (diagram check)
+      type: object
+      additionalProperties:
+        type: number
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  template: { role: choice }
+  pi:       { role: choice }
+  givens:   { role: number }
+  lengths:  { role: number }
+  radii:    { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+    - text: "{step3}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Find each circle part (quarter circle, semicircle) with the stated π, or in terms of π." }
+  - { mark: 1, type: M, description: "Combine only the parts that bound the shaded region (add, take away, or double)." }
+  - { mark: 1, type: A, description: "Correct area (cm²) or perimeter (cm)." }
+answer:
+  type: decimal
+  unit: "cm^2"
+diagram: geometry_figure
