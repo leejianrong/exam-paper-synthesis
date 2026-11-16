@@ -69,7 +69,8 @@ _LAYOUT_JS = """
     lastBottom: last
       ? last.getBoundingClientRect().bottom + parseFloat(getComputedStyle(last).marginBottom)
       : null,
-    lastHasSpace: !!(last && last.querySelector('.answer-space')),
+    lastBoxBottom: last ? last.getBoundingClientRect().bottom : null,
+    lastHasSpace:!!(last && last.querySelector('.answer-space')),
     filled: pg.querySelectorAll('.answer-space[data-filled]').length,
     lastAnsBottom: lines.length ? lines[lines.length - 1].getBoundingClientRect().bottom : null,
     marked: pg.querySelectorAll('.question.marked').length,
@@ -173,6 +174,11 @@ def test_a_page_that_ends_early_has_its_working_space_stretched_to_the_footer(bo
     assert stretched, "some page must end on a question with working space"
     assert any(p["filled"] for p in stretched)  # (a page that is already full needs none)
     for p in stretched:
+        if not p["filled"]:
+            # a page that is already full: only its last question's bottom margin may reach
+            # past the footer line (the paginator packs boxes, not their trailing margins)
+            assert p["footTop"] - p["lastBoxBottom"] >= 0, p
+            continue
         gap = p["footTop"] - p["lastBottom"]
         assert 0 <= gap <= 3 * MM, gap / MM  # down to the footer, not into it
         # the Ans: line moved down with the space: it sits at the foot of the page
