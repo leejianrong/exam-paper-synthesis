@@ -5,7 +5,7 @@ import type { Question } from '../types'
 import { assetUrl } from './assets'
 import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.14.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.15.0'
 
 export interface DocNode {
   type: string

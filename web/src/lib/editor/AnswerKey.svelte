@@ -16,7 +16,7 @@
 
   export let blocks: DocNode[] = []
   /** The paper's answer-key options (P5): the key below previews what will print. */
-  export let options: Required<KeyOptions> = { show_question: true, show_scheme: true }
+  export let options: Required<KeyOptions> = { show_question: true, show_scheme: true, layout: 'full' }
   /** The paper's first question number (Booklet B carries on from Booklet A, EXA-134). */
   export let start = 1
 

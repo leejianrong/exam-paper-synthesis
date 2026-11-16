@@ -7,11 +7,13 @@ import { keyOptionsOf } from './layout'
 
 describe('answer-key options (P5)', () => {
   it('default to the full key and read what is set', () => {
-    expect(keyOptionsOf(undefined)).toEqual({ show_question: true, show_scheme: true })
+    expect(keyOptionsOf(undefined)).toEqual({ show_question: true, show_scheme: true, layout: 'full' })
     expect(keyOptionsOf({ key_options: { show_scheme: false } })).toEqual({
       show_question: true,
       show_scheme: false,
+      layout: 'full',
     })
+    expect(keyOptionsOf({ key_options: { layout: 'compact' } }).layout).toBe('compact')
   })
 
   it('store in_key only when a question is left out', () => {
@@ -31,7 +33,7 @@ describe('answer-key options (P5)', () => {
     const { rerender } = render(AnswerKey, { props: { blocks: blocks() } })
     expect(document.body).toHaveTextContent('FREEFORM-BODY')
     expect(document.querySelector('.scheme')).not.toBeNull()
-    rerender({ blocks: blocks(), options: { show_question: false, show_scheme: false } })
+    rerender({ blocks: blocks(), options: { show_question: false, show_scheme: false, layout: 'full' } })
     expect(document.body).not.toHaveTextContent('FREEFORM-BODY')
     expect(document.querySelector('.scheme')).toBeNull()
   })

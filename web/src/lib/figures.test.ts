@@ -142,6 +142,11 @@ describe("fmtAnswer for choice and expression", () => {
       }),
     ).toBe("C. None");
   });
+  it("prints area and volume units with a superscript, never a caret", () => {
+    expect(fmtAnswer({ type: "integer", value: 60, unit: "cm^2" })).toBe("60 cm²");
+    expect(fmtAnswer({ type: "quantity", value: 8, unit: "m^3" })).toBe("8 m³");
+    expect(fmtAnswer({ type: "integer", value: 51, unit: "degrees" })).toBe("51°");
+  });
   it("prints expression terms plainly", () => {
     expect(
       fmtAnswer({
@@ -159,7 +164,7 @@ describe("fmtAnswer for choice and expression", () => {
         unit: "$",
         terms: [{ coefficient: -17, symbol: "n" }],
       }),
-    ).toBe("-$17n");
+    ).toBe("−$17n");
     expect(
       fmtAnswer({
         type: "expression",
@@ -176,6 +181,6 @@ describe("fmtAnswer for choice and expression", () => {
           { coefficient: -5, symbol: null },
         ],
       }),
-    ).toBe("n^2 - 3n - 5");
+    ).toBe("n² − 3n − 5");
   });
 });

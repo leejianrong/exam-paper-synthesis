@@ -29,6 +29,7 @@ from fractions import Fraction
 
 from .blueprints.registry import get_solver
 from .errors import EditNotApplicable
+from .units import printed_unit
 
 LABELS = ("1", "2", "3", "4")  # PSLE Booklet A numbers its options (1)–(4)
 NUMERIC = ("integer", "decimal", "quantity")
@@ -72,9 +73,6 @@ def convertible(obj: dict) -> bool:
     )
 
 
-_UNIT_TEXT = {"cm^2": "cm²", "m^2": "m²", "cm^3": "cm³", "m^3": "m³", "l": "ℓ", "ml": "mℓ"}
-
-
 def legacy_answer_text(answer: dict) -> str:
     """The option text a paper saved before litres printed as ``ℓ`` carries (``18 l``)."""
     return answer_text(answer).replace("mℓ", "ml").replace("ℓ", "l")
@@ -87,7 +85,7 @@ def answer_text(answer: dict) -> str:
     unit = answer.get("unit") or ""
     if answer["type"] == "fraction":
         body = rf"\(\frac{{{answer['numerator']}}}{{{answer['denominator']}}}\)"
-        return f"{body} {_UNIT_TEXT.get(unit, unit)}".strip() if unit != "$" else f"${body}"
+        return f"{body} {printed_unit(unit)}".strip() if unit != "$" else f"${body}"
     value = answer["value"]
     if unit == "$":
         return f"${value:.2f}" if answer["type"] == "decimal" else f"${value}"
@@ -95,7 +93,7 @@ def answer_text(answer: dict) -> str:
         return f"{value}%"
     if unit == "degrees":
         return f"{value}°"
-    return f"{value} {_UNIT_TEXT.get(unit, unit)}".strip()
+    return f"{value} {printed_unit(unit)}".strip()
 
 
 def _value(answer: dict) -> Fraction:

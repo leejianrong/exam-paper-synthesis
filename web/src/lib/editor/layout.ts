@@ -40,9 +40,14 @@ export function numberFrom(settings: PaperSettings | undefined): number {
   return settings?.number_from || 1;
 }
 
+export type KeyLayout = "full" | "compact";
+
 export interface KeyOptions {
   show_question?: boolean;
   show_scheme?: boolean;
+  /** full = each question with its worked solution; compact = a school-style key: an answer
+   *  grid for multiple choice and a working table with "Ans:" (EXA-142). */
+  layout?: KeyLayout;
 }
 
 /** The key options with defaults filled in (the engine's `key_options`). */
@@ -50,6 +55,7 @@ export function keyOptionsOf(settings: PaperSettings | undefined): Required<KeyO
   return {
     show_question: settings?.key_options?.show_question ?? true,
     show_scheme: settings?.key_options?.show_scheme ?? true,
+    layout: settings?.key_options?.layout ?? "full",
   };
 }
 
