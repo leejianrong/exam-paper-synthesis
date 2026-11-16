@@ -75,7 +75,7 @@ date, question count, parent's signature, page count) and the standard "Question
    B p6, P2 p13).
 2. **Continue Paper 1 numbering into Booklet B (16–30).** Add a numbering offset or a "continues from" field on the Booklet B
    template, used by the cover, section header ranges and the key.
-3. **Monochrome print theme as the PDF default.** Black strokes, white or light-grey fills, hatched or outlined pie sectors,
+3. ~~**Monochrome print theme as the PDF default.**~~ Done in #212 (EXA-135). Black strokes, white or light-grey fills, hatched or outlined pie sectors,
    black marks and question numbers, no grey working boxes or green key panels.
 4. **Fix figure label collisions.** Offset edge labels outward, put vertex letters outside along the bisector, keep angle values
    clear of arcs; add a label-vs-stroke overlap test in `diagram.py`.
