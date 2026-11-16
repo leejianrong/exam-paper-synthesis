@@ -42,7 +42,7 @@ story_templates:
       ${new_value}. What was the original price?
 solution_template:
   steps:
-    - text: "${new_value} is {factor}% of the original price (100% {op} {percent}%)."
+    - text: "${new_value} is {factor}% of the original price (100% {op_text} {percent}%)."
       expr: "100{op}{percent}"
     - text: "Original price = ${new_value} × 100 ÷ {factor} = ${original}."
       expr: "{new_value}*100/{factor}"

@@ -8,6 +8,16 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
+### Added
+
+- **A compact answer key, like a real school key (EXA-142).** A new answer-key layout,
+  "Compact" (document schema 1.14.0, `key_options.layout`; "Full" stays the default): a header
+  block (school, level, subject, exam) from the cover, an answer grid for each multiple-choice
+  section (question numbers in a row, the correct option under each), then a two-column table of
+  each question's working with a right-aligned "Ans:". It keeps the paper's numbers (Booklet B
+  starts at Q16), prints M1/A1 only when "M/A marks" is on, and is a choice in the editor's
+  answer-key options. A generated Booklet A key goes from 9 pages to 1.
+
 ### Changed
 
 - **Every printed page has its furniture, and pages end full (EXA-138).** Each question page now
@@ -45,6 +55,10 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **Answers and working print cm², × and − (EXA-142).** Keys printed "Answer: 60 cm^2", "in
+  cm^3" in mark schemes, "speed x time", "30 - 20" and "51 degrees". Area and volume units now
+  print with a superscript, multiplication as ×, minus as −, and angles as 51°, on the paper, the
+  key, the multiple-choice options and the editor; a test sweeps every blueprint's printed text.
 - **The editor and the Classic page show the engine's figures (EXA-151).** Bar models, shaded
   fractions and geometry figures were drawn in the browser by a TypeScript copy of the old
   renderer, so the editor still showed labels over the lines after the PDF was fixed (EXA-136).

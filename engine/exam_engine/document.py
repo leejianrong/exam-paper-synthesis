@@ -22,6 +22,7 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
+# 1.14.0 (EXA-142): + settings.key_options.layout (full / compact answer key).
 # 1.13.0 (EXA-139): + section.marks_placement (none/question/answer/both; null follows the mode).
 # 1.12.0 (EXA-134): + settings.number_from (Booklet B continues Booklet A's numbering).
 # 1.11.0 (P8d): + question `locked` (kept by "regenerate unlocked").
@@ -34,7 +35,7 @@ from .schema import validate_object
 # 1.4.0 (P2): + settings.marks_placement, per-question space_mm / ans_unit.
 # 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math; 1.3.0 (W5): + question `remark`.
 # Older documents stay valid (every addition is optional).
-DOCUMENT_SCHEMA_VERSION = "1.13.0"
+DOCUMENT_SCHEMA_VERSION = "1.14.0"
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000
@@ -135,11 +136,14 @@ def freeform_marks(node: dict) -> int:
 
 
 def key_options(doc: dict) -> dict:
-    """The answer-key print options with defaults filled in (P5)."""
+    """The answer-key print options with defaults filled in (P5). ``layout`` (EXA-142) is
+    ``full`` (each question with its worked solution) or ``compact`` (a real school key: an
+    answer grid for multiple choice, a two-column working table with "Ans:" for the rest)."""
     given = (doc.get("settings") or {}).get("key_options") or {}
     return {
         "show_question": given.get("show_question", True),
         "show_scheme": given.get("show_scheme", True),
+        "layout": given.get("layout") or "full",
     }
 
 

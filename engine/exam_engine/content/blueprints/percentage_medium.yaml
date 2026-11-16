@@ -44,7 +44,7 @@ solution_template:
   steps:
     - text: "Change = {percent}% of ${original} = {percent} ÷ 100 × ${original} = ${change_amount}."
       expr: "{percent}*{original}/100"
-    - text: "New price = ${original} {op} ${change_amount} = ${new_value}."
+    - text: "New price = ${original} {op_text} ${change_amount} = ${new_value}."
       expr: "{original}{op}{change_amount}"
 marking_scheme:
   - { mark: 1, type: M, description: "Find the amount of the change (the percentage of the original)." }

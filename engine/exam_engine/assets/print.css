@@ -289,6 +289,28 @@ body {
 .key-section { break-before: page; }
 .key-heading { margin: 0 0 1rem; }
 
+/* EXA-142: the compact key, as real school keys print it (key-only selectors) */
+.compact-key { font-size: 10.5pt; }
+.key-meta { margin: 0 0 0.8rem; padding-bottom: 0.5rem; border-bottom: 1.5px solid var(--ink); }
+.key-meta > div { display: flex; gap: 0.4rem; margin: 0.1rem 0; }
+.key-meta dt { min-width: 5.5rem; font-weight: 700; text-transform: uppercase; }
+.key-meta dt::after { content: " :"; }
+.key-meta dd { margin: 0; }
+.key-part { margin: 1rem 0 0.5rem; font-size: 1rem; text-decoration: underline; break-after: avoid; }
+.key-grid, .key-table { border-collapse: collapse; width: 100%; margin: 0 0 0.6rem; }
+.key-grid { table-layout: fixed; break-inside: avoid; }
+.key-grid th, .key-grid td { border: 1px solid var(--ink); padding: 0.25rem; text-align: center; }
+.key-grid th { background: var(--tint); }
+.key-table th, .key-table td { border: 1px solid var(--ink); padding: 0.35rem 0.6rem; vertical-align: top; }
+.key-table th { width: 4.5rem; text-align: left; white-space: nowrap; }
+.key-table tr { break-inside: avoid; }
+.key-step { margin: 0 0 0.15rem; }
+.key-ans { margin: 0.2rem 0 0; text-align: right; font-weight: 600; }
+.key-ans .ans-label { margin-right: 0.3rem; }
+.key-scheme { list-style: none; margin: 0.3rem 0 0; padding: 0; font-size: 0.9em; color: var(--ink-soft); }
+.key-mark { font-weight: 700; color: var(--ink); }
+.key-work .diagram { margin: 0.2rem 0; }
+
 /* --- free-form (teacher-written) questions --- */
 .freeform .part-text > :first-child {
   margin-top: 0;

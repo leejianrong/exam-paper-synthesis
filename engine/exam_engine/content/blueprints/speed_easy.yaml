@@ -3,7 +3,7 @@ syllabus:
   level: P6
   strand: "Speed"
   topic: "Speed"
-  subtopic: "Distance = speed x time (direct)"
+  subtopic: "Distance = speed × time (direct)"
   skill_codes: ["SPEED.DST"]            # PROVISIONAL — remap to MOE outcomes (Q-M1)
 cognitive:
   difficulty: easy
@@ -38,12 +38,12 @@ story_templates:
       did {name} travel?
 solution_template:
   steps:
-    - text: "Distance = speed x time = {speed} km/h x {time} h."
+    - text: "Distance = speed × time = {speed} km/h × {time} h."
       expr: "{speed}*{time}"
     - text: "Distance = {distance} km."
       expr: "{distance}"
 marking_scheme:
-  - { mark: 1, type: M, description: "Multiply the speed by the time (distance = speed x time)." }
+  - { mark: 1, type: M, description: "Multiply the speed by the time (distance = speed × time)." }
   - { mark: 1, type: A, description: "Correct distance with the km unit." }
 answer:
   type: quantity

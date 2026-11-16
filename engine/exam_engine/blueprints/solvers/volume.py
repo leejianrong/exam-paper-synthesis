@@ -69,8 +69,8 @@ class VolumeEasySolver:
                     f"A {thing} is a cuboid {l} cm long, {w} cm wide and {h} cm tall. "
                     "Find its volume in cm³."
                 ),
-                "step1": f"Volume = length x width x height = {l} x {w} x {h}.",
-                "step2": f"{l} x {w} x {h} = {ans} cm³.",
+                "step1": f"Volume = length × width × height = {l} × {w} × {h}.",
+                "step2": f"{l} × {w} × {h} = {ans} cm³.",
                 "answer_value": ans,
             },
         }
@@ -120,8 +120,8 @@ class VolumeMediumSolver:
                     f"water to a depth of {d} cm. How many more litres of water are needed "
                     "to fill the tank to the brim? (1 ℓ = 1000 cm³)"
                 ),
-                "step1": f"Empty depth = {h} - {d} = {e} cm.",
-                "step2": (f"Volume still needed = {l} x {w} x {e} = {l * w * e} cm³ = {ans} ℓ."),
+                "step1": f"Empty depth = {h} − {d} = {e} cm.",
+                "step2": (f"Volume still needed = {l} × {w} × {e} = {l * w * e} cm³ = {ans} ℓ."),
                 "answer_value": ans,
             },
         }
@@ -176,8 +176,8 @@ class VolumeHardSolver:
                     f"the water level rises to {b + r} cm. Find the volume of the block "
                     "in cm³."
                 ),
-                "step1": f"Rise in water level = {b + r} - {b} = {r} cm.",
-                "step2": f"Volume of block = {l} x {w} x {r} = {ans} cm³.",
+                "step1": f"Rise in water level = {b + r} − {b} = {r} cm.",
+                "step2": f"Volume of block = {l} × {w} × {r} = {ans} cm³.",
                 "answer_value": ans,
             },
         }

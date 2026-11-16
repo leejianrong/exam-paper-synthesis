@@ -34,7 +34,7 @@ solution_template:
     - text: "{step1}"
     - text: "{step2}"
 marking_scheme:
-  - { mark: 1, type: A, description: "Correct volume with the unit cm^3." }
+  - { mark: 1, type: A, description: "Correct volume with the unit cm³." }
 answer:
   type: integer
   unit: "cm^3"

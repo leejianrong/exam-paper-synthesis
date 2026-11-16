@@ -34,7 +34,7 @@ solution_template:
     - text: "{step1}"
     - text: "{step2}"
 marking_scheme:
-  - { mark: 1, type: M, description: "Finds the total for the five months (5 x mean)." }
+  - { mark: 1, type: M, description: "Finds the total for the five months (5 × mean)." }
   - { mark: 1, type: M, description: "Reads the four plotted values and adds them." }
   - { mark: 1, type: A, description: "Subtracts to find the missing month." }
 answer:
