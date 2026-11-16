@@ -77,7 +77,7 @@ date, question count, parent's signature, page count) and the standard "Question
    template, used by the cover, section header ranges and the key.
 3. **Monochrome print theme as the PDF default.** Black strokes, white or light-grey fills, hatched or outlined pie sectors,
    black marks and question numbers, no grey working boxes or green key panels.
-4. **Fix figure label collisions.** Offset edge labels outward, put vertex letters outside along the bisector, keep angle values
+4. ~~**Fix figure label collisions.**~~ Done in #PRNUM (EXA-136). Offset edge labels outward, put vertex letters outside along the bisector, keep angle values
    clear of arcs; add a label-vs-stroke overlap test in `diagram.py`.
 5. **Never print empty placeholders.** Block or warn on export when `unfilled_placeholders` is non-empty, especially inside an
    MCQ section (ours A p4 Q9–Q10).

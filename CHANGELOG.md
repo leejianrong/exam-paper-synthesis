@@ -10,6 +10,13 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **Figure labels sit clear of the lines (EXA-136).** Side lengths printed over a rectangle's
+  edge, a height's length over the height, and vertex letters over right-angle marks, angle arcs
+  and their own corner. Geometry figures now put side lengths outside the edge (a height that has
+  no room gets its length turned to run beside it), angle values inside the angle past the arc,
+  and vertex letters outside the corner; the canvas grows to keep every label on it. A test reads
+  every generated and hand-built figure and fails if any label touches a line or another label.
+
 - **A fraction option never reads "4/1" (EXA-133)**, and **working steps typeset their maths**
   in the editor's answer key and on the Classic page (algebra showed raw `\\(3x\\)`, EXA-131).
 

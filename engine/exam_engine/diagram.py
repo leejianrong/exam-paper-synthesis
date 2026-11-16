@@ -14,9 +14,19 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Callable
+from itertools import chain
 
 from .chart import check_chart_consistency, render_chart_svg
 from .cube_stack import check_cube_stack_consistency, render_cube_stack_svg
+from .label_layout import (
+    Box,
+    Layout,
+    Point,
+    ring,
+    seg_box_distance,
+    svg_arc_points,
+    widest_gap,
+)
 from .number_line import check_number_line_consistency, render_number_line_svg
 from .solid import check_solid_consistency, render_solid_svg
 
@@ -624,7 +634,7 @@ def _render_bar_model(spec: dict) -> str:
                 f'stroke="#66708a" stroke-width="1"/>'
             )
             lines.append(
-                f'<text x="{mid}" y="{y + _ANN_ROW_H - 4}" text-anchor="middle" '
+                f'<text x="{mid}" y="{y + _ANN_ROW_H - 2}" text-anchor="middle" '
                 f'fill="#66708a">{_esc(ann["label"])}</text>'
             )
             y += _ANN_ROW_H
@@ -928,7 +938,7 @@ _GF_ANGLE_R = 18  # angle-mark arc radius (canvas px)
 _GF_RIGHT = 14  # right-angle square side (canvas px)
 _GF_TICK = 6  # equal-length tick half-length (canvas px)
 _GF_TICK_SP = 4  # spacing between adjacent tick marks
-_GF_LABEL_OFF = 13  # perpendicular offset of a segment length label
+_GF_FONT = 13  # label font size (the <svg> default)
 _GF_STROKE = "#2f5fe0"  # figure edges / arcs
 _GF_FILL = "#dbe4fb"  # shaded region fill
 _GF_ANSWER = "#d6336c"  # what the student must add (answer-key completed figures)
@@ -981,9 +991,9 @@ def _gf_arc_extent(cx: float, cy: float, r: float, start: float, end: float) -> 
     return pts
 
 
-def _gf_header(width: int, height: int) -> str:
+def _gf_header(width: int, height: int, x0: int = 0, y0: int = 0) -> str:
     return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{x0} {y0} {width} {height}" '
         f'width="{width}" height="{height}" role="img" '
         f'font-family="Inter, system-ui, sans-serif" font-size="13">'
     )
@@ -1013,6 +1023,29 @@ def _gf_shaded_edge(arc: dict | None, pt: tuple[int, int], scale: float) -> str:
     return f"A {rr} {rr} 0 {large} {sweep} {pt[0]} {pt[1]}"
 
 
+def _gf_edge_points(
+    arc: dict | None, a: tuple[int, int], b: tuple[int, int], scale: float
+) -> list[tuple[float, float]]:
+    """The points after ``a`` along one shaded-region edge (see ``_gf_shaded_edge``)."""
+    if arc is None:
+        return [b]
+    rr = _r(float(arc["radius"]) * scale)
+    return svg_arc_points(a, rr, int(arc.get("large", 0)), int(arc.get("sweep", 0)), b)[1:]
+
+
+def _gf_inside(pt: tuple[float, float], polys: list[list[tuple[float, float]]]) -> bool:
+    """Is ``pt`` inside any of the outlines (even-odd ray cast)?"""
+    for poly in polys:
+        inside = False
+        for (ax, ay), (bx, by) in zip(poly, poly[1:] + poly[:1], strict=True):
+            crosses = (ay > pt[1]) != (by > pt[1])
+            if crosses and pt[0] < ax + (pt[1] - ay) * (bx - ax) / (by - ay):
+                inside = not inside
+        if inside:
+            return True
+    return False
+
+
 def _gf_grid_extent(grid: dict) -> tuple[float, float, float, float]:
     """``(x0, y0, x1, y1)`` of a grid in figure space (origin = top-left corner)."""
     origin = grid.get("origin") or {}
@@ -1024,7 +1057,7 @@ def _gf_grid_extent(grid: dict) -> tuple[float, float, float, float]:
 _GF_GRID = "#c7d0e0"  # grid backdrop lines
 
 
-def _gf_draw_grid(lines: list[str], grid: dict, tx: Callable, ty: Callable) -> None:
+def _gf_draw_grid(lines: list[str], grid: dict, tx: Callable, ty: Callable, lay: Layout) -> None:
     x0, y0, x1, y1 = _gf_grid_extent(grid)
     size = float(grid["cell_size"])
     for c in range(grid["cols"] + 1):
@@ -1033,24 +1066,28 @@ def _gf_draw_grid(lines: list[str], grid: dict, tx: Callable, ty: Callable) -> N
             f'<line x1="{x}" y1="{ty(y0)}" x2="{x}" y2="{ty(y1)}" '
             f'stroke="{_GF_GRID}" stroke-width="1"/>'
         )
+        lay.stroke([(x, ty(y0)), (x, ty(y1))], 1)
     for r in range(grid["rows"] + 1):
         y = ty(y0 + r * size)
         lines.append(
             f'<line x1="{tx(x0)}" y1="{y}" x2="{tx(x1)}" y2="{y}" '
             f'stroke="{_GF_GRID}" stroke-width="1"/>'
         )
+        lay.stroke([(tx(x0), y), (tx(x1), y)], 1)
     if grid.get("show_axes"):
         for c in range(grid["cols"] + 1):
             lines.append(
                 f'<text x="{tx(x0 + c * size)}" y="{ty(y1) + 14}" text-anchor="middle" '
                 f'fill="{_GF_TEXT}" font-size="10">{c}</text>'
             )
+            lay.reserve(tx(x0 + c * size), ty(y1) + 14, str(c), "middle", 10)
         for r in range(grid["rows"] + 1):
             # y axis counts upward from the bottom edge, as on a graph.
             lines.append(
                 f'<text x="{tx(x0) - 6}" y="{ty(y0 + r * size) + 3}" text-anchor="end" '
                 f'fill="{_GF_TEXT}" font-size="10">{grid["rows"] - r}</text>'
             )
+            lay.reserve(tx(x0) - 6, ty(y0 + r * size) + 3, str(grid["rows"] - r), "end", 10)
 
 
 def _gf_draw_polygons(
@@ -1059,6 +1096,7 @@ def _gf_draw_polygons(
     grid: dict,
     tx: Callable,
     ty: Callable,
+    lay: Layout,
     given_cells: set[tuple[int, int]] | None = None,
 ) -> None:
     """One bordered unit square per cell (not a traced outline): the lines
@@ -1076,6 +1114,7 @@ def _gf_draw_polygons(
                 f'<rect x="{ax}" y="{ay}" width="{bx - ax}" height="{by - ay}" '
                 f'fill="{fill}" stroke="{stroke}" stroke-width="{sw}"/>'
             )
+            lay.stroke([(ax, ay), (bx, ay), (bx, by), (ax, by), (ax, ay)], sw)
 
 
 def _gf_q(pt: tuple[float, float]) -> tuple[float, float]:
@@ -1140,17 +1179,19 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
     height = _r(h * scale) + 2 * _GF_PAD
 
     lines: list[str] = [_gf_header(width, height)]
+    lay = Layout(_GF_FONT)
 
     # --- grid backdrop + polygon cells (drawn first, behind everything) -----
     if grid:
-        _gf_draw_grid(lines, grid, tx, ty)
-        _gf_draw_polygons(lines, polygons, grid, tx, ty, given_cells)
+        _gf_draw_grid(lines, grid, tx, ty, lay)
+        _gf_draw_polygons(lines, polygons, grid, tx, ty, lay, given_cells)
 
     # --- shaded regions (drawn first, behind the strokes) -------------------
     # Trace each region's boundary as a single closed <path>. Edges are straight
     # by default; an entry in the region's ``arcs`` (keyed by its from→to point
     # pair) turns that edge into a circular arc, so a polygon-minus-circle region
     # (square minus quarter circle, crescent, annulus) is visually filled.
+    regions: list[list[tuple[float, float]]] = []  # shaded outlines, for label sides
     for region in shaded:
         boundary = region.get("boundary") or []
         pts = [(tx(pmap[pid][0]), ty(pmap[pid][1])) for pid in boundary]
@@ -1158,20 +1199,40 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
             continue
         arc_edges = {(a["from"], a["to"]): a for a in (region.get("arcs") or [])}
         parts = [f"M {pts[0][0]} {pts[0][1]}"]
-        for i in range(1, len(pts)):
-            edge = arc_edges.get((boundary[i - 1], boundary[i]))
-            parts.append(_gf_shaded_edge(edge, pts[i], scale))
-        closing = arc_edges.get((boundary[-1], boundary[0]))
-        if closing is not None:
-            parts.append(_gf_shaded_edge(closing, pts[0], scale))
+        outline: list[tuple[float, float]] = [pts[0]]
+        for i in range(1, len(pts) + 1):
+            edge = arc_edges.get((boundary[i - 1], boundary[i % len(pts)]))
+            if i < len(pts) or edge is not None:
+                parts.append(_gf_shaded_edge(edge, pts[i % len(pts)], scale))
+            outline += _gf_edge_points(edge, pts[i - 1], pts[i % len(pts)], scale)
+        regions.append(outline)
         d = " ".join(parts) + " Z"
         lines.append(f'<path d="{d}" fill="{_GF_FILL}" stroke="none"/>')
 
-    # --- segments (edges + tick marks + length labels) ----------------------
+    # --- strokes first, text last (EXA-136) ---------------------------------
+    # Every stroke is recorded in ``lay`` as it is drawn; the text labels are then
+    # placed clear of all of them (and of each other): side lengths outside the
+    # edge, angle values inside the angle beyond its arc, vertex letters outside
+    # the corner. The viewBox grows to keep every label on the canvas.
+    pts_c = [(tx(x), ty(y)) for x, y in pmap.values()]
+    centroid = (
+        (sum(p[0] for p in pts_c) / len(pts_c), sum(p[1] for p in pts_c) / len(pts_c))
+        if pts_c
+        else (0.0, 0.0)
+    )
+    seg_labels: list[tuple[str, tuple[int, int, int, int]]] = []
+    arc_labels: list[tuple[str, tuple[float, float, float, float, float]]] = []
+    angle_values: list[tuple[str, int, int, tuple[float, float], int]] = []
+    drawn_segs: list[tuple[int, int, int, int]] = []
+    drawn_arcs: list[tuple[float, float, float, float, float]] = []
+    arc_polys: list[list[tuple[float, float]]] = []
+
+    # --- segments (edges + tick marks) --------------------------------------
     for seg in segments:
         ax, ay = pmap[seg["from"]]
         bx, by = pmap[seg["to"]]
         x1, y1, x2, y2 = tx(ax), ty(ay), tx(bx), ty(by)
+        drawn_segs.append((x1, y1, x2, y2))
         mx, my = (x1 + x2) / 2, (y1 + y2) / 2
         ux, uy = _gf_unit(x2 - x1, y2 - y1)
         nx, ny = -uy, ux  # perpendicular
@@ -1182,15 +1243,19 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
         # visually distinct from the solid track outline.
         if seg.get("dashed"):
             for ex, ey in ((x1, y1), (x2, y2)):
+                c1 = (_r(ex - nx * _GF_DIM_CAP), _r(ey - ny * _GF_DIM_CAP))
+                c2 = (_r(ex + nx * _GF_DIM_CAP), _r(ey + ny * _GF_DIM_CAP))
                 lines.append(
-                    f'<line x1="{_r(ex - nx * _GF_DIM_CAP)}" y1="{_r(ey - ny * _GF_DIM_CAP)}" '
-                    f'x2="{_r(ex + nx * _GF_DIM_CAP)}" y2="{_r(ey + ny * _GF_DIM_CAP)}" '
+                    f'<line x1="{c1[0]}" y1="{c1[1]}" '
+                    f'x2="{c2[0]}" y2="{c2[1]}" '
                     f'stroke="{_GF_STROKE}" stroke-width="1.5" stroke-dasharray="{_GF_DASH}"/>'
                 )
+                lay.stroke([c1, c2], 1.5)
             lines.append(
                 f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
                 f'stroke="{_GF_STROKE}" stroke-width="1.5" stroke-dasharray="{_GF_DASH}"/>'
             )
+            lay.stroke([(x1, y1), (x2, y2)], 1.5)
         else:
             added = given_edges is not None and _gf_edge_key(spec, seg) not in given_edges
             stroke, sw = (_GF_ANSWER, 3) if added else (_GF_STROKE, 2)
@@ -1198,23 +1263,22 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
                 f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
                 f'stroke="{stroke}" stroke-width="{sw}"/>'
             )
+            lay.stroke([(x1, y1), (x2, y2)], sw)
         ticks = seg.get("ticks") or 0
         for i in range(ticks):
             off = (i - (ticks - 1) / 2) * _GF_TICK_SP
             cxp, cyp = mx + ux * off, my + uy * off
+            t1 = (_r(cxp - nx * _GF_TICK), _r(cyp - ny * _GF_TICK))
+            t2 = (_r(cxp + nx * _GF_TICK), _r(cyp + ny * _GF_TICK))
             lines.append(
-                f'<line x1="{_r(cxp - nx * _GF_TICK)}" y1="{_r(cyp - ny * _GF_TICK)}" '
-                f'x2="{_r(cxp + nx * _GF_TICK)}" y2="{_r(cyp + ny * _GF_TICK)}" '
+                f'<line x1="{t1[0]}" y1="{t1[1]}" '
+                f'x2="{t2[0]}" y2="{t2[1]}" '
                 f'stroke="{_GF_STROKE}" stroke-width="1.5"/>'
             )
+            lay.stroke([t1, t2], 1.5)
         label = seg.get("label")
         if label is not None:
-            lx = _r(mx + nx * _GF_LABEL_OFF)
-            ly = _r(my + ny * _GF_LABEL_OFF + 4)
-            lines.append(
-                f'<text x="{lx}" y="{ly}" text-anchor="middle" '
-                f'fill="{_GF_TEXT}">{_esc(label)}</text>'
-            )
+            seg_labels.append((str(label), (x1, y1, x2, y2)))
 
     # --- arcs (whole/semi/quarter circles) ----------------------------------
     for arc in arcs:
@@ -1232,15 +1296,13 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
             f'<path d="M {p1x} {p1y} A {rr} {rr} 0 {large} {sweep} {p2x} {p2y}" '
             f'fill="none" stroke="{_GF_STROKE}" stroke-width="2"/>'
         )
+        arc_c = (tx(cx), ty(cy), rr, start, end)
+        drawn_arcs.append(arc_c)
+        arc_polys.append(svg_arc_points((p1x, p1y), rr, large, sweep, (p2x, p2y)))
+        lay.stroke(arc_polys[-1], 2)
         label = arc.get("label")
         if label is not None:
-            mid = math.radians((start + end) / 2)
-            lx = _r(tx(cx + r * math.cos(mid)) + math.cos(mid) * 12)
-            ly = _r(ty(cy + r * math.sin(mid)) + math.sin(mid) * 12 + 4)
-            lines.append(
-                f'<text x="{lx}" y="{ly}" text-anchor="middle" '
-                f'fill="{_GF_TEXT}">{_esc(label)}</text>'
-            )
+            arc_labels.append((str(label), arc_c))
 
     # --- angle marks (small arc, or a square for right angles) --------------
     for ang in angles:
@@ -1259,6 +1321,7 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
                 f'<polyline points="{p1[0]},{p1[1]} {p2[0]},{p2[1]} {p3[0]},{p3[1]}" '
                 f'fill="none" stroke="{_GF_STROKE}" stroke-width="1.5"/>'
             )
+            lay.stroke([p1, p2, p3], 1.5)
         else:
             rr = _GF_ANGLE_R
             p1x, p1y = _r(vX + dax * rr), _r(vY + day * rr)
@@ -1271,31 +1334,179 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
                 f'<path d="M {p1x} {p1y} A {rr} {rr} 0 0 {sweep} {p2x} {p2y}" '
                 f'fill="none" stroke="{_GF_STROKE}" stroke-width="1.5"/>'
             )
+            lay.stroke(svg_arc_points((p1x, p1y), rr, 0, sweep, (p2x, p2y)), 1.5)
             value = ang.get("value_deg")
             if value is not None and not ang.get("unknown"):
                 bisx, bisy = _gf_unit(dax + dbx, day + dby)
                 if bisx == 0 and bisy == 0:
                     bisx, bisy = -day, dax  # straight angle: fall back to perpendicular
-                lx = _r(vX + bisx * (rr + 12))
-                ly = _r(vY + bisy * (rr + 12) + 4)
-                text = f"{_esc(value)}°"
-                lines.append(
-                    f'<text x="{lx}" y="{ly}" text-anchor="middle" fill="{_GF_TEXT}">{text}</text>'
-                )
+                angle_values.append((f"{value}°", vX, vY, (bisx, bisy), rr))
 
-    # --- free text labels ---------------------------------------------------
+    # --- text: angle values, side lengths, arc labels, then vertex letters ---
+    texts: list[tuple[int, int, str, str, bool]] = []
+    for text, vX, vY, bis, rr in angle_values:
+        # Inside the angle just beyond its arc; further out along the bisector
+        # while the box would still touch an arm (a small angle); else outside.
+        out = (-bis[0], -bis[1])
+        inside = lay.away(vX, vY, [bis], text, rr + 2, steps=range(0, 46, 3))
+        outside = lay.away(vX, vY, ring(out, 30), text, 4, steps=(0, 3, 6))
+        x, y = lay.place(text, chain(inside, outside))
+        texts.append((x, y, text, _GF_TEXT, False))
+
+    for text, seg_c in seg_labels:
+        x, y, vertical = _gf_side_label(lay, text, seg_c, centroid, regions, drawn_segs, arc_polys)
+        texts.append((x, y, text, _GF_TEXT, vertical))
+
+    for text, (cx_, cy_, rr_, start, end) in arc_labels:
+        cands = []
+        for k in (0, 1, -1, 2, -2):
+            mid = math.radians((start + end) / 2 + k * (end - start) / 8)
+            u = (math.cos(mid), math.sin(mid))
+            px_, py_ = cx_ + rr_ * u[0], cy_ + rr_ * u[1]
+            cands.append(lay.away(px_, py_, [u, (-u[0], -u[1])], text, 3))
+        x, y = lay.place(text, chain.from_iterable(cands))
+        texts.append((x, y, text, _GF_TEXT, False))
+
     # Positional vertex keys (TL/TR/…) are shown as display letters (KAN-313);
-    # meaningfully-named vertices keep their text.
+    # meaningfully-named vertices keep their text. A letter goes in the widest
+    # empty sector round its point (outside the corner, along the external
+    # bisector of a polygon vertex).
     vmap = _gf_vertex_display(labels)
     for lab in labels:
         px, py = pmap[lab["at"]]
-        text = vmap.get(lab["at"], lab["text"])
+        text = str(vmap.get(lab["at"], lab["text"]))
         fill = (
             _GF_ANSWER
             if given_points is not None and _gf_q((px, py)) not in given_points
             else _GF_TEXT
         )
-        lines.append(f'<text x="{tx(px) + 6}" y="{ty(py) - 6}" fill="{fill}">{_esc(text)}</text>')
+        pX, pY = tx(px), ty(py)
+        outward = _gf_unit(pX - centroid[0], pY - centroid[1])
+        incident = _gf_incident_dirs(pX, pY, drawn_segs, drawn_arcs)
+        prefer = widest_gap(incident, outward) or (1, -1)
+        dirs = ring(prefer)
+        near = lay.away(pX, pY, dirs, text, 3, steps=(0, 3, 6))
+        far = lay.away(pX, pY, dirs, text, 3, steps=(10, 15, 20, 26))  # past angle marks
+        x, y = lay.place(text, chain(near, far))
+        texts.append((x, y, text, fill, False))
+
+    for x, y, text, fill, vertical in texts:
+        turn = f' transform="rotate(-90 {x} {y})"' if vertical else ""
+        lines.append(
+            f'<text x="{x}" y="{y}" text-anchor="middle"{turn} fill="{fill}">{_esc(text)}</text>'
+        )
+
+    # Grow the canvas where a label would otherwise be clipped.
+    ext = lay.extent()
+    if ext is not None:
+        vx0 = min(0, math.floor(ext[0]) - 2)
+        vy0 = min(0, math.floor(ext[1]) - 2)
+        vx1 = max(width, math.ceil(ext[2]) + 2)
+        vy1 = max(height, math.ceil(ext[3]) + 2)
+        lines[0] = _gf_header(vx1 - vx0, vy1 - vy0, vx0, vy0)
 
     lines.append("</svg>")
     return "".join(lines)
+
+
+def _gf_side_label(
+    lay: Layout,
+    text: str,
+    seg: tuple[int, int, int, int],
+    centroid: tuple[float, float],
+    regions: list[list[tuple[float, float]]],
+    segs: list[tuple[int, int, int, int]],
+    arc_polys: list[list[tuple[float, float]]],
+) -> tuple[int, int, bool]:
+    """Place a segment's length label: beside the middle of the segment on the side
+    away from the figure's interior, sliding along it, then on the inner side (an
+    inner segment such as a height has no outside). The label must sit nearer this
+    segment than any other line, so it cannot be read as another side's length.
+    A vertical segment with no room for level text (the height of a narrow
+    triangle) gets the text turned to run up beside it. Returns ``(x, y, turned)``."""
+    x1, y1, x2, y2 = seg
+    ux, uy = _gf_unit(x2 - x1, y2 - y1)
+    n = (-uy, ux)
+    mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+    # Outward = the side not covered by a shaded outline; with no shading (or
+    # shading on both sides, an inner segment), the side away from the centroid.
+    side_in = [_gf_inside((mx + s * n[0] * 6, my + s * n[1] * 6), regions) for s in (1, -1)]
+    if side_in[0] != side_in[1]:
+        if side_in[0]:
+            n = (-n[0], -n[1])
+    elif n[0] * (mx - centroid[0]) + n[1] * (my - centroid[1]) < 0:
+        n = (-n[0], -n[1])
+    own = ((x1, y1), (x2, y2))
+    others: list[tuple[Point, Point]] = [
+        ((a, b), (c, d)) for a, b, c, d in segs if (a, b, c, d) != seg
+    ]
+    others += [(p, q) for poly in arc_polys for p, q in zip(poly, poly[1:], strict=False)]
+
+    def nearest_is_own(box: Box, margin: float = 2.0) -> bool:
+        d = seg_box_distance(*own, box)
+        for p, q in others:
+            od = seg_box_distance(p, q, box)
+            if d + margin < od:  # clearly nearer its own line
+                continue
+            # A tie with a line that only reaches the label at the corner it shares
+            # with this one (the label sits past that line's end) is no ambiguity.
+            corner = next((c for c in (p, q) if c in own), None)
+            if corner is None or d > od or abs(seg_box_distance(corner, corner, box) - od) > 1e-6:
+                return False
+        return True
+
+    def centres(vertical: bool) -> chain:
+        gap = 4 if vertical else 5  # turned text hugs its line more closely
+        return chain.from_iterable(
+            lay.away(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, [side], text, gap, vertical=vertical)
+            for ts in ((0.5, 0.4, 0.6), (0.3, 0.7, 0.25, 0.75, 0.2, 0.8, 0.15, 0.85, 0.1, 0.9))
+            for side in (n, (-n[0], -n[1]))
+            for t in ts
+        )
+
+    x, y, hits = lay.best(text, centres(False), nearest_is_own)
+    vertical = False
+    if hits and abs(ux) < 0.05:
+        # Turned text runs along its own line, which already says whose length it is.
+        own_turned = lambda box: nearest_is_own(box, 0.0)  # noqa: E731
+        vx, vy, vhits = lay.best(text, centres(True), own_turned, vertical=True)
+        if vhits < hits:
+            x, y, vertical = vx, vy, True
+    lay.reserve(x, y, text, "middle", vertical=vertical)
+    return x, y, vertical
+
+
+def _gf_incident_dirs(
+    px: float,
+    py: float,
+    segs: list[tuple[int, int, int, int]],
+    arcs: list[tuple[float, float, float, float, float]],
+) -> list[tuple[float, float]]:
+    """Unit directions of the strokes leaving canvas point ``(px, py)``: segments
+    that end at it or pass through it, and the tangents of arcs through it."""
+    dirs: list[tuple[float, float]] = []
+    for x1, y1, x2, y2 in segs:
+        for (ex, ey), (ox, oy) in (((x1, y1), (x2, y2)), ((x2, y2), (x1, y1))):
+            if math.hypot(ex - px, ey - py) < 1.5:
+                dirs.append(_gf_unit(ox - ex, oy - ey))
+        length = math.hypot(x2 - x1, y2 - y1)
+        if length:
+            t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / (length * length)
+            off = abs((px - x1) * (y2 - y1) - (py - y1) * (x2 - x1)) / length
+            if off < 1.5 and t * length - 1.5 > 0 and t * length + 1.5 < length:
+                dirs += [_gf_unit(x2 - x1, y2 - y1), _gf_unit(x1 - x2, y1 - y2)]
+    for cx, cy, rr, start, end in arcs:
+        if rr <= 0 or abs(math.hypot(px - cx, py - cy) - rr) > 1.5:
+            continue
+        theta = math.degrees(math.atan2(py - cy, px - cx))
+        lo, hi = min(start, end), max(start, end)
+        for wrap in (-360, 0, 360):
+            th = theta + wrap
+            if lo - 1 <= th <= hi + 1:
+                tan = (-math.sin(math.radians(th)), math.cos(math.radians(th)))
+                if th > lo + 1:
+                    dirs.append((-tan[0], -tan[1]))  # the arc runs back toward lo
+                if th < hi - 1:
+                    dirs.append(tan)
+                break
+    return dirs
