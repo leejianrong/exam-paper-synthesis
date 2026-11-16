@@ -45,6 +45,7 @@ from .document import (
     marks_groups,
     number_from,
     paper_outline,
+    paper_part,
     paper_placement,
 )
 from .units import printed_unit
@@ -580,11 +581,21 @@ def inline_script_hashes() -> list[str]:
 
 
 def _document(
-    *, root_class: str, title: str, header_html: str, body_html: str, tally: bool = False
+    *,
+    root_class: str,
+    title: str,
+    header_html: str,
+    body_html: str,
+    tally: bool = False,
+    foot_tag: str | None = None,
 ) -> str:
     """Assemble the shared self-contained HTML shell around a rendered body.
 
-    ``tally`` marks the paper for the P6b paginator, which prints a tally box on every page."""
+    ``foot_tag`` (a paper only; ``""`` for no left-hand tag) hands the paper to the paginator,
+    which lays it out page by page with a footer on every question page (EXA-138); ``tally``
+    also gives each of those pages its tally box (P6b)."""
+    paginate = foot_tag is not None
+    attrs = (" data-paginate" if paginate else "") + (" data-tally" if tally else "")
     return (
         "<!doctype html>\n"
         '<html lang="en">\n'
@@ -597,17 +608,31 @@ def _document(
         f"<style>{_PRINT_CSS}</style>\n"
         "</head>\n"
         "<body>\n"
-        f'<main class="{root_class}"{" data-tally" if tally else ""}>\n'
+        f'<main class="{root_class}"{attrs}>\n'
         f"{header_html}\n"
         f"{body_html}\n"
         "</main>\n"
         f"{_TALLY_TEMPLATE if tally else ''}"
+        f"{_page_foot_template(foot_tag) if foot_tag is not None else ''}"
         f"<script>{_KATEX_JS}</script>\n"
         f"<script>{_AUTORENDER_JS}</script>\n"
         f"<script>{_BOOTSTRAP_JS}</script>\n"
         f"<script>{_PAGINATE_JS}</script>\n"
         "</body>\n"
         "</html>\n"
+    )
+
+
+def _page_foot_template(tag: str) -> str:
+    """The footer the paginator puts on every question page (EXA-138): an optional tag on the
+    left, the page number in the centre, "(Go on to the next page)" and the tally box on the
+    right. The paginator fills in the number and leaves "Go on" off the last page."""
+    return (
+        '<template id="page-foot-template"><footer class="page-foot">'
+        f'<span class="foot-tag">{_esc(tag)}</span>'
+        '<span class="foot-num"></span>'
+        '<span class="foot-end"><span class="foot-go">(Go on to the next page)</span></span>'
+        "</footer></template>\n"
     )
 
 
@@ -1013,7 +1038,12 @@ def _render_document_body(
     outline = iter(paper_outline(doc))
     marking = False  # inside a section that prints the marking margin
     mcq = False  # inside a multiple-choice section
-    for node in doc["content"]["content"]:
+    own_page = False  # inside a structured section: each question starts a page (EXA-138)
+    content = doc["content"]["content"]
+    kinds = ("freeformQuestion", "templatedQuestion")
+    last_q = max((i for i, n in enumerate(content) if n["type"] in kinds), default=-1)
+    first_in_section = True
+    for i, node in enumerate(content):
         if node["type"] == "coverPage":
             out.append(_render_cover(node["attrs"], doc, title=title, marks=marks))
         elif node["type"] == "blankPage":
@@ -1022,29 +1052,65 @@ def _render_document_body(
             info = next(outline)
             marking = info["marking"] and not answer_key
             mcq = info["mode"] == "mcq"
+            own_page = info["mode"] == "structured" and not answer_key
             placement = info["marks_placement"]
-            out.append(_render_section(info))
-        elif node["type"] == "freeformQuestion":
-            item = _render_freeform_item(
-                node,
-                answer_key=answer_key,
-                assets=assets,
-                layout=_block_layout(node, placement),
-                mcq=mcq,
-            )
-            out.extend(_mark_unit(item, block_marks(node), marking))
-        elif node["type"] == "templatedQuestion":
-            item = _render_question_item(
-                node["attrs"]["question"],
-                answer_key=answer_key,
-                tag="section",
-                layout=_block_layout(node, placement),
-            )
-            out.extend(_mark_unit(item, block_marks(node), marking))
+            first_in_section = True
+            section = _render_section(info)
+            if own_page:
+                section = section.replace('class="paper-section"', 'class="paper-section own-page"')
+            out.append(_in_margin(section, marking))
+        elif node["type"] in kinds:
+            if node["type"] == "freeformQuestion":
+                item = _render_freeform_item(
+                    node,
+                    answer_key=answer_key,
+                    assets=assets,
+                    layout=_block_layout(node, placement),
+                    mcq=mcq,
+                )
+            else:
+                item = _render_question_item(
+                    node["attrs"]["question"],
+                    answer_key=answer_key,
+                    tag="section",
+                    layout=_block_layout(node, placement),
+                )
+            item = _mark_unit(item, block_marks(node), marking)
+            # the section header already starts the page of the section's first question
+            if own_page and not first_in_section:
+                item[0] = item[0].replace(' class="question', ' class="question own-page', 1)
+            first_in_section = False
+            out.extend(item)
+            if i == last_q and not answer_key:
+                out.append(_in_margin(f'<p class="end-marker">{_end_text(doc)}</p>', marking))
         else:
-            out.append(_render_rich_block(node, assets))
+            out.append(_in_margin(_render_rich_block(node, assets), marking))
     out.append("</div>")
     return "".join(out)
+
+
+def _in_margin(html_block: str, marking: bool) -> str:
+    """Inside a marking section every block keeps clear of the page's marking strip (EXA-138)."""
+    return re.sub(r"^<(\w+)", r"<\1 data-margin", html_block, count=1) if marking else html_block
+
+
+_END_TEXT = {"booklet_a": "End of Booklet A", "booklet_b": "End of Booklet B"}
+
+
+def _end_text(doc: dict) -> str:
+    """What prints after the last question (EXA-138): the booklet the cover names, else the
+    paper. A paper without a cover is just a paper."""
+    part = paper_part(doc) if cover_page(doc) else None
+    return _END_TEXT.get(part or "", "End of Paper")
+
+
+def _foot_tag(doc: dict) -> str:
+    """The small left-hand footer tag, e.g. "Pandan Primary · 2025 Preliminary Examination ·
+    Paper 2" — only when the cover names the school or the exam (EXA-138)."""
+    cover = cover_page(doc)
+    attrs = (cover or {}).get("attrs") or {}
+    school, exam, paper = (str(attrs.get(k) or "").strip() for k in ("school", "exam", "paper"))
+    return " · ".join(x for x in (school, exam, paper) if x) if school or exam else ""
 
 
 def _time_label(doc: dict) -> str:
@@ -1373,6 +1439,7 @@ def render_document_html(
         body_html=body,
         # a paper with a marking section prints a tally box on every page it fills with those
         tally=any(s["marking"] for s in paper_outline(doc)),
+        foot_tag=_foot_tag(doc),  # every paper is paginated, for its footers (EXA-138)
     )
 
 

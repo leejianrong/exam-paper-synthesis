@@ -184,10 +184,11 @@ def _pdf(browser, html: str) -> tuple[list[str], list[dict]]:
 @pytest.mark.parametrize("tally", [True, False], ids=["paginated", "plain"])
 def test_cover_and_blank_pages_each_get_a_page_of_their_own(browser, tally):
     doc = paper(blank(), q("QB4 fourth", 3), blank("rough"))
-    if not tally:  # every section a non-working one: no marking, so no paginator page boxes
-        for n in doc["content"]["content"]:
-            if n["type"] == "section":
-                n["attrs"]["mode"] = "mcq"
+    # plain: every section a non-working one, so no tally boxes. Never structured here: that
+    # would give QB3 a page of its own (EXA-138), which is not what this test is about.
+    for n in doc["content"]["content"]:
+        if n["type"] == "section":
+            n["attrs"]["mode"] = "short" if tally else "mcq"
     html = render_document_html("T", doc, mode="student")
     text, pgs = _pdf(browser, html)
 
@@ -197,12 +198,9 @@ def test_cover_and_blank_pages_each_get_a_page_of_their_own(browser, tally):
     assert "intentionally left blank" in text[2] and "QB" not in text[2]
     assert "QB4" in text[3]
     assert "Rough work" in text[4] and "QB4" not in text[4]
-    if tally:
-        assert len(pgs) == 5
-        # cover and blank pages carry no tally box; the question pages carry their marks
-        assert [p["tally"] for p in pgs] == [None, 8, None, 3, None]
-    else:
-        assert pgs == []
+    assert len(pgs) == 5  # every paper is paginated, for its footers (EXA-138)
+    # cover and blank pages carry no tally box; the question pages carry their marks
+    assert [p["tally"] for p in pgs] == ([None, 8, None, 3, None] if tally else [None] * 5)
 
 
 def test_the_examiner_table_rows_add_up_when_questions_precede_the_sections():
