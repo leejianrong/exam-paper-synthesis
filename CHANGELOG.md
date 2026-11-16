@@ -85,6 +85,8 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   "which is the greatest" options are the four listed numbers. A generated P5 or P6 Paper 1
   Booklet A now has no placeholders (was 3 and 2). Two new topics, Measurement and Time. The
   five are not on a harder / easier ladder.
+- **The + New wizard has four choices**: the *Template* choice made the same papers as *Single
+  paper → Start it empty*, so it was dropped until other starters exist.
 - **The + New wizard (O3, EXA-127)** — *+ New* on "Your papers" opens one dialog in place of
   the old *+ New paper* button, template buttons, generate form and *+ New folder* field. Pick
   *New folder*, *Exam set* (Booklet A, Booklet B and Paper 2 into a new or existing folder,
