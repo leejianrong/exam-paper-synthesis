@@ -1,0 +1,66 @@
+code: age_difference_structured
+syllabus:
+  level: P6
+  strand: "Ratio"
+  topic: "Ratio"
+  subtopic: "Structured: ages, the constant difference, then a future ratio"
+  skill_codes: ["RATIO.AGE.CONSTDIFF"]  # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Hidden structure", "Reasoning depth"]
+marks: 3                                # the question total; each part's marks are below
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, relative, age, relative_age, ratio_after]
+  properties:
+    name: { type: string }
+    relative: { type: string }
+    age: { type: integer, minimum: 6, maximum: 14 }
+    relative_age: { type: integer, minimum: 30, maximum: 60 }
+    ratio_after:
+      type: array
+      items: { type: integer, minimum: 1, maximum: 9 }
+      minItems: 2
+      maxItems: 2
+# Every parameter_schema property needs a role (W1a).
+param_roles:
+  name:         { role: name }
+  relative:     { role: item }
+  age:          { role: number }
+  relative_age: { role: number }
+  ratio_after:  { role: number }
+# P8c multi-part: shared stem here, each part's text/marks/scheme/steps/answer under `parts`.
+story_templates:
+  - stem: >
+      {name} is {age} years old. {name}'s {relative} is {relative_age} years old.
+parts:
+  - label: a
+    marks: 1
+    text: "How old was {name}'s {relative} when {name} was born?"
+    solution_template:
+      steps:
+        - text: "{relative_age} − {age} = {diff}. When {name} was born, the {relative} was {diff} years old."
+          expr: "{relative_age}-{age}"
+    marking_scheme:
+      - { mark: 1, type: A, description: "Correct age (the difference in their ages)." }
+    answer: { type: integer }
+  - label: b
+    marks: 2
+    text: >
+      In how many years' time will the ratio of {name}'s age to the {relative}'s age be
+      {ratio_after[0]} : {ratio_after[1]}?
+    solution_template:
+      steps:
+        - text: "The difference in their ages never changes: it is always {diff} years (from (a))."
+        - text: "Then, the difference is {ratio_after[1]} − {ratio_after[0]} = {diff_units_text}. {unit_line}"
+          expr: "{diff}/{diff_units}"
+        - text: "{name} will be {ratio_after[0]} × {unit} = {then} years old (and the {relative} {relative_then})."
+          expr: "{ratio_after[0]}*{unit}"
+        - text: "Number of years = {then} − {age} = {years}."
+          expr: "{then}-{age}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Uses the unchanged age difference as the difference in ratio units." }
+      - { mark: 1, type: A, description: "Correct number of years." }
+    answer: { type: integer }

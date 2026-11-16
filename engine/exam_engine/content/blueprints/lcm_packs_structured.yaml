@@ -1,0 +1,77 @@
+code: lcm_packs_structured
+syllabus:
+  level: P6
+  strand: "Whole Numbers"
+  topic: "Whole Numbers"
+  subtopic: "Structured: common multiples of two pack sizes, then the most a budget buys"
+  skill_codes: ["WHOLE.LCM.PACKS"]  # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Multiple concepts", "Reasoning depth"]
+marks: 3                                # the question total; each part's marks are below
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, goods, pack, price, budget]
+  properties:
+    name: { type: string }
+    goods:
+      type: array
+      items: { type: string }
+      minItems: 2
+      maxItems: 2
+    pack:
+      type: array
+      items: { type: integer, minimum: 4, maximum: 12 }
+      minItems: 2
+      maxItems: 2
+    price:
+      type: array
+      items: { type: integer, minimum: 2, maximum: 12 }
+      minItems: 2
+      maxItems: 2
+    budget: { type: integer, minimum: 1, maximum: 600 }
+# Every parameter_schema property needs a role (W1a). The goods pair is a story choice: the
+# pool pairs are curated (both plural, sold in packs), so it is not a cosmetic slot.
+param_roles:
+  name:   { role: name }
+  goods:  { role: choice }
+  pack:   { role: number }
+  price:  { role: number }
+  budget: { role: number }
+# P8c multi-part: shared stem here, each part's text/marks/scheme/steps/answer under `parts`.
+story_templates:
+  - stem: >
+      A shop sells {goods[0]} in packs of {pack[0]} and {goods[1]} in packs of {pack[1]}.
+      A pack of {goods[0]} costs ${price[0]} and a pack of {goods[1]} costs ${price[1]}.
+      {name} wants to buy the same number of {goods[0]} as {goods[1]}. The packs cannot
+      be opened.
+parts:
+  - label: a
+    marks: 1
+    text: "What is the smallest number of {goods[0]} {name} can buy?"
+    solution_template:
+      steps:
+        - text: "The number of {goods[0]} must be a multiple of {pack[0]} and also a multiple of {pack[1]}."
+        - text: "The smallest common multiple of {pack[0]} and {pack[1]} is {lcm}."
+    marking_scheme:
+      - { mark: 1, type: A, description: "Correct lowest common multiple." }
+    answer: { type: integer }
+  - label: b
+    marks: 2
+    text: >
+      {name} has ${budget}. What is the greatest number of {goods[0]} and {goods[1]}
+      altogether that {name} can buy?
+    solution_template:
+      steps:
+        - text: "{lcm} {goods[0]} and {lcm} {goods[1]} cost {packs_m} × ${price[0]} + {packs_n} × ${price[1]} = ${set_cost}."
+          expr: "{packs_m}*{price[0]}+{packs_n}*{price[1]}"
+        - text: "{sets} such sets cost {sets} × ${set_cost} = ${sets_cost}; {next_sets} sets would cost ${next_cost}, more than ${budget}."
+          expr: "{sets}*{set_cost}"
+        - text: "Greatest number altogether = {sets} × {pair} = {total}."
+          expr: "{sets}*{pair}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Uses (a) to find the cost of the smallest equal set, then how many sets the money buys." }
+      - { mark: 1, type: A, description: "Correct greatest number of items." }
+    answer: { type: integer }

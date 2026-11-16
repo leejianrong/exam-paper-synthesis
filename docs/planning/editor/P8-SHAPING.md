@@ -314,3 +314,32 @@ in generation (the engine stays deterministic).
   the least-used-topic rule from the document; every eligible topic gets a 1-mark question).
 - **Goldens** `tests/golden/{whole_numbers_rounding,decimals_compare,fractions_compare,
   measurement_conversion,time_duration}.jsonl`, 3 each, picked from seeds; a person checks them.
+
+## P8c batch 2 as built (EXA-143, 2026-11-17)
+
+- **Why.** Real Paper 2 Section B has 8–10 multi-part questions of 12, built on named
+  heuristics; ours had 3, with 9 single-part stand-ins of 1–2 steps (REAL-PAPER-COMPARISON.md
+  Part 2, ranked gap 1).
+- **Blueprints** (all P6, `solvers/heuristics.py`, not on any ladder), each with a cheap lead-in:
+  - `supposition_structured` (Whole Numbers, 5 = 1 + 2 + 2): tickets at two prices, the number
+    sold and the money collected: the money if all were child tickets; how many adult
+    tickets; how much more from adult tickets than child tickets.
+  - `fraction_remainder_structured` (Fractions, 4 = 1 + 3): a fraction on a bag, a fraction of
+    the remainder on n identical items, $x left: the fraction left; the cost of each item.
+  - `lcm_packs_structured` (Whole Numbers, 3 = 1 + 2): two goods in packs of m and n, the same
+    number of each: the smallest number (LCM); the most of both a budget buys.
+  - `age_difference_structured` (Ratio, 3 = 1 + 2): two ages now: the age difference ("how old
+    was the parent when the child was born?"); in how many years the ages are r : s.
+  - `equal_number_amount_structured` (Whole Numbers, 4 = 2 + 2): two prices: an equal number
+    of each and a difference in money (how many altogether); an equal amount on each (how many
+    more of the cheaper).
+- **Proof.** `tests/test_invariants_heuristics.py` re-derives every part from the printed
+  numbers by search (every split of the tickets, the money at first, counting up through whole
+  packs, year by year, one of each at a time). `tests/test_multipart_blueprints.py` covers the
+  five too (generation, tampering with any part, edits, printing, goldens).
+- **What it fills now.** P6 Paper 2 Section B: 8 multi-part (33 marks: 3 + 3 + 4 + 4 + 4 + 5 + 5
+  + 5) and 4 single-part stand-ins of 3 marks, 21 parts in all, on every seed 1–100 (was 3
+  multi-part and 9 stand-ins). No generator change: the pool picks them up as `multipart`. P5
+  papers are unchanged.
+- **Goldens** `tests/golden/{supposition,fraction_remainder,lcm_packs,age_difference,
+  equal_number_amount}_structured.jsonl`, 3 each, chosen by hand; a person checks them.

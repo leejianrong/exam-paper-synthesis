@@ -27,8 +27,30 @@ CODES = {
     "ratio_structured": ("Ratio", [2, 3]),
     "speed_structured": ("Speed", [1, 3]),
     "volume_structured": ("Volume", [2, 3]),
+    # P8c batch 2 (EXA-143): the named Paper 2 heuristics
+    "supposition_structured": ("Whole Numbers", [1, 2, 2]),
+    "fraction_remainder_structured": ("Fractions", [1, 3]),
+    "lcm_packs_structured": ("Whole Numbers", [1, 2]),
+    "age_difference_structured": ("Ratio", [1, 2]),
+    "equal_number_amount_structured": ("Whole Numbers", [2, 2]),
 }
 SEEDS = range(1, 151)
+
+
+def _positive(answer: dict) -> bool:
+    if answer["type"] == "fraction":
+        return answer["numerator"] > 0 and answer["denominator"] > 0
+    return answer["value"] > 0
+
+
+def _bump(answer: dict) -> None:
+    answer["numerator" if answer["type"] == "fraction" else "value"] += 1
+
+
+def _printed(answer: dict) -> str:
+    if answer["type"] == "fraction":
+        return f"\\frac{{{answer['numerator']}}}{{{answer['denominator']}}}"
+    return str(answer["value"])
 
 
 # --- the blueprint marker the paper generator reads ----------------------------------
@@ -82,11 +104,11 @@ def test_generated_objects_are_valid_lettered_and_engine_proven(code):
         assert validate_object(obj) == []
         q = obj["question"]
         assert q["stem"] and q["total_marks"] == sum(marks)
-        assert [p["label"] for p in q["parts"]] == ["a", "b"][: len(marks)]
+        assert [p["label"] for p in q["parts"]] == ["a", "b", "c"][: len(marks)]
         assert [p["marks"] for p in q["parts"]] == marks
         for p in q["parts"]:
             assert sum(m["mark"] for m in p["marking_scheme"]) == p["marks"]
-            assert p["answer"]["value"] > 0 and p["solution_steps"]
+            assert _positive(p["answer"]) and p["solution_steps"]
         assert obj["validation"]["status"] == "pass"
         assert obj["provenance"]["llm_used"] is False
         assert verify_snapshot(obj) == [], (code, seed)
@@ -122,7 +144,7 @@ def test_golden_fixtures(code):
 @pytest.mark.parametrize("part", [0, 1])
 def test_tampering_with_any_part_answer_is_caught(code, part):
     obj = generate(code, 11)
-    obj["question"]["parts"][part]["answer"]["value"] += 1
+    _bump(obj["question"]["parts"][part]["answer"])
     label = "ab"[part]
     assert verify_snapshot(obj) == [f"part ({label}) answer does not match the engine's solution"]
 
@@ -175,7 +197,7 @@ def test_only_whole_question_edits_are_offered(code):
 def test_regenerate_gives_a_proven_multipart_child(code):
     obj = generate(code, 6)
     child = edits.apply("regenerate", obj)
-    assert len(child["question"]["parts"]) == 2
+    assert len(child["question"]["parts"]) == len(CODES[code][1])
     assert child["provenance"]["parent_id"] == obj["id"]
     assert verify_snapshot(child) == []
 
@@ -204,4 +226,4 @@ def test_worksheet_prints_stem_and_lettered_parts_and_key_prints_every_answer(co
     assert '<span class="part-label">(b)</span>' in sheet
     assert "Answer:" not in sheet
     for part in obj["question"]["parts"]:
-        assert str(part["answer"]["value"]) in key
+        assert _printed(part["answer"]) in key

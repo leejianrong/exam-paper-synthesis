@@ -151,7 +151,7 @@ def test_generated_papers_keep_every_rule(code, level):
                             assert _marks(n) >= 2, where
                 assert [_marks(n) for n in nodes] == sorted(_marks(n) for n in nodes), where
                 # every multi-part blueprint the level allows is used before any stand-in
-                # (today's three fit in any Section B: 14 marks of 45, 3 of ~12 slots)
+                # (today's eight fit in any P6 Section B: 33 marks of 45, 8 of 12 slots)
                 assert sorted(multipart) == sorted(MULTIPART[level]), where
                 rep = next(s for s in report["sections"] if s["title"] == sec["title"])
                 assert rep["multipart"] == len(multipart), where
@@ -274,7 +274,9 @@ def test_what_todays_content_fills():
     assert fill("p1_booklet_a", "P5") == (15, 0)  # 12 one-mark at P5
     assert fill("p1_booklet_b", "P6") == (15, 0)
     assert fill("p1_booklet_b", "P5") == (13, 2)
-    assert fill("p2", "P6") == (17, 0)  # Section B: 3 multi-part + 9 single-part stand-ins
+    assert fill("p2", "P6") == (17, 0)  # Section B: 8 multi-part + 4 single-part stand-ins
+    _, r = generate_paper("p2", "P6", 1)
+    assert [(s["multipart"], s["stand_ins"]) for s in r["sections"]] == [(0, 0), (8, 4)]
     assert fill("p2", "P5") == (16, 3)  # Section B: 11 stand-ins, 3 placeholders (15 marks)
 
 
