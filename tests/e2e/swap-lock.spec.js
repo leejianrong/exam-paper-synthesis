@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { generateSinglePaper } from './helpers.js'
 
 /**
  * Browser acceptance for P8d: on a generated paper, swap questions (another topic, write my
@@ -7,10 +8,7 @@ import { test, expect } from '@playwright/test'
  */
 test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   await page.goto('/')
-  const form = page.getByRole('form', { name: 'Generate a paper' })
-  await form.getByLabel('Paper to generate').selectOption('p2')
-  await form.getByLabel('Level').selectOption('P6')
-  await form.getByRole('button', { name: 'Generate paper' }).click()
+  await generateSinglePaper(page, 'Paper 2', 'P6')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
   const sectionA = page.locator('.section-block').nth(0).locator('.section-summary')

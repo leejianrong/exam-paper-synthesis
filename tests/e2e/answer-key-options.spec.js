@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { settled } from './helpers.js'
+import { settled, newBlankPaper } from './helpers.js'
 
 /**
  * Browser acceptance for P5 answer-key options: leave a question out of the key, hide the
@@ -17,7 +17,7 @@ async function addFreeform(page, text, marks) {
 
 test('leave questions out of the key, hide question text and the M/A breakdown', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: '+ New paper' }).click()
+  await newBlankPaper(page)
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 

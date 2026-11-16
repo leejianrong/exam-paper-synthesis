@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { generateSinglePaper } from './helpers.js'
 
 /**
  * Browser acceptance for P8a: generate a whole paper in one click from the papers list, land in
@@ -7,10 +8,7 @@ import { test, expect } from '@playwright/test'
  */
 test('generate a P6 Paper 2: a full paper with a cover, sections at their targets, no placeholders', async ({ page }) => {
   await page.goto('/')
-  const form = page.getByRole('form', { name: 'Generate a paper' })
-  await expect(form.getByLabel('Paper to generate')).toHaveValue('p2')
-  await form.getByLabel('Level').selectOption('P6')
-  await form.getByRole('button', { name: 'Generate paper' }).click()
+  await generateSinglePaper(page, 'Paper 2', 'P6')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
@@ -42,10 +40,7 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
 
 test('generate a P5 Booklet B: placeholders for what the content cannot fill yet', async ({ page }) => {
   await page.goto('/')
-  const form = page.getByRole('form', { name: 'Generate a paper' })
-  await form.getByLabel('Paper to generate').selectOption('p1_booklet_b')
-  await form.getByLabel('Level').selectOption('P5')
-  await form.getByRole('button', { name: 'Generate paper' }).click()
+  await generateSinglePaper(page, 'Paper 1 · Booklet B', 'P5')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
 
   await expect(page.getByTestId('generate-report')).toContainText('Filled 13 of 15 questions')
@@ -67,20 +62,18 @@ test('generate a P5 Booklet B: placeholders for what the content cannot fill yet
 
 test('generate a P6 Booklet A: multiple-choice questions with four options each', async ({ page }) => {
   await page.goto('/')
-  const form = page.getByRole('form', { name: 'Generate a paper' })
-  await form.getByLabel('Paper to generate').selectOption('p1_booklet_a')
-  await form.getByLabel('Level').selectOption('P6')
-  await form.getByRole('button', { name: 'Generate paper' }).click()
+  await generateSinglePaper(page, 'Paper 1 · Booklet A', 'P6')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
-  await expect(page.getByTestId('generate-report')).toContainText('Filled 13 of 15 questions')
-  await expect(page.getByTestId('generate-report')).toContainText('2 multiple-choice questions still to write')
-  await expect(page.getByTestId('placeholders-left')).toHaveText('2 placeholders to write')
+  // every slot filled since P8e batch 3 (EXA-145): ten 1-mark and five 2-mark questions
+  await expect(page.getByTestId('generate-report')).toContainText('Filled 15 of 15 questions')
+  await expect(page.getByTestId('generate-report')).not.toContainText('still to write')
+  await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
 
   const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
-  expect(student.match(/<ol class="options">/g)).toHaveLength(13)
+  expect(student.match(/<ol class="options">/g)).toHaveLength(15)
   expect(student).not.toContain('class="option option-correct"') // the right option never reaches the paper
   const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
-  expect(key.match(/option option-correct/g)).toHaveLength(13)
+  expect(key.match(/option option-correct/g)).toHaveLength(15)
 })

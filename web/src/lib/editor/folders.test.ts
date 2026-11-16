@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { groupByFolder, paperPart } from './folders'
+import { groupByFolder, paperPart, partOf } from './folders'
 
 const doc = (id: string, title: string, folder_id: string | null = null) => ({
   id,
@@ -25,6 +25,21 @@ describe('paperPart', () => {
     expect(paperPart('Paper 12 drill')).toBeNull()
     expect(paperPart('Booklets and more')).toBeNull()
     expect(paperPart('')).toBeNull()
+  })
+})
+
+describe('partOf', () => {
+  it('prefers the server’s paper_part (from the cover) over the title', () => {
+    expect(partOf({ ...doc('1', 'Term 3 practice'), paper_part: 'booklet_b' })).toBe('booklet_b')
+    // null from the server means none of the three, even if the title says otherwise
+    expect(partOf({ ...doc('2', 'Paper 2 notes'), paper_part: null })).toBeNull()
+    // an older server without the field: the title decides
+    expect(partOf(doc('3', 'P6 Paper 2'))).toBe('paper_2')
+  })
+
+  it('a renamed paper still fills its folder chip', () => {
+    const { groups } = groupByFolder([folder('a', 'A')], [{ ...doc('1', 'Mock', 'a'), paper_part: 'booklet_a' }])
+    expect([...groups[0].parts]).toEqual(['booklet_a'])
   })
 })
 

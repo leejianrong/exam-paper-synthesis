@@ -36,6 +36,8 @@ def _blueprint_meta() -> dict[str, dict]:
             "level": data["syllabus"]["level"],
             "marks": data["marks"],
             "parts": len(data.get("parts") or []) or 1,  # P8c multi-part blueprints
+            "topic": data["syllabus"]["topic"],
+            "answer_type": (data.get("answer") or {}).get("type"),
         }
     return out
 
@@ -213,6 +215,52 @@ def test_topics_are_spread_when_choice_allows():
         assert len(set(topics)) == len(topics) == 5, topics
 
 
+_CONVERTIBLE = {"integer", "decimal", "quantity", "fraction"}  # a number: multiple choice
+
+
+@pytest.mark.parametrize("level", LEVELS)
+def test_booklet_a_fills_every_slot_and_spreads_topics(level):
+    """EXA-145: P5 and P6 Booklet A have no placeholders, and replaying the fill from the
+    document shows each question came from a least-used topic among the blueprints still
+    free for its slot, so the new one-mark topics never crowd out an older one."""
+    allowed = LEVELS[: LEVELS.index(level) + 1]
+    for seed in SEEDS:
+        doc, report = generate_paper("p1_booklet_a", level, seed)
+        assert report["placeholders"] == unfilled_placeholders(doc) == 0, seed
+        used: set[str] = set()
+        counts: Counter[str] = Counter()
+        one_mark_topics = set()
+        for n in _questions(doc):  # a fixed section fills its slots in print order
+            code = n["attrs"]["question"]["blueprint_code"]
+            marks = META[code]["marks"]
+            free = [
+                c
+                for c, m in META.items()
+                if c not in used
+                and m["level"] in allowed
+                and m["marks"] == marks
+                and m["parts"] == 1
+                and m["answer_type"] in _CONVERTIBLE
+            ]
+            assert code in free, (seed, code)
+            least = min(counts[META[c]["topic"]] for c in free)
+            assert counts[META[code]["topic"]] == least, (seed, code, dict(counts))
+            used.add(code)
+            counts[META[code]["topic"]] += 1
+            if marks == 1:
+                one_mark_topics.add(META[code]["topic"])
+        # every topic with a one-mark multiple-choice blueprint gets a one-mark question
+        eligible = {
+            m["topic"]
+            for m in META.values()
+            if m["level"] in allowed
+            and m["marks"] == 1
+            and m["parts"] == 1
+            and m["answer_type"] in _CONVERTIBLE
+        }
+        assert one_mark_topics == eligible, (seed, eligible - one_mark_topics)
+
+
 def test_what_todays_content_fills():
     """Regression anchor for the shaping doc's coverage table (changes when content grows)."""
 
@@ -220,8 +268,8 @@ def test_what_todays_content_fills():
         _, r = generate_paper(code, level, 1)
         return r["filled"], r["placeholders"]
 
-    assert fill("p1_booklet_a", "P6") == (13, 2)  # 8 one-mark (P8e batch 2) + 5 two-mark
-    assert fill("p1_booklet_a", "P5") == (12, 3)  # 7 one-mark at P5
+    assert fill("p1_booklet_a", "P6") == (15, 0)  # 13 one-mark MCQ-able (P8e batch 3)
+    assert fill("p1_booklet_a", "P5") == (15, 0)  # 12 one-mark at P5
     assert fill("p1_booklet_b", "P6") == (15, 0)
     assert fill("p1_booklet_b", "P5") == (13, 2)
     assert fill("p2", "P6") == (17, 0)  # Section B: 3 multi-part + 9 single-part stand-ins

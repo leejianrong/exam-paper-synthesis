@@ -37,6 +37,8 @@ export interface DocumentRecord {
   updated_at: string
   /** O2: the folder the paper is filed in (null = unfiled). */
   folder_id?: string | null
+  /** O3: the exam-set part, derived on the server from the cover page (title as fallback). */
+  paper_part?: 'booklet_a' | 'booklet_b' | 'paper_2' | null
   document: PaperDocument
 }
 

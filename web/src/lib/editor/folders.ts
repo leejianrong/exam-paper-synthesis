@@ -12,17 +12,31 @@ export const PARTS = [
 
 export type PaperPart = (typeof PARTS)[number]['key']
 
+/** The paper template (GET /papers) that makes each part: the exam set and "Single paper" (O3). */
+export const PART_TEMPLATES: Record<PaperPart, string> = {
+  booklet_a: 'p1_booklet_a',
+  booklet_b: 'p1_booklet_b',
+  paper_2: 'p2',
+}
+
 /**
- * Which exam-set part a paper is, read from its title. The list response carries no content, and
- * the title is the one field it has that names the part: the templates and the generator title
- * papers "Paper 1 Booklet A" / "P6 Paper 1 Booklet B" / "P5 Paper 2". A paper renamed without
- * those words counts as none of the three.
+ * Which exam-set part a paper is, read from its title: the fallback when a summary has no
+ * server-derived `paper_part` (see `partOf`). The templates and the generator title papers
+ * "Paper 1 Booklet A" / "P6 Paper 1 Booklet B" / "P5 Paper 2".
  */
 export function paperPart(title: string): PaperPart | null {
   if (/\bbooklet\s*a\b/i.test(title)) return 'booklet_a'
   if (/\bbooklet\s*b\b/i.test(title)) return 'booklet_b'
   if (/\bpaper\s*(2|two|ii)\b/i.test(title)) return 'paper_2'
   return null
+}
+
+/**
+ * A paper's part: the server's `paper_part` (O3, read from the cover page, so a rename keeps it),
+ * else the title. `null` from the server means none (it already tried the title).
+ */
+export function partOf(d: DocumentSummary): PaperPart | null {
+  return d.paper_part === undefined ? paperPart(d.title) : d.paper_part
 }
 
 export interface FolderGroup {
@@ -49,7 +63,7 @@ export function groupByFolder(
       continue
     }
     g.docs.push(d)
-    const part = paperPart(d.title)
+    const part = partOf(d)
     if (part) g.parts.add(part)
   }
   return { groups, unfiled }

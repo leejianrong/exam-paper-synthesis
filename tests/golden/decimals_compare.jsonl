@@ -1,0 +1,3 @@
+{"params": {"ask": "smallest", "thousandths": [502, 500, 250, 520]}, "expected": {"answer": {"type": "decimal", "value": 0.25, "dp": null, "unit": ""}, "total_marks": 1}}
+{"params": {"ask": "greatest", "thousandths": [209, 920, 900, 200]}, "expected": {"answer": {"type": "decimal", "value": 0.92, "dp": null, "unit": ""}, "total_marks": 1}}
+{"params": {"ask": "greatest", "thousandths": [5500, 5540, 5504, 5400]}, "expected": {"answer": {"type": "decimal", "value": 5.54, "dp": null, "unit": ""}, "total_marks": 1}}

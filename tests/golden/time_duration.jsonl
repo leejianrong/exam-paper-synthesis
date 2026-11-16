@@ -1,0 +1,3 @@
+{"params": {"event": "swimming lesson", "start": 455, "duration": 155}, "expected": {"answer": {"type": "integer", "value": 155, "unit": "min"}, "total_marks": 1}}
+{"params": {"event": "swimming lesson", "start": 685, "duration": 40}, "expected": {"answer": {"type": "integer", "value": 40, "unit": "min"}, "total_marks": 1}}
+{"params": {"event": "school play", "start": 750, "duration": 130}, "expected": {"answer": {"type": "integer", "value": 130, "unit": "min"}, "total_marks": 1}}

@@ -191,6 +191,43 @@ def test_create_from_a_template_and_generate_into_a_folder():
     assert len(_doc_ids()) == 2
 
 
+def test_summaries_carry_the_paper_part_from_the_cover_not_the_title():
+    # O3: titled "Paper" (no part in it), but the template's cover names the part.
+    a = _paper(template="p1_booklet_a")
+    b = _paper(template="p1_booklet_b")
+    gen = client.post(
+        "/documents/generate", json={"template": "p2", "level": "P5", "seed": 2}, headers=ALICE
+    ).json()
+    blank = _paper(title="Booklet B draft")  # no cover: the title decides
+    plain = _paper()
+    assert (a["paper_part"], b["paper_part"], gen["paper_part"]) == (
+        "booklet_a",
+        "booklet_b",
+        "paper_2",
+    )
+    listed = {
+        d["id"]: d["paper_part"]
+        for d in client.get("/documents", headers=ALICE).json()["documents"]
+    }
+    assert listed == {
+        a["id"]: "booklet_a",
+        b["id"]: "booklet_b",
+        gen["id"]: "paper_2",
+        blank["id"]: "booklet_b",
+        plain["id"]: None,
+    }
+    # A rename keeps the part (the cover is unchanged); the move summary carries it too.
+    doc = a["document"]
+    doc["title"] = "Term 3 practice"
+    saved = client.put(
+        f"/documents/{a['id']}", json={"document": doc, "base_version": 1}, headers=ALICE
+    )
+    assert saved.status_code == 200 and saved.json()["paper_part"] == "booklet_a"
+    moved = _move(a["id"], _folder()["id"])
+    assert moved.status_code == 200 and moved.json()["paper_part"] == "booklet_a"
+    assert client.get(f"/documents/{a['id']}", headers=ALICE).json()["paper_part"] == "booklet_a"
+
+
 @pytest.mark.skipif(
     os.environ.get("EXAM_TEST_BACKEND") == "postgres",
     reason="the SQLite file upgrade; Postgres adds the column in its own boot DDL",

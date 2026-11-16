@@ -337,7 +337,10 @@ such items.
    directions and turns, area by counting squares, and completing a trapezium, parallelogram or rhombus.
    - Real: 13 questions, about 3 a set, in every paper part.
    - Needs a new `grid` diagram and a grid-cell or point answer type, which can be auto-checked as a cell set.
-3. **Booklet A number-sense and measurement 1-markers.** These fill the 2 placeholders and widen 1-mark coverage.
+3. ~~**Booklet A number-sense and measurement 1-markers.** These fill the 2 placeholders and widen 1-mark coverage.~~
+   Done in #216 (EXA-145): rounding, comparing decimals and fractions, km/kg/ℓ conversion and
+   time durations; Booklet A now has no placeholders at P5 or P6. Not yet built: numerals ↔
+   words, number lines, ordering mixed units, timetables, estimating.
    - Candidates: numerals ↔ words, rounding, place value / missing addend, compare/order fractions and
      decimals, fraction or decimal on a number line, unit conversion (km/m, ℓ/mℓ, kg/g, h/min),
      ordering mixed units, time durations and timetables, estimating a sensible mass or length.

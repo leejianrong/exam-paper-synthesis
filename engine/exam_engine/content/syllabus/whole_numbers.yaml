@@ -6,3 +6,4 @@ skills:
   WN.ORDER.OPS: "Order of operations with whole numbers (brackets, x and /, + and -)"  # used by whole_numbers_easy
   WN.DIV.REMAINDER: "Division with a remainder: round up or down in context"          # used by whole_numbers_medium
   WN.EXCESS.SHORTAGE: "Excess and shortage (difference in shares)"                    # used by whole_numbers_hard
+  WN.ROUND: "Round a whole number to the nearest ten, hundred or thousand"           # whole_numbers_rounding (no ladder)

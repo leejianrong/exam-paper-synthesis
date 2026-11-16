@@ -14,6 +14,7 @@ from app.docstore import (
     VersionConflict,
 )
 from documents import gen_block, make_doc, para
+from exam_engine import paper
 from exam_engine.document import empty_document, total_marks
 
 
@@ -149,6 +150,20 @@ def test_documents_carry_folder_id_and_existing_ones_are_unfiled(store):
     assert store.get("alice", filed["id"])["folder_id"] == folder["id"]
     by_id = {d["id"]: d["folder_id"] for d in store.list("alice")}
     assert by_id == {loose["id"]: None, filed["id"]: folder["id"]}
+
+
+def test_records_carry_the_paper_part_from_the_cover(store):
+    # O3: derived from the stored document, so the list (no content) still knows the part.
+    starter = paper.template_document("p1_booklet_b")
+    starter["title"] = "Renamed"
+    rec = store.create("alice", starter, 0)
+    blank = store.create("alice", empty_document("Paper 2 draft"), 0)
+    none = store.create("alice", empty_document("Untitled"), 0)
+    assert rec["paper_part"] == "booklet_b"
+    parts = {d["id"]: d["paper_part"] for d in store.list("alice")}
+    assert parts == {rec["id"]: "booklet_b", blank["id"]: "paper_2", none["id"]: None}
+    folder = store.create_folder("alice", "F")
+    assert store.move("alice", rec["id"], folder["id"])["paper_part"] == "booklet_b"
 
 
 def test_move_files_and_unfiles_without_touching_content_or_version(store):

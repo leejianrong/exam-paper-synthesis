@@ -21,23 +21,24 @@ sub-slices.
 
 ## What the content can fill today (computed, not estimated)
 
-There are 42 blueprints: 13 topic ladders × 3 rungs, each single-part with fixed marks, plus
-3 multi-part ones. Single-part, counted by marks: 1 mark: 8, 2 marks: 12, 3 marks: 15,
-4 marks: 4; 23 are P5 (1: 7, 2: 8, 3: 8). P8e batch 1 (EXA-117) added the P5 `average`
-ladder; P8c (EXA-116) the three P6 multi-part blueprints (4, 5, 5 marks) for Paper 2
-Section B; P8e batch 2 (EXA-121) the P5 `whole_numbers`, `decimals` and `rate` ladders and
-the P6 `algebra` ladder (1/2/3 marks each).
+There are 47 blueprints: 13 topic ladders × 3 rungs, each single-part with fixed marks,
+3 multi-part ones and 5 single-part 1-mark ones on no ladder. Single-part, counted by marks:
+1 mark: 13, 2 marks: 12, 3 marks: 15, 4 marks: 4; 28 are P5 (1: 12, 2: 8, 3: 8). P8e batch 1
+(EXA-117) added the P5 `average` ladder; P8c (EXA-116) the three P6 multi-part blueprints
+(4, 5, 5 marks) for Paper 2 Section B; P8e batch 2 (EXA-121) the P5 `whole_numbers`,
+`decimals` and `rate` ladders and the P6 `algebra` ladder (1/2/3 marks each); P8e batch 3
+(EXA-145) five P5 1-mark blueprints for Booklet A (below).
 
 | Paper part | Real composition | P6 paper today | P5 paper today |
 |---|---|---|---|
-| P1 Booklet A | 15 MCQ, 20 marks (10 × 1, 5 × 2) | 13 / 15: two 1-mark placeholders (was 0 before P8b, 9 before batch 2) | 12 / 15: three 1-mark placeholders (was 9) |
+| P1 Booklet A | 15 MCQ, 20 marks (10 × 1, 5 × 2) | 15 / 15 (was 13 before batch 3, 0 before P8b) | 15 / 15 (was 12 before batch 3) |
 | P1 Booklet B | 15 short answer, 25 marks (5 × 1, 10 × 2) | 15 / 15, 25 / 25 (was 12 / 15) | 13 / 15, 21 / 25 (was 9 / 15) |
 | P2 Section A | 5 × 2 marks | 5 / 5 | 5 / 5 |
 | P2 Section B | ~12 multi-part, 45 marks | 45 / 45: 3 multi-part (4 + 5 + 5 marks) + 9 stand-ins | 30 / 45: 11 stand-ins (eight 3-mark, three 2-mark) + 3 placeholders (was 15 / 45) |
 
-So a P6 teacher gets complete Paper 1 Booklet B and Paper 2, and Booklet A short of two 1-mark
-questions. The remaining gaps are 1-mark content (Booklet A needs ten distinct 1-mark
-blueprints per paper) and P5 multi-part / 3-mark content for Paper 2 Section B.
+So a P6 teacher gets a complete paper set, and a P5 teacher complete Booklet A. The remaining
+gaps are P5 2-mark content (Booklet B) and P5 multi-part / 3-mark content for Paper 2
+Section B.
 
 ## Shape
 
@@ -148,8 +149,8 @@ in generation (the engine stays deterministic).
 - A multiple-choice copy offers no edit ops (re-solving would turn it back into a written
   answer); P8d's swap replaces it instead.
 - Booklet A's marks stay the blueprint's: 1-mark slots take 1-mark blueprints (only four
-  today; eight after P8e batch 2), which is why P6 Booklet A still has 2 placeholders and P5 3; more 1-mark content (P8e)
-  closes the gap.
+  today; eight after P8e batch 2), which is why P6 Booklet A still had 2 placeholders and P5 3;
+  P8e batch 3 (13 at P6, 12 at P5) closed the gap.
 
 ## P8d as built (2026-11-15)
 
@@ -275,3 +276,41 @@ in generation (the engine stays deterministic).
   ("Correct option (3). Wrong options: (1) forgot to divide; …"). No schema change; the
   correct-option proof in `verify_snapshot` is unchanged.
 
+
+## P8e batch 3 as built (EXA-145, 2026-11-17)
+
+- **Why.** Booklet A has ten 1-mark MCQ slots and only 8 (P6) / 7 (P5) blueprints fitted them
+  (single-part, 1 mark, a numeric or fraction answer), so 2 / 3 placeholders printed. Real
+  Booklet A papers open with number-sense and measurement 1-markers (REAL-PAPER-COMPARISON.md
+  Part 2, ranked gap 3).
+- **Blueprints**, all P5 (the skills are taught in P3–P5 and PSLE assumes them; P5 is the
+  lowest level a paper here has), 1 mark, easy:
+  - `whole_numbers_rounding` (Whole Numbers): a 4-digit number to the nearest ten, hundred
+    or thousand; half the hundred / thousand items carry the double-rounding trap (7549).
+  - `decimals_compare` (Decimals): the greatest / smallest of four decimals made of the same
+    two digits in different places (0.15, 0.51, 0.105, 0.501).
+  - `fractions_compare` (Fractions): the greatest / smallest of four proper fractions with
+    different denominators (common denominator ≤ 120).
+  - `measurement_conversion` (new topic Measurement): km / kg / ℓ as a decimal or in
+    compound units, written in m / g / mℓ (an integer answer; ℓ via `units.printed_unit`).
+  - `time_duration` (new topic Time): minutes between two 12-hour clock times that cross at
+    least one hour (an integer answer in `min`; the schema has no clock-time answer type, so
+    "what time did it end?" items are not covered).
+- **No ladder.** Each is one 1-mark skill with no harder rung of the same skill, so
+  make-harder / make-easier would only jump to an unrelated subtype; they offer `regenerate`
+  only. Like the multi-part blueprints they are not in the web topic picker (it builds
+  `<topic>_<difficulty>` codes), but the generator, swaps and "regenerate unlocked" use them.
+- **Wrong answers.** Every solver has a `distractors` hook. For the two "which is the
+  greatest" blueprints it returns exactly the other three listed numbers (with the misreading
+  that picks each), so the MCQ options are the four numbers in the stem. Known limit: the
+  constructed-response stem lists the numbers, so the MCQ copy shows them twice (in the stem
+  and as options).
+- **Topics.** Measurement and Time are new topics, so the least-used-topic rule spreads them
+  first; a P5 Booklet A now draws its ten 1-mark questions from nine topics, P6 from ten.
+- **Tests.** `tests/test_invariants_{rounding,compare,measurement,time}.py` (independent
+  re-derivations from the printed stem), `tests/test_generate_booklet_a_one_markers.py`,
+  `tests/test_distractors_group_d.py`, and `test_booklet_a_fills_every_slot_and_spreads_topics`
+  in `tests/test_invariants_paper.py` (no placeholders at P5 and P6 over 40 seeds; replays
+  the least-used-topic rule from the document; every eligible topic gets a 1-mark question).
+- **Goldens** `tests/golden/{whole_numbers_rounding,decimals_compare,fractions_compare,
+  measurement_conversion,time_duration}.jsonl`, 3 each, picked from seeds; a person checks them.

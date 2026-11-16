@@ -1,0 +1,8 @@
+# PROVISIONAL skill codes — remap to MOE P5-P6 syllabus outcomes when the
+# official doc is available (Q-M1). Codes are carried, not queried, in v1
+# (ADR-0016), so remapping is a mechanical find/replace with no data migration.
+# The MOE syllabus teaches this conversion under P5 Decimals; it is its own topic here so a
+# generated paper spreads it apart from the decimals questions (P8e batch 3, EXA-145).
+strand: "Measurement"
+skills:
+  MEAS.CONVERT: "Convert km/m, kg/g or litres/ml, given as a decimal or in compound units, to the smaller unit"  # measurement_conversion (no ladder)

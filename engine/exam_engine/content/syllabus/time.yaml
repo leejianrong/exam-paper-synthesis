@@ -1,0 +1,8 @@
+# PROVISIONAL skill codes — remap to MOE P5-P6 syllabus outcomes when the
+# official doc is available (Q-M1). Codes are carried, not queried, in v1
+# (ADR-0016), so remapping is a mechanical find/replace with no data migration.
+# Time is taught before P5 (12- and 24-hour clock, durations); PSLE still asks it in
+# Booklet A, so it is tagged P5, the lowest level a paper here can have (EXA-145).
+strand: "Measurement"
+skills:
+  TIME.DURATION: "Duration in minutes between two times on the 12-hour clock"  # time_duration (no ladder)
