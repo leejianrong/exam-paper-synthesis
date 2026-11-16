@@ -19,6 +19,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
 
+from exam_engine.document import paper_part
+
 _DDL = """
 CREATE TABLE IF NOT EXISTS documents (
   id TEXT PRIMARY KEY,
@@ -118,8 +120,12 @@ def _record(row: sqlite3.Row, *, with_document: bool = True) -> dict:
         "updated_at": row["updated_at"],
         "folder_id": row["folder_id"],
     }
+    # O3: the exam-set part, derived from the cover (title as fallback). The row already holds
+    # the document, so the list pays one JSON parse per paper and no extra query.
+    document = json.loads(row["document"])
+    rec["paper_part"] = paper_part(document)
     if with_document:
-        rec["document"] = json.loads(row["document"])
+        rec["document"] = document
     return rec
 
 
