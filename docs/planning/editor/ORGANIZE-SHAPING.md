@@ -134,7 +134,7 @@ gaps as cards.
   replaces the list's *+ New paper* button, the template buttons, the *Generate a paper* form and
   the inline *+ New folder* field. Choices, as M3 option cards (outlined, 12 px corners, a
   leading icon on `--verify-soft`, the 8 % / 12 % state layer), in order: *New folder*, *Exam
-  set*, *Single paper*, *Template*, *Blank paper*. Single choices inside a step (where the exam
+  set*, *Single paper*, *Blank paper* (a *Template* choice was dropped, see below). Single choices inside a step (where the exam
   set goes) are M3 filter chips over native radios; levels are compact cards ("Generate at P5",
   "Generate at P6", "Empty starters" / "Start it empty").
 - **Steps.** New folder: name → create → the dialog closes and the folder's heading is scrolled
@@ -185,9 +185,10 @@ gaps as cards.
   papers, three chips filled, survives a reload). The specs that used the old list controls go
   through the wizard with `helpers.js` `newBlankPaper` / `newFromTemplate` /
   `generateSinglePaper`.
-- **Open question.** *Template* and *Single paper → Start it empty* make the same paper today,
-  because the only templates are the three exam papers. Template becomes distinct when other
-  starters (a worksheet, a topic test) are added; until then the owner may prefer to drop one.
+- **Template dropped (owner, 2026-11-17).** *Template* and *Single paper → Start it empty* made
+  the same paper (the only templates are the three exam papers), so the *Template* choice is
+  gone: four choices remain. Bring it back when other starters (a worksheet, a topic test)
+  exist. `helpers.newFromTemplate` now goes through *Single paper → Start it empty*.
 
 ## Not in this round
 
