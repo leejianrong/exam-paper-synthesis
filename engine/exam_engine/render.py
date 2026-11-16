@@ -1310,7 +1310,7 @@ def render_question_fragment(
     options, tables, grids, constructions, stem figures — draws correctly without a
     TypeScript mirror. ``mode`` is ``student`` (answer space) or ``key`` (worked solution,
     marking scheme, correct option). ``number`` sets the question number shown; omitted,
-    the number is hidden (the editor draws its own). ``placement`` (question / answer / both)
+    the number is hidden (the editor draws its own). ``placement`` (none / question / answer / both)
     prints the question the way a paper does (marks per the setting); ``answer_area=False``
     leaves out the working space and Ans: line for a caller that draws its own, editable one.
     """

@@ -1,6 +1,6 @@
 <script lang="ts">
   // Home: the teacher's papers, grouped by folder (O2), then Unfiled. "+ New" opens the wizard
-  // (O3: folder, exam set, single paper, template, blank), as does a folder's "+ New in folder"
+  // (O3: folder, exam set, single paper, blank), as does a folder's "+ New in folder"
   // with that folder as the default home. Open / delete (asks twice, inline); folders are
   // renamed and deleted here, and a paper's Move menu files it in a folder or back in Unfiled.
   import { onMount, tick } from 'svelte'

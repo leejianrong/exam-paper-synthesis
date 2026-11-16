@@ -10,14 +10,16 @@
   import FragmentView from './FragmentView.svelte'
   import QuestionBody from './QuestionBody.svelte'
   import AnswerArea from './AnswerArea.svelte'
-  import { DEFAULT_PLACEMENT, type BlockLayout } from './layout'
-  import { paperSettings } from './paperSettings'
+  import type { BlockLayout } from './layout'
+  import type { SectionPlacement } from './doc'
   import type { SwapMode } from './docsApi'
   import type { PaperSlot } from './templatedQuestion'
 
   export let store: Readable<Question>
   export let layout: Readable<BlockLayout>
   export let paperSlot: Readable<PaperSlot>
+  /** Where this question's [n] print: its section's effective placement (EXA-152). */
+  export let placement: Readable<SectionPlacement>
   export let ctx: {
     replace: (q: Question) => void
     remove: () => void
@@ -31,7 +33,6 @@
 
   $: q = $store
   $: part = q.question.parts[0]
-  $: placement = $paperSettings.marks_placement ?? DEFAULT_PLACEMENT
   $: multipart = q.question.parts.length > 1
   // A multiple-choice copy (P8b) can't be rebuilt with new names: the engine refuses it.
   $: isChoice = q.question.parts.some((p) => p.answer?.type === 'choice')
@@ -94,16 +95,16 @@
   <div class="num" aria-hidden="true"></div>
   <div class="main">
     {#if engineDrawn}
-      <FragmentView question={q} paper={{ placement, answerArea: false }} />
+      <FragmentView question={q} paper={{ placement: $placement, answerArea: false }} />
     {:else}
-      <QuestionBody {q} />
+      <QuestionBody {q} placement={$placement} />
     {/if}
 
     {#each writtenParts as p, i (i)}
       <AnswerArea
         marks={p.marks ?? null}
         label={multipart ? (p.label ?? '') : ''}
-        {placement}
+        placement={$placement}
         spaceMm={$layout.space_mm}
         unit={$layout.ans_unit ?? p.answer?.unit ?? null}
         onSpace={(mm) => ctx.setLayout({ space_mm: mm })}

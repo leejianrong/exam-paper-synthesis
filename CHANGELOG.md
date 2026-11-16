@@ -19,6 +19,11 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   structured section (Paper 2's second half) gives each question a page of its own. The tally box
   is 12 mm and sits on the footer line; the marking margin is one strip per page, captioned once
   at the top. Answer-key pages are numbered too.
+- **The editing page shows each question's marks as the paper prints them (EXA-152).** Question
+  blocks used to show [n] by the paper-wide setting even inside a multiple-choice or short-answer
+  section that prints none. Now every kind of block (generated, multiple choice, bank, multi-part,
+  free-form and its parts) follows the section it sits in, and changes at once when a section's
+  "Marks shown" or mode changes or a question moves to another section.
 - **Section headers, marks and the Ans: line print as on real papers (EXA-139).** A section header
   is now a sentence built from its questions ("Questions 16 to 20 carry 1 mark each.", or for a
   structured section "The number of marks available is shown in brackets [ ] …"), then the
@@ -94,6 +99,8 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   "which is the greatest" options are the four listed numbers. A generated P5 or P6 Paper 1
   Booklet A now has no placeholders (was 3 and 2). Two new topics, Measurement and Time. The
   five are not on a harder / easier ladder.
+- **The + New wizard has four choices**: the *Template* choice made the same papers as *Single
+  paper → Start it empty*, so it was dropped until other starters exist.
 - **The + New wizard (O3, EXA-127)** — *+ New* on "Your papers" opens one dialog in place of
   the old *+ New paper* button, template buttons, generate form and *+ New folder* field. Pick
   *New folder*, *Exam set* (Booklet A, Booklet B and Paper 2 into a new or existing folder,

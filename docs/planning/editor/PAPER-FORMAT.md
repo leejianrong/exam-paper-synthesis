@@ -170,7 +170,7 @@ the section's [n] print; derived, it is `none` for `mcq` and `short` sections an
 derived default applies to old papers too: their headers now state each question's marks, so a
 per-question [n] in an MCQ or short-answer section would only repeat it. The answer key always
 shows marks. Booklet B is two sections (Q16–20 at 1 mark, 5 marks; Q21–30 at 2 marks, 20 marks).
-The editor's section bar has "Marks shown"; the on-page question blocks still follow the
-paper-wide setting (the Preview shows the printed result).
+The editor's section bar has "Marks shown", and every question block on the editing page shows
+its [n] by the effective placement of its section, live (EXA-152).
 
 The Ans: line is right-aligned and short (55 mm): "Ans: $ ____ cm² [2]", parts "Ans: (a) ____".

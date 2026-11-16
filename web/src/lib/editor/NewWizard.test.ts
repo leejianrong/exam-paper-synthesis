@@ -68,11 +68,11 @@ beforeEach(() => {
 })
 
 describe('NewWizard: the first step', () => {
-  it('offers the five choices in order, as named, described cards', async () => {
+  it('offers the four choices in order, as named, described cards', async () => {
     open()
     const group = screen.getByRole('group', { name: 'What to make' })
     const cards = within(group).getAllByRole('button')
-    const names = ['New folder', 'Exam set', 'Single paper', 'Template', 'Blank paper']
+    const names = ['New folder', 'Exam set', 'Single paper', 'Blank paper']
     names.forEach((n, i) => expect(cards[i]).toBe(screen.getByRole('button', { name: n })))
     expect(screen.getByRole('button', { name: 'Exam set' })).toHaveAccessibleDescription(
       'Paper 1 Booklet A, Booklet B and Paper 2 in one folder.',
@@ -88,15 +88,15 @@ describe('NewWizard: the first step', () => {
     expect(cards[1]).toHaveFocus()
     await fireEvent.keyDown(cards[1], { key: 'ArrowUp' })
     await fireEvent.keyDown(cards[0], { key: 'ArrowUp' })
-    expect(cards[4]).toHaveFocus() // wraps
-    await fireEvent.keyDown(cards[4], { key: 'Home' })
+    expect(cards[3]).toHaveFocus() // wraps
+    await fireEvent.keyDown(cards[3], { key: 'Home' })
     expect(cards[0]).toHaveFocus()
     await fireEvent.keyDown(cards[0], { key: 'End' })
-    expect(cards[4]).toHaveFocus()
-    await fireEvent.keyDown(cards[4], { key: 'ArrowLeft' })
+    expect(cards[3]).toHaveFocus()
+    await fireEvent.keyDown(cards[3], { key: 'ArrowLeft' })
     // A native button turns Enter into a click.
     await fireEvent.click(document.activeElement as HTMLElement)
-    expect(within(dialog).getByRole('heading')).toHaveTextContent('Template')
+    expect(within(dialog).getByRole('heading')).toHaveTextContent('Single paper')
   })
 
   it('Escape on the first step closes; Tab and Shift+Tab stay in the dialog', async () => {
@@ -105,11 +105,11 @@ describe('NewWizard: the first step', () => {
     const close = screen.getByRole('button', { name: 'Close' })
     // Close (in the header) is first, the last card is last: Tab wraps both ways.
     await waitFor(() => expect(cards[0]).toHaveFocus())
-    cards[4].focus()
-    await fireEvent.keyDown(cards[4], { key: 'Tab' })
+    cards[3].focus()
+    await fireEvent.keyDown(cards[3], { key: 'Tab' })
     expect(close).toHaveFocus()
     await fireEvent.keyDown(close, { key: 'Tab', shiftKey: true })
-    expect(cards[4]).toHaveFocus()
+    expect(cards[3]).toHaveFocus()
     expect(props.onClose).not.toHaveBeenCalled()
     await fireEvent.keyDown(dialog, { key: 'Escape' })
     expect(props.onClose).toHaveBeenCalledTimes(1)
@@ -270,7 +270,7 @@ describe('NewWizard: Exam set', () => {
   })
 })
 
-describe('NewWizard: Single paper and Template', () => {
+describe('NewWizard: Single paper', () => {
   it('generates the chosen paper at a level into the chosen folder, with the report', async () => {
     const report = { template: 'p1_booklet_b', level: 'P6', filled: 13 }
     generatePaper.mockResolvedValue({ ...record('s1', 'f1'), report })
@@ -305,14 +305,4 @@ describe('NewWizard: Single paper and Template', () => {
     expect(createDocument).toHaveBeenCalledWith(undefined, 'p2', null)
   })
 
-  it('lists the starter templates and opens the chosen one in the editor', async () => {
-    createDocument.mockResolvedValue(record('t1'))
-    open()
-    await pick('Template')
-    const group = screen.getByRole('group', { name: 'Starter templates' })
-    expect(within(group).getAllByRole('button')).toHaveLength(3)
-    await pick('Paper 1 · Booklet A')
-    await waitFor(() => expect(location.hash).toBe('#/docs/t1'))
-    expect(createDocument).toHaveBeenCalledWith(undefined, 'p1_booklet_a', null)
-  })
 })

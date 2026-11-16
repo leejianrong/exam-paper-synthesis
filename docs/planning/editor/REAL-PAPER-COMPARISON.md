@@ -92,7 +92,8 @@ date, question count, parent's signature, page count) and the standard "Question
    a rule beneath. Split Booklet B into 1-mark and 2-mark sections. Drop "Section A/B" and the meta line from print.~~ Done in
    #214 (EXA-139): a teacher's own section title still prints, generic ones do not.
 9. ~~**Marks placement per section.** No `[n]` in MCQ, short-answer and 2-mark sections; `[n]` after the `Ans:` line only in the
-   structured section. Default the P8 templates to this.~~ Done in #214 (EXA-139): `section.marks_placement`, schema 1.13.0.
+   structured section. Default the P8 templates to this.~~ Done in #214 (EXA-139): `section.marks_placement`, schema 1.13.0;
+   the editing page shows it per section too since #219 (EXA-152).
 10. ~~**Short right-aligned `Ans:` line.** About 55 mm, unit after the line, `$` before; borderless working space.~~ Done in
     #214 (EXA-139).
 11. **Cover fields.** School, exam name and year, date, "Total time for Booklets A and B: 1 h", "n questions", Name with
