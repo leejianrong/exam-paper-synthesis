@@ -82,10 +82,12 @@ date, question count, parent's signature, page count) and the standard "Question
 5. ~~**Never print empty placeholders.** Block or warn on export when `unfilled_placeholders` is non-empty, especially inside an
    MCQ section (ours A p4 Q9–Q10).~~ Done in #211 (EXA-137): export asks first (Fill them / Print anyway); printed anyway, an
    MCQ placeholder is a numbered gap with no `Ans:` line.
-6. **Page furniture.** Page number on every question page, "(Go on to the next page)" except on the last page, "End of
-   Booklet A/B" / "End of Paper", and an optional footer tag (school, year, paper).
-7. **Fill the page with working space.** When the next question moves to a new page, stretch the last question's working space
-   to the bottom margin. Give Paper 2 structured questions a page each by default.
+6. ~~**Page furniture.** Page number on every question page, "(Go on to the next page)" except on the last page, "End of
+   Booklet A/B" / "End of Paper", and an optional footer tag (school, year, paper).~~ Done in #220 (EXA-138): the cover
+   counts as page 1; the key's pages are numbered too.
+7. ~~**Fill the page with working space.** When the next question moves to a new page, stretch the last question's working space
+   to the bottom margin. Give Paper 2 structured questions a page each by default.~~ Done in #220 (EXA-138): a structured
+   section gives each question a page (no per-section switch yet).
 8. ~~**Real section-header wording.** Generate "Questions X to Y carry n mark(s) each. ... (N marks)" with marks right-aligned and
    a rule beneath. Split Booklet B into 1-mark and 2-mark sections. Drop "Section A/B" and the meta line from print.~~ Done in
    #214 (EXA-139): a teacher's own section title still prints, generic ones do not.
@@ -98,8 +100,9 @@ date, question count, parent's signature, page count) and the standard "Question
 12. **Examiner's table.** Diagonal-split score cells. Booklet B cover: A, B, Paper 1 total. Paper 2 cover: P1, P2, Total /100.
 13. **MCQ options in one column** for text options (2×2 only for short or picture options), and a recording method: OAS wording
     in the cover and header, or an optional "( )" answer bracket.
-14. **Continuous marking strip.** One rule per page with the caption once at the top; optional per-question score box beside each
-    `Ans:` line (CHS style); smaller (about 12 mm) labelled tally box on the footer line.
+14. ~~**Continuous marking strip.** One rule per page with the caption once at the top; optional per-question score box beside each
+    `Ans:` line (CHS style); smaller (about 12 mm) labelled tally box on the footer line.~~ Done in #220 (EXA-138): strip
+    and 12 mm tally on the footer line; the CHS score box and a tally label are not built.
 15. **Compact answer key.** Header block, Booklet A answer grid, two-column working table with "Ans:", optional M1/A1. Fix the
     raw `^2`/`^3` and the x/- operators in key text.
 16. **Blank pages and type size.** Blank back of cover and pad to an even page count via templates; body text about 11 pt; maths fonts fixed in #204
