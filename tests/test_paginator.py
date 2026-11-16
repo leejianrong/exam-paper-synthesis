@@ -19,6 +19,7 @@ from playwright.sync_api import sync_playwright
 from pypdf import PdfReader
 
 TALLY_MAIN = re.compile(r"<main [^>]*data-tally")
+PAGINATE_MAIN = re.compile(r"<main [^>]*data-paginate")
 
 
 def _section(title: str, **attrs) -> dict:
@@ -58,7 +59,9 @@ def make_paper(rng: random.Random, *, oversize: bool = False) -> dict:
 
 
 def _words(pages: list[str]) -> Counter:
-    return Counter(w for t in pages for w in t.split())
+    # the margin caption prints once per page when paginated, once per question when not
+    text = " ".join(pages).replace("Do not write in this space", " ")
+    return Counter(text.split())
 
 
 def _pdf_pages(pdf: bytes) -> list[str]:
@@ -83,6 +86,12 @@ def browser():
         b = p.chromium.launch()
         yield b
         b.close()
+
+
+def _unpaginated(html: str) -> str:
+    """The same paper with the paginator switched off: Chromium's own page breaks."""
+    assert PAGINATE_MAIN.search(html)
+    return html.replace(" data-paginate", "", 1)
 
 
 def _paginated(browser, html: str):
@@ -112,12 +121,7 @@ def test_every_question_and_tally_is_on_the_page_the_paginator_chose(browser, se
 
     # nothing lost: the paginated print has every word the plain one has (clipping would drop some)
     plain = browser.new_page()
-    plain.set_content(
-        html.replace(
-            '<main class="sheet worksheet" data-tally', '<main class="sheet worksheet"', 1
-        ),
-        wait_until="load",
-    )
+    plain.set_content(_unpaginated(html), wait_until="load")
     plain.wait_for_selector("html[data-paginated='true']", state="attached")
     lost = _words(_pdf_pages(plain.pdf(format="A4", print_background=True))) - _words(text)
     assert sum(lost.values()) == 0, lost
@@ -133,30 +137,27 @@ def test_a_question_taller_than_the_page_is_clamped_not_clipped(browser):
     assert "QM99" in text and text.count("Ans:") >= 1
     # every question that has an Ans: line still prints it (the oversize one is not cut off)
     plain = browser.new_page()
-    plain.set_content(
-        html.replace(
-            '<main class="sheet worksheet" data-tally', '<main class="sheet worksheet"', 1
-        ),
-        wait_until="load",
-    )
+    plain.set_content(_unpaginated(html), wait_until="load")
     plain.wait_for_selector("html[data-paginated='true']", state="attached")
     base = " ".join(_pdf_pages(plain.pdf(format="A4", print_background=True)))
     assert text.count("Ans:") == base.count("Ans:")
 
 
-def test_papers_without_a_marking_section_are_left_alone(browser):
+def test_papers_without_a_marking_section_get_footers_but_no_tally_or_strip(browser):
     doc = make_doc(
         {"type": "section", "attrs": {"title": "A", "mode": "mcq"}}, freeform_block("QM01 x")
     )
     html = render_document_html("P", doc, mode="student")
     assert not TALLY_MAIN.search(html) and '<template id="tally-template"' not in html
     page = _paginated(browser, html)
-    assert page.evaluate("document.querySelectorAll('.pg').length") == 0
+    assert page.evaluate("document.querySelectorAll('.pg').length") == 1
+    assert page.evaluate("document.querySelectorAll('.pg .page-foot').length") == 1
+    assert page.evaluate("document.querySelectorAll('.tally, .margin-strip').length") == 0
 
 
-def test_the_answer_key_never_gets_tally_boxes():
+def test_the_answer_key_is_not_paginated_by_the_script():
     html = render_document_html("P", make_paper(random.Random(3)), mode="key")
-    assert not TALLY_MAIN.search(html)
+    assert not TALLY_MAIN.search(html) and not PAGINATE_MAIN.search(html)
 
 
 def test_the_paginator_is_covered_by_the_csp_hashes():
@@ -184,7 +185,10 @@ def test_a_multipart_question_taller_than_a_page_breaks_between_its_parts(browse
     text = _pdf_pages(page.pdf(format="A4", print_background=True))
     assert len(text) == len(pages) >= 2
     joined = " ".join(text)
-    assert re.findall(r"(?m)^(\d+)\.$", joined) == ["1", "2"]  # the continuation adds no number
+    assert re.findall(r"(?m)^(\d+)\.(?=\s|$)", joined) == [
+        "1",
+        "2",
+    ]  # the continuation adds no number
     assert joined.index("PTa") < joined.index("PTb") < joined.index("PTc")
     # the continuation carries no question number of its own
     assert (
@@ -194,12 +198,7 @@ def test_a_multipart_question_taller_than_a_page_breaks_between_its_parts(browse
         == "none"
     )
     plain = browser.new_page()
-    plain.set_content(
-        html.replace(
-            '<main class="sheet worksheet" data-tally', '<main class="sheet worksheet"', 1
-        ),
-        wait_until="load",
-    )
+    plain.set_content(_unpaginated(html), wait_until="load")
     plain.wait_for_selector("html[data-paginated='true']", state="attached")
     base = _pdf_pages(plain.pdf(format="A4", print_background=True))
     assert sum((_words(base) - _words(text)).values()) == 0

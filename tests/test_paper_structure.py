@@ -82,7 +82,7 @@ def test_section_text_is_escaped():
 
 
 def test_answer_key_has_no_section_headers():
-    assert '<div class="paper-section">' not in _html(_doc(), "key")
+    assert 'class="paper-section' not in _html(_doc(), "key")
 
 
 def test_paper_time_prints_in_the_header_only_when_set():
