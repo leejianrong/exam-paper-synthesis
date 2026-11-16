@@ -198,6 +198,8 @@ def _fmt_answer(answer: dict) -> str:
             return f"${shown}"
         if unit == "%":
             return f"{value}%"
+        if unit == "degrees":
+            return f"{value}°"
         return f"{value} {_esc(printed_unit(unit))}" if unit else f"{value}"
     if atype == "fraction":
         body = rf"\frac{{{answer['numerator']}}}{{{answer['denominator']}}}"

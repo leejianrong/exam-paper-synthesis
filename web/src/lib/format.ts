@@ -29,6 +29,7 @@ export function fmtAnswer(a: Answer | undefined): string {
           ? Number(a.value).toFixed(2)
           : `${a.value}`;
       if (u === "$") return `$${shown}`;
+      if (u === "degrees") return `${shown}°`;
       return u ? `${shown} ${printed(u)}` : `${shown}`;
     }
     case "fraction":

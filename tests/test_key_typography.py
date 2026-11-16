@@ -60,6 +60,13 @@ def test_the_lint_catches_each_bug() -> None:
 
 def test_area_and_volume_units_print_with_superscripts() -> None:
     assert [printed_unit(u) for u in ("cm^2", "m^2", "cm^3", "m^3")] == ["cm²", "m²", "cm³", "m³"]
+    key = render_answer_key_html("t", [generate("geometry_area_easy", 1)])
+    assert re.search(r"Answer: \d+ cm²</p>", key)
+
+
+def test_an_angle_prints_with_the_degree_sign() -> None:
+    key = render_answer_key_html("t", [generate("geometry_angle_easy", 1)])
+    assert re.search(r"Answer: \d+°</p>", key) and "degrees</p>" not in key
 
 
 @pytest.mark.parametrize("code", CODES)

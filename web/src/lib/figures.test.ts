@@ -145,6 +145,7 @@ describe("fmtAnswer for choice and expression", () => {
   it("prints area and volume units with a superscript, never a caret", () => {
     expect(fmtAnswer({ type: "integer", value: 60, unit: "cm^2" })).toBe("60 cm²");
     expect(fmtAnswer({ type: "quantity", value: 8, unit: "m^3" })).toBe("8 m³");
+    expect(fmtAnswer({ type: "integer", value: 51, unit: "degrees" })).toBe("51°");
   });
   it("prints expression terms plainly", () => {
     expect(
