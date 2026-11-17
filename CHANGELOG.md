@@ -10,6 +10,15 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Square-grid questions (EXA-144).** Real P5/P6 prelims set about 3 grid questions a set and
+  we had none. A new `grid` figure (canonical schema 1.13.0: lines or dots, shaded or lettered
+  squares, figures, lines, lettered points, a compass rose), drawn by the server in greys with
+  letters clear of every line, and four blueprints: the area of a shaded figure by counting
+  whole and half squares (2 marks), and three 1-mark multiple-choice questions with letter
+  options: which point makes a line parallel or perpendicular to AB, which place lies in a
+  compass direction or is faced after a turn, and which square completes a symmetric figure.
+  Drawing answers (shade, complete, draw) are not built.
+
 - **A compact answer key, like a real school key (EXA-142).** A new answer-key layout,
   "Compact" (document schema 1.14.0, `key_options.layout`; "Full" stays the default): a header
   block (school, level, subject, exam) from the cover, an answer grid for each multiple-choice

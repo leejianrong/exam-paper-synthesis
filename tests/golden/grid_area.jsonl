@@ -1,0 +1,3 @@
+{"params": {"vertices": [[1, 1], [4, 1], [4, 3], [5, 3], [5, 4], [3, 6], [2, 6], [1, 5]]}, "expected": {"answer": {"type": "quantity", "value": 15.5, "unit": "cm^2"}, "total_marks": 2}}
+{"params": {"vertices": [[1, 2], [2, 1], [5, 1], [7, 3], [7, 4], [2, 4], [1, 3]]}, "expected": {"answer": {"type": "quantity", "value": 15, "unit": "cm^2"}, "total_marks": 2}}
+{"params": {"vertices": [[1, 2], [2, 1], [5, 1], [5, 4], [4, 5], [2, 5], [1, 4]]}, "expected": {"answer": {"type": "quantity", "value": 14.5, "unit": "cm^2"}, "total_marks": 2}}

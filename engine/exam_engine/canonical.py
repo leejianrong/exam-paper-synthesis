@@ -14,6 +14,7 @@ from .chart import check_chart_consistency
 from .cube_stack import check_cube_stack_consistency
 from .diagram import check_panels_consistency
 from .expression import check_expression_consistency
+from .grid import check_grid_consistency
 from .number_line import check_number_line_consistency
 from .schema import validate_diagram, validate_object
 from .solid import check_solid_consistency
@@ -21,7 +22,7 @@ from .solid import check_solid_consistency
 if TYPE_CHECKING:  # avoid an import cycle at runtime
     from .blueprints.base import BlueprintSpec
 
-SCHEMA_VERSION = "1.12.0"
+SCHEMA_VERSION = "1.13.0"
 
 
 class CanonicalValidationError(Exception):
@@ -60,8 +61,8 @@ def _answer_errors(obj: dict) -> list[str]:
 
 def _diagram_errors(obj: dict) -> list[str]:
     """Semantic gate for ``chart`` (1.7.0), ``solid`` (1.8.0), ``number_line`` (1.9.0),
-    ``panels`` (1.10.0) and ``cube_stack`` (1.12.0) diagrams, run once the object is
-    schema-valid: the numbers must agree with the figure's own axis/dims.
+    ``panels`` (1.10.0), ``cube_stack`` (1.12.0) and ``grid`` (1.13.0) diagrams, run once the
+    object is schema-valid: the numbers must agree with the figure's own axis/dims.
     Path-pointed like the schema errors."""
     q = obj["question"]
     found: list[tuple[str, dict]] = []
@@ -94,6 +95,7 @@ def _semantic_diagram_errors(found: list[tuple[str, dict]]) -> list[str]:
         "number_line": check_number_line_consistency,
         "panels": check_panels_consistency,
         "cube_stack": check_cube_stack_consistency,
+        "grid": check_grid_consistency,
     }
     errors = []
     for path, spec in found:

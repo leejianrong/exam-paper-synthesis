@@ -19,6 +19,7 @@ from itertools import chain
 from . import palette
 from .chart import check_chart_consistency, render_chart_svg
 from .cube_stack import check_cube_stack_consistency, render_cube_stack_svg
+from .grid import check_grid_consistency, render_grid_svg
 from .label_layout import (
     Box,
     Layout,
@@ -58,6 +59,8 @@ def check_consistency(spec: dict, params: dict, solution: dict) -> dict[str, boo
         return check_panels_consistency(spec)
     if dtype == "cube_stack":
         return check_cube_stack_consistency(spec)
+    if dtype == "grid":
+        return check_grid_consistency(spec)
     raise ValueError(f"no consistency check for diagram type {dtype!r}")
 
 
@@ -380,6 +383,7 @@ _PANEL_STANDALONE = {
     "solid": check_solid_consistency,
     "number_line": check_number_line_consistency,
     "cube_stack": check_cube_stack_consistency,
+    "grid": check_grid_consistency,
 }
 
 
@@ -511,6 +515,8 @@ def render_svg(spec: dict, given: dict | None = None) -> str:
         return _render_panels(spec)
     if dtype == "cube_stack":
         return render_cube_stack_svg(spec)
+    if dtype == "grid":
+        return render_grid_svg(spec)
     raise ValueError(f"no SVG renderer for diagram type {dtype!r}")
 
 
