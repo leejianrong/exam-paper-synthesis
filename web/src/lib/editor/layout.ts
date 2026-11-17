@@ -2,8 +2,28 @@
 // and where a question's marks print. The engine (render.py) draws the same thing into the PDF;
 // these are the editor-side mirrors of its defaults so the page matches the paper.
 
+import type { SectionPlacement } from "./doc";
+
 export type MarksPlacement = "question" | "answer" | "both";
 export const DEFAULT_PLACEMENT: MarksPlacement = "answer";
+
+/** The paper-wide placement: the setting when it is a known one, else `answer` (engine
+ * `paper_placement`). */
+export function paperPlacement(settings: { marks_placement?: unknown } | undefined): MarksPlacement {
+  const chosen = settings?.marks_placement;
+  return chosen === "question" || chosen === "answer" || chosen === "both" ? chosen : DEFAULT_PLACEMENT;
+}
+
+/** Whether [n] prints beside the question text (engine `_marks_beside` on a paper): for
+ * `answer` only when there is no Ans: line to carry it; never in a `none` section. */
+export function marksBeside(placement: SectionPlacement, hasLine = true): boolean {
+  return placement === "question" || placement === "both" || (placement === "answer" && !hasLine);
+}
+
+/** Whether [n] prints after the Ans: line (engine `_answer_line`). */
+export function marksOnLine(placement: SectionPlacement): boolean {
+  return placement === "answer" || placement === "both";
+}
 
 export interface PaperSettings {
   marks_placement?: MarksPlacement;
@@ -11,11 +31,23 @@ export interface PaperSettings {
   time_min?: number | null;
   /** How the answer key prints (P5); both default to shown. */
   key_options?: KeyOptions;
+  /** The first question's number (EXA-134); Booklet B carries on from Booklet A at 16. */
+  number_from?: number | null;
 }
+
+/** The paper's first question number (the engine's `number_from`). */
+export function numberFrom(settings: PaperSettings | undefined): number {
+  return settings?.number_from || 1;
+}
+
+export type KeyLayout = "full" | "compact";
 
 export interface KeyOptions {
   show_question?: boolean;
   show_scheme?: boolean;
+  /** full = each question with its worked solution; compact = a school-style key: an answer
+   *  grid for multiple choice and a working table with "Ans:" (EXA-142). */
+  layout?: KeyLayout;
 }
 
 /** The key options with defaults filled in (the engine's `key_options`). */
@@ -23,6 +55,7 @@ export function keyOptionsOf(settings: PaperSettings | undefined): Required<KeyO
   return {
     show_question: settings?.key_options?.show_question ?? true,
     show_scheme: settings?.key_options?.show_scheme ?? true,
+    layout: settings?.key_options?.layout ?? "full",
   };
 }
 

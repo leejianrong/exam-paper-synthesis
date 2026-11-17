@@ -4,8 +4,12 @@
 // drift from the questions (the engine's `paper_outline` computes the same for the PDF).
 import { Node } from '@tiptap/core'
 import type { NodeViewRendererProps } from '@tiptap/core'
-import { writable, type Readable } from 'svelte/store'
-import type { SectionInfo, SectionMode } from './doc'
+import type { Node as PMNode } from '@tiptap/pm/model'
+import { derived, writable, type Readable } from 'svelte/store'
+import { get } from 'svelte/store'
+import type { SectionInfo, SectionMode, SectionPlacement } from './doc'
+import { DEFAULT_PLACEMENT, paperPlacement } from './layout'
+import { paperSettings } from './paperSettings'
 
 /** Derived section figures, set by the page and read by the node views (outside its tree). */
 export const outline = writable<SectionInfo[]>([])
@@ -38,12 +42,105 @@ export function markingOn(attrs: { marking?: unknown; mode?: unknown }): boolean
   return attrs.mode === 'short' || attrs.mode === 'structured'
 }
 
+export const PLACEMENT_LABELS: Record<SectionPlacement, string> = {
+  none: 'In the header only',
+  question: 'Beside each question',
+  answer: 'After each Ans: line',
+  both: 'Beside the question and after Ans:',
+}
+
+/** Where the section's [n] print: its own choice, else none for MCQ and short-answer sections
+ * (the header sentence gives the marks), else the paper-wide setting (engine mirror, EXA-139). */
+export function sectionPlacement(
+  attrs: { marks_placement?: unknown; mode?: unknown },
+  paper: SectionPlacement,
+): SectionPlacement {
+  const chosen = attrs.marks_placement
+  if (typeof chosen === 'string' && chosen in PLACEMENT_LABELS) return chosen as SectionPlacement
+  return attrs.mode === 'mcq' || attrs.mode === 'short' ? 'none' : paper
+}
+
+/** Each top-level block's effective marks placement, in document order: the placement of the
+ * section it sits in, or the paper's before the first section (the engine's render loop). */
+export function blockPlacements(
+  blocks: ReadonlyArray<{ type: string; attrs?: Record<string, unknown> | null }>,
+  paper: SectionPlacement,
+): SectionPlacement[] {
+  let current = paper
+  return blocks.map((b) =>
+    b.type === 'section' ? (current = sectionPlacement(b.attrs ?? {}, paper)) : current,
+  )
+}
+
+/** The top-level blocks' types and attrs, refreshed once per doc change by the Section extension. */
+const docBlocks = writable<Array<{ type: string; attrs: Record<string, unknown> }>>([])
+
+/** Every top-level block's placement, recomputed once per doc or paper-setting change and read by
+ * the question node views, so each question shows its [n] exactly as it will print (EXA-152). */
+export const placements: Readable<{ paper: SectionPlacement; blocks: SectionPlacement[] }> = derived(
+  [docBlocks, paperSettings],
+  ([blocks, settings]) => {
+    const paper = paperPlacement(settings)
+    return { paper, blocks: blockPlacements(blocks, paper) }
+  },
+)
+
+function publishBlocks(doc: PMNode) {
+  const blocks: Array<{ type: string; attrs: Record<string, unknown> }> = []
+  doc.forEach((child) => blocks.push({ type: child.type.name, attrs: child.attrs }))
+  docBlocks.set(blocks)
+}
+
+/** Follow the placement of the block at `getPos()` (a question, or a part inside one): calls
+ * `apply` now and whenever it changes. `refresh` re-reads it after the node view moved. */
+export function trackPlacement(
+  editor: { state: { doc: PMNode } },
+  getPos: () => number | undefined,
+  apply: (p: SectionPlacement) => void,
+): { refresh: () => void; current: () => SectionPlacement; destroy: () => void } {
+  let state = { paper: DEFAULT_PLACEMENT as SectionPlacement, blocks: [] as SectionPlacement[] }
+  let last: SectionPlacement | null = null
+  const read = (): SectionPlacement => {
+    try {
+      const pos = getPos()
+      if (typeof pos !== 'number') return state.paper
+      return state.blocks[editor.state.doc.resolve(pos).index(0)] ?? state.paper
+    } catch {
+      return state.paper // the node view is being torn down
+    }
+  }
+  const refresh = () => {
+    const p = read()
+    if (p !== last) {
+      last = p
+      apply(p)
+    }
+  }
+  const destroy = placements.subscribe((v) => {
+    state = v
+    refresh()
+  })
+  return { refresh, current: () => last ?? state.paper, destroy }
+}
+
 export const Section = Node.create({
   name: 'section',
   group: 'block',
   atom: true,
   selectable: true,
   draggable: true,
+
+  onCreate() {
+    publishBlocks(this.editor.state.doc)
+  },
+
+  onUpdate() {
+    publishBlocks(this.editor.state.doc)
+  },
+
+  onDestroy() {
+    docBlocks.set([])
+  },
 
   addAttributes() {
     return {
@@ -52,6 +149,7 @@ export const Section = Node.create({
       mode: { default: null },
       marks_target: { default: null },
       marking: { default: null }, // marking margin; null follows the mode (P6a)
+      marks_placement: { default: null }, // where the [n] print; null follows the mode (EXA-139)
     }
   },
 
@@ -114,6 +212,12 @@ export const Section = Node.create({
       marking.setAttribute('aria-label', 'Marking margin')
       marking.addEventListener('change', () => setAttr({ marking: marking.checked }))
 
+      const placement = document.createElement('select')
+      placement.setAttribute('aria-label', 'Marks shown')
+      placement.add(new Option('', ''))
+      for (const [value, label] of Object.entries(PLACEMENT_LABELS)) placement.add(new Option(label, value))
+      placement.addEventListener('change', () => setAttr({ marks_placement: placement.value || null }))
+
       const instructions = document.createElement('textarea')
       instructions.className = 'section-instructions-input'
       instructions.rows = 2
@@ -128,7 +232,7 @@ export const Section = Node.create({
 
       const row = document.createElement('div')
       row.className = 'section-row'
-      row.append(title, field('Mode', mode), field('Target marks', target), field('Marking margin', marking))
+      row.append(title, field('Mode', mode), field('Target marks', target), field('Marks shown', placement), field('Marking margin', marking))
       dom.append(row, instructions, summary)
 
       const sync = () => {
@@ -142,6 +246,10 @@ export const Section = Node.create({
         set(target, a.marks_target === null || a.marks_target === undefined ? '' : String(a.marks_target))
         set(instructions, String(a.instructions ?? ''))
         marking.checked = markingOn(a)
+        // The unset choice is labelled with what it means for this section's mode.
+        const paper = get(paperSettings).marks_placement ?? DEFAULT_PLACEMENT
+        placement.options[0].text = `Default: ${PLACEMENT_LABELS[sectionPlacement({ mode: a.mode }, paper)].toLowerCase()}`
+        set(placement, String(a.marks_placement ?? ''))
       }
 
       const indexOfSelf = (): number => {

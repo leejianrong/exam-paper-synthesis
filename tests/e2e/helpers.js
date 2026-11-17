@@ -24,3 +24,35 @@ export async function openClassic(page, { api = 'http://localhost:8000', origin 
   expect(res.ok()).toBeTruthy()
   await page.goto(`${origin}/#/classic`)
 }
+
+/**
+ * O3: "+ New" opens the wizard. These walk it for the specs that used to click the list's
+ * "+ New paper", template and "Generate a paper" controls; each lands in the editor.
+ */
+async function openNew(page) {
+  await page.getByRole('button', { name: '+ New', exact: true }).click()
+  return page.getByRole('dialog')
+}
+
+export async function newBlankPaper(page) {
+  const dialog = await openNew(page)
+  await dialog.getByRole('button', { name: 'Blank paper', exact: true }).click()
+}
+
+/**
+ * A starter paper (cover and sections, no questions): + New → Single paper → Start it empty.
+ * `label` is the template's label from GET /papers, e.g. "Paper 2", "Paper 1 · Booklet B".
+ */
+export async function newFromTemplate(page, label) {
+  const dialog = await openNew(page)
+  await dialog.getByRole('button', { name: 'Single paper', exact: true }).click()
+  await dialog.getByRole('button', { name: label, exact: true }).click()
+  await dialog.getByRole('button', { name: 'Start it empty', exact: true }).click()
+}
+
+export async function generateSinglePaper(page, label, level) {
+  const dialog = await openNew(page)
+  await dialog.getByRole('button', { name: 'Single paper', exact: true }).click()
+  await dialog.getByRole('button', { name: label, exact: true }).click()
+  await dialog.getByRole('button', { name: `Generate at ${level}`, exact: true }).click()
+}

@@ -54,7 +54,7 @@ parts:
     text: "How many {item} did they have altogether?"
     solution_template:
       steps:
-        - text: "{names[0]} had {ratio_before[0]} - {ratio_before[1]} = {diff_units_text} more than {names[1]}{diff_tail}."
+        - text: "{names[0]} had {ratio_before[0]} − {ratio_before[1]} = {diff_units_text} more than {names[1]}{diff_tail}."
           expr: "{ratio_before[0]}-{ratio_before[1]}"
         - text: "{unit_line}"
           expr: "{more}/{diff_units}"
@@ -78,7 +78,7 @@ parts:
           expr: "{total}/{sum_after}*{ratio_after[0]}"
         - text: "At first, {names[0]} had {ratio_before[0]} × {u1} = {a_before}."
           expr: "{ratio_before[0]}*{u1}"
-        - text: "{names[0]} gave {a_before} - {a_after} = {given}."
+        - text: "{names[0]} gave {a_before} − {a_after} = {given}."
           expr: "{a_before}-{a_after}"
     marking_scheme:
       - { mark: 1, type: M, description: "Uses the unchanged total from (a) to find the first person's share at the end." }

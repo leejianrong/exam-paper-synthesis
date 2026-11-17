@@ -1,36 +1,49 @@
 <script lang="ts">
-  // Home: the teacher's papers. New / open / delete (delete asks twice, inline).
-  import { onMount } from 'svelte'
+  // Home: the teacher's papers, grouped by folder (O2), then Unfiled. "+ New" opens the wizard
+  // (O3: folder, exam set, single paper, blank), as does a folder's "+ New in folder"
+  // with that folder as the default home. Open / delete (asks twice, inline); folders are
+  // renamed and deleted here, and a paper's Move menu files it in a folder or back in Unfiled.
+  import { onMount, tick } from 'svelte'
   import {
-    createDocument,
     deleteDocument,
-    generatePaper,
+    deleteFolder,
     listDocuments,
+    listFolders,
     listPaperTemplates,
+    moveDocument,
+    renameFolder,
+    type Folder,
     type PaperTemplateInfo,
   } from './docsApi'
-  import { lastReport } from './paperReport'
+  import { groupByFolder } from './folders'
+  import FolderSection from './FolderSection.svelte'
+  import MoveMenu from './MoveMenu.svelte'
+  import NewWizard from './NewWizard.svelte'
   import type { DocumentSummary } from './doc'
-  import { navigate } from '../router'
   import AccountChip from './AccountChip.svelte'
   import { settings } from '../settings'
 
   let docs: DocumentSummary[] = []
+  let folders: Folder[] = []
   let loaded = false
+  // A polite announcement of what a folder action did.
+  let announce = ''
   let error = ''
   let confirmId: string | null = null
-  // Paper templates (P8a) come from the engine: the starter buttons and the generator.
+  // Paper templates (P8a) come from the engine, for the wizard.
   let templates: PaperTemplateInfo[] = []
   let levels: string[] = ['P5', 'P6']
-  let genTemplate = ''
-  let genLevel = 'P6'
-  let generating = false
+  // The + New wizard (O3): open or not, the folder it was opened from, and the button that
+  // opened it (focus goes back there when it closes).
+  let wizardOpen = false
+  let wizardFolder: Folder | null = null
+  let opener: HTMLElement | null = null
 
   const msg = (e: unknown): string => (e instanceof Error ? e.message : String(e))
 
   async function refresh() {
     try {
-      docs = await listDocuments()
+      ;[docs, folders] = await Promise.all([listDocuments(), listFolders()])
     } catch (e) {
       error = msg(e)
     } finally {
@@ -47,45 +60,44 @@
       const res = await listPaperTemplates()
       templates = res.templates
       levels = res.levels
-      genTemplate = genTemplate || (templates[templates.length - 1]?.code ?? '')
     } catch (e) {
       error = msg(e)
     }
   }
 
-  async function onGenerate() {
-    if (!genTemplate || generating) return
+  function openWizard(e: Event, folder: Folder | null = null) {
+    opener = e.currentTarget as HTMLElement
+    wizardFolder = folder
     error = ''
-    generating = true
-    try {
-      const rec = await generatePaper(genTemplate, genLevel)
-      lastReport.set({ docId: rec.id, report: rec.report })
-      navigate(`/docs/${rec.id}`)
-    } catch (e) {
-      error = msg(e)
-    } finally {
-      generating = false
-    }
+    wizardOpen = true
   }
 
-  async function onNew() {
-    error = ''
-    try {
-      const rec = await createDocument()
-      navigate(`/docs/${rec.id}`)
-    } catch (e) {
-      error = msg(e)
-    }
+  async function closeWizard() {
+    wizardOpen = false
+    await tick()
+    opener?.focus()
   }
 
-  async function onTemplate(t: PaperTemplateInfo) {
-    error = ''
-    try {
-      const rec = await createDocument(undefined, t.code)
-      navigate(`/docs/${rec.id}`)
-    } catch (e) {
-      error = msg(e)
-    }
+  const byName = (a: Folder, b: Folder) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+
+  function onWizardFolder(f: Folder) {
+    // Keep the API's order (by name, case-insensitive) without a reload.
+    folders = [...folders, f].sort(byName)
+    announce = `Folder “${f.name}” created.`
+  }
+
+  function onWizardPapers(made: DocumentSummary[]) {
+    docs = [...made, ...docs.filter((d) => !made.some((m) => m.id === d.id))]
+  }
+
+  /** After the wizard made a folder or an exam set: close it and bring the folder into view. */
+  async function showFolder(id: string) {
+    wizardOpen = false
+    await tick()
+    const heading = document.getElementById(`folder-${id}`)
+    if (!heading) return opener?.focus()
+    heading.scrollIntoView?.({ block: 'start' })
+    heading.focus()
   }
 
   async function onDelete(id: string) {
@@ -103,6 +115,48 @@
     }
   }
 
+  async function onRenameFolder(id: string, name: string): Promise<boolean> {
+    error = ''
+    try {
+      const f = await renameFolder(id, name)
+      folders = folders
+        .map((x) => (x.id === id ? f : x))
+        .sort(byName)
+      announce = `Folder renamed to “${f.name}”.`
+      return true
+    } catch (e) {
+      error = msg(e)
+      return false
+    }
+  }
+
+  async function onDeleteFolder(id: string) {
+    error = ''
+    try {
+      await deleteFolder(id)
+      const name = folders.find((f) => f.id === id)?.name ?? ''
+      folders = folders.filter((f) => f.id !== id)
+      docs = docs.map((d) => (d.folder_id === id ? { ...d, folder_id: null } : d))
+      announce = `Folder “${name}” deleted. Its papers are in Unfiled.`
+    } catch (e) {
+      error = msg(e)
+    }
+  }
+
+  async function onMove(d: DocumentSummary, folderId: string | null) {
+    error = ''
+    try {
+      const rec = await moveDocument(d.id, folderId)
+      docs = docs.map((x) => (x.id === d.id ? { ...x, folder_id: rec.folder_id ?? null } : x))
+      const where = folders.find((f) => f.id === folderId)?.name
+      announce = `Moved “${d.title || 'Untitled paper'}” to ${where ? `“${where}”` : 'Unfiled'}.`
+    } catch (e) {
+      error = msg(e)
+    }
+  }
+
+  $: grouped = groupByFolder(folders, docs)
+
   const when = (iso: string): string => new Date(iso).toLocaleString()
 </script>
 
@@ -117,55 +171,85 @@
   </div>
   <div class="head">
     <h1>Your papers</h1>
-    <button class="new" on:click={onNew}>+ New paper</button>
+    <button class="new" aria-haspopup="dialog" on:click={(e) => openWizard(e)}>+ New</button>
   </div>
-
-  <div class="templates" role="group" aria-label="Start from a template">
-    <span class="tlabel">Start from a template</span>
-    {#each templates as t (t.code)}
-      <button class="tpl" on:click={() => onTemplate(t)}>{t.label}</button>
-    {/each}
-  </div>
-
-  <form class="generate" aria-label="Generate a paper" on:submit|preventDefault={onGenerate}>
-    <span class="tlabel">Generate a whole paper</span>
-    <label>
-      Paper
-      <select bind:value={genTemplate} aria-label="Paper to generate">
-        {#each templates as t (t.code)}<option value={t.code}>{t.label}</option>{/each}
-      </select>
-    </label>
-    <label>
-      Level
-      <select bind:value={genLevel} aria-label="Level">
-        {#each levels as l (l)}<option value={l}>{l}</option>{/each}
-      </select>
-    </label>
-    <button class="gen" type="submit" disabled={!genTemplate || generating}>
-      {generating ? 'Generating…' : 'Generate paper'}
-    </button>
-  </form>
 
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 
-  {#if loaded && docs.length === 0 && !error}
-    <p class="empty">No papers yet. Start with <b>New paper</b>.</p>
-  {/if}
-
-  <ul class="docs">
-    {#each docs as d (d.id)}
-      <li class="doc">
-        <a class="open" href={`#/docs/${d.id}`}>
-          <span class="t">{d.title || 'Untitled paper'}</span>
-          <span class="m">{d.total_marks} marks · edited {when(d.updated_at)}</span>
-        </a>
+  {#snippet row(d: DocumentSummary)}
+    <li class="doc">
+      <a class="open" href={`#/docs/${d.id}`}>
+        <span class="t">{d.title || 'Untitled paper'}</span>
+        <span class="m">{d.total_marks} marks · edited {when(d.updated_at)}</span>
+      </a>
+      <div class="rowacts">
+        {#if folders.length > 0}
+          <MoveMenu
+            title={d.title || 'Untitled paper'}
+            {folders}
+            current={folders.some((f) => f.id === d.folder_id) ? (d.folder_id ?? null) : null}
+            onMove={(id) => onMove(d, id)}
+          />
+        {/if}
         <button class="del" on:click={() => onDelete(d.id)}>
           {confirmId === d.id ? 'Confirm delete' : 'Delete'}
         </button>
-      </li>
-    {/each}
-  </ul>
+      </div>
+    </li>
+  {/snippet}
+
+  <p class="sr" role="status">{announce}</p>
+
+  {#if !loaded}
+    <p class="empty">Loading your papers…</p>
+  {:else if docs.length === 0 && folders.length === 0 && !error}
+    <p class="empty">No papers yet. Start with <b>+ New</b>.</p>
+  {:else}
+    {#if grouped.groups.length > 0}
+      <div class="folders">
+        {#each grouped.groups as g (g.folder.id)}
+          <FolderSection
+            group={g}
+            onRename={(name) => onRenameFolder(g.folder.id, name)}
+            onDelete={() => onDeleteFolder(g.folder.id)}
+            onNew={(e) => openWizard(e, g.folder)}
+          >
+            <ul class="docs" aria-label={`Papers in “${g.folder.name}”`}>
+              {#each g.docs as d (d.id)}{@render row(d)}{/each}
+            </ul>
+          </FolderSection>
+        {/each}
+      </div>
+    {/if}
+
+    <section class="unfiled" aria-labelledby={folders.length > 0 ? 'unfiled-h' : undefined}>
+      {#if folders.length > 0}
+        <h2 id="unfiled-h">Unfiled</h2>
+        {#if grouped.unfiled.length === 0}
+          <p class="empty">Every paper is in a folder.</p>
+        {/if}
+      {/if}
+      {#if grouped.unfiled.length > 0}
+        <ul class="docs" aria-label={folders.length > 0 ? 'Unfiled papers' : 'Papers'}>
+          {#each grouped.unfiled as d (d.id)}{@render row(d)}{/each}
+        </ul>
+      {/if}
+    </section>
+  {/if}
 </main>
+
+{#if wizardOpen}
+  <NewWizard
+    {folders}
+    {templates}
+    {levels}
+    contextFolder={wizardFolder}
+    onClose={closeWizard}
+    onFolderCreated={onWizardFolder}
+    onPapersCreated={onWizardPapers}
+    onShowFolder={showFolder}
+  />
+{/if}
 
 <style>
   main {
@@ -212,73 +296,47 @@
     padding: 0.5rem 1rem;
     cursor: pointer;
   }
-  .templates {
+  .rowacts {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
     gap: 0.5rem;
-    margin-top: 0.9rem;
+    margin-left: auto;
   }
-  .tlabel {
-    font-size: 12.5px;
-    color: var(--ink-faint);
+  .folders {
+    display: grid;
+    gap: 0.8rem;
+    margin-top: 1.4rem;
   }
-  .tpl {
-    font: inherit;
+  .folders .docs {
+    margin: 0;
+  }
+  .unfiled h2 {
+    font-family: var(--serif);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 1.4rem 0 0;
+  }
+  .unfiled .empty {
+    margin: 0.5rem 0 0;
     font-size: 13px;
-    border: 1px solid var(--line);
-    background: var(--paper-2);
-    color: var(--ink);
-    border-radius: 8px;
-    padding: 0.35rem 0.8rem;
-    cursor: pointer;
   }
-  .generate {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem 0.8rem;
-    margin: 0.6rem 0 0;
-    font-size: 13px;
-    color: var(--ink-soft);
-  }
-  .generate label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-  .generate select {
-    font: inherit;
-    font-size: 13px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--paper);
-    color: var(--ink);
-    padding: 0.2rem 0.4rem;
-  }
-  .gen {
-    font: inherit;
-    font-size: 13px;
-    border: 1px solid var(--verify);
-    background: var(--verify-soft, var(--paper-2));
-    color: var(--ink);
-    border-radius: 8px;
-    padding: 0.35rem 0.8rem;
-    cursor: pointer;
-  }
-  .gen:disabled {
-    opacity: 0.6;
-    cursor: default;
+  .sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
   .docs {
     list-style: none;
     padding: 0;
-    margin: 1.2rem 0 0;
+    margin: 0.6rem 0 0;
     display: grid;
     gap: 0.5rem;
   }
   .doc {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.6rem;
     border: 1px solid var(--line);
@@ -287,7 +345,8 @@
     padding: 0.7rem 0.9rem;
   }
   .open {
-    flex: 1;
+    flex: 1 1 14rem;
+    min-width: 0;
     display: grid;
     text-decoration: none;
     color: inherit;

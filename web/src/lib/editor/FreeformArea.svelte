@@ -4,13 +4,13 @@
   // destroy the drag handle mid-drag and drop keyboard focus).
   import type { Readable } from 'svelte/store'
   import AnswerArea from './AnswerArea.svelte'
-  import type { MarksPlacement } from './layout'
+  import type { SectionPlacement } from './doc'
 
   export let state: Readable<{
     marks: number | null
     spaceMm: number | null
     unit: string | null
-    placement: MarksPlacement
+    placement: SectionPlacement
     label?: string
   }>
   export let onSpace: (mm: number | null) => void

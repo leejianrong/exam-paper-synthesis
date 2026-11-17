@@ -35,6 +35,9 @@ class Solver(Protocol):
     #   in the answer's own quantity and unit, each with the reason a pupil gives it, best
     #   first. mcq filters out the answer itself and anything implausible, then falls back
     #   to its generic candidates; the correct option is still proven by verify_snapshot.
+    # Optional: mcq_ascending = False  (EXA-141) the multiple-choice copy keeps a seeded option
+    #   order instead of ascending order, for a question whose answer is an extreme of the
+    #   options ("which is the greatest?"), where ascending order would give it away.
 
 
 @dataclass

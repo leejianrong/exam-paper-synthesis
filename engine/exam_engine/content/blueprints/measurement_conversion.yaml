@@ -1,0 +1,41 @@
+code: measurement_conversion
+# P8e batch 3 (EXA-145): a 1-mark Booklet A question, on no difficulty ladder.
+syllabus:
+  level: P5                             # MOE P5 Decimals: converting measurements
+  strand: "Measurement"
+  topic: "Measurement"
+  subtopic: "Converting a measurement to the smaller unit (km/m, kg/g, litres/ml)"
+  skill_codes: ["MEAS.CONVERT"]         # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Representation translation"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [pair, form, whole, part]
+  properties:
+    pair: { type: string, enum: [km_m, kg_g, l_ml] }
+    # decimal: "3.45 km"; mixed: "2 kg 75 g"
+    form: { type: string, enum: [decimal, mixed] }
+    whole: { type: integer, minimum: 1, maximum: 9 }
+    part: { type: integer, minimum: 1, maximum: 999 }
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  pair:  { role: choice }
+  form:  { role: choice }
+  whole: { role: number }
+  part:  { role: number }
+story_templates:
+  - stem: null
+    text: "Express {quantity} in {small}."
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{e1}"
+marking_scheme:
+  - { mark: 1, type: A, description: "Correct measurement in the smaller unit (1 to 1000)." }
+answer:
+  type: integer

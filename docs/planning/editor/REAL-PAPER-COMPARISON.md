@@ -73,33 +73,46 @@ date, question count, parent's signature, page count) and the standard "Question
 1. ~~**Stop bar models leaking the answer.**~~ Fixed in #202 (EXA-132). In student mode, hide unit values and derived totals ("1 unit = $…", the answer
    amount) and show "?" for the unknown. Add an invariant that no answer value appears in student SVG text (ours A p5,
    B p6, P2 p13).
-2. **Continue Paper 1 numbering into Booklet B (16–30).** Add a numbering offset or a "continues from" field on the Booklet B
+2. ~~**Continue Paper 1 numbering into Booklet B (16–30).**~~ Done in #209 (EXA-134): `settings.number_from`, 16 on the Booklet B template. Add a numbering offset or a "continues from" field on the Booklet B
    template, used by the cover, section header ranges and the key.
-3. **Monochrome print theme as the PDF default.** Black strokes, white or light-grey fills, hatched or outlined pie sectors,
+3. ~~**Monochrome print theme as the PDF default.**~~ Done in #212 (EXA-135). Black strokes, white or light-grey fills, hatched or outlined pie sectors,
    black marks and question numbers, no grey working boxes or green key panels.
-4. **Fix figure label collisions.** Offset edge labels outward, put vertex letters outside along the bisector, keep angle values
+4. ~~**Fix figure label collisions.**~~ Done in #213 (EXA-136); the editor and Classic page show the same engine drawing since #218 (EXA-151). Offset edge labels outward, put vertex letters outside along the bisector, keep angle values
    clear of arcs; add a label-vs-stroke overlap test in `diagram.py`.
-5. **Never print empty placeholders.** Block or warn on export when `unfilled_placeholders` is non-empty, especially inside an
-   MCQ section (ours A p4 Q9–Q10).
-6. **Page furniture.** Page number on every question page, "(Go on to the next page)" except on the last page, "End of
-   Booklet A/B" / "End of Paper", and an optional footer tag (school, year, paper).
-7. **Fill the page with working space.** When the next question moves to a new page, stretch the last question's working space
-   to the bottom margin. Give Paper 2 structured questions a page each by default.
-8. **Real section-header wording.** Generate "Questions X to Y carry n mark(s) each. ... (N marks)" with marks right-aligned and
-   a rule beneath. Split Booklet B into 1-mark and 2-mark sections. Drop "Section A/B" and the meta line from print.
-9. **Marks placement per section.** No `[n]` in MCQ, short-answer and 2-mark sections; `[n]` after the `Ans:` line only in the
-   structured section. Default the P8 templates to this.
-10. **Short right-aligned `Ans:` line.** About 55 mm, unit after the line, `$` before; borderless working space.
-11. **Cover fields.** School, exam name and year, date, "Total time for Booklets A and B: 1 h", "n questions", Name with
-    "( )" for the register number, Parent's signature, page-count line, underlined heading, and **NOT** bold and underlined.
-12. **Examiner's table.** Diagonal-split score cells. Booklet B cover: A, B, Paper 1 total. Paper 2 cover: P1, P2, Total /100.
-13. **MCQ options in one column** for text options (2×2 only for short or picture options), and a recording method: OAS wording
-    in the cover and header, or an optional "( )" answer bracket.
-14. **Continuous marking strip.** One rule per page with the caption once at the top; optional per-question score box beside each
-    `Ans:` line (CHS style); smaller (about 12 mm) labelled tally box on the footer line.
-15. **Compact answer key.** Header block, Booklet A answer grid, two-column working table with "Ans:", optional M1/A1. Fix the
-    raw `^2`/`^3` and the x/- operators in key text.
-16. **Blank pages and type size.** Blank back of cover and pad to an even page count via templates; body text about 11 pt; maths fonts fixed in #204
+5. ~~**Never print empty placeholders.** Block or warn on export when `unfilled_placeholders` is non-empty, especially inside an
+   MCQ section (ours A p4 Q9–Q10).~~ Done in #211 (EXA-137): export asks first (Fill them / Print anyway); printed anyway, an
+   MCQ placeholder is a numbered gap with no `Ans:` line.
+6. ~~**Page furniture.** Page number on every question page, "(Go on to the next page)" except on the last page, "End of
+   Booklet A/B" / "End of Paper", and an optional footer tag (school, year, paper).~~ Done in #220 (EXA-138): the cover
+   counts as page 1; the key's pages are numbered too.
+7. ~~**Fill the page with working space.** When the next question moves to a new page, stretch the last question's working space
+   to the bottom margin. Give Paper 2 structured questions a page each by default.~~ Done in #220 (EXA-138): a structured
+   section gives each question a page (no per-section switch yet).
+8. ~~**Real section-header wording.** Generate "Questions X to Y carry n mark(s) each. ... (N marks)" with marks right-aligned and
+   a rule beneath. Split Booklet B into 1-mark and 2-mark sections. Drop "Section A/B" and the meta line from print.~~ Done in
+   #214 (EXA-139): a teacher's own section title still prints, generic ones do not.
+9. ~~**Marks placement per section.** No `[n]` in MCQ, short-answer and 2-mark sections; `[n]` after the `Ans:` line only in the
+   structured section. Default the P8 templates to this.~~ Done in #214 (EXA-139): `section.marks_placement`, schema 1.13.0;
+   the editing page shows it per section too since #219 (EXA-152).
+10. ~~**Short right-aligned `Ans:` line.** About 55 mm, unit after the line, `$` before; borderless working space.~~ Done in
+    #214 (EXA-139).
+11. ~~**Cover fields.** School, exam name and year, date, "Total time for Booklets A and B: 1 h", "n questions", Name with
+    "( )" for the register number, Parent's signature, page-count line, underlined heading, and **NOT** bold and underlined.~~
+    Done in #222 (EXA-140): the crest image is not built.
+12. ~~**Examiner's table.** Diagonal-split score cells. Booklet B cover: A, B, Paper 1 total. Paper 2 cover: P1, P2, Total /100.~~
+    Done in #222 (EXA-140): the other papers' maxima are the templates' standard ones; Booklet A has no table by default.
+13. ~~**MCQ options in one column** for text options (2×2 only for short or picture options), and a recording method: OAS wording
+    in the cover and header, or an optional "( )" answer bracket.~~ Done in #223 (EXA-141): one column for all text options
+    (all 4 schools do so even for short numbers), 2×2 for picture options; numeric options ascending; the OAS sentence ends
+    the Booklet A header.
+14. ~~**Continuous marking strip.** One rule per page with the caption once at the top; optional per-question score box beside each
+    `Ans:` line (CHS style); smaller (about 12 mm) labelled tally box on the footer line.~~ Done in #220 (EXA-138): strip
+    and 12 mm tally on the footer line; the CHS score box and a tally label are not built.
+15. ~~**Compact answer key.** Header block, Booklet A answer grid, two-column working table with "Ans:", optional M1/A1. Fix the
+    raw `^2`/`^3` and the x/- operators in key text.~~ Done in #221 (EXA-142): `key_options.layout: compact`, schema 1.14.0;
+    units print cm²/cm³, operators × and −, angles 51°, with a lint test over every blueprint.
+16. **Blank pages and type size.** ~~Blank back of cover and pad to an even page count via templates;~~ (done in #222,
+    EXA-140) body text about 11 pt; maths fonts fixed in #204
     serif fallback (known bug).
 
 ---
@@ -296,7 +309,7 @@ fraction comparison and ordering, number-line reading, discount and GST, and ref
   partial-step and slip distractors. Most are plausible (for example "the amount in 1 hour", or
   "added instead of multiplied").
 - **Our problems:**
-  - **Options are shuffled, not sorted.**
+  - ~~**Options are shuffled, not sorted.**~~ Sorted ascending since #223 (EXA-141).
   - **Some distractors are implausible:** 4/1 for a shaded fraction (fixed in #205), 243° for an angle on a straight
     line, 234 for m/6 + 18.
   - **Several MCQs are converted from 1-step easy questions**, even in 2-mark slots.
@@ -334,13 +347,17 @@ such items.
    directions and turns, area by counting squares, and completing a trapezium, parallelogram or rhombus.
    - Real: 13 questions, about 3 a set, in every paper part.
    - Needs a new `grid` diagram and a grid-cell or point answer type, which can be auto-checked as a cell set.
-3. **Booklet A number-sense and measurement 1-markers.** These fill the 2 placeholders and widen 1-mark coverage.
+3. ~~**Booklet A number-sense and measurement 1-markers.** These fill the 2 placeholders and widen 1-mark coverage.~~
+   Done in #216 (EXA-145): rounding, comparing decimals and fractions, km/kg/ℓ conversion and
+   time durations; Booklet A now has no placeholders at P5 or P6. Not yet built: numerals ↔
+   words, number lines, ordering mixed units, timetables, estimating.
    - Candidates: numerals ↔ words, rounding, place value / missing addend, compare/order fractions and
      decimals, fraction or decimal on a number line, unit conversion (km/m, ℓ/mℓ, kg/g, h/min),
      ordering mixed units, time durations and timetables, estimating a sensible mass or length.
    - Real: about 24 questions (6 a set).
    - Uses the existing `number_line` renderer; a scale/ruler reading needs a new small diagram.
-4. **Recalibrate rung to marks in the generator.**
+4. ~~**Recalibrate rung to marks in the generator.**~~ Done in #225 (EXA-146): 2-mark slots take a
+   medium or hard rung and 3+-mark slots a hard one whenever content allows (P8-SHAPING.md).
    - Booklet A 2-mark MCQ and Booklet B 2-mark slots should draw hard or multi-step rungs.
    - Section B 3-mark stand-ins should require 3+ steps.
    - Stop letting a one-step easy rung fill a 2-mark MCQ or a 4-mark slot (2 steps).
@@ -377,7 +394,7 @@ such items.
     - Real: about 6. The `expression` answer type exists; the algebra solvers currently force numeric answers.
     - No new diagram.
 11. **MCQ polish.**
-    - Sort numeric options ascending.
+    - ~~Sort numeric options ascending.~~ Done in #223 (EXA-141).
     - Filter implausible distractors (angles over 180° for an angle on a line; the improper "4/1" is fixed in #205).
     - Drop "simplest form" wording from MCQ stems.
     - Add picture-option and "which statements are true" MCQs once the grid, net and chart families exist.

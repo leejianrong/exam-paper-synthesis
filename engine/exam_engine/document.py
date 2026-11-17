@@ -11,6 +11,7 @@ re-solve check that keeps the "engine-proven" claim unforgeable).
 from __future__ import annotations
 
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -21,6 +22,10 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
+# 1.15.0 (EXA-140): + coverPage.parent_signature and coverPage.even_pages.
+# 1.14.0 (EXA-142): + settings.key_options.layout (full / compact answer key).
+# 1.13.0 (EXA-139): + section.marks_placement (none/question/answer/both; null follows the mode).
+# 1.12.0 (EXA-134): + settings.number_from (Booklet B continues Booklet A's numbering).
 # 1.11.0 (P8d): + question `locked` (kept by "regenerate unlocked").
 # 1.10.0 (P8a): + question `slot` (what the paper generator asked for).
 # 1.9.0 (P7): + coverPage (first block only) and blankPage blocks.
@@ -31,7 +36,7 @@ from .schema import validate_object
 # 1.4.0 (P2): + settings.marks_placement, per-question space_mm / ans_unit.
 # 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math; 1.3.0 (W5): + question `remark`.
 # Older documents stay valid (every addition is optional).
-DOCUMENT_SCHEMA_VERSION = "1.11.0"
+DOCUMENT_SCHEMA_VERSION = "1.15.0"
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000
@@ -81,6 +86,38 @@ def numbered_blocks(doc: dict) -> list[dict]:
     return [n for n in doc["content"]["content"] if n.get("type") in QUESTION_TYPES]
 
 
+def has_content(nodes: list[dict]) -> bool:
+    """Any non-blank text, or an image / equation, anywhere in these nodes (parts included)."""
+    for n in nodes:
+        if n["type"] == "text" and n.get("text", "").strip():
+            return True
+        if n["type"] in ("image", "math"):
+            return True
+        if has_content(n.get("content", [])):
+            return True
+    return False
+
+
+def is_unfilled_placeholder(node: dict) -> bool:
+    """A generator placeholder (P8a: a ``freeformQuestion`` whose ``slot.placeholder`` is
+    set) the teacher hasn't written yet: nothing in the stem or any part. The written answer
+    doesn't count: an answer with no question still prints nothing to answer."""
+    return (
+        node.get("type") == "freeformQuestion"
+        and bool(((node.get("attrs") or {}).get("slot") or {}).get("placeholder"))
+        and not has_content(node.get("content", []))
+    )
+
+
+def unfilled_placeholder_numbers(doc: dict) -> list[int]:
+    """The printed question numbers of the unfilled placeholders (EXA-137), in order. They
+    count from the paper's ``number_from`` (Booklet B: 16 onwards, EXA-134)."""
+    start = number_from(doc)
+    return [
+        n for n, node in enumerate(numbered_blocks(doc), start) if is_unfilled_placeholder(node)
+    ]
+
+
 def freeform_parts(node: dict) -> list[dict]:
     """The lettered ``freeformPart`` children of a free-form question (P3), in order."""
     return [c for c in node.get("content", []) if c.get("type") == "freeformPart"]
@@ -100,12 +137,21 @@ def freeform_marks(node: dict) -> int:
 
 
 def key_options(doc: dict) -> dict:
-    """The answer-key print options with defaults filled in (P5)."""
+    """The answer-key print options with defaults filled in (P5). ``layout`` (EXA-142) is
+    ``full`` (each question with its worked solution) or ``compact`` (a real school key: an
+    answer grid for multiple choice, a two-column working table with "Ans:" for the rest)."""
     given = (doc.get("settings") or {}).get("key_options") or {}
     return {
         "show_question": given.get("show_question", True),
         "show_scheme": given.get("show_scheme", True),
+        "layout": given.get("layout") or "full",
     }
+
+
+def number_from(doc: dict) -> int:
+    """The paper's first question number (default 1): Paper 1 Booklet B carries on from
+    Booklet A, so its first question is 16, not 1 (EXA-134)."""
+    return (doc.get("settings") or {}).get("number_from") or 1
 
 
 def in_key(node: dict) -> bool:
@@ -128,16 +174,50 @@ def section_marking(attrs: dict) -> bool:
     return attrs.get("mode") in ("short", "structured")
 
 
+MARKS_PLACEMENTS = ("none", "question", "answer", "both")
+
+
+def paper_placement(doc: dict) -> str:
+    """The paper-wide marks placement (P2): where [n] prints outside a section's own choice."""
+    chosen = (doc.get("settings") or {}).get("marks_placement")
+    return chosen if chosen in ("question", "answer", "both") else "answer"
+
+
+def section_placement(attrs: dict, paper: str) -> str:
+    """Where a section's per-question [n] prints (EXA-139): its own choice, else what real papers
+    do: ``none`` in multiple-choice and short-answer sections (the header gives the marks),
+    the paper-wide placement in structured sections and sections with no mode."""
+    chosen = attrs.get("marks_placement")
+    if chosen in MARKS_PLACEMENTS:
+        return chosen
+    return "none" if attrs.get("mode") in ("mcq", "short") else paper
+
+
+def marks_groups(marks: list[int], first: int) -> list[tuple[int, int, int]]:
+    """Runs of consecutive questions worth the same marks, as ``(first, last, marks)``."""
+    groups: list[tuple[int, int, int]] = []
+    for i, m in enumerate(marks):
+        n = first + i
+        if groups and groups[-1][2] == m:
+            groups[-1] = (groups[-1][0], n, m)
+        else:
+            groups.append((n, n, m))
+    return groups
+
+
 def paper_outline(doc: dict) -> list[dict]:
     """The paper's sections with derived figures (P4), in order.
 
     Each entry: ``title``, ``instructions``, ``mode``, ``marks_target``, ``marking`` (authored or
     defaulted), and
     ``first``/``last`` question numbers (both ``None`` when empty), ``count`` and ``marks``
-    (derived). Questions before the first section are not in any section.
+    (derived), ``marks_placement`` (authored or derived, EXA-139) and ``question_marks`` (each
+    question's marks, in order). Questions before the first section are not in any section.
+    Numbering starts at the paper's ``number_from``.
     """
     out: list[dict] = []
-    number = 0
+    number = number_from(doc) - 1
+    paper = paper_placement(doc)
     for node in doc["content"]["content"]:
         if node["type"] == "section":
             a = node["attrs"]
@@ -148,6 +228,8 @@ def paper_outline(doc: dict) -> list[dict]:
                     "mode": a.get("mode"),
                     "marks_target": a.get("marks_target"),
                     "marking": section_marking(a),
+                    "marks_placement": section_placement(a, paper),
+                    "question_marks": [],
                     "first": None,
                     "last": None,
                     "count": 0,
@@ -162,6 +244,7 @@ def paper_outline(doc: dict) -> list[dict]:
                 sec["last"] = number
                 sec["count"] += 1
                 sec["marks"] += block_marks(node)
+                sec["question_marks"].append(block_marks(node))
     return out
 
 
@@ -169,6 +252,32 @@ def cover_page(doc: dict) -> dict | None:
     """The paper's cover block (P7), or ``None``. Validation keeps it first and unique."""
     blocks = doc["content"]["content"]
     return blocks[0] if blocks and blocks[0]["type"] == "coverPage" else None
+
+
+_PART_PATTERNS = (
+    ("booklet_a", re.compile(r"\bbooklet\s*a\b", re.IGNORECASE)),
+    ("booklet_b", re.compile(r"\bbooklet\s*b\b", re.IGNORECASE)),
+    ("paper_2", re.compile(r"\bpaper\s*(2|two|ii)\b", re.IGNORECASE)),
+)
+
+
+def _part_of(text: object) -> str | None:
+    if not isinstance(text, str):
+        return None
+    return next((part for part, pat in _PART_PATTERNS if pat.search(text)), None)
+
+
+def paper_part(doc: dict) -> str | None:
+    """Which exam-set paper this is (O3): ``"booklet_a"``, ``"booklet_b"``, ``"paper_2"`` or
+    ``None``. Read from the cover page's ``paper`` field (the templates write "Paper 1
+    (Booklet A)", "Paper 2"), so renaming the paper does not change it; the title is the
+    fallback for a paper without a cover, or whose cover names none of the three."""
+    try:
+        cover = cover_page(doc)
+    except (KeyError, TypeError):
+        cover = None
+    from_cover = _part_of(((cover or {}).get("attrs") or {}).get("paper"))
+    return from_cover or _part_of(doc.get("title"))
 
 
 def total_marks(doc: dict) -> int:

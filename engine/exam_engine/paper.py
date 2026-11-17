@@ -23,7 +23,11 @@ Rules (owner's decisions, 2026-11-15):
 - ``mcq`` slots take a blueprint whose answer is numeric or a fraction and turn its question
   into four-option multiple choice (P8b, ``mcq.to_mcq``); the marks stay the blueprint's.
 - A paper of level P6 may use P5 and P6 blueprints; a P5 paper only P5 ones.
-- Topics are spread: each slot takes the least-used topic so far, ties broken by the seed.
+- Difficulty follows marks (EXA-146): a slot prefers blueprints whose ladder rung is at least
+  :func:`min_rung` of its marks (2 marks: medium; 3 or more: hard). When none is left it takes
+  the closest rung below, so the rule never adds a placeholder.
+- Topics are spread: among the best-fitting rung, each slot takes the least-used topic so far,
+  ties broken by the seed.
 """
 
 from __future__ import annotations
@@ -36,7 +40,7 @@ from functools import cache
 import yaml
 
 from .blueprints.registry import content_dir, load_blueprint
-from .document import DOCUMENT_SCHEMA_VERSION
+from .document import DOCUMENT_SCHEMA_VERSION, _part_of, unfilled_placeholder_numbers
 from .mcq import CONVERTIBLE, to_mcq
 from .pipeline import generate
 
@@ -109,17 +113,50 @@ def _empty_doc(title: str, settings: dict, blocks: list[dict]) -> dict:
     }
 
 
+def _settings(t: dict) -> dict:
+    """A template's paper settings: its time, and where its numbering starts when that is not 1
+    (Booklet B carries on from Booklet A, EXA-134)."""
+    start = t.get("number_from", 1)
+    return {"time_min": t["time_min"], **({"number_from": start} if start != 1 else {})}
+
+
+_COVER_SWITCHES = ("examiner_table", "parent_signature", "even_pages")
+
+
 def _cover_node(t: dict, level: str | None) -> dict:
-    """The template's cover page (P7): subject, paper and instructions prefilled. The level is
-    stated only when known (a generated paper); school, exam and date are the teacher's."""
+    """The template's cover page (P7): subject, paper, instructions and the template's cover
+    switches prefilled. The level is stated only when known (a generated paper); school, exam
+    and date are the teacher's."""
     attrs = {
         "subject": t["cover"].get("subject", SUBJECT),
         "paper": t["cover"]["paper"],
         "instructions": t["cover"].get("instructions"),
+        **{k: t["cover"][k] for k in _COVER_SWITCHES if k in t["cover"]},
     }
     if level is not None:
         attrs = {"level": _LEVEL_NAMES[level], **attrs}
     return {"type": "coverPage", "attrs": attrs}
+
+
+def _cover_blocks(t: dict, level: str | None) -> list[dict]:
+    """The cover, then a blank back of the cover when the template asks for one (EXA-140): real
+    booklets are printed double-sided, so the questions start on a right-hand page."""
+    back = (
+        [{"type": "blankPage", "attrs": {"kind": "blank"}}] if t["cover"].get("blank_back") else []
+    )
+    return [_cover_node(t, level), *back]
+
+
+def standard_paper_marks() -> dict[str, int]:
+    """The standard marks of each exam-set paper (``document.paper_part``), from the templates'
+    section targets: Booklet A 20, Booklet B 25, Paper 2 55. The cover's examiner's table uses
+    them for the papers of the set that are not in the document (EXA-140)."""
+    out: dict[str, int] = {}
+    for t in _load_all().values():
+        part = _part_of(t["cover"]["paper"])
+        if part:
+            out[part] = sum(s["marks_target"] for s in t["sections"])
+    return out
 
 
 def template_document(code: str) -> dict:
@@ -128,8 +165,8 @@ def template_document(code: str) -> dict:
     t = paper_template(code)
     return _empty_doc(
         t["title"],
-        {"time_min": t["time_min"]},
-        [_cover_node(t, None), *(_section_node(s) for s in t["sections"])],
+        _settings(t),
+        [*_cover_blocks(t, None), *(_section_node(s) for s in t["sections"])],
     )
 
 
@@ -146,6 +183,22 @@ class Candidate:
     marks: int
     kind: str  # "constructed" (single-part) or "multipart" (P8c: a stem with parts)
     answer_type: str = ""
+    rung: str = "easy"  # the blueprint's cognitive.difficulty: easy / medium / hard
+
+
+RUNGS = ("easy", "medium", "hard")
+
+
+def min_rung(marks: int) -> str:
+    """The easiest rung a slot of ``marks`` should take (EXA-146): real papers spend 2 marks on
+    a multi-step problem and 3–5 on a heuristic one, so a 1-mark slot takes any rung, a 2-mark
+    slot medium or harder, and a slot of 3 marks or more a hard one."""
+    return RUNGS[min(max(marks - 1, 0), 2)]
+
+
+def rung_shortfall(rung: str, marks: int) -> int:
+    """How many rungs ``rung`` falls below what a slot of ``marks`` should take (0 = it fits)."""
+    return max(0, RUNGS.index(min_rung(marks)) - RUNGS.index(rung))
 
 
 @cache
@@ -161,6 +214,7 @@ def _pool() -> tuple[Candidate, ...]:
                 marks=spec.marks,
                 kind="multipart" if spec.is_multipart else "constructed",
                 answer_type=str((spec.answer or {}).get("type", "")),
+                rung=str(spec.cognitive.get("difficulty", "easy")),
             )
         )
     return tuple(out)
@@ -201,14 +255,17 @@ class _Filler:
         return f"gq{self.n:03d}{self.rng.getrandbits(24):06x}"
 
     def pick(self, marks: int, kind: str) -> Candidate | None:
-        """An unused blueprint with these marks, from the least-used topic (seeded ties)."""
+        """An unused blueprint with these marks: the best-fitting rung (:func:`rung_shortfall`),
+        then the least-used topic, seeded ties."""
         options = [
             c for c in self.pool if c.code not in self.used and c.marks == marks and _fits(c, kind)
         ]
         if not options:
             return None
         self.rng.shuffle(options)
-        best = min(options, key=lambda c: self.topics.get(c.topic, 0))
+        best = min(
+            options, key=lambda c: (rung_shortfall(c.rung, marks), self.topics.get(c.topic, 0))
+        )
         self.used.add(best.code)
         self.topics[best.topic] = self.topics.get(best.topic, 0) + 1
         return best
@@ -297,19 +354,24 @@ def _placeholder_chunks(shortfall: int) -> list[int]:
 
 
 def _fill_fixed(f: _Filler, section: dict, report: dict) -> list[dict]:
+    """Fill the slots in print order, but choose for the higher-mark slots first: their rung
+    rule leaves fewer blueprints to pick from, and the 1-mark slots then spread around the
+    topics those took (EXA-146)."""
+    mode = section["mode"]
+    marks = [s["marks"] for s in section["slots"] for _ in range(s["count"])]
+    order = sorted(range(len(marks)), key=lambda i: -marks[i])
+    chosen = {i: f.pick(marks[i], mode) for i in order}
     blocks = []
-    for slot in section["slots"]:
-        for _ in range(slot["count"]):
-            spec = {"marks": slot["marks"], "kind": section["mode"]}
-            c = f.pick(slot["marks"], section["mode"])
-            if c is None:
-                blocks.append(f.placeholder(slot["marks"], section["mode"]))
-                report["placeholders"] += 1
-                report["placeholder_marks"] += slot["marks"]
-            else:
-                blocks.append(f.question(c, spec))
-                report["filled"] += 1
-                report["blueprints"].append(c.code)
+    for i, m in enumerate(marks):
+        c = chosen[i]
+        if c is None:
+            blocks.append(f.placeholder(m, mode))
+            report["placeholders"] += 1
+            report["placeholder_marks"] += m
+        else:
+            blocks.append(f.question(c, {"marks": m, "kind": mode}))
+            report["filled"] += 1
+            report["blueprints"].append(c.code)
     return blocks
 
 
@@ -355,7 +417,7 @@ def generate_paper(template_code: str, level: str, seed: int) -> tuple[dict, dic
     t = paper_template(template_code)
     f = _Filler(t, level, seed)
 
-    blocks: list[dict] = [_cover_node(t, level)]
+    blocks: list[dict] = _cover_blocks(t, level)
     sections_report = []
     for section in t["sections"]:
         rep = {
@@ -378,7 +440,7 @@ def generate_paper(template_code: str, level: str, seed: int) -> tuple[dict, dic
         sections_report.append(rep)
 
     title = f"{level} {t['title']}"
-    doc = _empty_doc(title, {"time_min": t["time_min"]}, blocks)
+    doc = _empty_doc(title, _settings(t), blocks)
     report = {
         "template": t["code"],
         "level": level,
@@ -393,24 +455,6 @@ def generate_paper(template_code: str, level: str, seed: int) -> tuple[dict, dic
     return doc, report
 
 
-def _has_content(nodes: list[dict]) -> bool:
-    """Any non-blank text, or an image / equation, anywhere in these nodes (parts included)."""
-    for n in nodes:
-        if n["type"] == "text" and n.get("text", "").strip():
-            return True
-        if n["type"] in ("image", "math"):
-            return True
-        if _has_content(n.get("content", [])):
-            return True
-    return False
-
-
 def unfilled_placeholders(doc: dict) -> int:
     """Placeholders the teacher hasn't written yet: nothing in the stem or any part."""
-    return sum(
-        1
-        for node in doc["content"]["content"]
-        if node["type"] == "freeformQuestion"
-        and ((node.get("attrs") or {}).get("slot") or {}).get("placeholder")
-        and not _has_content(node.get("content", []))
-    )
+    return len(unfilled_placeholder_numbers(doc))

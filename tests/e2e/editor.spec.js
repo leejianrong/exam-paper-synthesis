@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { settled } from './helpers.js'
+import { settled, newBlankPaper } from './helpers.js'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -35,7 +35,7 @@ const centre = (locator) =>
 test('build a paper, edit questions, reload, preview and export', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Your papers' })).toBeVisible()
-  await page.getByRole('button', { name: '+ New paper' }).click()
+  await newBlankPaper(page)
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
@@ -95,7 +95,7 @@ test('build a paper, edit questions, reload, preview and export', async ({ page 
 
 test('the documents list shows, opens and deletes a paper', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: '+ New paper' }).click()
+  await newBlankPaper(page)
   await page.getByLabel('Paper title').fill('Throwaway')
   await settled(page)
   await page.getByRole('link', { name: '← Papers' }).click()
@@ -118,7 +118,7 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
   }
 
   await page.goto('/')
-  await page.getByRole('button', { name: '+ New paper' }).click()
+  await newBlankPaper(page)
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
   await page.getByLabel('Paper title').fill('Bank Paper')
@@ -182,7 +182,7 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
 
 test('write a free-form question, set marks, write its answer, reload, preview and export', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: '+ New paper' }).click()
+  await newBlankPaper(page)
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
   await page.getByLabel('Paper title').fill('Free-form Paper')
@@ -228,7 +228,7 @@ test('write a free-form question, set marks, write its answer, reload, preview a
 
 test('a multi-part free-form question: lettered parts with marks, answers, reload, preview', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: '+ New paper' }).click()
+  await newBlankPaper(page)
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
   await page.getByLabel('Paper title').fill('Multi-part Paper')
@@ -284,7 +284,7 @@ const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAIAAADRv8uKAAAAKklEQVR4nO3NsQ0
 
 test('a free-form question with a PNG figure and an equation survives reload and prints', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: '+ New paper' }).click()
+  await newBlankPaper(page)
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
   await page.getByLabel('Paper title').fill('Figures Paper')
@@ -352,7 +352,7 @@ test('uploads are validated by content and are private to their owner', async ({
 
 test('convert a generated question to free-form: text, answer and its figure as an image', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: '+ New paper' }).click()
+  await newBlankPaper(page)
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
   await page.getByLabel('Paper title').fill('Convert Paper')
@@ -405,7 +405,7 @@ test('import canonical JSON into the bank from the editor, review-gated, per-ite
   const broken = { ...base, id: `sourced:e2e-broken-${stamp}`, question: { ...base.question, total_marks: undefined } }
 
   await page.goto('/')
-  await page.getByRole('button', { name: '+ New paper' }).click()
+  await newBlankPaper(page)
   await page.getByRole('button', { name: 'Add question' }).click()
   const dialog = page.getByRole('dialog', { name: 'Add question' })
   await dialog.getByRole('tab', { name: 'From my bank' }).click()
@@ -443,7 +443,7 @@ test('import canonical JSON into the bank from the editor, review-gated, per-ite
 
 test('typing "1. " makes a numbered list that still saves (editor-only attributes are stripped)', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: '+ New paper' }).click()
+  await newBlankPaper(page)
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   await page.getByRole('button', { name: 'Add question' }).click()
   await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
@@ -461,7 +461,7 @@ test('typing "1. " makes a numbered list that still saves (editor-only attribute
 test('a remark is private: kept through edits and reloads, never in a preview or export', async ({ page }) => {
   const SECRET = 'REMARK private note 7c1e'
   await page.goto('/')
-  await page.getByRole('button', { name: '+ New paper' }).click()
+  await newBlankPaper(page)
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
   await addQuestion(page)
@@ -504,7 +504,7 @@ test('reviewing a bank question is a deliberate act: confirm to mark, one click 
   expect((await inBank()).reviewed).toBe(false)
 
   await page.goto('/')
-  await page.getByRole('button', { name: '+ New paper' }).click()
+  await newBlankPaper(page)
   await page.getByRole('button', { name: 'Add question' }).click()
   const dialog = page.getByRole('dialog', { name: 'Add question' })
   await dialog.getByRole('tab', { name: 'From my bank' }).click()

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { generateSinglePaper } from './helpers.js'
 
 /**
  * Browser acceptance for P8a: generate a whole paper in one click from the papers list, land in
@@ -7,10 +8,7 @@ import { test, expect } from '@playwright/test'
  */
 test('generate a P6 Paper 2: a full paper with a cover, sections at their targets, no placeholders', async ({ page }) => {
   await page.goto('/')
-  const form = page.getByRole('form', { name: 'Generate a paper' })
-  await expect(form.getByLabel('Paper to generate')).toHaveValue('p2')
-  await form.getByLabel('Level').selectOption('P6')
-  await form.getByRole('button', { name: 'Generate paper' }).click()
+  await generateSinglePaper(page, 'Paper 2', 'P6')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
@@ -29,8 +27,11 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
   await expect(page.getByLabel('Paper time in minutes')).toHaveValue('90')
 
   const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
-  expect(student).toContain('<p class="cover-subject">Primary 6 Mathematics</p>')
-  expect(student).toContain('Questions 6–17 · 45 marks · Structured')
+  expect(student).toContain('<p class="cover-level">Primary 6</p><p class="cover-subject">Mathematics</p>')
+  // Real section headers (EXA-139): Section A states its marks, structured Section B points at the [n]
+  expect(student).toContain('Questions <b>1</b> to <b>5</b> carry 2 marks each.')
+  expect(student).toContain('The number of marks available is shown in brackets [ ]')
+  expect(student).toContain('<span class="section-total">(45 marks)</span>')
 
   // The banner goes away when dismissed and does not come back on reload.
   await page.getByTestId('generate-report').getByRole('button', { name: 'Dismiss' }).click()
@@ -39,10 +40,7 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
 
 test('generate a P5 Booklet B: placeholders for what the content cannot fill yet', async ({ page }) => {
   await page.goto('/')
-  const form = page.getByRole('form', { name: 'Generate a paper' })
-  await form.getByLabel('Paper to generate').selectOption('p1_booklet_b')
-  await form.getByLabel('Level').selectOption('P5')
-  await form.getByRole('button', { name: 'Generate paper' }).click()
+  await generateSinglePaper(page, 'Paper 1 · Booklet B', 'P5')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
 
   await expect(page.getByTestId('generate-report')).toContainText('Filled 13 of 15 questions')
@@ -50,7 +48,11 @@ test('generate a P5 Booklet B: placeholders for what the content cannot fill yet
   const hints = page.locator('.ff-placeholder-hint:visible')
   await expect(hints).toHaveCount(2)
   await expect(hints.first()).toHaveText(/write a [12]-mark short-answer question here/)
-  await expect(page.locator('.section-block .section-summary')).toHaveText('Questions 1–15 · 25 / 25 marks')
+  // Booklet B numbers on from A (EXA-134), in a 1-mark and a 2-mark section as real papers (EXA-139)
+  await expect(page.locator('.section-block .section-summary')).toHaveText([
+    'Questions 16–20 · 5 / 5 marks',
+    'Questions 21–30 · 20 / 20 marks',
+  ])
 
   // Writing a placeholder's question clears it.
   await page.locator('.ffblock.placeholder-slot .ff-body').first().click()
@@ -60,20 +62,18 @@ test('generate a P5 Booklet B: placeholders for what the content cannot fill yet
 
 test('generate a P6 Booklet A: multiple-choice questions with four options each', async ({ page }) => {
   await page.goto('/')
-  const form = page.getByRole('form', { name: 'Generate a paper' })
-  await form.getByLabel('Paper to generate').selectOption('p1_booklet_a')
-  await form.getByLabel('Level').selectOption('P6')
-  await form.getByRole('button', { name: 'Generate paper' }).click()
+  await generateSinglePaper(page, 'Paper 1 · Booklet A', 'P6')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
-  await expect(page.getByTestId('generate-report')).toContainText('Filled 13 of 15 questions')
-  await expect(page.getByTestId('generate-report')).toContainText('2 multiple-choice questions still to write')
-  await expect(page.getByTestId('placeholders-left')).toHaveText('2 placeholders to write')
+  // every slot filled since P8e batch 3 (EXA-145): ten 1-mark and five 2-mark questions
+  await expect(page.getByTestId('generate-report')).toContainText('Filled 15 of 15 questions')
+  await expect(page.getByTestId('generate-report')).not.toContainText('still to write')
+  await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
 
   const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
-  expect(student.match(/<ol class="options">/g)).toHaveLength(13)
+  expect(student.match(/<ol class="options">/g)).toHaveLength(15)
   expect(student).not.toContain('class="option option-correct"') // the right option never reaches the paper
   const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
-  expect(key.match(/option option-correct/g)).toHaveLength(13)
+  expect(key.match(/option option-correct/g)).toHaveLength(15)
 })

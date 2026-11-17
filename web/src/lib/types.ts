@@ -4,7 +4,7 @@
 // (optional fields, a broad Answer) so the UI stays resilient to schema growth.
 
 import type { EditOp } from './api'
-import type { DiagramSpec } from './barModel'
+import type { DiagramSpec } from './diagram'
 
 export type ValidationStatus = 'pass' | 'fail'
 export type Difficulty = 'easy' | 'medium' | 'hard'

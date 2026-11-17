@@ -6,7 +6,8 @@
   import { onDestroy } from 'svelte'
   import type { Question } from '../types'
   import { loadFragmentAssets, renderQuestion, typeset } from './fragments'
-  import type { KeyOptions, MarksPlacement } from './layout'
+  import type { KeyOptions } from './layout'
+  import type { SectionPlacement } from './doc'
 
   export let question: Question
   export let mode: 'student' | 'key' = 'student'
@@ -14,7 +15,7 @@
   /** Print the way a paper does (marks per the setting), the editor drawing the answer area. */
   /** Answer-key options (P5), mirrored by CSS in the shadow root; the engine's PDF is authoritative. */
   export let keyOptions: KeyOptions | undefined = undefined
-  export let paper: { placement: MarksPlacement; answerArea: boolean } | undefined = undefined
+  export let paper: { placement: SectionPlacement; answerArea: boolean } | undefined = undefined
 
   const KEY_CSS =
     '.hide-q .question-stem,.hide-q .part-text,.hide-q .options,.hide-q .content-table,' +

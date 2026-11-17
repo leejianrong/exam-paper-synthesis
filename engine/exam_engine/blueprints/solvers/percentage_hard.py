@@ -75,6 +75,7 @@ class PercentageHardSolver:
                 "factor": factor,
                 "original": original,
                 "op": op,
+                "op_text": op.replace("-", "−"),
             },
         }
 

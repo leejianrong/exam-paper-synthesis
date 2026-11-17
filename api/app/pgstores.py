@@ -22,6 +22,7 @@ from functools import lru_cache
 
 import psycopg
 from exam_engine import canonical
+from exam_engine.document import paper_part
 from exam_engine.errors import BankDuplicateId, BankObjectNotFound
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
@@ -224,6 +225,7 @@ def _doc_record(row: dict, *, with_document: bool = True) -> dict:
         "created_at": _iso(row["created_at"]),
         "updated_at": _iso(row["updated_at"]),
         "folder_id": row["folder_id"],
+        "paper_part": paper_part(row["document"]),  # O3, as in docstore._record
     }
     if with_document:
         rec["document"] = row["document"]

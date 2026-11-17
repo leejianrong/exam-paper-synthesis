@@ -102,6 +102,24 @@ def test_render_fragment_strips_ui_hints_and_rejects_invalid():
     )
 
 
+def test_render_fragment_takes_a_section_placement_including_none():
+    """The editor draws each question by its section's placement (EXA-152): ``none`` (an MCQ or
+    short-answer section) prints no [n]; ``question`` prints it beside the question."""
+    q = _fixture("psle_2023_mcq")
+    marks = f"[{q['question']['parts'][0]['marks']}]"
+
+    def html(placement: str) -> str:
+        body = {"question": q, "placement": placement, "answer_area": False}
+        r = client.post("/render/question", json=body)
+        assert r.status_code == 200, placement
+        return r.json()["html"]
+
+    assert marks not in html("none")
+    assert marks in html("question")
+    bad = {"question": q, "placement": "margin"}
+    assert client.post("/render/question", json=bad).status_code == 422
+
+
 def test_fragment_assets_are_cacheable_and_scoped_for_a_shadow_root():
     css = client.get("/render/question.css")
     assert css.status_code == 200 and css.headers["content-type"].startswith("text/css")

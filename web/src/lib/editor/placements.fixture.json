@@ -1,0 +1,390 @@
+[
+  {
+    "name": "no sections, paper default",
+    "settings": {},
+    "content": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 2
+          },
+          "content": []
+        },
+        {
+          "type": "paragraph"
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 2
+          },
+          "content": []
+        }
+      ]
+    },
+    "expected": [
+      "answer",
+      "answer"
+    ]
+  },
+  {
+    "name": "no sections, paper question",
+    "settings": {
+      "marks_placement": "question"
+    },
+    "content": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 2
+          },
+          "content": []
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 2
+          },
+          "content": []
+        }
+      ]
+    },
+    "expected": [
+      "question",
+      "question"
+    ]
+  },
+  {
+    "name": "before the first section uses the paper",
+    "settings": {
+      "marks_placement": "both"
+    },
+    "content": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 2
+          },
+          "content": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "title": "S",
+            "mode": "mcq",
+            "marks_placement": null
+          }
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 2
+          },
+          "content": []
+        }
+      ]
+    },
+    "expected": [
+      "both",
+      "none"
+    ]
+  },
+  {
+    "name": "mode defaults: mcq and short none, structured and no mode the paper",
+    "settings": {
+      "marks_placement": "question"
+    },
+    "content": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "section",
+          "attrs": {
+            "title": "S",
+            "mode": "mcq",
+            "marks_placement": null
+          }
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 1
+          },
+          "content": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "title": "S",
+            "mode": "short",
+            "marks_placement": null
+          }
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 2
+          },
+          "content": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "title": "S",
+            "mode": "structured",
+            "marks_placement": null
+          }
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 4
+          },
+          "content": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "title": "S",
+            "mode": null,
+            "marks_placement": null
+          }
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 3
+          },
+          "content": []
+        }
+      ]
+    },
+    "expected": [
+      "none",
+      "none",
+      "question",
+      "question"
+    ]
+  },
+  {
+    "name": "an explicit choice wins over the mode",
+    "settings": {
+      "marks_placement": "question"
+    },
+    "content": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "section",
+          "attrs": {
+            "title": "S",
+            "mode": "mcq",
+            "marks_placement": "both"
+          }
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 1
+          },
+          "content": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "title": "S",
+            "mode": "structured",
+            "marks_placement": "none"
+          }
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 4
+          },
+          "content": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "title": "S",
+            "mode": "short",
+            "marks_placement": "answer"
+          }
+        }
+      ]
+    },
+    "expected": [
+      "both",
+      "none"
+    ]
+  },
+  {
+    "name": "an unknown choice falls back to the mode",
+    "settings": {
+      "marks_placement": "both"
+    },
+    "content": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "section",
+          "attrs": {
+            "title": "S",
+            "mode": "structured",
+            "marks_placement": "margin"
+          }
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 2
+          },
+          "content": []
+        }
+      ]
+    },
+    "expected": [
+      "both"
+    ]
+  },
+  {
+    "name": "an unknown paper setting is answer",
+    "settings": {
+      "marks_placement": "nowhere"
+    },
+    "content": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 2
+          },
+          "content": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "title": "S",
+            "mode": null,
+            "marks_placement": null
+          }
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 2
+          },
+          "content": []
+        }
+      ]
+    },
+    "expected": [
+      "answer",
+      "answer"
+    ]
+  },
+  {
+    "name": "a real paper: Booklet A, Booklet B, Paper 2",
+    "settings": {
+      "marks_placement": "answer"
+    },
+    "content": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "section",
+          "attrs": {
+            "title": "S",
+            "mode": "mcq",
+            "marks_placement": null
+          }
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 1
+          },
+          "content": []
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 1
+          },
+          "content": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "title": "S",
+            "mode": "mcq",
+            "marks_placement": null
+          }
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 2
+          },
+          "content": []
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "title": "S",
+            "mode": "short",
+            "marks_placement": null
+          }
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 2
+          },
+          "content": []
+        },
+        {
+          "type": "paragraph"
+        },
+        {
+          "type": "section",
+          "attrs": {
+            "title": "S",
+            "mode": "structured",
+            "marks_placement": null
+          }
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 3
+          },
+          "content": []
+        },
+        {
+          "type": "freeformQuestion",
+          "attrs": {
+            "marks": 5
+          },
+          "content": []
+        }
+      ]
+    },
+    "expected": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "answer",
+      "answer"
+    ]
+  }
+]

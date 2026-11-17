@@ -12,13 +12,21 @@ cover:
     Do not turn over this page until you are told to do so.
     Follow all instructions carefully.
     Answer all questions.
-    For each question, choose the correct answer.
-    The use of calculators is not allowed.
+    Use a 2B pencil to shade your answers on the Optical Answer Sheet (OAS).
+    The use of calculators is NOT allowed.
+  # As on real covers (EXA-140): most Booklet A covers have no marks table and no parent's
+  # signature; every booklet has a blank back of the cover and an even page count.
+  examiner_table: false
+  blank_back: true
+  even_pages: true
 sections:
   - title: Booklet A
     mode: mcq
     marks_target: 20
-    instructions: For each question, choose the correct answer.
+    # the real Booklet A sentence; it prints after the derived "Questions 1 to 10 carry ..."
+    instructions: >-
+      For each question, four options are given. One of them is the correct answer. Make your
+      choice (1, 2, 3 or 4) and shade your answer on the Optical Answer Sheet.
     slots:
       - { marks: 1, count: 10 }
       - { marks: 2, count: 5 }

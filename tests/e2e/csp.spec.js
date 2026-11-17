@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { openClassic } from './helpers.js'
+import { openClassic, newBlankPaper } from './helpers.js'
 import fs from 'node:fs'
 
 /**
@@ -44,7 +44,7 @@ test('editor, KaTeX preview, PDF export and the classic tray work under the poli
   const violations = await collectViolations(page)
 
   await page.goto(`${ORIGIN}/#/`)
-  await page.getByRole('button', { name: '+ New paper' }).click()
+  await newBlankPaper(page)
   await expect(page.getByLabel('Paper title')).toBeVisible()
 
   await page.getByRole('button', { name: 'Add question' }).click()

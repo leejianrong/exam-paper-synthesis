@@ -23,10 +23,12 @@
           "description": "How the answer key prints (1.7.0, P5). Both default to true, i.e. the pre-P5 key.",
           "properties": {
             "show_question": { "type": "boolean", "description": "Repeat each question's text, figure and options above its answer; false = steps and answer only." },
-            "show_scheme": { "type": "boolean", "description": "Print the M/A/B marking breakdown under each answer." }
+            "show_scheme": { "type": "boolean", "description": "Print the M/A/B marking breakdown under each answer." },
+            "layout": { "enum": ["full", "compact"], "description": "1.14.0 (EXA-142): full (default) = each question with its worked solution; compact = a school-style key: an answer grid for multiple-choice sections, then a two-column table of working with a right-aligned Ans:. show_question does not apply to compact." }
           }
         },
-        "time_min": { "type": ["integer", "null"], "minimum": 1, "maximum": 600, "description": "Paper time in minutes (1.6.0); printed in the paper header." }
+        "time_min": { "type": ["integer", "null"], "minimum": 1, "maximum": 600, "description": "Paper time in minutes (1.6.0); printed in the paper header." },
+        "number_from": { "type": ["integer", "null"], "minimum": 1, "maximum": 999, "description": "The first question's number (1.12.0, EXA-134); null or absent = 1. Paper 1 Booklet B continues Booklet A's numbering (16 onwards)." }
       }
     },
     "doc": {
@@ -188,7 +190,8 @@
             "instructions": { "type": ["string", "null"], "maxLength": 1000 },
             "mode": { "enum": ["mcq", "short", "structured", null] },
             "marks_target": { "type": ["integer", "null"], "minimum": 0, "maximum": 500 },
-            "marking": { "type": ["boolean", "null"], "description": "Marking margin (\"Do not write in this space\") beside this section's questions (1.8.0, P6a). null/absent = on for working sections (short, structured), off otherwise." }
+            "marking": { "type": ["boolean", "null"], "description": "Marking margin (\"Do not write in this space\") beside this section's questions (1.8.0, P6a). null/absent = on for working sections (short, structured), off otherwise." },
+            "marks_placement": { "enum": ["none", "question", "answer", "both", null], "description": "Where this section's per-question [n] prints (1.13.0, EXA-139): none (the header sentence gives the marks), beside the question, after the Ans: line, or both. null/absent = none for mcq and short sections, the paper-wide settings.marks_placement otherwise." }
           }
         }
       }
@@ -203,13 +206,15 @@
           "type": "object", "additionalProperties": false,
           "properties": {
             "school": { "type": "string", "maxLength": 120 },
-            "exam": { "type": "string", "maxLength": 120, "description": "e.g. 2026 Preliminary Examination" },
+            "exam": { "type": "string", "maxLength": 120, "description": "e.g. Preliminary Examination (2026)" },
             "level": { "type": "string", "maxLength": 60, "description": "e.g. Primary 6" },
             "subject": { "type": "string", "maxLength": 60, "description": "e.g. Mathematics" },
             "paper": { "type": "string", "maxLength": 120, "description": "e.g. Paper 1 (Booklet A)" },
             "date": { "type": ["string", "null"], "maxLength": 60, "description": "Free text, printed as written" },
-            "instructions": { "type": ["string", "null"], "maxLength": 2000, "description": "Instructions to candidates, one per line; printed as a numbered list" },
-            "examiner_table": { "type": ["boolean", "null"], "description": "Print the 'For examiner's use' marks table (one row per section with questions, then the total). null/absent = on." }
+            "instructions": { "type": ["string", "null"], "maxLength": 2000, "description": "Instructions to candidates, one per line; printed as a numbered list. A word written NOT in capitals prints bold and underlined, as on real covers (EXA-140)." },
+            "examiner_table": { "type": ["boolean", "null"], "description": "Print the 'For examiner's use' marks table with diagonal-split score cells. For an exam-set paper (paper_part) it is the set's rows: Booklet A alone; Booklet A, Booklet B and the Paper 1 total; Paper 1, Paper 2 and the total out of 100 (the other papers' maxima are the standard ones from the paper templates). Otherwise one row per section with questions, then the total. null/absent = on." },
+            "parent_signature": { "type": ["boolean", "null"], "description": "Print a 'Parent's signature' line (1.15.0, EXA-140). null/absent = off." },
+            "even_pages": { "type": ["boolean", "null"], "description": "Pad the printed booklet to an even page count with a blank last page (1.15.0, EXA-140). null/absent = off." }
           }
         }
       }

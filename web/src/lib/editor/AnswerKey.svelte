@@ -16,7 +16,9 @@
 
   export let blocks: DocNode[] = []
   /** The paper's answer-key options (P5): the key below previews what will print. */
-  export let options: Required<KeyOptions> = { show_question: true, show_scheme: true }
+  export let options: Required<KeyOptions> = { show_question: true, show_scheme: true, layout: 'full' }
+  /** The paper's first question number (Booklet B carries on from Booklet A, EXA-134). */
+  export let start = 1
 
   const included = (b: DocNode) => b.attrs?.in_key !== false
 
@@ -57,9 +59,9 @@
         {@const marks = parts.length ? freeformMarks(block) : (block.attrs?.marks as number | null | undefined)}
         <li class="entry freeform" class:excluded={!included(block)} data-block-id={block.attrs?.block_id}>
           <div class="head">
-            <span class="n">{i + 1}.</span>
+            <span class="n">{start + i}.</span>
             <span class="label">Answer</span>
-            {@render include(block, i + 1)}
+            {@render include(block, start + i)}
             {#if marks !== null && marks !== undefined}<span class="marks">[{marks}]</span>{/if}
           </div>
           {#if options.show_question}
@@ -85,7 +87,7 @@
                 {/if}
                 <AnswerEditor
                   value={(part.attrs?.answer as DocJSON) ?? { type: 'doc', content: [] }}
-                  label={`Answer to question ${i + 1} part (${partLetter(pi)})`}
+                  label={`Answer to question ${start + i} part (${partLetter(pi)})`}
                   on:error={(e) => dispatch('error', e.detail)}
                   on:change={(e) =>
                     dispatch('partanswer', {
@@ -99,7 +101,7 @@
           {:else}
           <AnswerEditor
             value={(block.attrs?.answer as DocJSON) ?? { type: 'doc', content: [] }}
-            label={`Answer to question ${i + 1}`}
+            label={`Answer to question ${start + i}`}
             on:error={(e) => dispatch('error', e.detail)}
             on:change={(e) =>
               dispatch('answer', { blockId: String(block.attrs?.block_id), answer: e.detail.answer })}
@@ -113,15 +115,15 @@
         <!-- bank or multi-part (P8c) question: the engine's own key markup, so MCQ options,
              tables, constructions and every lettered part are right; it carries its own number. -->
         <li class="entry" class:excluded={!included(block)}>
-          <div class="head">{@render include(block, i + 1)}</div>
-          <FragmentView question={q} mode="key" number={i + 1} keyOptions={options} />
+          <div class="head">{@render include(block, start + i)}</div>
+          <FragmentView question={q} mode="key" number={start + i} keyOptions={options} />
         </li>
       {:else}
       <li class="entry" class:excluded={!included(block)}>
         <div class="head">
-          <span class="n">{i + 1}.</span>
+          <span class="n">{start + i}.</span>
           <span class="ans"><span class="label">Answer</span> {fmtAnswer(part.answer)}</span>
-          {@render include(block, i + 1)}
+          {@render include(block, start + i)}
           <span class="marks">[{part.marks}]</span>
         </div>
         {#if part.solution_steps?.length}
