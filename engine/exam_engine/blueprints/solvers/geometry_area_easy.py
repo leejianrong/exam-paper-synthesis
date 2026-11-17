@@ -20,6 +20,7 @@ from __future__ import annotations
 import random
 from fractions import Fraction
 
+from ..base import spread_sides
 from ..registry import register
 from .geometry_area_common import AREA_UNIT, _labels, _pt
 
@@ -160,6 +161,7 @@ class GeometryAreaEasySolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong areas (cm²), best first (EXA-122)."""
         g, template = params["givens"], params["template"]
@@ -169,6 +171,8 @@ class GeometryAreaEasySolver:
                 (2 * (w + h), "the perimeter, not the area"),
                 (w + h, "added the length and the width"),
                 (Fraction(w * h, 2), "halved, as for a triangle"),
+                (2 * w * h, "multiplied by 2 as well, as for the perimeter"),
+                (max(w, h) ** 2, f"took both sides as {max(w, h)} cm"),
             ]
         if template == "square":
             s = g["s"]
@@ -176,12 +180,15 @@ class GeometryAreaEasySolver:
                 (4 * s, "the perimeter, not the area"),
                 (2 * s, "side × 2 instead of side × side"),
                 (Fraction(s * s, 2), "halved, as for a triangle"),
+                (4 * s * s, "multiplied by 4 as well, as for the perimeter"),
+                (2 * s * s, "multiplied by 2 as well"),
             ]
         base, height = g["base"], g["height"]
         return [
             (base * height, "forgot to halve"),
             (base + height, "added the base and the height"),
             (2 * (base + height), "the perimeter of the rectangle around it"),
+            (2 * base * height, "multiplied by 2 instead of dividing by 2"),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:

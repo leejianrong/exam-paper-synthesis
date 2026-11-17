@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import functools
 import random
+import zlib
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
+from fractions import Fraction
+from typing import Any, Protocol, runtime_checkable
 
 from ..schema import validate_against
 
@@ -38,6 +42,89 @@ class Solver(Protocol):
     # Optional: mcq_ascending = False  (EXA-141) the multiple-choice copy keeps a seeded option
     #   order instead of ascending order, for a question whose answer is an extreme of the
     #   options ("which is the greatest?"), where ascending order would give it away.
+
+
+Slip = tuple[int | Fraction, str]
+
+
+def _numbers(params: object) -> list[int | float]:
+    """The numbers in ``params``, in key order (names and items left out, so renaming a
+    person keeps the same slips order)."""
+    if isinstance(params, dict):
+        return [n for k in sorted(params) for n in _numbers(params[k])]
+    if isinstance(params, list | tuple):
+        return [n for v in params for n in _numbers(v)]
+    if isinstance(params, int | float) and not isinstance(params, bool):
+        return [params]
+    return []
+
+
+def spread(slips: list[Slip], answer: Fraction, params: dict) -> list[Slip]:
+    """``slips`` (best first) reordered so the first two lie both below, either side of, or
+    both above ``answer``, chosen by a key from the numbers in ``params`` (EXA-147, EXA-156).
+
+    A multiple-choice copy prints its options in ascending order and takes the first wrong
+    options from the hook in order (only the last one is picked to move the answer, see
+    ``mcq._last_pick``), so a hook whose best slips all lie on one side would put the answer
+    nearly always in one half of the options. Slips a copy cannot use (not positive, the
+    answer itself, or more than 20 times off it) and repeated values count for neither side."""
+
+    def usable(v: Fraction) -> bool:
+        return v > 0 and v != answer and answer / 20 <= v <= answer * 20
+
+    seen: set[Fraction] = set()
+    below: list[Slip] = []
+    above: list[Slip] = []
+    for s in slips:  # a value given twice is one option
+        v = Fraction(s[0])
+        if usable(v) and v not in seen:
+            seen.add(v)
+            (below if v < answer else above).append(s)
+    key = zlib.crc32(repr(_numbers(params)).encode())
+    first = [below[:2], below[:1] + above[:1], above[:2]][key % 3]
+    if len(first) < 2:
+        first = below[:1] + above[:1]
+    return [*first, *(s for s in slips if s not in first)]
+
+
+def spread_sides(
+    hook: Callable[[Any, dict, dict], list[Slip]],
+) -> Callable[[Any, dict, dict], list[Slip]]:
+    """A ``distractors`` hook whose slips go through :func:`spread`, about the solved answer."""
+
+    @functools.wraps(hook)
+    def wrapped(self: Any, params: dict, solution: dict) -> list[Slip]:
+        slips = hook(self, params, solution)
+        a = solution.get("answer")
+        if not a:  # called before solving (a sampler counting its slips)
+            return slips
+        answer = (
+            Fraction(a["numerator"], a["denominator"])
+            if a.get("type") == "fraction"
+            else Fraction(str(a["value"]))
+        )
+        return spread(slips, answer, params)
+
+    return wrapped
+
+
+def carry_slips(a: int, b: int) -> list[Slip]:
+    """Carrying slips in the long multiplication ``a × b`` (``b`` one digit), when the ones
+    carry: the carried ten added twice, or left out."""
+    if b > 9 or (a % 10) * b < 10:
+        return []
+    return [
+        (a * b + 10, "added the carried ten twice when multiplying"),
+        (a * b - 10, "left out the carried ten when multiplying"),
+    ]
+
+
+def sum_slip(answer: int, x: int, y: int, what: str) -> list[Slip]:
+    """``answer`` is 180° or 360° less ``x + y``: when adding ``x`` and ``y`` carries a ten,
+    the carried ten added twice makes the sum 10 too big and the answer 10 too small."""
+    if (x % 10) + (y % 10) < 10:
+        return []
+    return [(answer - 10, f"added the carried ten twice when adding {what}")]
 
 
 @dataclass

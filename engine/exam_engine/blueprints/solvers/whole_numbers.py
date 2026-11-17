@@ -29,6 +29,7 @@ from collections.abc import Callable
 from fractions import Fraction
 from itertools import combinations
 
+from ..base import spread_sides
 from ..registry import register
 
 MAX_VALUE = 999  # every printed number, intermediate and answer stays at most this
@@ -316,6 +317,7 @@ class WholeNumbersMediumSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Misreading the remainder, best first."""
         q, r = divmod(params["n"], params["d"])
@@ -409,6 +411,7 @@ class WholeNumbersHardSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Excess-and-shortage slips, best first."""
         a, b, left, short = params["a"], params["b"], params["left"], params["short"]
@@ -418,6 +421,8 @@ class WholeNumbersHardSolver:
             (a * p, "forgot the leftover"),
             (p, "gave the number of pupils"),
             (b * p, "added the shortage instead of taking it away"),
+            (b * p + left, f"gave {b} each and added the leftover"),
+            (a * (p + 1) + left, "counted one pupil too many"),
             (left + short, "gave the leftover and the shortage added together"),
         ]
         # used the difference of the leftover and the shortage to find the pupils

@@ -22,6 +22,7 @@ from __future__ import annotations
 import random
 from fractions import Fraction
 
+from ..base import spread_sides
 from ..registry import register
 
 # Singapore-appropriate given names (PSLE style, R1.6).
@@ -114,6 +115,7 @@ class AverageEasySolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong answers (EXA-122), best first."""
         values = params["values"]

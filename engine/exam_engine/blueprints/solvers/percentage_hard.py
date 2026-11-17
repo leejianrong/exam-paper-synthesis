@@ -17,6 +17,7 @@ from __future__ import annotations
 import random
 from fractions import Fraction
 
+from ..base import spread_sides
 from ..registry import register
 
 # Everyday priced items (R1.6). Context only — no arithmetic hangs off the word.
@@ -79,6 +80,7 @@ class PercentageHardSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong answers (EXA-122), in $, best first."""
         p, new = params["percent"], params["new_value"]
@@ -98,6 +100,11 @@ class PercentageHardSolver:
                 f"used {200 - factor}%, not {factor}%",
             ),
             (new, "the new price"),
+            (Fraction(new * 100, p), f"took the new price as {p}% of the original"),
+            (
+                original - abs(original - new) if up else original + abs(original - new),
+                f"{'took the increase off' if up else 'added the decrease to'} the original price",
+            ),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:
