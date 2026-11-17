@@ -26,6 +26,8 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   // The question itself (its stem), compared as text content: innerText would also carry the
   // block's form controls (working-space and unit menus) laid out line by line.
   const stemOf = (block) => block.locator('.qbody')
+  // KaTeX typesets inline maths after the block mounts: read the text once it has.
+  await expect(first.locator('.math-host:not(:has(.katex))')).toHaveCount(0)
   const lockedStem = await stemOf(first).textContent()
 
   // Question 2: "Write my own" leaves a 2-mark placeholder; the section stays at 10 marks.
