@@ -131,10 +131,13 @@ def check_grid_consistency(spec: dict) -> dict[str, bool]:
         return p is not None and 0 <= p[0] <= c_max and 0 <= p[1] <= r_max  # type: ignore[operator]
 
     cells = [c for c in spec.get("cells") or [] if isinstance(c, dict)]
-    where = [(c.get("col"), c.get("row")) for c in cells]
+    where = [(repr(c.get("col")), repr(c.get("row"))) for c in cells]
     cells_inside = all(
-        _is_int(c) and _is_int(r) and 0 <= c < c_max and 0 <= r < r_max  # type: ignore[operator]
-        for c, r in where
+        _is_int(c.get("col"))
+        and _is_int(c.get("row"))
+        and 0 <= c["col"] < c_max
+        and 0 <= c["row"] < r_max
+        for c in cells
     )
 
     polygons = [p for p in spec.get("polygons") or [] if isinstance(p, dict)]
@@ -150,7 +153,9 @@ def check_grid_consistency(spec: dict) -> dict[str, bool]:
 
     points = [p for p in spec.get("points") or [] if isinstance(p, dict)]
     spots = [_pt([p.get("x"), p.get("y")]) for p in points]
-    labels = [p.get("label") for p in points] + [c.get("label") for c in cells if c.get("label")]
+    # repr: a junk label (a list) is compared, not hashed
+    labels = [repr(p.get("label")) for p in points]
+    labels += [repr(c.get("label")) for c in cells if c.get("label")]
     return {
         "size_in_range": size_ok,
         "cells_inside": size_ok and cells_inside,

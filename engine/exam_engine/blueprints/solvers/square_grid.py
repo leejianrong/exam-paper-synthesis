@@ -60,10 +60,11 @@ def _shuffled(rng: random.Random, pool: str) -> str:
     return "".join(out)
 
 
-def _others(letters: str, reasons: list[str]) -> str:
-    """ "Q is ...; R is ..." for the wrong options (``letters[1:]``), in letter order."""
+def _others(letters: str, reasons: list[str], prefix: str = "") -> str:
+    """ "Q is ...; R is ..." for the wrong options (``letters[1:]``), in letter order;
+    ``prefix`` names a line from a point instead ("CQ is ...")."""
     pairs = sorted(zip(letters[1:], reasons, strict=True))
-    return "; ".join(f"{letter} {why}" for letter, why in pairs)
+    return "; ".join(f"{prefix}{letter} {why}" for letter, why in pairs)
 
 
 # ---------------------------------------------------------------- area
@@ -175,17 +176,30 @@ class GridAreaSolver:
         area = Fraction(2 * whole + half, 2)
         xs, ys = [x for x, _ in vertices], [y for _, y in vertices]
         box = (max(xs) - min(xs)) * (max(ys) - min(ys))
-        slips: list[tuple[int | Fraction, str]] = [
+        named: list[tuple[int | Fraction, str]] = [
             (whole, "counted only the whole squares"),
             (whole + half, "counted each half square as a whole one"),
+            (whole + half - 1, "counted each half square as a whole one and missed a square"),
             (box, "counted every square of the rectangle around the figure"),
             (box - area, "found the unshaded part of the rectangle around the figure"),
-            (Fraction(half, 2), "counted only the half squares"),
-            (area - 1, "missed one square"),
-            (area + 1, "counted one square twice"),
         ]
-        # a slip far from the answer would not tempt anyone (a sliver of unshaded rectangle)
-        slips = [s for s in slips if area / 2 <= s[0] <= 2 * area]
+        h = Fraction(1, 2)
+        near: list[tuple[int | Fraction, str]] = [
+            (area - h, "missed one half square"),
+            (area + h, "counted one half square too many"),
+            (area - 1, "missed one whole square"),
+            (area + 1, "counted one whole square twice"),
+            (area - 1 - h, "missed a whole square and a half square"),
+            (area + 1 + h, "counted a whole square and a half square twice"),
+            (area - 2, "missed two whole squares"),
+            (area + 2, "counted two whole squares twice"),
+        ]
+        # Every slip is a count of whole and half squares near the answer: a far one (a sliver
+        # of unshaded rectangle) would tempt nobody. Duplicates keep the first reason.
+        slips: list[tuple[int | Fraction, str]] = []
+        for v, why in [*named, *near]:
+            if area / 2 <= v <= 2 * area and v != area and all(v != s for s, _ in slips):
+                slips.append((v, why))
         below = [s for s in slips if s[0] < area]
         above = [s for s in slips if s[0] > area]
         # Options print in ascending order, so the first two slips lie both below, either side
@@ -245,6 +259,16 @@ def _walk(dx: int, dy: int) -> str:
     return f"{across} for every {up}"
 
 
+def on_segment(a: tuple[int, int], b: tuple[int, int], p: tuple[int, int]) -> bool:
+    """Is grid point ``p`` on segment AB (a dot there would read as part of the line)?"""
+    cross = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
+    return (
+        cross == 0
+        and min(a[0], b[0]) <= p[0] <= max(a[0], b[0])
+        and min(a[1], b[1]) <= p[1] <= max(a[1], b[1])
+    )
+
+
 def _relation(ask: str, u: tuple[int, int], v: tuple[int, int]) -> bool:
     if ask == "parallel":
         return u[0] * v[1] - u[1] * v[0] == 0
@@ -260,7 +284,7 @@ def line_candidates(
     para = (c[0] + t * dx, c[1] + t * dy)
     perp = (c[0] - t * dy, c[1] + t * dx)
     answer, other = (para, perp) if ask == "parallel" else (perp, para)
-    other_why = "makes a line perpendicular to AB" if ask == "parallel" else "is parallel to AB"
+    other_why = "is perpendicular to AB" if ask == "parallel" else "is parallel to AB"
     if ask == "parallel":
         swapped, mirrored = (c[0] + t * dy, c[1] + t * dx), (c[0] + t * dx, c[1] - t * dy)
     else:
@@ -310,7 +334,7 @@ class GridLinesSolver:
                 if ok and not _relation(ask, (b[0] - a[0], b[1] - a[1]), v) and len(chosen) < 4:
                     chosen.append(p)
                     taken.add(p)
-            if len(chosen) == 4:
+            if len(chosen) == 4 and not any(on_segment(a, b, p) for p in chosen):
                 # move the whole picture to the middle of the grid
                 every = [a, b, c, *chosen]
                 sx = (_LINE_COLS - max(p[0] for p in every) - min(p[0] for p in every)) // 2
@@ -361,7 +385,7 @@ class GridLinesSolver:
                 "ask": ask,
                 "step1": first,
                 "step2": f"Line C{x} goes {cd}, so C{x} is {ask} to AB.",
-                "step3": f"The others: {_others(letters, self._reasons(params))}.",
+                "step3": f"The others: {_others(letters, self._reasons(params), 'C')}.",
             },
         }
 
@@ -379,6 +403,7 @@ class GridLinesSolver:
             "points_distinct": len(set(points)) == len(points),
             "points_in_grid": all(_in_grid(p, _LINE_COLS, _LINE_ROWS) for p in points),
             "c_off_ab": (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]) != 0,
+            "options_off_ab": not any(on_segment(a, b, p) for p in options),
             "only_one_option_fits": meets == [True, False, False, False],
             "answer_verified": right == letters[0],
         }
@@ -489,7 +514,9 @@ class GridCompassSolver:
         options, correct = _choice(letters)
         answer = compass_answer(params)
         reasons = []
-        wrong = dict(_wrong_directions(params, answer))
+        wrong: dict[int, str] = {}
+        for k, why in _wrong_directions(params, answer):  # the first (most natural) reason wins
+            wrong.setdefault(k, why)
         for p in params["options"][1:]:
             d = _direction_of(o, _pt(p))
             reasons.append(wrong.get(d, "is in another direction") if d is not None else "")

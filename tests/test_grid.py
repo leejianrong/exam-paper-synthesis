@@ -57,8 +57,17 @@ def test_each_invariant_catches_its_fault(change, failing):
 
 
 def test_junk_never_raises():
-    for junk in [{}, {"cols": "x"}, {"cols": 3, "rows": 3, "polygons": [{"vertices": "no"}]}]:
-        assert isinstance(check_grid_consistency(junk), dict)
+    for junk in [
+        {},
+        {"cols": "x"},
+        {"cols": [8], "rows": {}},
+        {"cols": 3, "rows": 3, "polygons": [{"vertices": "no"}]},
+        {"cols": 3, "rows": 3, "cells": [{"col": [1], "row": 0, "label": ["A"]}]},
+        {"cols": 3, "rows": 3, "points": [{"x": 0, "y": 0, "label": ["A"]}]},
+    ]:
+        out = check_grid_consistency(junk)
+        assert isinstance(out, dict) and all(isinstance(v, bool) for v in out.values())
+    assert not check_grid_consistency({"cols": [8], "rows": 6})["size_in_range"]
 
 
 def test_simple_polygons():

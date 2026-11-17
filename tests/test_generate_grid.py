@@ -114,6 +114,33 @@ def test_area_answers_place_among_the_options_gives_nothing_away():
     assert share[1] <= 0.4 and share[4] <= 0.4 and max(share.values()) <= 0.5, share
 
 
+def test_area_mcq_options_are_all_counting_slips():
+    """Every option is a count of whole and half squares near the answer, and every wrong one
+    comes from the hook (the generic fallback, e.g. 2.4 or 48 for 24, never fires)."""
+    from fractions import Fraction
+
+    for seed in range(1, 401):
+        obj = generate("grid_area", seed)
+        area = Fraction(str(obj["question"]["parts"][0]["answer"]["value"]))
+        hooked = {why for _, why in mcq.common_wrong_answers(obj)}
+        part = mcq.to_mcq(obj, seed)["question"]["parts"][0]
+        for o in part["answer"]["options"]:
+            v = Fraction(o["text"].split()[0])
+            assert (2 * v).denominator == 1 and area / 2 <= v <= 2 * area, (seed, o["text"])
+        desc = part["marking_scheme"][0]["description"].split("Wrong options: ")[1]
+        reasons = [r.split(") ", 1)[1] for r in desc.rstrip(".").split("; ")]
+        assert all(r in hooked for r in reasons), (seed, reasons)
+
+
+def test_no_option_point_sits_on_line_ab():
+    from exam_engine.blueprints.solvers.square_grid import on_segment
+
+    for seed in [*range(1, 301), 228, 424, 516, 818]:
+        p = generate("grid_lines", seed)["parameters"]
+        a, b = tuple(p["a"]), tuple(p["b"])
+        assert not any(on_segment(a, b, tuple(q)) for q in p["options"]), seed
+
+
 def test_area_hook_has_slips_on_both_sides():
     solver = get_solver("grid_area")
     for seed in range(1, 41):
