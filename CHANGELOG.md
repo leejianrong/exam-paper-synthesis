@@ -10,6 +10,12 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Deeper P6 angle questions (EXA-150).** Four new blueprints, each with a figure drawn to
+  scale: a rectangle's corner folded along a line (2 marks), a rhombus, parallelogram or
+  trapezium joined to an isosceles or equilateral triangle (3 marks), reflex angles at a point
+  (2 marks), and a two-part Paper 2 question on a rhombus with an equilateral triangle inside
+  it (4 marks). Figures can now mark a reflex angle: it is drawn the long way round, on a wider
+  arc.
 - **A compact answer key, like a real school key (EXA-142).** A new answer-key layout,
   "Compact" (document schema 1.14.0, `key_options.layout`; "Full" stays the default): a header
   block (school, level, subject, exam) from the cover, an answer grid for each multiple-choice
