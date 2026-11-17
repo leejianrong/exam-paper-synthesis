@@ -155,11 +155,18 @@ export async function generatePaper(
   template: string,
   level: string,
   folderId?: string | null,
+  /** EXA-153: for one paper of an exam set, the topics of the set's papers made so far. */
+  setTopics?: Record<string, number>,
 ): Promise<DocumentRecord & { report: PaperReport }> {
   const res = await apiFetch(`${BASE}/documents/generate`, {
     method: 'POST',
     headers: json,
-    body: JSON.stringify({ template, level, folder_id: folderId ?? null }),
+    body: JSON.stringify({
+      template,
+      level,
+      folder_id: folderId ?? null,
+      ...(setTopics ? { set_topics: setTopics } : {}),
+    }),
   })
   if (!res.ok) return fail(res)
   return (await res.json()) as DocumentRecord & { report: PaperReport }

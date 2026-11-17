@@ -355,3 +355,34 @@ in generation (the engine stays deterministic).
   replay now ranks rung before topic); `_check_rungs` and the no-easier-swap assertion in
   `tests/test_invariants_paper_swap.py`, plus
   `test_a_swap_never_trades_a_question_for_an_easier_rung`.
+
+## Topics spread over an exam set (EXA-153, 2026-11-17)
+
+- **Why.** Each paper spread its topics on its own, so a topic with a question in every paper
+  had 4–6 in a set (a P6 set: Algebra, Average, Decimals, Rate, Charts, Volume and Whole
+  numbers each up to 6; real sets average 1.3–2.3 on most of these, REAL-PAPER-COMPARISON.md
+  Part 2, 2b).
+- **Rule** (`paper.generate_paper(..., set_topics)`, `paper.generate_set`, `SET_TOPIC_CAP = 3`).
+  One paper of a set is told the topics of the set's papers made before it. "Least-used topic"
+  then counts the whole set, and a topic with 3 questions in the set is full: a slot takes a
+  full topic only when every blueprint left for it is full, ranked above the rung rule. A paper
+  on its own (no `set_topics`) is exactly as before. The "+ New" wizard makes the set one paper
+  per request (it keeps its per-paper progress and retry) and sends the running count from the
+  reports; `POST /documents/generate` takes `set_topics`.
+- **Effect** (100 seeds; fit = share of filled slots at their rung):
+
+  | Set | most per topic | fit A / B / P2 |
+  |---|---|---|
+  | P6 before | 6 | 100% / 80% / 100% |
+  | P6 after | 4 (every set) | 100% / 80% / 50% |
+  | P5 | 6 → 6 | 93% / 69% / 50% (unchanged) |
+
+  The trade-off: by Paper 2 most topics are full, so half its single-part questions come from
+  an easier rung (2-mark easy items, 3-mark medium stand-ins). A cap of 4 keeps Paper 2 at 92%
+  fit but lets one topic reach 5 in 72% of P6 sets. A P5 set (44 questions, 13 topics) uses
+  nearly every P5 blueprint in each paper, so the pool, not the order, decides it. Both ease as
+  topics are added (EXA-143–150).
+- **Tests.** `test_an_exam_set_spreads_its_topics` (a P6 set holds at most 4 of any topic, and
+  no set is worse than its papers made apart) and set papers in
+  `test_generated_papers_keep_every_rule` (`tests/test_invariants_paper.py`). Swaps stay
+  per-paper.

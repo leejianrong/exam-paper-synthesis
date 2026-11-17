@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from functools import cache
 
 import pytest
 import yaml
@@ -17,7 +18,9 @@ from exam_engine.blueprints.registry import content_dir
 from exam_engine.document import paper_outline, validate_document
 from exam_engine.paper import (
     LEVELS,
+    SET_TOPIC_CAP,
     generate_paper,
+    generate_set,
     paper_templates,
     template_document,
     unfilled_placeholders,
@@ -44,6 +47,25 @@ def _blueprint_meta() -> dict[str, dict]:
 
 
 META = _blueprint_meta()
+SET_SEEDS = range(1, 31)
+
+
+@cache
+def _sets(level: str) -> dict[int, list[tuple[dict, dict]]]:
+    """Exam sets (EXA-153): Booklet A, Booklet B and Paper 2, made as the wizard makes them."""
+    return {s: generate_set(TEMPLATES, level, s) for s in SET_SEEDS}
+
+
+def _set_topics(papers) -> Counter[str]:
+    """Questions per topic over a whole set, counted from the documents."""
+    return Counter(
+        n["attrs"]["question"]["syllabus"]["topic"]
+        for doc, _ in papers
+        for n in _questions(doc)
+        if n["type"] == "templatedQuestion"
+    )
+
+
 MULTIPART = {
     level: [c for c, m in META.items() if m["parts"] > 1 and m["level"] in LEVELS[: i + 1]]
     for i, level in enumerate(LEVELS)
@@ -117,11 +139,19 @@ def test_a_starter_paper_has_the_generated_papers_cover_without_a_level(code):
 @pytest.mark.parametrize("level", LEVELS)
 @pytest.mark.parametrize("code", TEMPLATES)
 def test_generated_papers_keep_every_rule(code, level):
+    """Every rule, for a paper on its own and for the same paper made as part of an exam set
+    (EXA-153)."""
     template = next(t for t in paper_templates() if t["code"] == code)
     allowed = set(LEVELS[: LEVELS.index(level) + 1])
-    for seed in SEEDS:
-        doc, report = generate_paper(code, level, seed)
-        where = f"{code} {level} seed={seed}"
+    alone = ((s, *generate_paper(code, level, s), None) for s in SEEDS)
+    in_sets = (
+        (s, *papers[TEMPLATES.index(code)], _set_topics(papers))
+        for s, papers in _sets(level).items()
+    )
+    for seed, doc, report, set_topics in (*alone, *in_sets):
+        where = f"{code} {level} seed={seed}{'' if set_topics is None else ' in a set'}"
+        # topics the set has filled: its later picks may skip their better-rung blueprints
+        full = {t for t, n in (set_topics or {}).items() if n >= SET_TOPIC_CAP}
 
         # valid, and validate_document re-solves every generated question (engine-proven)
         assert validate_document(doc) == [], where
@@ -196,6 +226,7 @@ def test_generated_papers_keep_every_rule(code, level):
 
         # difficulty follows marks (EXA-146): a question falls below its slot's rung only when
         # every blueprint that could have filled the slot at that rung is already in the paper
+        # (or, in an exam set, its topic is full: EXA-153)
         for sec, nodes in _by_section(doc):
             for n in nodes:
                 if n["type"] != "templatedQuestion":
@@ -210,6 +241,7 @@ def test_generated_papers_keep_every_rule(code, level):
                     and _takes(c, sec["mode"], level)
                     and _shortfall(c, marks) < _shortfall(bp, marks)
                     and c not in codes
+                    and META[c]["topic"] not in full
                 ]
                 assert not better, (where, bp, better)
 
@@ -253,6 +285,38 @@ def test_topics_are_spread_when_choice_allows():
         sec_a = _by_section(doc)[0][1]
         topics = [n["attrs"]["question"]["syllabus"]["topic"] for n in sec_a]
         assert len(set(topics)) == len(topics) == 5, topics
+
+
+# EXA-153: the most questions one topic may take in a P6 exam set (47 questions). Real P6 sets
+# give one topic up to 6 (Fractions at AT and CH, Angles at SN) and the per-topic averages run
+# 1.0-4.8 a set (docs/planning/editor/REAL-PAPER-COMPARISON.md, 2b); our P6 blueprints cover 15
+# topics, a fair share of 3.1 each, so 4 is a share and one more. Before EXA-153 seven topics
+# reached 6 in some set.
+_P6_SET_MAX = 4
+
+
+def _over_cap(counts: Counter[str]) -> int:
+    return sum(max(0, n - SET_TOPIC_CAP) for n in counts.values())
+
+
+@pytest.mark.parametrize("level", LEVELS)
+def test_an_exam_set_spreads_its_topics(level):
+    """EXA-153: made as a set, the three papers spread their topics over the whole set. No
+    topic takes more questions, and fewer questions sit over the cap, than when the same seeds
+    make the papers on their own; a P6 set holds at most _P6_SET_MAX of any topic. (A P5 set has
+    44 questions for 13 topics and each paper uses nearly every P5 blueprint, so there the pool,
+    not the order, decides; the set is then never worse.)"""
+    for seed, papers in _sets(level).items():
+        together = _set_topics(papers)
+        apart = _set_topics([generate_paper(code, level, seed) for code in TEMPLATES])
+        where = (level, seed, dict(together))
+        assert sum(together.values()) == sum(apart.values()), where  # no question lost
+        assert max(together.values()) <= max(apart.values()), where
+        assert _over_cap(together) <= _over_cap(apart), where
+        if level == "P6":
+            assert max(together.values()) <= _P6_SET_MAX, where
+        # each report counts its own paper's topics, as the wizard adds them up
+        assert sum((Counter(r["topics"]) for _, r in papers), Counter()) == together, where
 
 
 _CONVERTIBLE = {"integer", "decimal", "quantity", "fraction"}  # a number: multiple choice

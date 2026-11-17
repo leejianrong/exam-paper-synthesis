@@ -20,6 +20,12 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Changed
 
+- **An exam set spreads its topics over the whole set (EXA-153).** The "+ New" wizard's exam
+  set used to choose topics paper by paper, so a topic could have 6 questions in a P6 set. Each
+  paper is now told the topics of the papers made before it and fills a topic past 3 questions
+  only when nothing else fits, so no topic has more than 4 in a P6 set. A single paper is
+  generated exactly as before. Trade-off: Paper 2 of a set comes last, so about half its
+  single-part questions are now an easier rung than its marks ask for.
 - **Generated papers match difficulty to marks (EXA-146).** A 2-mark slot now takes a medium or
   hard question and a 3-to-5-mark one a hard question whenever the content has one left, so a
   2-mark Booklet A MCQ is no longer a one-step distance = speed x time. P6 Booklet A and Paper 2

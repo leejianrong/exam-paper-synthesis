@@ -2,7 +2,8 @@
   // O3: the "+ New" dialog. Four choices as option cards (new folder, exam set, single paper,
   // blank paper), then a step or two each. (A separate Template choice made the same papers as
   // Single paper → Start it empty, so it was dropped.) A single paper opens in the editor; an exam
-  // set makes its three papers one after the other into one folder, says which failed (and keeps
+  // set makes its three papers one after the other into one folder (each told the topics of those
+  // already made, EXA-153, so the set spreads its topics), says which failed (and keeps
   // what was made), then shows the folder. Escape goes back a step, or closes on the first;
   // focus stays in the dialog, and the list puts it back on the button that opened it.
   import { onMount, tick } from 'svelte'
@@ -63,7 +64,14 @@
   let setName = 'P6 exam set'
   let setFolderId: string | null = null
   let setLevel: string | null = null
-  type Row = { part: PaperPart; label: string; state: 'waiting' | 'working' | 'done' | 'failed'; error?: string }
+  type Row = {
+    part: PaperPart
+    label: string
+    state: 'waiting' | 'working' | 'done' | 'failed'
+    error?: string
+    /** A generated paper's questions per topic (its report), for the set's later papers. */
+    topics?: Record<string, number>
+  }
   let rows: Row[] = []
   // Single paper
   let singleCode = ''
@@ -241,7 +249,12 @@
       rows = rows
       const code = PART_TEMPLATES[row.part]
       try {
-        const rec = setLevel ? await generatePaper(code, setLevel, folderId) : await createDocument(undefined, code, folderId)
+        let rec: DocumentRecord
+        if (setLevel) {
+          const made = await generatePaper(code, setLevel, folderId, setTopicsSoFar())
+          row.topics = made.report?.topics
+          rec = made
+        } else rec = await createDocument(undefined, code, folderId)
         row.state = 'done'
         onPapersCreated([summaryOf(rec)])
         announce = `${row.label} made.`
@@ -254,6 +267,14 @@
     }
     if (!rows.some((r) => r.state === 'failed') && folderId) onShowFolder(folderId)
     else await focusStep()
+  }
+
+  /** EXA-153: questions per topic in the set's papers made so far, so each new paper spreads its
+   *  topics over the whole set rather than repeating them in every paper. */
+  function setTopicsSoFar(): Record<string, number> {
+    const out: Record<string, number> = {}
+    for (const r of rows) for (const [t, n] of Object.entries(r.topics ?? {})) out[t] = (out[t] ?? 0) + n
+    return out
   }
 
   async function retryFailed() {
