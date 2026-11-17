@@ -74,7 +74,7 @@ class SpeedHardSolver:
             out.append((Fraction(gap, abs(s1 - s2)), "used the difference of the speeds"))
         out.append((Fraction(gap, s1), f"used only {params['name1']}'s speed"))
         out.append((Fraction(gap, s2), f"used only {params['name2']}'s speed"))
-        # smaller times: as if they had only half the gap to close
+        # a smaller time: as if they had only half the gap to close
         out.append((Fraction(gap, 2 * (s1 + s2)), "used half the distance between them"))
         hours = gap // (s1 + s2)
         out.append((hours - 1, "stopped one hour short in an hour-by-hour table"))

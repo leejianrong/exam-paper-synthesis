@@ -151,6 +151,9 @@ class StatisticsChartEasySolver:
         out.append((v[b], f"read the bar for {cats[b]} only"))
         out.append((v[a] - v[b] - step, "misread a bar by one gridline"))
         out.append((v[a] - v[b] + step, "misread a bar by one gridline"))
+        out.append(
+            (v[a] - v[b] - 2 * step, "misread both bars by one gridline, towards each other")
+        )
         return out
 
     def validate(self, params: dict, solution: dict) -> dict:

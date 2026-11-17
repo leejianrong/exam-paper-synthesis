@@ -92,6 +92,7 @@ def spread(
     first = [below[:2], below[:1] + above[:1], above[:2]][key % 3]
     if len(first) < 2:
         first = below[:1] + above[:1]
+    first.sort(key=slips.index)  # still best first: mcq's give-away guard drops the later one
     return [*first, *(s for s in slips if s not in first)]
 
 
