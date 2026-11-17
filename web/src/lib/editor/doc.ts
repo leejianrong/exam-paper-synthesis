@@ -5,7 +5,7 @@ import type { Question } from '../types'
 import { assetUrl } from './assets'
 import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.11.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.15.0'
 
 export interface DocNode {
   type: string
@@ -35,6 +35,10 @@ export interface DocumentRecord {
   version: number
   created_at: string
   updated_at: string
+  /** O2: the folder the paper is filed in (null = unfiled). */
+  folder_id?: string | null
+  /** O3: the exam-set part, derived on the server from the cover page (title as fallback). */
+  paper_part?: 'booklet_a' | 'booklet_b' | 'paper_2' | null
   document: PaperDocument
 }
 
@@ -94,6 +98,9 @@ export function blockMarks(node: DocNode): number {
 }
 
 export type SectionMode = 'mcq' | 'short' | 'structured'
+/** Where a section's per-question [n] print (EXA-139); `none` = only in the header sentence. */
+export type SectionPlacement = 'none' | 'question' | 'answer' | 'both'
+export const SECTION_PLACEMENTS: SectionPlacement[] = ['none', 'question', 'answer', 'both']
 
 /** A section's figures: authored target, derived question range / count / marks (P4). */
 export interface SectionInfo {
@@ -108,9 +115,9 @@ export interface SectionInfo {
  * The derived figures of every section, in order (mirror of the engine's `paper_outline`):
  * questions after a section divider belong to it until the next one; numbers continue.
  */
-export function paperOutline(doc: DocJSON): SectionInfo[] {
+export function paperOutline(doc: DocJSON, start = 1): SectionInfo[] {
   const out: SectionInfo[] = []
-  let number = 0
+  let number = start - 1
   for (const n of doc.content ?? []) {
     if (n.type === 'section') {
       const t = n.attrs?.marks_target
@@ -177,6 +184,9 @@ export function cleanNode(node: DocNode): DocNode {
     if (typeof out.attrs.marks_target === 'number') attrs.marks_target = out.attrs.marks_target
     // Only an explicit choice of the marking margin is stored; unset follows the mode.
     if (typeof out.attrs.marking === 'boolean') attrs.marking = out.attrs.marking
+    // EXA-139: where the [n] print; unset follows the mode (none for MCQ / short answer).
+    if (typeof out.attrs.marks_placement === 'string' && SECTION_PLACEMENTS.includes(out.attrs.marks_placement as SectionPlacement))
+      attrs.marks_placement = out.attrs.marks_placement
     out = { ...out, attrs }
   }
   if (out.type === 'coverPage') {
@@ -191,7 +201,8 @@ export function cleanNode(node: DocNode): DocNode {
       const v = typeof a[k] === 'string' ? (a[k] as string).trim() : ''
       if (v) attrs[k] = v
     }
-    if (typeof a.examiner_table === 'boolean') attrs.examiner_table = a.examiner_table
+    for (const k of ['examiner_table', 'parent_signature', 'even_pages'])
+      if (typeof a[k] === 'boolean') attrs[k] = a[k]
     out = { ...out, attrs }
   }
   if (out.type === 'blankPage') {

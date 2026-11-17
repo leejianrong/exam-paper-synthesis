@@ -33,7 +33,21 @@ from pathlib import Path
 from typing import NamedTuple
 
 from . import diagram, expression
-from .document import block_marks, cover_page, in_key, key_options, paper_outline
+from .document import (
+    MARKS_PLACEMENTS,
+    QUESTION_TYPES,
+    block_marks,
+    cover_page,
+    has_content,
+    in_key,
+    is_unfilled_placeholder,
+    key_options,
+    marks_groups,
+    number_from,
+    paper_outline,
+    paper_part,
+    paper_placement,
+)
 from .units import printed_unit
 
 # ---------------------------------------------------------------------------
@@ -187,6 +201,8 @@ def _fmt_answer(answer: dict) -> str:
             return f"${shown}"
         if unit == "%":
             return f"{value}%"
+        if unit == "degrees":
+            return f"{value}°"
         return f"{value} {_esc(printed_unit(unit))}" if unit else f"{value}"
     if atype == "fraction":
         body = rf"\frac{{{answer['numerator']}}}{{{answer['denominator']}}}"
@@ -221,10 +237,15 @@ def _render_options(answer: dict, *, reveal_correct: bool) -> list[str]:
     worksheet and the answer key. Only which one is ``correct`` is secret, so
     ``reveal_correct`` (the answer-key branch) is the sole gate on the
     ``option-correct`` class.
+
+    Text options print as one column under the stem, as on every real Booklet A (EXA-141, even
+    short numbers); picture options keep a 2 x 2 grid (``options-grid``).
     """
     correct = answer.get("correct")
-    out: list[str] = ['<ol class="options">']
-    for opt in answer.get("options", []):
+    opts = answer.get("options", [])
+    grid = any(o.get("diagram") for o in opts)
+    out: list[str] = ['<ol class="options options-grid">' if grid else '<ol class="options">']
+    for opt in opts:
         is_correct = reveal_correct and opt.get("label") == correct
         cls = "option option-correct" if is_correct else "option"
         out.append(f'<li class="{cls}">')
@@ -253,7 +274,7 @@ class Layout:
         space_mm: int | None = None,
         ans_unit: str | None = None,
     ) -> None:
-        self.placement = placement if placement in ("question", "answer", "both") else "answer"
+        self.placement = placement if placement in MARKS_PLACEMENTS else "answer"
         self.space_mm = space_mm
         self.ans_unit = ans_unit
 
@@ -303,6 +324,16 @@ def _answer_line(
     )
 
 
+def _marks_beside(layout: Layout | None, answer_key: bool, has_line: bool = True) -> bool:
+    """Whether [n] prints beside the question text: always in the key and off a paper, else when
+    the placement asks for it, or for ``answer`` when the part has no Ans: line to carry it."""
+    if layout is None or answer_key:
+        return True
+    return layout.placement in ("question", "both") or (
+        layout.placement == "answer" and not has_line
+    )
+
+
 def _answer_space(layout: Layout | None, marks: int | None) -> str:
     if layout is None:
         return (
@@ -340,9 +371,7 @@ def _render_part_head(
     # On a paper the [n] sits beside the question and/or the Ans: line (the key always has it).
     # A part with no Ans: line (MCQ, construction) has nowhere else, so it keeps it here.
     has_line = (part.get("answer") or {}).get("type") not in ("choice", "construction")
-    if marks is not None and (
-        layout is None or answer_key or layout.placement != "answer" or not has_line
-    ):
+    if marks is not None and _marks_beside(layout, answer_key, has_line):
         out.append(f'<span class="marks">[{marks}]</span>')
     out.append("</div>")
 
@@ -362,6 +391,7 @@ class KeyOptions(NamedTuple):
 
     show_question: bool = True
     show_scheme: bool = True
+    layout: str = "full"
 
 
 def _key_options(doc: dict) -> KeyOptions:
@@ -556,11 +586,21 @@ def inline_script_hashes() -> list[str]:
 
 
 def _document(
-    *, root_class: str, title: str, header_html: str, body_html: str, tally: bool = False
+    *,
+    root_class: str,
+    title: str,
+    header_html: str,
+    body_html: str,
+    tally: bool = False,
+    foot_tag: str | None = None,
 ) -> str:
     """Assemble the shared self-contained HTML shell around a rendered body.
 
-    ``tally`` marks the paper for the P6b paginator, which prints a tally box on every page."""
+    ``foot_tag`` (a paper only; ``""`` for no left-hand tag) hands the paper to the paginator,
+    which lays it out page by page with a footer on every question page (EXA-138); ``tally``
+    also gives each of those pages its tally box (P6b)."""
+    paginate = foot_tag is not None
+    attrs = (" data-paginate" if paginate else "") + (" data-tally" if tally else "")
     return (
         "<!doctype html>\n"
         '<html lang="en">\n'
@@ -573,17 +613,31 @@ def _document(
         f"<style>{_PRINT_CSS}</style>\n"
         "</head>\n"
         "<body>\n"
-        f'<main class="{root_class}"{" data-tally" if tally else ""}>\n'
+        f'<main class="{root_class}"{attrs}>\n'
         f"{header_html}\n"
         f"{body_html}\n"
         "</main>\n"
         f"{_TALLY_TEMPLATE if tally else ''}"
+        f"{_page_foot_template(foot_tag) if foot_tag is not None else ''}"
         f"<script>{_KATEX_JS}</script>\n"
         f"<script>{_AUTORENDER_JS}</script>\n"
         f"<script>{_BOOTSTRAP_JS}</script>\n"
         f"<script>{_PAGINATE_JS}</script>\n"
         "</body>\n"
         "</html>\n"
+    )
+
+
+def _page_foot_template(tag: str) -> str:
+    """The footer the paginator puts on every question page (EXA-138): an optional tag on the
+    left, the page number in the centre, "(Go on to the next page)" and the tally box on the
+    right. The paginator fills in the number and leaves "Go on" off the last page."""
+    return (
+        '<template id="page-foot-template"><footer class="page-foot">'
+        f'<span class="foot-tag">{_esc(tag)}</span>'
+        '<span class="foot-num"></span>'
+        '<span class="foot-end"><span class="foot-go">(Go on to the next page)</span></span>'
+        "</footer></template>\n"
     )
 
 
@@ -704,13 +758,30 @@ def _render_freeform_item(
     assets: AssetResolver | None = None,
     layout: Layout | None = None,
     key: KeyOptions | None = None,
+    mcq: bool = False,
 ) -> list[str]:
     """A teacher-written question (W2a): body + ``[marks]``, then answer space or key answer.
 
     Free-form blocks carry no verification, so nothing here claims any. In the key an empty
     answer prints a quiet placeholder, so a blank is never mistaken for a written answer.
+
+    An unwritten generator placeholder in a multiple-choice section (``mcq``, printed only
+    when the teacher chose to print anyway, EXA-137) keeps its number and marks over a blank
+    gap the teacher can write into, with no Ans: line: an MCQ never has one.
     """
     attrs = node["attrs"]
+    if mcq and not answer_key and is_unfilled_placeholder(node):
+        marks = attrs.get("marks")
+        return [
+            f'<{tag} class="question freeform unwritten">',
+            '<div class="part"><div class="part-text"></div>',
+            f'<span class="marks">[{marks}]</span>'
+            if marks is not None and (layout is None or layout.placement != "none")
+            else "",
+            "</div>",
+            _answer_space(layout, marks),
+            f"</{tag}>",
+        ]
     parts = [c for c in node["content"] if c.get("type") == "freeformPart"]
     body = "".join(
         _render_rich_block(b, assets) for b in node["content"] if b.get("type") != "freeformPart"
@@ -726,7 +797,7 @@ def _render_freeform_item(
         return out
     out = [f'<{tag} class="question freeform">', '<div class="part">']
     out.append(f'<div class="part-text">{body}</div>')
-    if marks is not None and (layout is None or answer_key or layout.placement != "answer"):
+    if marks is not None and _marks_beside(layout, answer_key):
         out.append(f'<span class="marks">[{marks}]</span>')
     out.append("</div>")
     out.extend(_freeform_answer(attrs, marks, answer_key, assets, layout, ""))
@@ -773,6 +844,7 @@ def _render_freeform_parts(
     if not hide_question:
         out.append(f'<div class="part"><div class="part-text">{body}</div></div>')
     placement = layout.placement if layout else "question"
+    head_layout = Layout(placement)
     for i, part in enumerate(parts):
         letter = chr(ord("a") + i)
         pattrs = part["attrs"]
@@ -786,7 +858,7 @@ def _render_freeform_parts(
             out.append('<div class="part">')
             out.append(f'<span class="part-label">({letter})</span>')
             out.append(f'<div class="part-text">{text}</div>')
-            if marks is not None and (layout is None or answer_key or placement != "answer"):
+            if marks is not None and _marks_beside(head_layout, answer_key):
                 out.append(f'<span class="marks">[{marks}]</span>')
             out.append("</div>")
         part_layout = Layout(placement, pattrs.get("space_mm"), pattrs.get("ans_unit"))
@@ -803,10 +875,6 @@ def _part_marks(part: dict) -> int:
 def _block_layout(node: dict, placement: str) -> Layout:
     attrs = node["attrs"]
     return Layout(placement, attrs.get("space_mm"), attrs.get("ans_unit"))
-
-
-def _placement(doc: dict) -> str:
-    return (doc.get("settings") or {}).get("marks_placement", "answer")
 
 
 def _render_numbered_blocks(
@@ -864,36 +932,63 @@ def _freeform_marks(node: dict) -> int:
     return node["attrs"].get("marks") or 0
 
 
-_SECTION_MODE_LABEL = {
-    "mcq": "Multiple choice",
-    "short": "Short answer",
-    "structured": "Structured",
-}
+# A teacher's own section title prints; the generic labels the templates use ("Section A",
+# "Booklet B") do not, as real papers print no such label above the header (EXA-139).
+_GENERIC_TITLE = re.compile(r"^\s*(section|booklet|part)\s+([a-z]|\d{1,2})\s*$", re.IGNORECASE)
+
+
+def _marks_word(n: int) -> str:
+    return f"{n} mark" if n == 1 else f"{n} marks"
+
+
+def _range_sentence(first: int, last: int, marks: int) -> str:
+    """ "Questions <b>1</b> to <b>10</b> carry 1 mark each." (one question: "carries")."""
+    if first == last:
+        return f"Question <b>{first}</b> carries {_marks_word(marks)}."
+    joiner = "and" if last == first + 1 else "to"
+    return f"Questions <b>{first}</b> {joiner} <b>{last}</b> carry {_marks_word(marks)} each."
+
+
+_BRACKETS_SENTENCE = (
+    "The number of marks available is shown in brackets [ ] at the end of each question or "
+    "part question."
+)
+
+
+def section_sentence(info: dict) -> str:
+    """The marks sentence of a section header (EXA-139), from the derived range and marks.
+
+    A section whose questions print their own [n] and differ in marks (or a structured one)
+    says so, as real Paper 2 does; any other states each run of equal marks."""
+    marks = info["question_marks"]
+    if not marks:
+        return ""
+    shows_own = info["marks_placement"] != "none"
+    if shows_own and (info["mode"] == "structured" or len(set(marks)) > 1):
+        return _BRACKETS_SENTENCE
+    return " ".join(_range_sentence(*g) for g in marks_groups(marks, info["first"]))
 
 
 def _render_section(info: dict) -> str:
-    """A paper section header (P4): title, question range, marks, instructions."""
-    bits = []
-    if info["first"] is not None:
-        rng = (
-            f"Question {info['first']}"
-            if info["first"] == info["last"]
-            else f"Questions {info['first']}–{info['last']}"
-        )
-        bits.append(rng)
-        bits.append(f"{info['marks']} marks")
-    if info["mode"]:
-        bits.append(_SECTION_MODE_LABEL[info["mode"]])
-    meta = f'<p class="section-meta">{_esc(" · ".join(bits))}</p>' if bits else ""
-    instr = (
-        f'<p class="section-instructions">{_esc(info["instructions"])}</p>'
-        if info["instructions"]
+    """A paper section header as real papers print it (EXA-139): the marks sentence and the
+    authored instructions in one paragraph, "(20 marks)" at the right of its last line, then
+    a rule. A teacher's own title prints above it; the generic "Section A" labels do not."""
+    title = info["title"].strip()
+    head = (
+        f'<h2 class="section-title">{_esc(title)}</h2>'
+        if title and not _GENERIC_TITLE.match(title)
         else ""
     )
-    return (
-        '<div class="paper-section">'
-        f'<h2 class="section-title">{_esc(info["title"])}</h2>{meta}{instr}</div>'
+    text = " ".join(
+        t for t in (section_sentence(info), _esc(info["instructions"] or "").strip()) if t
     )
+    total = (
+        f'<span class="section-total">({_marks_word(info["marks"])})</span>'
+        if info["count"]
+        else ""
+    )
+    body = f'<p class="section-intro">{text}{total}</p>' if text or total else ""
+    return f'<div class="paper-section">{head}{body}</div>'
 
 
 def _mark_unit(item: list[str], marks: int, marked: bool) -> list[str]:
@@ -941,11 +1036,19 @@ def _render_document_body(
     marks: int = 0,
 ) -> str:
     """Document blocks in order; questions and rich text share one numbering counter."""
-    placement = _placement(doc)
-    out: list[str] = ['<div class="doc-body questions">']
+    placement = paper_placement(doc)
+    start = number_from(doc)
+    reset = f' style="counter-reset: q {start - 1}"' if start != 1 else ""
+    out: list[str] = [f'<div class="doc-body questions"{reset}>']
     outline = iter(paper_outline(doc))
     marking = False  # inside a section that prints the marking margin
-    for node in doc["content"]["content"]:
+    mcq = False  # inside a multiple-choice section
+    own_page = False  # inside a structured section: each question starts a page (EXA-138)
+    content = doc["content"]["content"]
+    kinds = ("freeformQuestion", "templatedQuestion")
+    last_q = max((i for i, n in enumerate(content) if n["type"] in kinds), default=-1)
+    first_in_section = True
+    for i, node in enumerate(content):
         if node["type"] == "coverPage":
             out.append(_render_cover(node["attrs"], doc, title=title, marks=marks))
         elif node["type"] == "blankPage":
@@ -953,27 +1056,66 @@ def _render_document_body(
         elif node["type"] == "section":
             info = next(outline)
             marking = info["marking"] and not answer_key
-            out.append(_render_section(info))
-        elif node["type"] == "freeformQuestion":
-            item = _render_freeform_item(
-                node,
-                answer_key=answer_key,
-                assets=assets,
-                layout=_block_layout(node, placement),
-            )
-            out.extend(_mark_unit(item, block_marks(node), marking))
-        elif node["type"] == "templatedQuestion":
-            item = _render_question_item(
-                node["attrs"]["question"],
-                answer_key=answer_key,
-                tag="section",
-                layout=_block_layout(node, placement),
-            )
-            out.extend(_mark_unit(item, block_marks(node), marking))
+            mcq = info["mode"] == "mcq"
+            own_page = info["mode"] == "structured" and not answer_key
+            placement = info["marks_placement"]
+            first_in_section = True
+            section = _render_section(info)
+            if own_page:
+                section = section.replace('class="paper-section"', 'class="paper-section own-page"')
+            out.append(_in_margin(section, marking))
+        elif node["type"] in kinds:
+            if node["type"] == "freeformQuestion":
+                item = _render_freeform_item(
+                    node,
+                    answer_key=answer_key,
+                    assets=assets,
+                    layout=_block_layout(node, placement),
+                    mcq=mcq,
+                )
+            else:
+                item = _render_question_item(
+                    node["attrs"]["question"],
+                    answer_key=answer_key,
+                    tag="section",
+                    layout=_block_layout(node, placement),
+                )
+            item = _mark_unit(item, block_marks(node), marking)
+            # the section header already starts the page of the section's first question
+            if own_page and not first_in_section:
+                item[0] = item[0].replace(' class="question', ' class="question own-page', 1)
+            first_in_section = False
+            out.extend(item)
+            if i == last_q and not answer_key:
+                out.append(_in_margin(f'<p class="end-marker">{_end_text(doc)}</p>', marking))
         else:
-            out.append(_render_rich_block(node, assets))
+            out.append(_in_margin(_render_rich_block(node, assets), marking))
     out.append("</div>")
     return "".join(out)
+
+
+def _in_margin(html_block: str, marking: bool) -> str:
+    """Inside a marking section every block keeps clear of the page's marking strip (EXA-138)."""
+    return re.sub(r"^<(\w+)", r"<\1 data-margin", html_block, count=1) if marking else html_block
+
+
+_END_TEXT = {"booklet_a": "End of Booklet A", "booklet_b": "End of Booklet B"}
+
+
+def _end_text(doc: dict) -> str:
+    """What prints after the last question (EXA-138): the booklet the cover names, else the
+    paper. A paper without a cover is just a paper."""
+    part = paper_part(doc) if cover_page(doc) else None
+    return _END_TEXT.get(part or "", "End of Paper")
+
+
+def _foot_tag(doc: dict) -> str:
+    """The small left-hand footer tag, e.g. "Pandan Primary · 2025 Preliminary Examination ·
+    Paper 2" — only when the cover names the school or the exam (EXA-138)."""
+    cover = cover_page(doc)
+    attrs = (cover or {}).get("attrs") or {}
+    school, exam, paper = (str(attrs.get(k) or "").strip() for k in ("school", "exam", "paper"))
+    return " · ".join(x for x in (school, exam, paper) if x) if school or exam else ""
 
 
 def _time_label(doc: dict) -> str:
@@ -1003,74 +1145,295 @@ def _render_blank_page(attrs: dict) -> str:
     return f'<div class="blank-page {kind}"><p class="blank-text">{_esc(text)}</p></div>'
 
 
-def _examiner_table(doc: dict, marks: int) -> str:
-    """ "For examiner's use": a row per section that holds questions, then the paper total. The
-    marks are derived from the questions, like the section headers (P4); questions before the
-    first section get an "Other questions" row, so the rows always add up to the total."""
+def _score_cell(maximum: int) -> str:
+    """A score cell split by a diagonal: the mark is written above it, the maximum prints in the
+    lower right (EXA-140), as on real covers."""
+    return (
+        '<td class="score"><svg class="score-diag" viewBox="0 0 10 10" preserveAspectRatio="none"'
+        ' aria-hidden="true"><line x1="0" y1="10" x2="10" y2="0"/></svg>'
+        f'<span class="score-max">{maximum}</span></td>'
+    )
+
+
+def _examiner_rows(doc: dict, marks: int) -> list[tuple[str, int, bool]]:
+    """The examiner's table as ``(label, maximum, is_total)`` rows (EXA-140). An exam-set paper
+    gets the set's rows, as real covers print them: Booklet A alone; Booklet A, Booklet B and
+    the Paper 1 total; Paper 1, Paper 2 and the total out of 100. This paper's maximum is its own
+    (derived) total; the other papers' are the standard ones from the paper templates. Any other
+    paper gets a row per section that holds questions, then its total; questions before the
+    first section get an "Other questions" row, so the rows always add up."""
+    from .paper import standard_paper_marks  # paper imports the pipeline; keep render light
+
+    std = standard_paper_marks()
+    part = paper_part(doc)
+    if part == "booklet_a":
+        return [("Paper 1 (Booklet A)", marks, False)]
+    if part == "booklet_b":
+        a = std["booklet_a"]
+        return [
+            ("Booklet A", a, False),
+            ("Booklet B", marks, False),
+            ("Total (Paper 1)", a + marks, True),
+        ]
+    if part == "paper_2":
+        p1 = std["booklet_a"] + std["booklet_b"]
+        return [("Paper 1", p1, False), ("Paper 2", marks, False), ("Total", p1 + marks, True)]
     sections = [s for s in paper_outline(doc) if s["count"]]
-    rows = [
-        f'<tr><th scope="row">{_esc(s["title"] or "Section")}</th><td></td>'
-        f"<td>{s['marks']}</td></tr>"
-        for s in sections
-    ]
+    rows = [(s["title"] or "Section", s["marks"], False) for s in sections]
     loose = marks - sum(s["marks"] for s in sections)
     if sections and loose > 0:
-        rows.insert(0, f'<tr><th scope="row">Other questions</th><td></td><td>{loose}</td></tr>')
-    rows.append(f'<tr class="total"><th scope="row">Total</th><td></td><td>{marks}</td></tr>')
+        rows.insert(0, ("Other questions", loose, False))
+    return [*rows, ("Total", marks, True)]
+
+
+def _examiner_table(doc: dict, marks: int) -> str:
+    """ "For examiner's use": a part name and a diagonal-split score cell per row (EXA-140)."""
+    rows = "".join(
+        f'<tr{' class="total"' if total else ""}><th scope="row">{_esc(label)}</th>'
+        f"{_score_cell(maximum)}</tr>"
+        for label, maximum, total in _examiner_rows(doc, marks)
+    )
     return (
         '<table class="examiner-table"><caption>For examiner\'s use</caption>'
-        '<thead><tr><th scope="col"></th><th scope="col">Marks obtained</th>'
-        '<th scope="col">Marks available</th></tr></thead>'
-        f"<tbody>{''.join(rows)}</tbody></table>"
+        f"<tbody>{rows}</tbody></table>"
     )
+
+
+def _cover_time(doc: dict) -> str:
+    """Paper 1's time is shared by its two booklets, and real covers say so (EXA-140)."""
+    label = _time_label(doc)
+    if not label:
+        return ""
+    if paper_part(doc) in ("booklet_a", "booklet_b"):
+        return f"Total time for Booklets A and B: {label}"
+    return f"Time: {label}"
+
+
+_BOOKLET_LINE = re.compile(r"^(.*?)\s*(\([^()]*\))$")
+
+
+def _emphasise(text: str) -> str:
+    """Escape one instruction line; a word written NOT in capitals prints bold and underlined,
+    as real covers print "The use of calculators is NOT allowed." (EXA-140)."""
+    return re.sub(r"\bNOT\b", '<strong class="cover-not">NOT</strong>', _esc(text))
+
+
+def _field(label: str, inner: str) -> str:
+    return f'<p class="cover-field"><span class="cover-label">{label}</span>{inner}</p>'
 
 
 def _render_cover(attrs: dict, doc: dict, *, title: str, marks: int) -> str:
-    """The paper's cover page (P7). Time, total and the examiner's table come from the paper."""
-    level_subject = " ".join(
-        x for x in ((attrs.get("level") or "").strip(), (attrs.get("subject") or "").strip()) if x
-    )
+    """The paper's cover page (P7), laid out like a real P6 cover (EXA-140): a centred title block,
+    the candidate's fields, the time and the question count, the examiner's table, the
+    instructions, and a page-count line the paginator fills in. Time, counts and the table
+    come from the paper."""
+
+    def text(key: str) -> str:
+        return str(attrs.get(key) or "").strip()
+
+    paper, booklet = text("paper"), ""
+    if m := _BOOKLET_LINE.match(paper):
+        paper, booklet = m.group(1), m.group(2)
     lines = [
         (cls, value)
         for cls, value in (
-            ("cover-school", (attrs.get("school") or "").strip()),
-            ("cover-exam", (attrs.get("exam") or "").strip()),
-            ("cover-subject", level_subject),
-            ("cover-paper", (attrs.get("paper") or "").strip()),
+            ("cover-school", text("school")),
+            ("cover-exam", text("exam")),
+            ("cover-level", text("level")),
+            ("cover-subject", text("subject")),
+            ("cover-paper", paper),
+            ("cover-booklet", booklet),
         )
         if value
     ] or [("cover-paper", title)]  # an empty cover still says which paper it is
     head = "".join(f'<p class="{c}">{_esc(v)}</p>' for c, v in lines)
 
-    facts = []
-    if (attrs.get("date") or "").strip():
-        facts.append(f"<span>Date: {_esc(attrs['date'].strip())}</span>")
-    if _time_label(doc):
-        facts.append(f"<span>Time: {_time_label(doc)}</span>")
-    facts.append(f"<span>Total: {marks} marks</span>")
-
-    candidate = (
-        '<div class="cover-candidate">'
-        '<p><span class="cover-label">Name:</span><span class="cover-line"></span></p>'
-        '<p><span class="cover-label">Class:</span><span class="cover-line short"></span>'
-        '<span class="cover-label">Register No.:</span><span class="cover-line short"></span></p>'
-        "</div>"
+    line = '<span class="cover-line"></span>'
+    date = f'<span class="cover-value">{_esc(text("date"))}</span>' if text("date") else line
+    level = f'<span class="cover-value">{_esc(text("level"))}</span>' if text("level") else ""
+    count = sum(1 for n in doc["content"]["content"] if n["type"] in _QUESTION_KINDS)
+    fields = [
+        _field("Name:", f'{line}<span class="cover-reg">(<span></span>)</span>'),
+        _field("Class:", f'{level}<span class="cover-line short"></span>'),
+        _field("Date:", date),
+    ]
+    if _cover_time(doc):
+        fields.append(f'<p class="cover-time">{_cover_time(doc)}</p>')
+    fields.append(
+        f'<p class="cover-count"><span>{count} question{"" if count == 1 else "s"}</span>'
+        f"<span>{marks} mark{'' if marks == 1 else 's'}</span></p>"
     )
+    if attrs.get("parent_signature"):
+        fields.append(_field("Parent's signature:", line))
 
-    instr_lines = [x.strip() for x in (attrs.get("instructions") or "").splitlines() if x.strip()]
+    table = _examiner_table(doc, marks) if attrs.get("examiner_table") is not False else ""
+    instr_lines = [x.strip() for x in text("instructions").splitlines() if x.strip()]
     instructions = (
         '<div class="cover-instructions"><h2>Instructions to candidates</h2><ol>'
-        + "".join(f"<li>{_esc(x)}</li>" for x in instr_lines)
+        + "".join(f"<li>{_emphasise(x)}</li>" for x in instr_lines)
         + "</ol></div>"
         if instr_lines
         else ""
     )
-    table = _examiner_table(doc, marks) if attrs.get("examiner_table") is not False else ""
+    even = " data-even-pages" if attrs.get("even_pages") else ""
     return (
-        f'<div class="cover-page"><div class="cover-head">{head}</div>'
-        f'<p class="cover-facts">{"".join(facts)}</p>'
-        f"{candidate}{instructions}{table}</div>"
+        f'<div class="cover-page"{even}><div class="cover-head">{head}</div>'
+        f'<div class="cover-main"><div class="cover-fields">{"".join(fields)}</div>{table}</div>'
+        f"{instructions}"
+        # the paginator knows the page count: it fills this line in (EXA-140)
+        '<p class="cover-pages" hidden></p></div>'
     )
+
+
+_QUESTION_KINDS = ("freeformQuestion", "templatedQuestion")
+
+
+# ---------------------------------------------------------------------------
+# Compact answer key (EXA-142): how real school keys look. A header block from the cover, an
+# answer grid for each multiple-choice section, and a two-column table (question label, then
+# the working with a right-aligned "Ans:") for the rest. No question text; M1/A1 optional.
+# ---------------------------------------------------------------------------
+
+_KEY_META = (("School", "school"), ("Level", "level"), ("Subject", "subject"), ("Exam", "exam"))
+_GRID_COLUMNS = 10
+
+
+def _key_meta(doc: dict) -> str:
+    """ "School : … / Level : … / Subject : … / Exam : …" from the cover, as real keys head
+    their first page. Nothing without a cover (the title says which paper it is)."""
+    attrs = (cover_page(doc) or {}).get("attrs") or {}
+    rows = [
+        f"<div><dt>{name}</dt><dd>{_esc(value)}</dd></div>"
+        for name, key in _KEY_META
+        if (value := (attrs.get(key) or "").strip())
+    ]
+    return f'<dl class="key-meta">{"".join(rows)}</dl>' if rows else ""
+
+
+def _key_groups(doc: dict) -> list[tuple[dict | None, list[tuple[int, dict]]]]:
+    """The key's questions by section, each with its paper number (Booklet B: 16 onwards).
+    Questions left out of the key are skipped; numbers never shift."""
+    outline = iter(paper_outline(doc))
+    groups: list[tuple[dict | None, list[tuple[int, dict]]]] = [(None, [])]
+    number = number_from(doc) - 1
+    for node in doc["content"]["content"]:
+        if node["type"] == "section":
+            groups.append((next(outline), []))
+        elif node["type"] in QUESTION_TYPES:
+            number += 1
+            if in_key(node):
+                groups[-1][1].append((number, node))
+    return [g for g in groups if g[1]]
+
+
+def _inline_answer(blocks: list[dict], assets: AssetResolver | None) -> str:
+    """A teacher's written answer: one paragraph prints inline (after "Ans:"), more as blocks."""
+    if len(blocks) == 1 and blocks[0]["type"] == "paragraph":
+        return _render_inline(blocks[0].get("content", []))
+    return "".join(_render_rich_block(b, assets) for b in blocks)
+
+
+def _grid_answer(node: dict, assets: AssetResolver | None) -> str:
+    """What sits under a question number in the answer grid: the correct option's number."""
+    if node["type"] == "templatedQuestion":
+        answers = [p["answer"] for p in node["attrs"]["question"]["question"]["parts"]]
+        return ", ".join(
+            _esc(a.get("correct")) if a.get("type") == "choice" else _fmt_answer(a) for a in answers
+        )
+    written = (node["attrs"].get("answer") or {}).get("content", [])
+    return _inline_answer(written, assets) if has_content(written) else "–"
+
+
+def _render_key_grid(numbered: list[tuple[int, dict]], assets: AssetResolver | None) -> str:
+    """Question numbers in a row, the option number under each, ten to a row."""
+    out = []
+    for i in range(0, len(numbered), _GRID_COLUMNS):
+        row = numbered[i : i + _GRID_COLUMNS]
+        heads = "".join(f'<th scope="col">Q{n}</th>' for n, _ in row)
+        cells = "".join(f"<td>{_grid_answer(node, assets)}</td>" for _, node in row)
+        # a short last row keeps the columns as wide as a full row's
+        width = len(row) * 100 // _GRID_COLUMNS
+        style = f' style="width:{width}%"' if width < 100 else ""
+        out.append(f'<table class="key-grid"{style}><tr>{heads}</tr><tr>{cells}</tr></table>')
+    return "".join(out)
+
+
+def _key_ans(answer_html: str) -> str:
+    return f'<p class="key-ans"><span class="ans-label">Ans:</span> {answer_html}</p>'
+
+
+def _key_scheme(part: dict) -> str:
+    rows = "".join(
+        f'<li><span class="key-mark">{m["type"]}{m["mark"]}</span> {_esc(m["description"])}</li>'
+        for m in part.get("marking_scheme", [])
+    )
+    return f'<ul class="key-scheme">{rows}</ul>' if rows else ""
+
+
+def _key_row(label: str, work: str) -> str:
+    return f'<tr><th scope="row">{_esc(label)}</th><td class="key-work">{work}</td></tr>'
+
+
+def _templated_key_rows(number: int, obj: dict, show_scheme: bool) -> list[str]:
+    parts = obj["question"]["parts"]
+    q_diagram = obj["question"].get("diagram")
+    rows = []
+    for i, part in enumerate(parts):
+        work = []
+        if i == 0:  # a worked model (bar model) is part of the working
+            for spec in (q_diagram, *(p.get("diagram") for p in parts)):
+                if diagram.hides_worked_model(obj, spec):
+                    work.append(f'<figure class="diagram">{diagram.render_svg(spec)}</figure>')
+        work.extend(
+            f'<p class="key-step">{_mathify(step["text"])}</p>'
+            for step in part.get("solution_steps", [])
+        )
+        answer = part["answer"]
+        if answer["type"] == "construction":
+            svg = diagram.render_svg(answer["diagram"], given=part.get("diagram") or q_diagram)
+            work.append(f'<figure class="diagram answer-diagram">{svg}</figure>')
+        else:
+            work.append(_key_ans(_fmt_answer(answer)))
+        if show_scheme:
+            work.append(_key_scheme(part))
+        label = f"Q{number}({part['label']})" if len(parts) > 1 else f"Q{number}"
+        rows.append(_key_row(label, "".join(work)))
+    return rows
+
+
+def _freeform_key_rows(number: int, node: dict, assets: AssetResolver | None) -> list[str]:
+    parts = [c for c in node["content"] if c.get("type") == "freeformPart"]
+    pieces = [(f"Q{number}({chr(ord('a') + i)})", p["attrs"]) for i, p in enumerate(parts)]
+    rows = []
+    for label, attrs in pieces or [(f"Q{number}", node["attrs"])]:
+        written = (attrs.get("answer") or {}).get("content", [])
+        if not has_content(written):
+            work = '<p class="no-answer">No answer written yet</p>'
+        elif len(written) == 1 and written[0]["type"] == "paragraph":
+            work = _key_ans(_inline_answer(written, assets))
+        else:
+            work = _inline_answer(written, assets)
+        rows.append(_key_row(label, work))
+    return rows
+
+
+def _render_compact_key(doc: dict, assets: AssetResolver | None, show_scheme: bool) -> str:
+    out = [_key_meta(doc)]
+    for info, numbered in _key_groups(doc):
+        title = (info or {}).get("title", "").strip()
+        if title:
+            out.append(f'<h3 class="key-part">{_esc(title)}</h3>')
+        if info is not None and info["mode"] == "mcq":
+            out.append(_render_key_grid(numbered, assets))
+            continue
+        rows: list[str] = []
+        for number, node in numbered:
+            if node["type"] == "freeformQuestion":
+                rows.extend(_freeform_key_rows(number, node, assets))
+            else:
+                rows.extend(_templated_key_rows(number, node["attrs"]["question"], show_scheme))
+        out.append(f'<table class="key-table"><tbody>{"".join(rows)}</tbody></table>')
+    return f'<div class="compact-key">{"".join(out)}</div>'
 
 
 def render_document_html(
@@ -1094,11 +1457,25 @@ def render_document_html(
     ]
     marks = _doc_total_marks(blocks)
     key_opts = _key_options(doc)
-    numbered = [(n, b) for n, b in enumerate(blocks, 1) if in_key(b)]
+    numbered = [(n, b) for n, b in enumerate(blocks, number_from(doc)) if in_key(b)]
     key_blocks = [b for _, b in numbered]
     # The key counts up by itself unless a question was left out: then it keeps the paper's numbers.
     all_numbers = [n for n, _ in numbered]
     key_numbers = None if all_numbers == list(range(1, len(all_numbers) + 1)) else all_numbers
+    key_body = (
+        ""
+        if mode == "student"
+        else _render_compact_key(doc, assets, key_opts.show_scheme)
+        if key_opts.layout == "compact"
+        else _render_numbered_blocks(
+            key_blocks,
+            answer_key=True,
+            assets=assets,
+            placement=paper_placement(doc),
+            key=key_opts,
+            numbers=key_numbers,
+        )
+    )
 
     if mode == "key":
         header = (
@@ -1107,16 +1484,8 @@ def render_document_html(
             f'<p class="sheet-meta"><span class="field-marks">Total: {marks} marks</span></p>'
             "</header>"
         )
-        body = _render_numbered_blocks(
-            key_blocks,
-            answer_key=True,
-            assets=assets,
-            placement=_placement(doc),
-            key=key_opts,
-            numbers=key_numbers,
-        )
         return _document(
-            root_class="sheet answer-key", title=title, header_html=header, body_html=body
+            root_class="sheet answer-key", title=title, header_html=header, body_html=key_body
         )
 
     # A cover page (P7) carries the title, name, time and total, so it replaces the header.
@@ -1136,16 +1505,9 @@ def render_document_html(
     )
     body = _render_document_body(doc, answer_key=False, assets=assets, title=title, marks=marks)
     if mode == "full":
-        key = _render_numbered_blocks(
-            key_blocks,
-            answer_key=True,
-            assets=assets,
-            placement=_placement(doc),
-            key=key_opts,
-            numbers=key_numbers,
-        )
         body += (
-            f'<section class="key-section"><h2 class="key-heading">Answer Key</h2>{key}</section>'
+            '<section class="key-section"><h2 class="key-heading">Answer Key</h2>'
+            f"{key_body}</section>"
         )
 
     return _document(
@@ -1155,6 +1517,7 @@ def render_document_html(
         body_html=body,
         # a paper with a marking section prints a tally box on every page it fills with those
         tally=any(s["marking"] for s in paper_outline(doc)),
+        foot_tag=_foot_tag(doc),  # every paper is paginated, for its footers (EXA-138)
     )
 
 
@@ -1177,7 +1540,7 @@ def render_question_fragment(
     options, tables, grids, constructions, stem figures — draws correctly without a
     TypeScript mirror. ``mode`` is ``student`` (answer space) or ``key`` (worked solution,
     marking scheme, correct option). ``number`` sets the question number shown; omitted,
-    the number is hidden (the editor draws its own). ``placement`` (question / answer / both)
+    the number is hidden (the editor draws its own). ``placement`` (none / question / answer / both)
     prints the question the way a paper does (marks per the setting); ``answer_area=False``
     leaves out the working space and Ans: line for a caller that draws its own, editable one.
     """

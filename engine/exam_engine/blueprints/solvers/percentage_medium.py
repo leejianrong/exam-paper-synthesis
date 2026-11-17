@@ -72,6 +72,7 @@ class PercentageMediumSolver:
                 "new_value": new_value,
                 "verb": verb,
                 "op": op,
+                "op_text": op.replace("-", "−"),
             },
         }
 

@@ -4,6 +4,8 @@ label: "Paper 1 · Booklet B"
 title: "Paper 1 Booklet B"
 order: 2
 time_min: 60
+# Booklet B carries on from Booklet A's 15 questions, as every real Paper 1 does.
+number_from: 16
 cover:
   subject: Mathematics
   paper: "Paper 1 (Booklet B)"
@@ -11,13 +13,29 @@ cover:
     Do not turn over this page until you are told to do so.
     Follow all instructions carefully.
     Answer all questions.
-    Write your answers in the spaces provided.
-    The use of calculators is not allowed.
+    Use a dark blue or black ballpoint pen to write your answers in the spaces provided.
+    Do not use correction fluid or tape.
+    Do not use highlighters on any part of your answers.
+    The use of calculators is NOT allowed.
+  parent_signature: true
+  blank_back: true
+  even_pages: true
+# Two sections, as every real Booklet B has: Q16-20 at 1 mark, then Q21-30 at 2 marks. The
+# titles are for the editor; generic ones like these do not print (EXA-139).
 sections:
-  - title: Booklet B
+  - title: Section A
     mode: short
-    marks_target: 25
-    instructions: Write your answer in the space provided.
+    marks_target: 5
+    instructions: >-
+      Write your answers in the spaces provided. For questions which require units, give your
+      answers in the units stated.
     slots:
       - { marks: 1, count: 5 }
+  - title: Section B
+    mode: short
+    marks_target: 20
+    instructions: >-
+      Show your working clearly in the spaces provided and write your answers in the spaces
+      provided. For questions which require units, give your answers in the units stated.
+    slots:
       - { marks: 2, count: 10 }

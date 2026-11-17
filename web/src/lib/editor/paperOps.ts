@@ -94,6 +94,24 @@ function byId(doc: DocJSON): Map<string, DocNode> {
   return out
 }
 
+/** EXA-137 "Fill them": put the caret in question `number` (its printed number) and scroll
+ *  to it. False if the paper has no such question (it changed since the export). */
+export function goToQuestion(editor: Editor, number: number, start = 1): boolean {
+  const { doc } = editor.state
+  let pos = -1
+  let n = start - 1 // the printed number of the question before the first (Booklet B: 15)
+  doc.forEach((child, offset) => {
+    if (pos < 0 && QUESTION_TYPES.includes(child.type.name) && ++n === number) pos = offset
+  })
+  if (pos < 0) return false
+  const sel = doc.nodeAt(pos)?.isAtom
+    ? NodeSelection.create(doc, pos)
+    : Selection.near(doc.resolve(pos + 1))
+  editor.view.dispatch(editor.state.tr.setSelection(sel).scrollIntoView())
+  editor.view.focus()
+  return true
+}
+
 /** One line for the page after a swap. */
 export function swapNotice(r: SwapReport): string {
   if (r.placeholder) return `Placeholder ready: write your own ${r.marks}-mark question there.`

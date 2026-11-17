@@ -132,7 +132,7 @@ class StatisticsChartEasySolver:
             "intermediates": {
                 "question_text": f"{intro} {q.format(a=cats[a], b=cats[b])}",
                 "step1": f"Read the graph: {cats[a]} is {v[a]} and {cats[b]} is {v[b]}.",
-                "step2": f"{v[a]} - {v[b]} = {ans}.",
+                "step2": f"{v[a]} − {v[b]} = {ans}.",
                 "answer_value": ans,
             },
         }
@@ -185,8 +185,8 @@ class StatisticsChartMediumSolver:
             "answer": {"type": "integer", "value": ans, "unit": ""},
             "intermediates": {
                 "question_text": (f"{intro.format(total=total)} {q.format(label=labels[h])}"),
-                "step1": f"{labels[h]}: 100% - {' - '.join(f'{x}%' for x in shown)} = {missing}%.",
-                "step2": f"{missing}% of {total} = {missing} / 100 x {total} = {ans}.",
+                "step1": f"{labels[h]}: 100% − {' − '.join(f'{x}%' for x in shown)} = {missing}%.",
+                "step2": f"{missing}% of {total} = {missing} ÷ 100 × {total} = {ans}.",
                 "answer_value": ans,
             },
         }
@@ -248,10 +248,10 @@ class StatisticsChartHardSolver:
                     f"{intro} The mean number of {thing} sold in the five months from "
                     f"January to May was {mean}. How many {thing} were sold in May?"
                 ),
-                "step1": f"Total for 5 months = 5 x {mean} = {5 * mean}.",
+                "step1": f"Total for 5 months = 5 × {mean} = {5 * mean}.",
                 "step2": (
                     f"Jan to Apr = {' + '.join(str(x) for x in known)} = {sum(known)}, "
-                    f"so May = {5 * mean} - {sum(known)} = {ans}."
+                    f"so May = {5 * mean} − {sum(known)} = {ans}."
                 ),
                 "answer_value": ans,
             },

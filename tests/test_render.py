@@ -254,6 +254,38 @@ def test_answer_key_marks_correct_option():
     assert "Answer: (2) Twenty" in html
 
 
+def test_text_options_print_in_one_column_and_picture_options_in_a_grid(monkeypatch):
+    """EXA-141: every real Booklet A lists text options (1)-(4) down one column, even short
+    numbers; only picture options sit in a 2 x 2 grid."""
+    from exam_engine import render
+
+    css = render._PRINT_CSS
+    rule = re.search(r"\.options \{[^}]*\}", css)
+    assert rule is not None and "grid-template-columns: minmax(0, 1fr);" in rule.group(0)
+    assert re.search(r"\.options-grid \{[^}]*repeat\(2,", css)
+
+    for texts in (["Twelve", "Twenty", "Thirty", "Forty"], ["1", "2", "3", "4"]):
+        obj = _mcq_object()
+        obj["question"]["parts"][0]["answer"]["options"] = [
+            {"label": str(i), "text": t} for i, t in enumerate(texts, 1)
+        ]
+        for html in (
+            render_worksheet_html(TITLE, [obj]),
+            render_answer_key_html(TITLE, [obj]),
+        ):
+            assert '<ol class="options">' in html
+            assert '<ol class="options options-grid">' not in html
+
+    monkeypatch.setattr(render.diagram, "render_svg", lambda spec: "<svg></svg>")
+    pictures = {
+        "type": "choice",
+        "correct": "1",
+        "options": [{"label": str(i), "diagram": {"type": "bar_model"}} for i in range(1, 5)],
+    }
+    html = "".join(render._render_options(pictures, reveal_correct=False))
+    assert html.startswith('<ol class="options options-grid">')
+
+
 def test_stem_diagram_renders_once_before_parts():
     obj = copy.deepcopy(EASY)
     obj["question"]["parts"][0]["diagram"] = None  # isolate the stem-level figure

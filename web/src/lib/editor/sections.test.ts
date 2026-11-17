@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildDocument, cleanNode, paperOutline, type DocJSON } from './doc'
 import { freeformDocNode } from './fixtures'
-import { markingOn, sectionNode, sectionSummary, targetState } from './sections'
+import { markingOn, sectionNode, sectionPlacement, sectionSummary, targetState } from './sections'
 
 const doc = (...content: DocJSON['content']): DocJSON => ({ type: 'doc', content })
 
@@ -22,6 +22,13 @@ describe('paperOutline', () => {
     expect(a).toMatchObject({ first: 2, last: 3, count: 2, marks: 5, target: 5 })
     expect(b).toMatchObject({ first: 4, last: 4, count: 1, marks: 4, target: null })
     expect(empty).toMatchObject({ first: null, count: 0, marks: 0 })
+  })
+
+  it('starts the numbering at the paper\'s first question number (EXA-134)', () => {
+    const [a, b] = paperOutline(content, 16)
+    expect(a).toMatchObject({ first: 17, last: 18 })
+    expect(b).toMatchObject({ first: 19, last: 19 })
+    expect(sectionSummary(a)).toBe('Questions 17–18 · 5 / 5 marks')
   })
 
   it('summarises a section and flags a target mismatch', () => {
@@ -64,6 +71,25 @@ describe('marking margin (P6a)', () => {
     const off = cleanNode({ type: 'section', attrs: { title: 'A', marking: false } })
     expect(on.attrs).toHaveProperty('marking', true)
     expect(off.attrs).toHaveProperty('marking', false)
+  })
+})
+
+describe('marks placement per section (EXA-139)', () => {
+  it('is none for MCQ and short answer, the paper setting otherwise, unless the author chose', () => {
+    expect(sectionPlacement({ mode: 'mcq' }, 'answer')).toBe('none')
+    expect(sectionPlacement({ mode: 'short' }, 'both')).toBe('none')
+    expect(sectionPlacement({ mode: 'structured' }, 'answer')).toBe('answer')
+    expect(sectionPlacement({ mode: null }, 'question')).toBe('question')
+    expect(sectionPlacement({ mode: 'short', marks_placement: 'both' }, 'answer')).toBe('both')
+    expect(sectionPlacement({ mode: 'structured', marks_placement: 'none' }, 'answer')).toBe('none')
+  })
+
+  it('stores only an explicit, known choice', () => {
+    const none = cleanNode({ type: 'section', attrs: { title: 'A', marks_placement: 'none' } })
+    expect(none.attrs).toHaveProperty('marks_placement', 'none')
+    const bad = cleanNode({ type: 'section', attrs: { title: 'A', marks_placement: 'margin' } })
+    expect(bad.attrs).toEqual({ title: 'A' })
+    expect(cleanNode({ type: 'section', attrs: { title: 'A', marks_placement: null } }).attrs).toEqual({ title: 'A' })
   })
 })
 

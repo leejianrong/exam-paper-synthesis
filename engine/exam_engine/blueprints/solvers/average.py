@@ -183,7 +183,7 @@ class AverageMediumSolver:
             )
             step1 = f"Total score for the {n} tests = {n} × {avg} = {total}."
             step2 = (
-                f"Score for the last test = {total} - " + " - ".join(map(str, given)) + f" = {ans}."
+                f"Score for the last test = {total} − " + " − ".join(map(str, given)) + f" = {ans}."
             )
         else:
             spent = given[0]
@@ -194,7 +194,7 @@ class AverageMediumSolver:
                 " have left?",
             )
             step1 = f"Total amount saved = {n} × ${avg} = ${total}."
-            step2 = f"Amount left = ${total} - ${spent} = ${ans}."
+            step2 = f"Amount left = ${total} − ${spent} = ${ans}."
         return {
             "answer": {"type": "integer", "value": ans, "unit": unit},
             "intermediates": {
@@ -291,7 +291,7 @@ class AverageHardSolver:
             steps = (
                 f"Total mass of the {n} children = {n} × {before} = {total} kg.",
                 f"Total mass of the {n + 1} children = {n + 1} × {given} = {new_total} kg.",
-                f"Mass of the child who joined = {new_total} - {total} = {ans} kg.",
+                f"Mass of the child who joined = {new_total} − {total} = {ans} kg.",
             )
         else:
             rest = total - given
@@ -303,7 +303,7 @@ class AverageHardSolver:
             )
             steps = (
                 f"Total height of the {n} children = {n} × {before} = {total} cm.",
-                f"Total height of the remaining {n - 1} children = {total} - {given} = {rest} cm.",
+                f"Total height of the remaining {n - 1} children = {total} − {given} = {rest} cm.",
                 f"New average height = {rest} ÷ {n - 1} = {ans} cm.",
             )
         return {

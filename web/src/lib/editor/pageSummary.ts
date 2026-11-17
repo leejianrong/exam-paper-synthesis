@@ -3,7 +3,7 @@
 // what the PDF will print; the editor does not try to guess page breaks from its own layout.
 
 export interface PageInfo {
-  page: number
+  page: number // the printed page number: the cover counts as page 1 (EXA-138)
   first: number | null // first / last question number on the page (null: no question)
   last: number | null
   continued: boolean // the page opens with the rest of a question that began earlier
@@ -12,15 +12,16 @@ export interface PageInfo {
 }
 
 export interface PageSummary {
-  paginated: boolean // false: the paper has no marking section, so the paper is not paginated
+  paginated: boolean // false: the preview was not paginated (every paper is since EXA-138)
   pages: PageInfo[]
   warnings: number // questions whose working space had to be trimmed to fit a page
 }
 
-export function summarisePages(doc: Document): PageSummary {
+/** `start` is the paper's first question number (Booklet B carries on from Booklet A). */
+export function summarisePages(doc: Document, start = 1): PageSummary {
   const warnings = Number(doc.documentElement.getAttribute('data-pagination-warnings') ?? 0)
   const boxes = Array.from(doc.querySelectorAll('.pg'))
-  let running = 0
+  let running = start - 1
   const pages = boxes.map((box, i) => {
     const numbers: number[] = []
     let continued = false

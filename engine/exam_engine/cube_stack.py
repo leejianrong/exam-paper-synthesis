@@ -22,11 +22,13 @@ from __future__ import annotations
 
 import math
 
-_INK = "#1f2433"
-_TOP = "#f1f3f9"
-_LEFT = "#d9deee"
-_RIGHT = "#b9c1dd"
-_SQ = "#e8ecf8"
+from exam_engine import palette
+
+_INK = palette.INK
+_TOP = palette.TINT
+_LEFT = palette.TINT_MID
+_RIGHT = palette.TINT_DARK
+_SQ = palette.TINT
 _MAX_H = 8
 _MAX_SIDE = 6
 _VIEWS = ("iso", "front", "side", "top")

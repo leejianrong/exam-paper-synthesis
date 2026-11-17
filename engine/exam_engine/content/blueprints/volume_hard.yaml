@@ -38,7 +38,7 @@ solution_template:
 marking_scheme:
   - { mark: 1, type: M, description: "Recognises the rise in water level is the volume of the block spread over the base." }
   - { mark: 1, type: M, description: "Finds the rise (after minus before)." }
-  - { mark: 1, type: A, description: "Volume of block = base area x rise, in cm^3." }
+  - { mark: 1, type: A, description: "Volume of block = base area × rise, in cm³." }
 answer:
   type: integer
   unit: "cm^3"

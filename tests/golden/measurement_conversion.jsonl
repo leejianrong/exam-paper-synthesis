@@ -1,0 +1,3 @@
+{"params": {"pair": "km_m", "form": "decimal", "whole": 7, "part": 200}, "expected": {"answer": {"type": "integer", "value": 7200, "unit": "m"}, "total_marks": 1}}
+{"params": {"pair": "kg_g", "form": "mixed", "whole": 7, "part": 10}, "expected": {"answer": {"type": "integer", "value": 7010, "unit": "g"}, "total_marks": 1}}
+{"params": {"pair": "l_ml", "form": "decimal", "whole": 7, "part": 657}, "expected": {"answer": {"type": "integer", "value": 7657, "unit": "ml"}, "total_marks": 1}}

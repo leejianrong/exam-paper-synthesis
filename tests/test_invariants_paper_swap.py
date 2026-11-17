@@ -41,6 +41,8 @@ def _meta() -> dict[str, dict]:
             "topic": d["syllabus"]["topic"],
             "marks": d["marks"],
             "parts": len(d.get("parts") or []) or 1,  # P8c multi-part blueprints
+            "rung": d["cognitive"]["difficulty"],
+            "answer_type": (d.get("answer") or {}).get("type"),
         }
     return out
 
@@ -107,19 +109,66 @@ def _check_rules(doc, level, where):
                 assert all(a["type"] != "choice" for a in answers), where
 
 
+_RUNG = {"easy": 0, "medium": 1, "hard": 2}
+_CONVERTIBLE = {"integer", "decimal", "quantity", "fraction"}  # a number: multiple choice
+
+
+def _shortfall(code: str, marks: int) -> int:
+    """EXA-146, written out from the rule: rungs below what a slot of ``marks`` should take
+    (1 mark: any, 2 marks: medium or harder, 3+: hard)."""
+    need = 0 if marks <= 1 else 1 if marks == 2 else 2
+    return max(0, need - _RUNG[META[code]["rung"]])
+
+
+def _could_fill(code: str, node, kind: str, level: str) -> bool:
+    m = META[code]
+    if m["level"] not in LEVELS[: LEVELS.index(level) + 1] or m["marks"] != _marks(node):
+        return False
+    if m["parts"] > 1:
+        return kind == "structured"
+    return kind != "mcq" or m["answer_type"] in _CONVERTIBLE
+
+
 def _possible_other_topic(doc, idx, level) -> bool:
-    """Is there an unused, level-allowed blueprint with the slot's marks from another topic?"""
+    """Is there an unused, level-allowed blueprint with the slot's marks from another topic,
+    no easier for the slot than the question it would replace (EXA-146)?"""
     node = _blocks(doc)[idx]
     used = {_code(n) for i, n in enumerate(_blocks(doc)) if i != idx and _code(n)}
     allowed = LEVELS[: LEVELS.index(level) + 1]
     topic = META[_code(node)]["topic"] if _code(node) else None
+    floor = _shortfall(_code(node), _marks(node)) if _code(node) else 2
     return any(
         code not in used
         and m["level"] in allowed
         and m["marks"] == _marks(node)
         and m["topic"] != topic
+        and _shortfall(code, _marks(node)) <= floor
         for code, m in META.items()
     )
+
+
+def _check_rungs(doc, level, where, only=None):
+    """EXA-146: a single-part question below its slot's rung only when no unused blueprint
+    that could fill the slot has the rung (``only``: the block indexes to check)."""
+    used = {_code(n) for n in _blocks(doc) if _code(n)}
+    mode = None
+    for i, n in enumerate(_blocks(doc)):
+        if n["type"] == "section":
+            mode = n["attrs"]["mode"]
+        code = _code(n)
+        if not code or (only is not None and i not in only):
+            continue
+        marks = _marks(n)
+        if _shortfall(code, marks) == 0:
+            continue
+        better = [
+            c
+            for c in META
+            if c not in used
+            and _could_fill(c, n, mode, level)
+            and _shortfall(c, marks) < _shortfall(code, marks)
+        ]
+        assert not better, (where, i, code, better)
 
 
 def _possible_any(doc, idx, level) -> bool:
@@ -167,6 +216,12 @@ def test_any_sequence_of_swaps_keeps_every_rule(code, level):
             assert out["attrs"]["block_id"] == node["attrs"]["block_id"], where
             assert _marks(out) == _marks(node), where  # the slot's marks are kept
             assert report["marks"] == _marks(node), where
+            if mode != "own" and not placeholder:  # EXA-146: never an easier rung for the slot
+                assert _shortfall(_code(out), _marks(out)) <= _shortfall(
+                    _code(node), _marks(node)
+                ), where
+            if mode != "own" and placeholder:  # a placeholder gets the best rung left
+                _check_rungs(new, level, where, only={idx})
             if mode == "own":
                 assert out["type"] == "freeformQuestion", where
                 assert out["attrs"]["slot"]["placeholder"] is True, where
@@ -249,6 +304,8 @@ def test_regenerate_keeps_locked_and_teacher_work_and_every_rule(code, level):
                 assert not b["attrs"].get("locked"), where
         assert report["kept"] == kept, where
         _check_rules(new, level, where)
+        refilled = {i for i, a in enumerate(before) if not _kept(a)}
+        _check_rungs(new, level, where, only=refilled)
         assert json.dumps(regenerate_unlocked(doc, level, seed)[0]) == json.dumps(new), where
 
 
@@ -371,15 +428,26 @@ def test_swaps_are_deterministic_and_leave_the_input_alone():
 
 
 def test_a_placeholder_is_filled_by_like_and_topic_when_content_allows():
-    # P6 Booklet A has ten 1-mark slots and fewer 1-mark blueprints (P8e batch 2: eight), so a
-    # 1-mark placeholder is left and every 1-mark blueprint is used already ...
-    doc, _ = generate_paper("p1_booklet_a", "P6", 1)
-    ph = _first(doc, lambda n: n["type"] == "freeformQuestion" and n["attrs"]["slot"]["marks"] == 1)
+    # P5 Booklet B has ten 2-mark slots and fewer 2-mark P5 blueprints, so a 2-mark
+    # placeholder is left and every 2-mark blueprint is used already ...
+    doc, _ = generate_paper("p1_booklet_b", "P5", 1)
+    ph = _first(doc, lambda n: n["type"] == "freeformQuestion" and n["attrs"]["slot"]["marks"] == 2)
     with pytest.raises(SwapNotPossible):
         swap_question(doc, ph["attrs"]["block_id"], "like", 1)
     # ... until the teacher writes their own instead of one of them
+    used = _first(doc, lambda n: n["type"] == "templatedQuestion" and _marks(n) == 2)
+    doc, _ = swap_question(doc, used["attrs"]["block_id"], "own", 1)
+    new, _ = swap_question(doc, ph["attrs"]["block_id"], "like", 1)
+    filled = _first(new, lambda n: n["attrs"].get("block_id") == ph["attrs"]["block_id"])
+    assert filled["type"] == "templatedQuestion" and _marks(filled) == 2
+    _check_rules(new, "P5", "filled")
+
+    # P6 Booklet A is full since P8e batch 3 (EXA-145); a 1-mark placeholder the teacher
+    # makes is filled again with an unused 1-mark blueprint, still as multiple choice
+    doc, _ = generate_paper("p1_booklet_a", "P6", 1)
     used = _first(doc, lambda n: n["type"] == "templatedQuestion" and _marks(n) == 1)
     doc, _ = swap_question(doc, used["attrs"]["block_id"], "own", 1)
+    ph = _first(doc, lambda n: n["type"] == "freeformQuestion" and n["attrs"]["slot"]["marks"] == 1)
     new, report = swap_question(doc, ph["attrs"]["block_id"], "like", 1)
     filled = _first(new, lambda n: n["attrs"].get("block_id") == ph["attrs"]["block_id"])
     assert filled["type"] == "templatedQuestion" and _marks(filled) == 1
@@ -495,3 +563,23 @@ def test_the_cover_level_wins_over_the_requested_one():
     assert paper_level(p5, "P6") == "P6"
     with pytest.raises(ValueError):
         paper_level(p5, "P4")
+
+
+def test_a_swap_never_trades_a_question_for_an_easier_rung():
+    """EXA-146: P5 Booklet A has four 2-mark medium MCQ blueprints for five 2-mark slots, so a
+    paper uses all four and one easy one. "Another topic" on a medium question would only find
+    easy ones, so it is refused; on the easy one it may take any other topic (none is easier);
+    "like" on a medium question keeps its rung."""
+    doc, _ = generate_paper("p1_booklet_a", "P5", 3)
+    two = [n for n in _blocks(doc) if _is_q(n) and _marks(n) == 2]
+    medium = [n for n in two if META[_code(n)]["rung"] != "easy"]
+    easy = [n for n in two if META[_code(n)]["rung"] == "easy"]
+    assert len(medium) == 4 and len(easy) == 1
+    for n in medium:
+        with pytest.raises(SwapNotPossible, match="easier"):
+            swap_question(doc, n["attrs"]["block_id"], "topic", 1)
+        new, _ = swap_question(doc, n["attrs"]["block_id"], "like", 1)
+        out = next(b for b in _blocks(new) if b["attrs"].get("block_id") == n["attrs"]["block_id"])
+        assert META[_code(out)]["rung"] != "easy"
+    new, report = swap_question(doc, easy[0]["attrs"]["block_id"], "topic", 1)
+    assert report["topic"] != META[_code(easy[0])]["topic"]

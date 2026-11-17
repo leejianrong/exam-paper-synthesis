@@ -1,0 +1,47 @@
+code: fractions_compare
+# P8e batch 3 (EXA-145): a 1-mark Booklet A question, not on the fractions ladder.
+syllabus:
+  level: P5                             # comparing unlike fractions is first taught in P4
+  strand: "Fractions"
+  topic: "Fractions"
+  subtopic: "Comparing and ordering fractions with different denominators"
+  skill_codes: ["FRAC.COMPARE"]         # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Number type / magnitude"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [ask, fractions]
+  properties:
+    ask: { type: string, enum: [greatest, smallest] }
+    # four proper fractions in lowest terms, [numerator, denominator], in print order
+    fractions:
+      type: array
+      minItems: 4
+      maxItems: 4
+      items:
+        type: array
+        minItems: 2
+        maxItems: 2
+        items: { type: integer, minimum: 1, maximum: 12 }
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  ask:       { role: choice }
+  fractions: { role: number }
+story_templates:
+  - stem: null
+    text: "Which is the {ask} of the fractions {listing}?"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: null
+    - text: "{step2}"
+      expr: "{answer_expr}"
+marking_scheme:
+  - { mark: 1, type: A, description: "Correct fraction (compare with a common denominator)." }
+answer:
+  type: fraction

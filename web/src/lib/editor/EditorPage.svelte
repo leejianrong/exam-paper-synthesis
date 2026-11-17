@@ -3,7 +3,13 @@
   import ToolIcon from './ToolIcon.svelte'
   import { describePage, summarisePages, type PageSummary } from './pageSummary'
   import { paperSettings } from './paperSettings'
-  import { DEFAULT_PLACEMENT, keyOptionsOf, type KeyOptions, type MarksPlacement } from './layout'
+  import {
+    DEFAULT_PLACEMENT,
+    keyOptionsOf,
+    numberFrom,
+    type KeyLayout,
+    type MarksPlacement,
+  } from './layout'
   // The WYSIWYG page (W1c): an A4-width column of rich text and question blocks, a "+"
   // to add questions, the answer key below, autosave, and the export/preview menu.
   import { onDestroy, onMount } from 'svelte'
@@ -34,6 +40,7 @@
     regeneratePaper,
     saveDocument,
     swapQuestion,
+    unfilledDetail,
     type ExportMode,
     type SwapMode,
   } from './docsApi'
@@ -45,7 +52,14 @@
   import { PageBreak } from './pageBreak'
   import { BlankPage, CoverPage, blankPageNode, coverNode } from './pages'
   import { lastReport, reportSummary, unfilledPlaceholders } from './paperReport'
-  import { applyServerContent, hasGeneratedSlots, regenerateNotice, swapNotice } from './paperOps'
+  import {
+    applyServerContent,
+    goToQuestion,
+    hasGeneratedSlots,
+    regenerateNotice,
+    swapNotice,
+  } from './paperOps'
+  import PrintWarning from './PrintWarning.svelte'
   import { Section, outline } from './sections'
   import { loadQuota, type Quota } from '../session'
   import { TemplatedQuestion, questionNode } from './templatedQuestion'
@@ -66,6 +80,8 @@
   let busy = ''
   let actionError = ''
   let notice = ''
+  /** EXA-137: the export refused a paper with empty placeholders; ask before printing it. */
+  let unfilled: { mode: ExportMode; questions: number[] } | null = null
   let quota: Quota | null = null
   let selectedId: string | null = null // the block the author is in (for the inspector)
   let previewHtml: string | null = null
@@ -81,7 +97,8 @@
   $: canRegenerate = hasGeneratedSlots(content)
   // The generator's report (P8a), shown once on the paper it made.
   $: generated = $lastReport && $lastReport.docId === id ? reportSummary($lastReport.report) : ''
-  $: outline.set(paperOutline(content))
+  $: start = numberFrom($paperSettings)
+  $: outline.set(paperOutline(content, start))
   $: keyOpts = keyOptionsOf($paperSettings)
   $: statusLabel = {
     saved: 'Saved',
@@ -97,8 +114,14 @@
     scheduleSave()
   }
 
-  function setKeyOption(name: keyof KeyOptions, value: boolean) {
+  function setKeyOption(name: 'show_question' | 'show_scheme', value: boolean) {
     paperSettings.update((s) => ({ ...s, key_options: { ...s.key_options, [name]: value } }))
+    scheduleSave()
+  }
+
+  function setKeyLayout(e: Event) {
+    const layout = (e.currentTarget as HTMLSelectElement).value as KeyLayout
+    paperSettings.update((s) => ({ ...s, key_options: { ...s.key_options, layout } }))
     scheduleSave()
   }
 
@@ -109,6 +132,14 @@
     const raw = (e.currentTarget as HTMLInputElement).value
     const n = raw === '' ? null : Math.max(1, Math.min(600, Math.round(+raw)))
     paperSettings.update((s) => ({ ...s, time_min: n }))
+    scheduleSave()
+  }
+
+  // EXA-134: Booklet B carries on from Booklet A, so its first question is 16, not 1.
+  function setNumberFrom(e: Event) {
+    const raw = (e.currentTarget as HTMLInputElement).value
+    const n = raw === '' ? null : Math.max(1, Math.min(999, Math.round(+raw)))
+    paperSettings.update((s) => ({ ...s, number_from: n }))
     scheduleSave()
   }
 
@@ -347,12 +378,13 @@
   $: act = readActive(tick)
   $: headingActive = [act.h1, act.h2, act.h3]
 
-  async function download(mode: ExportMode) {
+  async function download(mode: ExportMode, allowPlaceholders = false) {
     busy = `export-${mode}`
     actionError = ''
+    unfilled = null
     try {
       await autosaver?.flush()
-      const blob = await exportDocument(id, mode)
+      const blob = await exportDocument(id, mode, allowPlaceholders)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -360,11 +392,19 @@
       a.click()
       URL.revokeObjectURL(url)
     } catch (e) {
-      actionError = e instanceof Error ? e.message : String(e)
+      const empty = unfilledDetail(e)
+      if (empty) unfilled = { mode, questions: empty.questions }
+      else actionError = e instanceof Error ? e.message : String(e)
     } finally {
       busy = ''
       void loadQuota().then((q) => (quota = q))
     }
+  }
+
+  function fillPlaceholders() {
+    const first = unfilled?.questions[0]
+    unfilled = null
+    if (editor && first !== undefined) goToQuestion(editor, first, start)
   }
 
   /** P8d: a server-side change to the saved paper (swap, regenerate). Pending edits are saved
@@ -435,7 +475,7 @@
       const d = frame.contentDocument
       if (mine !== readToken || !d || previewHtml === null) return
       if (d.documentElement.getAttribute('data-paginated') === 'true') {
-        const s = summarisePages(d)
+        const s = summarisePages(d, start)
         pageSummary = s.paginated ? s : null
       } else if (tries++ < 200) setTimeout(look, 150) // heavy papers can take a while
     }
@@ -488,12 +528,35 @@
       on:input={setTime}
     />
   </label>
+  <label class="placement">
+    First Q
+    <input
+      class="time"
+      type="number"
+      min="1"
+      max="999"
+      placeholder="1"
+      aria-label="First question number"
+      value={$paperSettings.number_from ?? ''}
+      on:input={setNumberFrom}
+    />
+  </label>
   <fieldset class="keyopts">
     <legend>Answer key</legend>
+    <select
+      aria-label="Answer key layout"
+      title="Full: each question with its worked solution. Compact: an answer grid for multiple choice, then a table of working with Ans:, like a school key."
+      value={keyOpts.layout}
+      on:change={setKeyLayout}
+    >
+      <option value="full">Full</option>
+      <option value="compact">Compact</option>
+    </select>
     <label>
       <input
         type="checkbox"
         aria-label="Answer key repeats each question"
+        disabled={keyOpts.layout === 'compact'}
         checked={keyOpts.show_question}
         on:change={(e) => setKeyOption('show_question', e.currentTarget.checked)}
       />
@@ -690,6 +753,7 @@
     <p class="sheetmeta"><span>Name: ______________</span><span>Total: {marks} marks</span></p>
     <div
       class="surface"
+      style:--q-start={start - 1}
       role="presentation"
       bind:this={element}
       on:click={trackBlock}
@@ -704,6 +768,7 @@
 
   <AnswerKey
     {blocks}
+    {start}
     options={keyOpts}
     on:include={(e) => setInKey(e.detail.blockId, e.detail.included)}
     on:answer={(e) => setAnswer(e.detail.blockId, e.detail.answer)}
@@ -715,6 +780,7 @@
   {blocks}
   {marks}
   {selectedId}
+  {start}
   on:remark={(e) => setRemark(e.detail.blockId, e.detail.remark)}
   on:review={(e) => setReviewed(e.detail.blockId, e.detail.reviewed)}
 />
@@ -727,6 +793,15 @@
     on:insert={(e) => insertQuestion(e.detail.question)}
     on:freeform={insertFreeformQuestion}
     on:close={() => (pickerAt = undefined)}
+  />
+{/if}
+
+{#if unfilled}
+  <PrintWarning
+    questions={unfilled.questions}
+    on:fill={fillPlaceholders}
+    on:print={() => unfilled && download(unfilled.mode, true)}
+    on:cancel={() => (unfilled = null)}
   />
 {/if}
 
@@ -972,7 +1047,7 @@
   .surface :global(.ProseMirror) {
     outline: none;
     min-height: 120mm;
-    counter-reset: q;
+    counter-reset: q var(--q-start, 0);
     font-family: var(--serif);
   }
   .surface :global(.qblock) {

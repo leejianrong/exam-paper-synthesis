@@ -22,6 +22,10 @@ still-empty placeholder whose ``locked`` is not true. Locked questions, bank (so
 questions and anything the teacher wrote — free-form questions, placeholders with something
 in them — are kept exactly as they are.
 
+Every choice follows the generator's rung rule first (EXA-146, ``paper.rung_shortfall``): a
+candidate whose rung fits the slot's marks beats one that falls short, whatever the order of
+preference below, so a swap or a regenerate never makes a slot easier than the content allows.
+
 Candidates are ``paper._fits`` for the slot's kind, so an ``mcq`` slot only takes blueprints
 ``mcq.to_mcq`` can convert, and its new question is converted like the generator's (P8b).
 
@@ -41,9 +45,9 @@ from __future__ import annotations
 import copy
 import random
 
-from .document import QUESTION_TYPES
+from .document import QUESTION_TYPES, has_content, is_unfilled_placeholder
 from .mcq import to_mcq
-from .paper import KINDS, LEVELS, Candidate, _fits, _has_content, candidates
+from .paper import KINDS, LEVELS, Candidate, _fits, candidates, rung_shortfall
 from .pipeline import generate
 
 MODES = ("like", "topic", "own")
@@ -116,10 +120,6 @@ def _is_placeholder(node: dict) -> bool:
     )
 
 
-def _is_empty_placeholder(node: dict) -> bool:
-    return _is_placeholder(node) and not _has_content(node.get("content", []))
-
-
 def _is_generated(node: dict) -> bool:
     return (
         node["type"] == "templatedQuestion"
@@ -190,24 +190,32 @@ def _tiers(options: list[Candidate]) -> list[list[Candidate]]:
 
 
 def _first(
-    tiers: list[list[Candidate]], topics: dict[str, int], rng: random.Random
+    tiers: list[list[Candidate]], topics: dict[str, int], rng: random.Random, marks: int
 ) -> Candidate | None:
-    """The least-used-topic candidate of the first tier that has any."""
+    """The least-used-topic candidate of the first tier that has any, among the candidates of
+    the best-fitting rung for ``marks`` (EXA-146): the rung rule outranks the tiers."""
+    shortfalls = [rung_shortfall(c.rung, marks) for tier in tiers for c in tier]
+    if not shortfalls:
+        return None
+    best = min(shortfalls)
     for tier in tiers:
-        choice = _least_used(tier, topics, rng)
+        choice = _least_used(
+            [c for c in tier if rung_shortfall(c.rung, marks) == best], topics, rng, marks
+        )
         if choice is not None:
             return choice
     return None
 
 
 def _least_used(
-    options: list[Candidate], topics: dict[str, int], rng: random.Random
+    options: list[Candidate], topics: dict[str, int], rng: random.Random, marks: int
 ) -> Candidate | None:
+    """The best-fitting rung for ``marks``, then the least-used topic (seeded ties)."""
     if not options:
         return None
     options = list(options)
     rng.shuffle(options)
-    return min(options, key=lambda c: topics.get(c.topic, 0))
+    return min(options, key=lambda c: (rung_shortfall(c.rung, marks), topics.get(c.topic, 0)))
 
 
 # ---------------------------------------------------------------------------
@@ -306,7 +314,7 @@ def swap_question(
     if node["type"] == "freeformQuestion":
         if not _is_placeholder(node):
             raise SwapNotPossible("Only generated questions and placeholders can be swapped.")
-        if _has_content(node.get("content", [])):
+        if has_content(node.get("content", [])):
             raise SwapNotPossible("You have started writing this question, so it is kept.")
         if mode == "own":
             raise SwapNotPossible("This is already a question for you to write.")
@@ -322,10 +330,15 @@ def swap_question(
 
     current, topic = _blueprint(node), _topic(node)
     options = paper.options(slot)
+    easier = False
+    if node["type"] == "templatedQuestion":  # never swap in an easier rung than the slot had
+        floor = rung_shortfall(node["attrs"]["question"]["cognitive"]["difficulty"], slot["marks"])
+        kept = [c for c in options if rung_shortfall(c.rung, slot["marks"]) <= floor]
+        easier, options = len(kept) < len(options), kept
     choice: Candidate | None
     if mode == "like":
         if node["type"] == "freeformQuestion":  # filling a placeholder
-            choice = _first(_tiers(options), paper.topics, rng)
+            choice = _first(_tiers(options), paper.topics, rng, slot["marks"])
         else:
             multi, single = _tiers([c for c in options if c.topic == topic])
             itself = [c for c in options if c.code == current]  # a new seed of it
@@ -336,20 +349,24 @@ def swap_question(
                 order = [multi, itself, single]
             else:
                 order = [multi, single, itself]
-            choice = _first(order, {}, rng)
+            choice = _first(order, {}, rng, slot["marks"])
     else:  # topic
         others = [c for c in options if c.topic != topic]
         order = []
         for tier in _tiers(others):
             fresh = [c for c in tier if not paper.topics.get(c.topic)]
             order += [fresh, tier]
-        choice = _first(order, paper.topics, rng)
+        choice = _first(order, paper.topics, rng, slot["marks"])
 
     if choice is None:
         what = "another topic" if mode == "topic" else "this topic"
+        why = (
+            "the ones left are easier than this one"
+            if easier
+            else "each question is used once per paper"
+        )
         raise SwapNotPossible(
-            f"No other {slot['marks']}-mark question from {what} fits this paper "
-            "(each question is used once per paper)."
+            f"No other {slot['marks']}-mark question from {what} fits this paper ({why})."
         )
     avoid = node["attrs"]["question"] if choice.code == current else None
     obj = _fresh(choice.code, slot["kind"], rng, avoid)
@@ -365,7 +382,7 @@ def swap_question(
 def _refillable(node: dict) -> bool:
     if node["type"] not in QUESTION_TYPES or node["attrs"].get("locked"):
         return False
-    return _is_generated(node) or _is_empty_placeholder(node)
+    return _is_generated(node) or is_unfilled_placeholder(node)
 
 
 def regenerate_unlocked(doc: dict, level: str | None, seed: int) -> tuple[dict, dict]:
@@ -386,14 +403,14 @@ def regenerate_unlocked(doc: dict, level: str | None, seed: int) -> tuple[dict, 
     for i in targets:
         slot = _slot_of(blocks[i], modes[i])
         if slot["kind"] == "structured":
-            c = _least_used(_tiers(paper.options(slot))[0], paper.topics, rng)
+            c = _least_used(_tiers(paper.options(slot))[0], paper.topics, rng, slot["marks"])
             if c is not None:
                 paper.take(c)
                 chosen[i] = c
     for i in targets:
         node = blocks[i]
         slot = _slot_of(node, modes[i])
-        c = chosen.get(i) or _least_used(paper.options(slot), paper.topics, rng)
+        c = chosen.get(i) or _least_used(paper.options(slot), paper.topics, rng, slot["marks"])
         if c is None:
             if node["type"] == "templatedQuestion":
                 blocks[i] = _placeholder_block(node, slot)

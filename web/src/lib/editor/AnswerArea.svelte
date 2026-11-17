@@ -9,9 +9,10 @@
     UNIT_CHOICES,
     clampSpaceMm,
     defaultSpaceMm,
+    marksOnLine,
     unitParts,
-    type MarksPlacement,
   } from './layout'
+  import type { SectionPlacement } from './doc'
 
   export let marks: number | null = null
   /** The block's own setting; null = the default for its marks. */
@@ -19,14 +20,14 @@
   /** The unit to print: the block's override, else the answer's own. */
   export let unit: string | null = null
   export let label = ''
-  export let placement: MarksPlacement = 'answer'
+  export let placement: SectionPlacement = 'answer'
   export let editable = true
   export let onSpace: (mm: number | null) => void = () => {}
   export let onUnit: (unit: string) => void = () => {}
 
   $: mm = spaceMm ?? defaultSpaceMm(marks)
   $: parts = unitParts(unit)
-  $: showMarks = marks !== null && placement !== 'question'
+  $: showMarks = marks !== null && marksOnLine(placement)
   $: presetValue = spaceMm === null ? 'default' : (SPACE_PRESETS.find((p) => p.mm === spaceMm)?.label ?? 'custom')
 
   let startY = 0
@@ -160,8 +161,10 @@
   .grip:focus-visible::after {
     background: var(--ink-soft);
   }
+  /* Right-aligned and short, as the printed paper draws it (EXA-139). */
   .line {
     display: flex;
+    justify-content: flex-end;
     align-items: baseline;
     gap: 0.4rem;
     margin: 0.5rem 0 0.2rem;
@@ -171,7 +174,7 @@
     font-weight: 600;
   }
   .blank {
-    flex: 1 1 auto;
+    flex: 0 1 calc(55 * 96px / 25.4);
     min-width: 4rem;
     border-bottom: 1px solid var(--ink);
   }
