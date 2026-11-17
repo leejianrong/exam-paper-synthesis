@@ -123,10 +123,10 @@ def test_export_refuses_empty_placeholders_unless_told_to_print_anyway(monkeypat
     monkeypatch.setattr(routes_documents, "check_export_quota", charged.append)
     gen = client.post(
         "/documents/generate",
-        json={"template": "p1_booklet_b", "level": "P5", "seed": 1},
+        json={"template": "p2", "level": "P5", "seed": 1},
         headers=ALICE,
     ).json()
-    assert gen["report"]["placeholders"] == 2  # today's content: 8 two-mark P5 for 10 slots
+    assert gen["report"]["placeholders"] == 3  # today's content: too few P5 3-5 markers
     url = f"/documents/{gen['id']}/export"
 
     for mode in ("student", "key", "full"):
@@ -134,8 +134,8 @@ def test_export_refuses_empty_placeholders_unless_told_to_print_anyway(monkeypat
         assert resp.status_code == 409, mode
         detail = resp.json()["detail"]
         assert detail["code"] == "unfilled_placeholders"
-        assert detail["questions"] == [29, 30]  # the last two 2-mark slots (Q16-30)
-        assert "Questions 29, 30 are still empty" in detail["message"]
+        assert detail["questions"] == [18, 19, 20]  # the last three Section B questions
+        assert "Questions 18, 19, 20 are still empty" in detail["message"]
     assert charged == []  # refused before any export allowance is spent
 
     ok = client.post(f"{url}/student?allow_placeholders=true", headers=ALICE)
@@ -144,22 +144,23 @@ def test_export_refuses_empty_placeholders_unless_told_to_print_anyway(monkeypat
     # the in-app preview still shows the paper as it is (the editor flags the gaps)
     assert client.get(f"/documents/{gen['id']}/preview/student", headers=ALICE).status_code == 200
 
-    # once the teacher writes one, only the other is listed; once both, it prints
+    # once the teacher writes two, only the last is listed; once all, it prints
     doc = strip_document_hints(gen["document"])
     phs = [
         n
         for n in doc["content"]["content"]
         if (n.get("attrs") or {}).get("slot", {}).get("placeholder")
     ]
-    _write(phs[0], "What is 1 + 1?")
+    for ph in phs[:2]:
+        _write(ph, "What is 1 + 1?")
     saved = client.put(
         f"/documents/{gen['id']}",
         json={"document": doc, "base_version": gen["version"]},
         headers=ALICE,
     ).json()
     one = client.post(f"{url}/student", headers=ALICE).json()["detail"]
-    assert one["questions"] == [30] and "Question 30 is still empty" in one["message"]
-    _write(phs[1], "And 2 + 2?")
+    assert one["questions"] == [20] and "Question 20 is still empty" in one["message"]
+    _write(phs[2], "And 2 + 2?")
     resp = client.put(
         f"/documents/{gen['id']}",
         json={"document": doc, "base_version": saved["version"]},

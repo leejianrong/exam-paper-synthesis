@@ -50,6 +50,8 @@ def test_make_harder_climbs():
 def test_make_easier_descends():
     source = generate("ratio_medium", 42)
     child = edits.apply("make-easier", source, seed=7)
+    assert child["blueprint_code"] == "ratio_difference"
+    child = edits.apply("make-easier", child, seed=7)
     assert child["blueprint_code"] == "ratio_easy"
 
 

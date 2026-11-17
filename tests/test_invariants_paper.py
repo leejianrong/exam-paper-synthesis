@@ -60,6 +60,12 @@ def _shortfall(code: str, marks: int) -> int:
     return max(0, need - _RUNG[META[code]["rung"]])
 
 
+def _capped(code: str, kind: str, topics: Counter) -> bool:
+    """EXA-154: a structured stand-in never gives a topic its third question in a paper, so a
+    blueprint of a topic the paper already has twice could not have been taken there."""
+    return kind == "structured" and topics[META[code]["topic"]] >= 2
+
+
 def _takes(code: str, kind: str, level: str) -> bool:
     """Whether a single-part blueprint could fill a slot of ``kind`` in a ``level`` paper."""
     m = META[code]
@@ -196,6 +202,8 @@ def test_generated_papers_keep_every_rule(code, level):
 
         # difficulty follows marks (EXA-146): a question falls below its slot's rung only when
         # every blueprint that could have filled the slot at that rung is already in the paper
+        # (or, for a stand-in, is of a topic the paper already has twice: EXA-154)
+        topics = Counter(META[c]["topic"] for c in codes)
         for sec, nodes in _by_section(doc):
             for n in nodes:
                 if n["type"] != "templatedQuestion":
@@ -210,6 +218,7 @@ def test_generated_papers_keep_every_rule(code, level):
                     and _takes(c, sec["mode"], level)
                     and _shortfall(c, marks) < _shortfall(bp, marks)
                     and c not in codes
+                    and not _capped(c, sec["mode"], topics)
                 ]
                 assert not better, (where, bp, better)
 
@@ -316,6 +325,7 @@ def test_difficulty_follows_marks_without_costing_a_question(code, level):
             if n["type"] == "templatedQuestion"
         ]
         used = {q["blueprint_code"] for _, q in qs}
+        topics = Counter(q["syllabus"]["topic"] for _, q in qs)
         groups: dict[tuple[int, str], list[str]] = {}
         for slot, q in qs:
             if META[q["blueprint_code"]]["parts"] == 1:
@@ -326,10 +336,12 @@ def test_difficulty_follows_marks_without_costing_a_question(code, level):
             fitting = {
                 c
                 for c, m in META.items()
-                if m["marks"] == marks and _takes(c, kind, level) and _shortfall(c, marks) == 0
+                if m["marks"] == marks
+                and _takes(c, kind, level)
+                and _shortfall(c, marks) == 0
+                and not _capped(c, kind, topics)
             }
             assert fitting <= used, (code, level, seed, marks, kind, fitting - used)
-        topics = Counter(q["syllabus"]["topic"] for _, q in qs)
         assert max(topics.values()) <= 2, (code, level, seed, topics)
 
 
@@ -343,9 +355,9 @@ def test_what_todays_content_fills():
     assert fill("p1_booklet_a", "P6") == (15, 0)  # 13 one-mark MCQ-able (P8e batch 3)
     assert fill("p1_booklet_a", "P5") == (15, 0)  # 12 one-mark at P5
     assert fill("p1_booklet_b", "P6") == (15, 0)
-    assert fill("p1_booklet_b", "P5") == (13, 2)
+    assert fill("p1_booklet_b", "P5") == (15, 0)  # 12 two-mark medium at P5 (EXA-154)
     assert fill("p2", "P6") == (17, 0)  # Section B: 3 multi-part + 9 single-part stand-ins
-    assert fill("p2", "P5") == (16, 3)  # Section B: 11 stand-ins, 3 placeholders (15 marks)
+    assert fill("p2", "P5") == (17, 3)  # Section B: 12 stand-ins, 3 placeholders (13 marks)
 
 
 def test_unknown_template_and_level_are_refused():
@@ -389,6 +401,7 @@ def test_the_stand_in_plan_stays_fast_and_exact_as_content_grows():
 
     class _F:
         used: set = set()
+        topics: dict = {}
         pool = [
             Candidate(f"b{m}_{i}", "T", "P6", m, "constructed")
             for m in range(2, 9)

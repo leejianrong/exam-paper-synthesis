@@ -27,7 +27,8 @@ Rules (owner's decisions, 2026-11-15):
   :func:`min_rung` of its marks (2 marks: medium; 3 or more: hard). When none is left it takes
   the closest rung below, so the rule never adds a placeholder.
 - Topics are spread: among the best-fitting rung, each slot takes the least-used topic so far,
-  ties broken by the seed.
+  ties broken by the seed. A stand-in never gives a topic its third question in the paper
+  (:data:`_TOPIC_CAP`); marks it cannot place that way become placeholders.
 """
 
 from __future__ import annotations
@@ -50,6 +51,7 @@ SUBJECT = "Mathematics"
 _LEVEL_NAMES = {"P5": "Primary 5", "P6": "Primary 6"}
 _STAND_IN_MIN_MARKS = 2  # a 1-mark question doesn't belong in a structured section
 _PLACEHOLDER_CHUNK = (3, 5)  # stand-in shortfall is split into placeholders of this size
+_TOPIC_CAP = 2  # a stand-in never gives a topic more questions than this in one paper
 
 
 class UnknownPaperTemplate(KeyError):
@@ -254,11 +256,17 @@ class _Filler:
         self.n += 1
         return f"gq{self.n:03d}{self.rng.getrandbits(24):06x}"
 
-    def pick(self, marks: int, kind: str) -> Candidate | None:
+    def pick(self, marks: int, kind: str, cap: int | None = None) -> Candidate | None:
         """An unused blueprint with these marks: the best-fitting rung (:func:`rung_shortfall`),
-        then the least-used topic, seeded ties."""
+        then the least-used topic, seeded ties. With ``cap``, only from a topic the paper has
+        fewer than ``cap`` questions of."""
         options = [
-            c for c in self.pool if c.code not in self.used and c.marks == marks and _fits(c, kind)
+            c
+            for c in self.pool
+            if c.code not in self.used
+            and c.marks == marks
+            and _fits(c, kind)
+            and (cap is None or self.topics.get(c.topic, 0) < cap)
         ]
         if not options:
             return None
@@ -313,7 +321,12 @@ def _stand_in_plan(f: _Filler, target: int, slots: int) -> list[int]:
     count closest to the real paper's ``slots`` and fewer small questions."""
     have: dict[int, int] = {}
     for c in f.pool:
-        if c.code not in f.used and c.marks >= _STAND_IN_MIN_MARKS and _fits(c, "structured"):
+        if (
+            c.code not in f.used
+            and c.marks >= _STAND_IN_MIN_MARKS
+            and _fits(c, "structured")
+            and f.topics.get(c.topic, 0) < _TOPIC_CAP
+        ):
             have[c.marks] = have.get(c.marks, 0) + 1
     values = sorted(have)
     # Dynamic programme over (marks so far, questions so far) -> the counts per mark value that
@@ -392,15 +405,20 @@ def _fill_structured(f: _Filler, section: dict, report: dict) -> list[dict]:
         report["blueprints"].append(mp.code)
     rest = target - sum(b["attrs"]["slot"]["marks"] for b in blocks)
     plan = _stand_in_plan(f, rest, n_slots - len(blocks)) if rest > 0 else []
-    for marks in sorted(plan):
-        c = f.pick(marks, "structured")
-        assert c is not None  # the plan only counts unused blueprints
+    placed = 0
+    for marks in sorted(plan, reverse=True):  # bigger questions claim a topic first
+        # the plan counts unused blueprints of topics under the cap, but two of one topic may
+        # both be counted: the second is left out and its marks become a placeholder
+        c = f.pick(marks, "structured", cap=_TOPIC_CAP)
+        if c is None:
+            continue
+        placed += marks
         blocks.append(f.question(c, {"marks": marks, "kind": "structured", "stand_in": True}))
         report["filled"] += 1
         report["stand_ins"] += 1
         report["blueprints"].append(c.code)
     blocks.sort(key=lambda b: b["attrs"]["slot"]["marks"])
-    for marks in _placeholder_chunks(rest - sum(plan)):
+    for marks in _placeholder_chunks(rest - placed):
         blocks.append(f.placeholder(marks, "structured"))
         report["placeholders"] += 1
         report["placeholder_marks"] += marks

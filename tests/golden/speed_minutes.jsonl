@@ -1,0 +1,3 @@
+{"params": {"vehicle": "van", "kind": "distance", "speed": 54, "minutes": 40}, "expected": {"answer": {"type": "quantity", "value": 36, "unit": "km"}, "total_marks": 2}}
+{"params": {"vehicle": "car", "kind": "speed", "speed": 72, "minutes": 45}, "expected": {"answer": {"type": "quantity", "value": 72, "unit": "km/h"}, "total_marks": 2}}
+{"params": {"vehicle": "bus", "kind": "time", "speed": 48, "minutes": 75}, "expected": {"answer": {"type": "quantity", "value": 75, "unit": "min"}, "total_marks": 2}}

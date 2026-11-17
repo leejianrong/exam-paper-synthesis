@@ -10,6 +10,14 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **2-mark medium questions for Ratio, Percentage, Speed and both Geometry topics (EXA-154).**
+  Five new blueprints, each a rung between the topic's 2-mark easy and 3-mark medium ones: the
+  total from a ratio and a difference, a percentage of the remainder, speed with the time in
+  minutes, vertically opposite angles, and a rectangle's area from its perimeter (or the
+  reverse). A P6 Booklet B now fills all ten 2-mark slots with medium questions (was 7 of 10)
+  and covers 13.5 topics on average (was 11.5); a P5 Booklet B has no placeholders (was 2). In
+  Paper 2 a stand-in never gives a topic a third question, and the 3-mark stand-ins are chosen
+  first, so a P5 Section B takes `ratio_medium` rather than a 2-mark easy question.
 - **A compact answer key, like a real school key (EXA-142).** A new answer-key layout,
   "Compact" (document schema 1.14.0, `key_options.layout`; "Full" stays the default): a header
   block (school, level, subject, exam) from the cover, an answer grid for each multiple-choice

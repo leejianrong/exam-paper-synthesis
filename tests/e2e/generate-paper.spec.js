@@ -12,8 +12,11 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
-  await expect(page.getByTestId('generate-report')).toContainText('Filled 17 of 17 questions')
-  await expect(page.getByTestId('generate-report')).toContainText('Section B has 3 multi-part questions; 9 single-part questions stand in for the rest')
+  // 9 or 10 single-part stand-ins, by seed: a stand-in never gives a topic a third question (EXA-154)
+  await expect(page.getByTestId('generate-report')).toContainText(/Filled (17 of 17|18 of 18) questions/)
+  await expect(page.getByTestId('generate-report')).toContainText(
+    /Section B has 3 multi-part questions; (9|10) single-part questions stand in for the rest/,
+  )
   await expect(page.locator('.cover-block')).toHaveCount(1)
   await expect(page.locator('.cover-block').getByLabel('Cover level')).toHaveValue('Primary 6')
   await expect(page.locator('.section-block')).toHaveCount(2)
@@ -21,7 +24,7 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
     'Questions 1–5 · 10 / 10 marks',
   )
   await expect(page.locator('.section-block').nth(1).locator('.section-summary')).toHaveText(
-    'Questions 6–17 · 45 / 45 marks',
+    /Questions 6–1[78] · 45 \/ 45 marks/,
   )
   await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
   await expect(page.getByLabel('Paper time in minutes')).toHaveValue('90')
@@ -38,26 +41,37 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
   await expect(page.getByTestId('generate-report')).toHaveCount(0)
 })
 
-test('generate a P5 Booklet B: placeholders for what the content cannot fill yet', async ({ page }) => {
+test('generate a P5 Booklet B: every slot filled, numbered on from Booklet A', async ({ page }) => {
   await page.goto('/')
   await generateSinglePaper(page, 'Paper 1 · Booklet B', 'P5')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
 
-  await expect(page.getByTestId('generate-report')).toContainText('Filled 13 of 15 questions')
-  await expect(page.getByTestId('placeholders-left')).toHaveText('2 placeholders to write')
-  const hints = page.locator('.ff-placeholder-hint:visible')
-  await expect(hints).toHaveCount(2)
-  await expect(hints.first()).toHaveText(/write a [12]-mark short-answer question here/)
+  // every 2-mark slot filled since EXA-154 (2-mark medium rungs for five more topics)
+  await expect(page.getByTestId('generate-report')).toContainText('Filled 15 of 15 questions')
+  await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
   // Booklet B numbers on from A (EXA-134), in a 1-mark and a 2-mark section as real papers (EXA-139)
   await expect(page.locator('.section-block .section-summary')).toHaveText([
     'Questions 16–20 · 5 / 5 marks',
     'Questions 21–30 · 20 / 20 marks',
   ])
+})
+
+test('generate a P5 Paper 2: placeholders for what the content cannot fill yet', async ({ page }) => {
+  await page.goto('/')
+  await generateSinglePaper(page, 'Paper 2', 'P5')
+  await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
+
+  // P5 has too few 3-5 mark blueprints for Section B: 12 stand-ins and 3 placeholders
+  await expect(page.getByTestId('generate-report')).toContainText('Filled 17 of 20 questions')
+  await expect(page.getByTestId('placeholders-left')).toHaveText('3 placeholders to write')
+  const hints = page.locator('.ff-placeholder-hint:visible')
+  await expect(hints).toHaveCount(3)
+  await expect(hints.first()).toHaveText(/write a [345]-mark structured question here/)
 
   // Writing a placeholder's question clears it.
   await page.locator('.ffblock.placeholder-slot .ff-body').first().click()
   await page.keyboard.type('What is 3 + 4?')
-  await expect(page.getByTestId('placeholders-left')).toHaveText('1 placeholder to write')
+  await expect(page.getByTestId('placeholders-left')).toHaveText('2 placeholders to write')
 })
 
 test('generate a P6 Booklet A: multiple-choice questions with four options each', async ({ page }) => {
