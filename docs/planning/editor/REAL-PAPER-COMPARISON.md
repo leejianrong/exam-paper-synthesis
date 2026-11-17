@@ -374,6 +374,9 @@ such items.
      this data" MCQ.
    - Real: 15 data questions plus 3 tick tables.
    - Needs a `table` figure (simple) and a tick-table answer type.
+   - ~~Data tables~~ done in #231 (EXA-148): `postage_table`, `rental_table` and the multi-part
+     `tariff_gst` print the existing content-level `question.table` (no schema change). Still open:
+     the tick-table answer type, the tank line graph and pie charts in fractions.
 7. **Circles ladder.**
    - Composite semicircles and quarter circles (overlapping, S-shapes, logos); perimeter vs area of the
      shaded or unshaded region; "in terms of π" answers through the existing `expression` type; default
