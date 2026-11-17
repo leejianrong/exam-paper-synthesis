@@ -79,6 +79,9 @@ def _check_rules(doc, level, where):
         assert info["marks"] == info["marks_target"], (where, info)
     codes = [_code(n) for n in _blocks(doc) if _code(n)]
     assert len(codes) == len(set(codes)), (where, Counter(codes))
+    # EXA-154: a swap or a regenerate never gives a topic a third question in the paper
+    topics = Counter(META[c]["topic"] for c in codes)
+    assert max(topics.values(), default=0) <= 2, (where, topics)
     allowed = LEVELS[: LEVELS.index(level) + 1]
     mode = None
     for n in _blocks(doc):
@@ -149,8 +152,10 @@ def _possible_other_topic(doc, idx, level) -> bool:
 
 def _check_rungs(doc, level, where, only=None):
     """EXA-146: a single-part question below its slot's rung only when no unused blueprint
-    that could fill the slot has the rung (``only``: the block indexes to check)."""
+    that could fill the slot has the rung (``only``: the block indexes to check). A blueprint
+    whose topic has two other questions in the paper is excused: the cap (EXA-154)."""
     used = {_code(n) for n in _blocks(doc) if _code(n)}
+    topics = Counter(META[c]["topic"] for c in used)
     mode = None
     for i, n in enumerate(_blocks(doc)):
         if n["type"] == "section":
@@ -167,6 +172,7 @@ def _check_rungs(doc, level, where, only=None):
             if c not in used
             and _could_fill(c, n, mode, level)
             and _shortfall(c, marks) < _shortfall(code, marks)
+            and topics[META[c]["topic"]] - (META[c]["topic"] == META[code]["topic"]) < 2
         ]
         assert not better, (where, i, code, better)
 
@@ -324,6 +330,17 @@ def test_regenerate_never_touches_a_hand_written_or_bank_question():
     assert _dump(_blocks(new)[i]) == _dump(blocks[i])
     assert _dump(_blocks(new)[j]) == _dump(blocks[j])
     assert report["kept"] == 2
+
+
+@pytest.mark.parametrize("level", ["P5", "P6"])
+def test_regenerating_a_paper_2_keeps_two_questions_a_topic_at_most(level):
+    """EXA-154: with four blueprints a topic, a Paper 2 refilled from scratch could give a topic
+    three questions (Section A, then two stand-ins); the cap holds for regenerate as it does
+    for the generator."""
+    for seed in range(1, 41):
+        doc, _ = generate_paper("p2", level, seed)
+        new, _ = regenerate_unlocked(doc, level, seed + 1000)
+        _check_rules(new, level, f"p2 {level} seed={seed} regenerate")
 
 
 def test_regenerate_with_everything_unlocked_gives_a_new_paper():

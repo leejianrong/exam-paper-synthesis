@@ -10,25 +10,48 @@ angle, 3 marks).
 * ``line_part``     — ∠BOD and ∠AOE are given; find ∠EOD. ∠AOD = 180° − ∠BOD (AOB is a
   straight line), then ∠EOD = ∠AOD − ∠AOE.
 
-The figure is fixed (not drawn to scale) and carries the given angles and the marked unknown;
-``check_geometry_figure_consistency`` cross-checks every drawn value. Exact integer
-arithmetic: integer angles in, integer angle out.
+The figure is drawn from the sampled angles (OB pointing right, the other rays at their true
+bearings), so it looks like the printed values; it carries the given angles and the marked
+unknown, and ``check_geometry_figure_consistency`` cross-checks every drawn value. Exact
+integer arithmetic: integer angles in, integer angle out.
 """
 
 from __future__ import annotations
 
+import math
 import random
 from fractions import Fraction
 
 from ..registry import register
 
 _UNIT = "degrees"
-POINTS = {"O": (5, 4), "A": (0, 5), "B": (10, 3), "C": (3, 0), "D": (7, 8), "E": (1, 9)}
+_RAY = 5.0  # drawn length of each ray from O
 
 
-def _pt(pid: str) -> dict:
-    x, y = POINTS[pid]
-    return {"id": pid, "x": float(x), "y": float(y)}
+def bearings(params: dict) -> dict[str, int]:
+    """Each ray's direction from O in degrees, anticlockwise from OB: B at 0, A at 180, C
+    above the line AB, D opposite C, and E between A and D (below the line)."""
+    g, template = params["givens"], params["template"]
+    if template == "opposite_part":  # ∠BOC = r, ∠DOE = q
+        c = g["r"]
+        e = c + 180 - g["q"]
+    elif template == "opposite_sum":  # ∠AOE = p, ∠EOD = q
+        c = g["p"] + g["q"]
+        e = 180 + g["p"]
+    else:  # line_part: ∠BOD = p, ∠AOE = q
+        c = 180 - g["p"]
+        e = 180 + g["q"]
+    return {"O": 0, "B": 0, "A": 180, "C": c, "D": c + 180, "E": e}
+
+
+def _points(params: dict) -> list[dict]:
+    out = []
+    for pid, deg in bearings(params).items():
+        r = 0.0 if pid == "O" else _RAY
+        x = _RAY + r * math.cos(math.radians(deg))
+        y = _RAY - r * math.sin(math.radians(deg))  # figure y grows downwards
+        out.append({"id": pid, "x": round(x, 3), "y": round(y, 3)})
+    return out
 
 
 def _mark(name: str, value: int, unknown: bool = False) -> dict:
@@ -155,7 +178,7 @@ class GeometryAngleOppositeSolver:
         return {
             "type": "geometry_figure",
             "unit": _UNIT,
-            "points": [_pt(p) for p in POINTS],
+            "points": _points(params),
             "segments": [
                 {"from": "A", "to": "O"},
                 {"from": "O", "to": "B"},
@@ -164,7 +187,7 @@ class GeometryAngleOppositeSolver:
                 {"from": "O", "to": "E"},
             ],
             "angles": _build(params)["angles"],
-            "labels": [{"at": p, "text": p} for p in POINTS],
+            "labels": [{"at": p, "text": p} for p in "OABCDE"],
         }
 
 

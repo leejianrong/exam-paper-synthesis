@@ -44,12 +44,23 @@ def minutes_text(m: int) -> str:
     return f"{h} h {rest} min"
 
 
+def hours_text(h: Fraction) -> str:
+    """``2/3`` / ``1 1/4`` (a mixed number over an hour), as a PSLE working writes it."""
+    whole, rest = divmod(h.numerator, h.denominator)
+    if not whole:
+        return f"{rest}/{h.denominator}"
+    return f"{whole} {rest}/{h.denominator}" if rest else str(whole)
+
+
+ASKED = {"distance": "distance in km", "speed": "speed in km/h", "time": "time in minutes"}
+
+
 def _build(params: dict) -> dict:
     v, kind, s, m = params["vehicle"], params["kind"], params["speed"], params["minutes"]
     d = s * m // 60
     t = minutes_text(m)
     hours = Fraction(m, 60)
-    h = f"{hours.numerator}/{hours.denominator}"
+    h = hours_text(hours)
     conv = f"{m} min = {m}/60 h = {h} h."
     if m > 60:
         conv = f"{t} = " + conv
@@ -108,6 +119,7 @@ class SpeedMinutesSolver:
             "answer": built["answer"],
             "intermediates": {
                 "question_text": built["text"],
+                "asked": ASKED[params["kind"]],
                 "step1": s1,
                 "expr1": e1,
                 "step2": s2,

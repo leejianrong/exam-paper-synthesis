@@ -37,7 +37,7 @@ solution_template:
       expr: "{expr2}"
 marking_scheme:
   - { mark: 1, type: M, description: "Change the minutes to hours (or the hours to minutes)." }
-  - { mark: 1, type: A, description: "Correct distance (km), speed (km/h) or time (min)." }
+  - { mark: 1, type: A, description: "Correct {asked}." }   # e.g. "distance in km"
 answer:
   type: quantity
   unit: "km"

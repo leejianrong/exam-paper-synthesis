@@ -23,6 +23,7 @@ sweep runs the real pipeline (``generate``).
 
 from __future__ import annotations
 
+import math
 import re
 from fractions import Fraction
 from math import gcd
@@ -204,6 +205,16 @@ def check_angles(obj: dict) -> None:
             if all(angle(bearings, *sorted(k)) == v for k, v in given_marks.items()):
                 solutions.add(angle(bearings, unknown["from"], unknown["to"]))
     assert len(solutions) == 1, (text, solutions)
+    # the figure is drawn to the printed values: every marked angle, measured off the points
+    pts = {p["id"]: (p["x"], -p["y"]) for p in fig["points"]}  # figure y grows downwards
+
+    def measured(a: str, b: str) -> float:
+        (ox, oy), (ax, ay), (bx, by) = pts["O"], pts[a], pts[b]
+        d = math.degrees(math.atan2(ay - oy, ax - ox) - math.atan2(by - oy, bx - ox)) % 360
+        return min(d, 360 - d)
+
+    for m in fig["angles"]:
+        assert abs(measured(m["from"], m["to"]) - m["value_deg"]) < 0.5, (text, m)
     answer = single_part_answer(obj)
     assert answer == {"type": "integer", "value": solutions.pop(), "unit": "degrees"}
 

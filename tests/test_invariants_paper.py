@@ -440,15 +440,15 @@ def test_difficulty_follows_marks_without_costing_a_question(code, level):
         topics = Counter(q["syllabus"]["topic"] for _, q in qs)
         groups: dict[tuple[int, str], list[dict]] = {}
         for n in _questions(doc):
-            if n["type"] == "templatedQuestion":
-                if META[n["attrs"]["question"]["blueprint_code"]]["parts"] == 1:
-                    slot = n["attrs"]["slot"]
-                    groups.setdefault((slot["marks"], slot["kind"]), []).append(n)
+            if (
+                n["type"] == "templatedQuestion"
+                and META[n["attrs"]["question"]["blueprint_code"]]["parts"] == 1
+            ):
+                slot = n["attrs"]["slot"]
+                groups.setdefault((slot["marks"], slot["kind"]), []).append(n)
         for (marks, kind), nodes in groups.items():
             low = [
-                n
-                for n in nodes
-                if _shortfall(n["attrs"]["question"]["blueprint_code"], marks) > 0
+                n for n in nodes if _shortfall(n["attrs"]["question"]["blueprint_code"], marks) > 0
             ]
             if not low:
                 continue

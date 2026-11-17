@@ -122,6 +122,22 @@ def test_a_named_mistake_is_rederived_from_the_printed_question(code):
         assert any(phrase in why for why in reasons), (code, seed, phrase, reasons)
 
 
+def test_no_option_is_zero_or_less_when_both_percentages_reach_100():
+    # "both percentages of the whole" is $0 or less when p1 + p2 >= 100: the hook names it, but
+    # the multiple-choice copy never offers it (mcq._plausible drops values <= 0)
+    seen = 0
+    for seed in range(1, 400):
+        obj = generate("percentage_remainder", seed)
+        p = obj["parameters"]
+        if p["ask"] != "left" or p["p1"] + p["p2"] < 100:
+            continue
+        seen += 1
+        assert any(v <= 0 for v, _ in mcq.common_wrong_answers(obj))
+        options = mcq.to_mcq(obj, seed)["question"]["parts"][0]["answer"]["options"]
+        assert all(Fraction(o["text"].lstrip("$")) > 0 for o in options), options
+    assert seen
+
+
 def test_a_mixed_unit_time_offers_the_decimal_hours_slip():
     # "1 h 15 min" read as 1.15 h: 48 km/h x 1.15 h = 55.2 km
     obj = generate("speed_minutes", 1)
