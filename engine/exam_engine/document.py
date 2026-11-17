@@ -537,4 +537,17 @@ def verify_snapshot(obj: dict) -> list[str]:
         return ["answer does not match the engine's solution for these parameters"]
     if parts[0].get("marks") != spec.marks or obj["question"]["total_marks"] != spec.marks:
         return [f"marks do not match blueprint {code} ({spec.marks})"]
+    # The drawn solid or net is what the question asks about (EXA-147): re-drawn from the
+    # parameters, it must be the figure printed. Other figures are not compared, so a document
+    # saved before a renderer change keeps verifying.
+    redraw = getattr(solver, "diagram", None)
+    if (
+        spec.diagram in _FIGURE_IS_THE_QUESTION
+        and redraw is not None
+        and parts[0].get("diagram") != redraw(params, solution)
+    ):
+        return ["the figure does not match the engine's figure for these parameters"]
     return []
+
+
+_FIGURE_IS_THE_QUESTION = frozenset({"cube_stack", "net"})

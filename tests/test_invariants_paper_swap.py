@@ -19,7 +19,7 @@ import pytest
 import yaml
 from exam_engine.blueprints.registry import content_dir
 from exam_engine.document import paper_outline, validate_document
-from exam_engine.paper import LEVELS, generate_paper, paper_templates
+from exam_engine.paper import LEVELS, generate_paper, generate_set, paper_templates
 from exam_engine.paper_swap import (
     SwapNotPossible,
     paper_level,
@@ -583,3 +583,15 @@ def test_a_swap_never_trades_a_question_for_an_easier_rung():
         new, _ = swap_question(doc, n["attrs"]["block_id"], "like", 1)
         out = next(b for b in _blocks(new) if b["attrs"].get("block_id") == n["attrs"]["block_id"])
         assert META[_code(out)]["rung"] != "easy"
+
+
+def test_another_topic_on_an_easy_two_marker_may_take_any_topic():
+    """The other branch: on an easy 2-mark question (an exam set's Booklet A, filled last,
+    takes some, EXA-153) "another topic" may take any other topic, as none is easier."""
+    doc, _ = generate_set(["p1_booklet_a", "p1_booklet_b", "p2"], "P5", 3)[0]
+    easy = [
+        n for n in _blocks(doc) if _is_q(n) and _marks(n) == 2 and META[_code(n)]["rung"] == "easy"
+    ]
+    assert easy
+    new, report = swap_question(doc, easy[0]["attrs"]["block_id"], "topic", 1)
+    assert report["topic"] != META[_code(easy[0])]["topic"]

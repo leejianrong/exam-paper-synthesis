@@ -105,12 +105,28 @@ def test_mcq_copies_use_the_hook_and_stay_proven(code):
     assert from_hook >= 0.6 * 60 * 3
 
 
+@pytest.mark.parametrize("code", NUMERIC)
+def test_the_answers_place_among_the_options_gives_nothing_away(code):
+    """Options print in ascending order, so the hook offers slips on both sides of the answer:
+    over many seeds the answer is in every place and neither mostly the largest nor mostly
+    the smallest."""
+    places = [
+        int(mcq.to_mcq(generate(code, s), s)["question"]["parts"][0]["answer"]["correct"])
+        for s in range(1, 201)
+    ]
+    share = {p: places.count(p) / len(places) for p in (1, 2, 3, 4)}
+    assert all(v >= 0.05 for v in share.values()), share
+    assert share[1] <= 0.4 and share[4] <= 0.4, share
+    assert max(share.values()) <= 0.5, share
+
+
 def test_count_hook_names_the_hidden_cubes_slip():
     obj = generate("cubes_count", 4)
     solver = get_solver("cubes_count")
     slips = dict((why, v) for v, why in solver.distractors(obj["parameters"], {}))
     answer = obj["question"]["parts"][0]["answer"]["value"]
     assert slips["counted only the cubes that can be seen"] < answer
+    assert slips["counted the hidden cubes twice"] > answer
 
 
 @pytest.mark.parametrize("code", CHOICE)
@@ -128,6 +144,25 @@ def test_a_tampered_choice_is_caught(code):
         "diagram" if code == "cubes_view" else "text"
     ]
     assert verify_snapshot(swapped) != []
+
+
+@pytest.mark.parametrize("code", CASES)
+def test_a_tampered_figure_is_caught(code):
+    """The drawn solid or net is the question: changing it must not keep the proof."""
+    obj = generate(code, 9)
+    bad = copy.deepcopy(obj)
+    figure = bad["question"]["parts"][0]["diagram"]
+    if figure["type"] == "cube_stack":
+        figure["heights"][0][0] += 1
+    else:
+        figure["faces"][0]["label"], figure["faces"][1]["label"] = (
+            figure["faces"][1]["label"],
+            figure["faces"][0]["label"],
+        )
+    assert verify_snapshot(obj) == []
+    assert verify_snapshot(bad) == [
+        "the figure does not match the engine's figure for these parameters"
+    ]
 
 
 @pytest.mark.parametrize("code", CHOICE)

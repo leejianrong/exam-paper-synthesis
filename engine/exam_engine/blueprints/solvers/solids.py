@@ -96,6 +96,20 @@ def _stack_spec(heights: list[list[int]], view: str = "iso", front: bool = False
     return spec
 
 
+def _spread(
+    slips: list[tuple[int, str]], answer: int, key: int
+) -> list[tuple[int | Fraction, str]]:
+    """``slips`` (best first) reordered so the first two lie both below, either side of, or
+    both above ``answer``, by ``key``. Options print in ascending order and only the last wrong
+    one is chosen to move the answer, so this keeps the answer's place from giving it away."""
+    below = [s for s in slips if s[0] < answer]
+    above = [s for s in slips if s[0] > answer]
+    first = [below[:2], below[:1] + above[:1], above[:2]][key % 3]
+    if len(first) < 2:
+        first = below[:1] + above[:1]
+    return [*first, *(s for s in slips if s not in first)]
+
+
 # ---------------------------------------------------------------- count
 
 
@@ -122,14 +136,25 @@ class CubesCountSolver:
         }
 
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
-        """Counting slips, best first."""
+        """Counting slips, best first, some too few and some too many (the answer's place among
+        the ascending options must not give it away)."""
         heights = params["heights"]
-        return [
-            (visible_cubes(heights), "counted only the cubes that can be seen"),
-            (sum(front_view(heights)), "counted the squares seen from the front"),
+        n = cube_count(heights)
+        hidden = n - visible_cubes(heights)
+        rows, cols = len(heights), len(heights[0])
+        tallest = max(max(r) for r in heights)
+        slips = [
+            (n - hidden, "counted only the cubes that can be seen"),
+            (n + hidden, "counted the hidden cubes twice"),
+            (rows * cols * tallest, "counted the whole cuboid around the solid"),
             (sum(1 for row in heights for h in row if h), "counted the top faces only"),
-            (sum(side_view(heights)), "counted the squares seen from the side"),
+            (
+                sum(front_view(heights)) + sum(side_view(heights)) + rows * cols,
+                "added the squares seen from the front, the side and the top",
+            ),
+            (sum(front_view(heights)), "counted the squares seen from the front"),
         ]
+        return _spread(slips, n, n + rows * cols)
 
     def validate(self, params: dict, solution: dict) -> dict:
         heights = params["heights"]
@@ -202,13 +227,18 @@ class CubesCompleteSolver:
         a, b, c = _target(heights, shape)
         other = "cube" if shape == "cuboid" else "cuboid"
         oa, ob, oc = _target(heights, other)
-        return [
-            (a * b * c - visible_cubes(heights), "did not count the hidden cubes"),
+        hidden = have - visible_cubes(heights)
+        front_gaps = sum(c - h for h in heights[-1])  # the gaps on the front row's tops only
+        slips = [
+            (a * b * c - have + hidden, "did not count the hidden cubes"),
+            (a * b * c - have - hidden, "counted the hidden cubes twice"),
             (a * b * c, f"gave the number of cubes in the whole {shape}"),
             (oa * ob * oc - have, f"made the smallest {other} instead of a {shape}"),
+            (a * b * (c - 1) - have, f"made the {shape} one layer too low"),
+            (front_gaps, "filled only the gaps in the front row"),
             (have, "gave the number of cubes in the solid"),
-            (a * b * c - sum(1 for r in heights for h in r if h), "counted each stack as 1 cube"),
         ]
+        return _spread(slips, a * b * c - have, have + len(heights[0]))
 
     def validate(self, params: dict, solution: dict) -> dict:
         heights, shape = params["heights"], params["shape"]
