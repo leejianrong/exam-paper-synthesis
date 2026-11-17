@@ -165,6 +165,7 @@ def assemble(
     solution: dict,
     report: dict,
     diagram: dict | None = None,
+    table: dict | None = None,
 ) -> dict:
     """Build a canonical object for a generated question, then validate it.
 
@@ -196,6 +197,9 @@ def assemble(
             }
         ]
 
+    question: dict = {"stem": stem}
+    if table is not None:  # a data table printed before the parts (EXA-148)
+        question["table"] = table
     obj = {
         "schema_version": SCHEMA_VERSION,
         "id": f"{spec.code}:{seed}",
@@ -205,11 +209,7 @@ def assemble(
         "syllabus": spec.syllabus,
         "cognitive": spec.cognitive,
         "parameters": params,
-        "question": {
-            "stem": stem,
-            "parts": parts,
-            "total_marks": spec.marks,
-        },
+        "question": {**question, "parts": parts, "total_marks": spec.marks},
         "validation": {
             "status": "pass" if report.get("ok") else "fail",
             "checks": report.get("checks", {}),

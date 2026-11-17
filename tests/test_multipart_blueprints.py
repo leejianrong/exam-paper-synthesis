@@ -27,6 +27,7 @@ CODES = {
     "ratio_structured": ("Ratio", [2, 3]),
     "speed_structured": ("Speed", [1, 3]),
     "volume_structured": ("Volume", [2, 3]),
+    "tariff_gst": ("Percentage", [2, 2]),
 }
 SEEDS = range(1, 151)
 

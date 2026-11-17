@@ -148,7 +148,11 @@ def test_export_refuses_empty_placeholders_unless_told_to_print_anyway(monkeypat
         json={"template": "p1_booklet_b", "level": "P5", "seed": 1},
         headers=ALICE,
     ).json()
-    assert gen["report"]["placeholders"] == 2  # today's content: 8 two-mark P5 for 10 slots
+    # today's content has fewer two-mark P5 blueprints than the 10 two-mark slots, so the
+    # last slots of Q16-30 are placeholders
+    n = gen["report"]["placeholders"]
+    assert n >= 1
+    empty = list(range(31 - n, 31))
     url = f"/documents/{gen['id']}/export"
 
     for mode in ("student", "key", "full"):
@@ -156,8 +160,8 @@ def test_export_refuses_empty_placeholders_unless_told_to_print_anyway(monkeypat
         assert resp.status_code == 409, mode
         detail = resp.json()["detail"]
         assert detail["code"] == "unfilled_placeholders"
-        assert detail["questions"] == [29, 30]  # the last two 2-mark slots (Q16-30)
-        assert "Questions 29, 30 are still empty" in detail["message"]
+        assert detail["questions"] == empty  # the last 2-mark slots (Q16-30)
+        assert "still empty" in detail["message"]
     assert charged == []  # refused before any export allowance is spent
 
     ok = client.post(f"{url}/student?allow_placeholders=true", headers=ALICE)
@@ -173,18 +177,22 @@ def test_export_refuses_empty_placeholders_unless_told_to_print_anyway(monkeypat
         for n in doc["content"]["content"]
         if (n.get("attrs") or {}).get("slot", {}).get("placeholder")
     ]
-    _write(phs[0], "What is 1 + 1?")
-    saved = client.put(
-        f"/documents/{gen['id']}",
-        json={"document": doc, "base_version": gen["version"]},
-        headers=ALICE,
-    ).json()
+    assert len(phs) == n
+    version = gen["version"]
+    for ph in phs[:-1]:
+        _write(ph, "What is 1 + 1?")
+    if n > 1:
+        version = client.put(
+            f"/documents/{gen['id']}",
+            json={"document": doc, "base_version": version},
+            headers=ALICE,
+        ).json()["version"]
     one = client.post(f"{url}/student", headers=ALICE).json()["detail"]
     assert one["questions"] == [30] and "Question 30 is still empty" in one["message"]
-    _write(phs[1], "And 2 + 2?")
+    _write(phs[-1], "And 2 + 2?")
     resp = client.put(
         f"/documents/{gen['id']}",
-        json={"document": doc, "base_version": saved["version"]},
+        json={"document": doc, "base_version": version},
         headers=ALICE,
     )
     assert resp.status_code == 200

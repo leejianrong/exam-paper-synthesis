@@ -431,9 +431,9 @@ def test_what_todays_content_fills():
     assert fill("p1_booklet_a", "P6") == (15, 0)  # 13 one-mark MCQ-able (P8e batch 3)
     assert fill("p1_booklet_a", "P5") == (15, 0)  # 12 one-mark at P5
     assert fill("p1_booklet_b", "P6") == (15, 0)
-    assert fill("p1_booklet_b", "P5") == (13, 2)
-    assert fill("p2", "P6") == (17, 0)  # Section B: 3 multi-part + 9 single-part stand-ins
-    assert fill("p2", "P5") == (16, 3)  # Section B: 11 stand-ins, 3 placeholders (15 marks)
+    assert fill("p1_booklet_b", "P5") == (14, 1)  # postage_table fills one more (EXA-148)
+    assert fill("p2", "P6") == (17, 0)  # Section B: 4 multi-part (tariff_gst) + 8 stand-ins
+    assert fill("p2", "P5") == (18, 2)  # Section B: 13 stand-ins, 2 placeholders
 
 
 def test_unknown_template_and_level_are_refused():

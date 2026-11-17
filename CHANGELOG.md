@@ -10,6 +10,14 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Data-table questions (EXA-148).** Three new blueprints print a data table before the
+  question (the existing content-level `question.table`, filled by a new optional solver hook
+  `table()`; no schema change): `postage_table` (P5, 2 marks: postage for two letters from a
+  table of mass bands), `rental_table` (P5, 3 marks: the greatest number of hours a sum of
+  money rents an item for, from a three-item rental table) and `tariff_gst` (P6, 4 marks,
+  multi-part: a three-band water or electricity tariff, then the bill with 9% GST). The paper
+  generator places them by their marks; P5 Booklet B and Paper 2 have fewer placeholders.
+
 - **A compact answer key, like a real school key (EXA-142).** A new answer-key layout,
   "Compact" (document schema 1.14.0, `key_options.layout`; "Full" stays the default): a header
   block (school, level, subject, exam) from the cover, an answer grid for each multiple-choice

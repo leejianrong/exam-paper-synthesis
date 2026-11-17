@@ -50,8 +50,8 @@ def test_numbers_are_the_printed_question_numbers_of_unwritten_placeholders():
 
 def test_the_generator_report_and_the_numbers_agree():
     doc, report = generate_paper("p1_booklet_b", "P5", 1)  # Booklet B numbers Q16-30
-    assert unfilled_placeholder_numbers(doc) == [29, 30]
-    assert report["placeholders"] == 2
+    assert unfilled_placeholder_numbers(doc) == [30]
+    assert report["placeholders"] == 1
 
 
 def _questions(html: str) -> list[str]:
