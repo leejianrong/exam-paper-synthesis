@@ -131,7 +131,7 @@ def generate_paper(req: GeneratePaperRequest, owner: Owner, store: Store) -> dic
     it as a new document. The response is the document record plus the fill ``report``."""
     seed = req.seed if req.seed is not None else random.randrange(1, _SEED_CEIL)
     try:
-        document, report = paper.generate_paper(req.template, req.level, seed)
+        document, report = paper.generate_paper(req.template, req.level, seed, req.set_topics)
     except paper.UnknownPaperTemplate:
         raise HTTPException(status_code=404, detail="unknown paper template") from None
     stamp = datetime.now(UTC).isoformat()

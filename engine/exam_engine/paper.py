@@ -28,7 +28,15 @@ Rules (owner's decisions, 2026-11-15):
   the closest rung below, so the rule never adds a placeholder.
 - Topics are spread: among the best-fitting rung, each slot takes the least-used topic so far,
   ties broken by the seed. A stand-in never gives a topic its third question in the paper
-  (:data:`_TOPIC_CAP`); marks it cannot place that way become placeholders.
+  (:data:`TOPIC_CAP`, EXA-154): the biggest stand-ins are chosen first, and marks no topic
+  under the cap can take become placeholders.
+- In an exam set (EXA-153) topics are spread over the whole set: ``generate_paper`` takes the
+  topic counts of the set's papers already made (``set_topics``; :func:`generate_set` and the
+  web wizard pass them on, filling Paper 2 first: :func:`set_fill_order`). "Least-used" then
+  counts the set, and a topic with
+  :data:`SET_TOPIC_CAP` questions in the set is **full**: a slot takes a full topic only when
+  every other blueprint for it is full too, even if that means a rung below the one its marks
+  ask for. Without ``set_topics`` (a paper on its own) nothing changes.
 """
 
 from __future__ import annotations
@@ -51,7 +59,8 @@ SUBJECT = "Mathematics"
 _LEVEL_NAMES = {"P5": "Primary 5", "P6": "Primary 6"}
 _STAND_IN_MIN_MARKS = 2  # a 1-mark question doesn't belong in a structured section
 _PLACEHOLDER_CHUNK = (3, 5)  # stand-in shortfall is split into placeholders of this size
-_TOPIC_CAP = 2  # a stand-in never gives a topic more questions than this in one paper
+SET_TOPIC_CAP = 3  # EXA-153: questions of one topic in an exam set before it gives way
+TOPIC_CAP = 2  # EXA-154: a stand-in or a swap never gives a topic more questions in one paper
 
 
 class UnknownPaperTemplate(KeyError):
@@ -245,21 +254,33 @@ def _fits(c: Candidate, kind: str) -> bool:
 class _Filler:
     """Shared state while filling one paper: what's used, topic counts, the seeded RNG."""
 
-    def __init__(self, template: dict, level: str, seed: int):
+    def __init__(
+        self, template: dict, level: str, seed: int, set_topics: dict[str, int] | None = None
+    ):
         self.rng = random.Random(f"paper|{template['code']}|{level}|{seed}")
         self.pool = candidates(level)
         self.used: set[str] = set()
-        self.topics: dict[str, int] = {}
+        self.topics: dict[str, int] = {}  # this paper's (the report's)
+        # EXA-153: None = a paper on its own; a dict (even empty) = one paper of an exam set.
+        self.set_topics = None if set_topics is None else dict(set_topics)
         self.n = 0
+
+    def topic_load(self, c: Candidate) -> int:
+        """How often ``c``'s topic is already in the set: earlier papers plus this one."""
+        return (self.set_topics or {}).get(c.topic, 0) + self.topics.get(c.topic, 0)
+
+    def topic_full(self, c: Candidate) -> bool:
+        """In an exam set, ``c``'s topic has reached :data:`SET_TOPIC_CAP`."""
+        return self.set_topics is not None and self.topic_load(c) >= SET_TOPIC_CAP
 
     def block_id(self) -> str:
         self.n += 1
         return f"gq{self.n:03d}{self.rng.getrandbits(24):06x}"
 
     def pick(self, marks: int, kind: str, cap: int | None = None) -> Candidate | None:
-        """An unused blueprint with these marks: the best-fitting rung (:func:`rung_shortfall`),
-        then the least-used topic, seeded ties. With ``cap``, only from a topic the paper has
-        fewer than ``cap`` questions of."""
+        """An unused blueprint with these marks: a topic the set has not filled (EXA-153), then
+        the best-fitting rung (:func:`rung_shortfall`), then the least-used topic, seeded ties.
+        With ``cap`` (EXA-154), only from a topic this paper has fewer than ``cap`` questions of."""
         options = [
             c
             for c in self.pool
@@ -272,7 +293,12 @@ class _Filler:
             return None
         self.rng.shuffle(options)
         best = min(
-            options, key=lambda c: (rung_shortfall(c.rung, marks), self.topics.get(c.topic, 0))
+            options,
+            key=lambda c: (
+                self.topic_full(c),
+                rung_shortfall(c.rung, marks),
+                self.topic_load(c),
+            ),
         )
         self.used.add(best.code)
         self.topics[best.topic] = self.topics.get(best.topic, 0) + 1
@@ -289,7 +315,7 @@ class _Filler:
         if not options:
             return None
         self.rng.shuffle(options)
-        best = min(options, key=lambda c: self.topics.get(c.topic, 0))
+        best = min(options, key=lambda c: (self.topic_full(c), self.topic_load(c)))
         self.used.add(best.code)
         self.topics[best.topic] = self.topics.get(best.topic, 0) + 1
         return best
@@ -318,14 +344,16 @@ class _Filler:
 def _stand_in_plan(f: _Filler, target: int, slots: int) -> list[int]:
     """Marks of the single-part stand-ins for a structured section: an exact sum to ``target``
     if the unused pool allows, else as close below as possible. Among equal sums, prefer the
-    count closest to the real paper's ``slots`` and fewer small questions."""
+    count closest to the real paper's ``slots`` and fewer small questions. Only blueprints of
+    a topic the paper has fewer than :data:`TOPIC_CAP` questions of count (EXA-154); two of one
+    topic may both count, so :func:`_fill_structured` re-plans after every pick."""
     have: dict[int, int] = {}
     for c in f.pool:
         if (
             c.code not in f.used
             and c.marks >= _STAND_IN_MIN_MARKS
             and _fits(c, "structured")
-            and f.topics.get(c.topic, 0) < _TOPIC_CAP
+            and f.topics.get(c.topic, 0) < TOPIC_CAP
         ):
             have[c.marks] = have.get(c.marks, 0) + 1
     values = sorted(have)
@@ -404,36 +432,43 @@ def _fill_structured(f: _Filler, section: dict, report: dict) -> list[dict]:
         report["multipart"] += 1
         report["blueprints"].append(mp.code)
     rest = target - sum(b["attrs"]["slot"]["marks"] for b in blocks)
-    plan = _stand_in_plan(f, rest, n_slots - len(blocks)) if rest > 0 else []
-    placed = 0
-    for marks in sorted(plan, reverse=True):  # bigger questions claim a topic first
-        # the plan counts unused blueprints of topics under the cap, but two of one topic may
-        # both be counted: the second is left out and its marks become a placeholder
-        c = f.pick(marks, "structured", cap=_TOPIC_CAP)
-        if c is None:
-            continue
-        placed += marks
+    # EXA-154: the biggest stand-in first, so it claims a topic before a 2-marker does; after
+    # each pick the plan is made again, because that pick may have filled its topic
+    while rest > 0:
+        plan = _stand_in_plan(f, rest, n_slots - len(blocks))
+        if not plan:
+            break
+        marks = max(plan)
+        c = f.pick(marks, "structured", cap=TOPIC_CAP)
+        assert c is not None  # the plan counts only unused blueprints of topics under the cap
         blocks.append(f.question(c, {"marks": marks, "kind": "structured", "stand_in": True}))
         report["filled"] += 1
         report["stand_ins"] += 1
         report["blueprints"].append(c.code)
+        rest -= marks
     blocks.sort(key=lambda b: b["attrs"]["slot"]["marks"])
-    for marks in _placeholder_chunks(rest - placed):
+    for marks in _placeholder_chunks(rest):
         blocks.append(f.placeholder(marks, "structured"))
         report["placeholders"] += 1
         report["placeholder_marks"] += marks
     return blocks
 
 
-def generate_paper(template_code: str, level: str, seed: int) -> tuple[dict, dict]:
+def generate_paper(
+    template_code: str, level: str, seed: int, set_topics: dict[str, int] | None = None
+) -> tuple[dict, dict]:
     """Fill a paper template's slots for ``level`` (``P5``/``P6``). Returns ``(document,
     report)``; the document validates (``document.validate_document``) and every generated
     question is engine-proven. The report says, per section, what was filled and what is left
-    for the teacher."""
+    for the teacher, and ``topics`` counts this paper's questions per topic.
+
+    ``set_topics`` (EXA-153) is the topic count of the exam set's papers already made (the sum
+    of their reports' ``topics``): topics are then spread over the whole set, not just this
+    paper. Without it the paper is exactly what it was before."""
     if level not in LEVELS:
         raise ValueError(f"level must be one of {LEVELS}, not {level!r}")
     t = paper_template(template_code)
-    f = _Filler(t, level, seed)
+    f = _Filler(t, level, seed, set_topics)
 
     blocks: list[dict] = _cover_blocks(t, level)
     sections_report = []
@@ -471,6 +506,35 @@ def generate_paper(template_code: str, level: str, seed: int) -> tuple[dict, dic
         "topics": dict(sorted(f.topics.items())),
     }
     return doc, report
+
+
+def set_fill_order(template_codes: list[str]) -> list[str]:
+    """The order to fill an exam set's papers in (EXA-153): the paper with the biggest slots
+    first, then the most marks (Paper 2, Booklet B, Booklet A). Big slots need hard and medium
+    rungs, which few blueprints have, so they choose while every topic is still free; 1-mark
+    slots take any rung, so Booklet A copes best with full topics."""
+
+    def size(code: str) -> tuple[int, int]:
+        sections = paper_template(code)["sections"]
+        biggest = max(s["marks"] for sec in sections for s in sec["slots"])
+        return (-biggest, -sum(sec["marks_target"] for sec in sections))
+
+    return sorted(template_codes, key=size)
+
+
+def generate_set(template_codes: list[str], level: str, seed: int) -> list[tuple[dict, dict]]:
+    """An exam set (EXA-153), returned in the given (printed) order. The papers are filled in
+    :func:`set_fill_order`, each told the topics of those filled before it, so the set spreads
+    its topics as one paper does. The web's "+ New" wizard does the same one paper per request,
+    in the same order, passing the running count as ``set_topics``."""
+    made: dict[str, tuple[dict, dict]] = {}
+    running: dict[str, int] = {}
+    for code in set_fill_order(template_codes):
+        doc, report = generate_paper(code, level, seed, running)
+        for topic, n in report["topics"].items():
+            running[topic] = running.get(topic, 0) + n
+        made[code] = (doc, report)
+    return [made[code] for code in template_codes]
 
 
 def unfilled_placeholders(doc: dict) -> int:

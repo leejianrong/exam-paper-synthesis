@@ -94,6 +94,28 @@ def test_generate_creates_a_valid_owned_paper_with_a_report():
     assert validate_document(strip_document_hints(stored)) == []
 
 
+def test_generate_one_paper_of_a_set_passes_the_sets_topics_to_the_engine():
+    """EXA-153: the wizard sends the topics of the set's papers made so far."""
+    so_far = {"Volume": 3, "Rate": 2}
+    resp = client.post(
+        "/documents/generate",
+        json={"template": "p2", "level": "P6", "seed": 5, "set_topics": so_far},
+        headers=ALICE,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["report"] == generate_paper("p2", "P6", 5, so_far)[1]
+    assert resp.json()["report"] != generate_paper("p2", "P6", 5)[1]
+    for bad in ({"Volume": -1}, {"x" * 101: 1}, {f"t{i}": 1 for i in range(101)}):
+        assert (
+            client.post(
+                "/documents/generate",
+                json={"template": "p2", "seed": 5, "set_topics": bad},
+                headers=ALICE,
+            ).status_code
+            == 422
+        ), bad
+
+
 def test_generate_without_a_seed_picks_one_and_rejects_bad_input():
     a = client.post("/documents/generate", json={"template": "p1_booklet_b"}, headers=ALICE)
     assert a.status_code == 201 and a.json()["report"]["level"] == "P6"
