@@ -102,8 +102,8 @@ class PercentageHardSolver:
             (new, "the new price"),
             (Fraction(new * 100, p), f"took the new price as {p}% of the original"),
             (
-                original - abs(original - new) if up else original + abs(original - new),
-                f"{'took the increase off' if up else 'added the decrease to'} the original price",
+                Fraction(new * (200 - factor), factor),
+                f"found 1% as ${new} ÷ {factor}, then multiplied by {200 - factor}",
             ),
         ]
 

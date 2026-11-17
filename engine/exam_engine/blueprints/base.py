@@ -59,17 +59,25 @@ def _numbers(params: object) -> list[int | float]:
     return []
 
 
-def spread(slips: list[Slip], answer: Fraction, params: dict) -> list[Slip]:
+def spread(
+    slips: list[Slip],
+    answer: Fraction,
+    params: dict,
+    prints: Callable[[Fraction], bool] | None = None,
+) -> list[Slip]:
     """``slips`` (best first) reordered so the first two lie both below, either side of, or
     both above ``answer``, chosen by a key from the numbers in ``params`` (EXA-147, EXA-156).
 
     A multiple-choice copy prints its options in ascending order and takes the first wrong
     options from the hook in order (only the last one is picked to move the answer, see
     ``mcq._last_pick``), so a hook whose best slips all lie on one side would put the answer
-    nearly always in one half of the options. Slips a copy cannot use (not positive, the
-    answer itself, or more than 20 times off it) and repeated values count for neither side."""
+    nearly always in one half of the options. Slips a copy cannot use (``prints`` false, by
+    default: not positive, the answer itself, or more than 20 times off it) and repeated values
+    count for neither side."""
 
     def usable(v: Fraction) -> bool:
+        if prints is not None:
+            return prints(v)
         return v > 0 and v != answer and answer / 20 <= v <= answer * 20
 
     seen: set[Fraction] = set()
@@ -94,6 +102,8 @@ def spread_sides(
 
     @functools.wraps(hook)
     def wrapped(self: Any, params: dict, solution: dict) -> list[Slip]:
+        from ..mcq import hook_value_prints  # mcq imports the registry, which imports us
+
         slips = hook(self, params, solution)
         a = solution.get("answer")
         if not a:  # called before solving (a sampler counting its slips)
@@ -103,19 +113,22 @@ def spread_sides(
             if a.get("type") == "fraction"
             else Fraction(str(a["value"]))
         )
-        return spread(slips, answer, params)
+        return spread(slips, answer, params, lambda v: hook_value_prints(v, a))
 
     return wrapped
 
 
 def carry_slips(a: int, b: int) -> list[Slip]:
     """Carrying slips in the long multiplication ``a × b`` (``b`` one digit), when the ones
-    carry: the carried ten added twice, or left out."""
-    if b > 9 or (a % 10) * b < 10:
+    column carries ``c`` tens (``(a % 10) × b // 10``): the carried tens added twice, or left
+    out, so the product is ``10c`` too big or too small."""
+    c = (a % 10) * b // 10
+    if b > 9 or c == 0:
         return []
+    tens = "ten" if c == 1 else f"{c} tens"
     return [
-        (a * b + 10, "added the carried ten twice when multiplying"),
-        (a * b - 10, "left out the carried ten when multiplying"),
+        (a * b + 10 * c, f"added the carried {tens} twice when multiplying"),
+        (a * b - 10 * c, f"left out the carried {tens} when multiplying"),
     ]
 
 

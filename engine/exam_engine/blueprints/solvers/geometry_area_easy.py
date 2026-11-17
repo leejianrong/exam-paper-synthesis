@@ -171,7 +171,7 @@ class GeometryAreaEasySolver:
                 (2 * (w + h), "the perimeter, not the area"),
                 (w + h, "added the length and the width"),
                 (Fraction(w * h, 2), "halved, as for a triangle"),
-                (2 * w * h, "multiplied by 2 as well, as for the perimeter"),
+                (2 * w * h, "used 2 × length × width, mixing in the perimeter formula"),
                 (max(w, h) ** 2, f"took both sides as {max(w, h)} cm"),
             ]
         if template == "square":
@@ -180,8 +180,7 @@ class GeometryAreaEasySolver:
                 (4 * s, "the perimeter, not the area"),
                 (2 * s, "side × 2 instead of side × side"),
                 (Fraction(s * s, 2), "halved, as for a triangle"),
-                (4 * s * s, "multiplied by 4 as well, as for the perimeter"),
-                (2 * s * s, "multiplied by 2 as well"),
+                (4 * s * s, "used 4 × side × side, mixing in the perimeter formula"),
             ]
         base, height = g["base"], g["height"]
         return [

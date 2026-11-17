@@ -112,13 +112,13 @@ class MeasurementConversionSolver:
             as_decimal = Fraction(w) + Fraction(p, 10 ** len(str(p)))
             out += [
                 (w * 100 + p, f"took 1 {big} as 100 {small}"),
-                (w * 10000 + p, f"took 1 {big} as 10 000 {small}"),
                 (as_decimal * 1000, f"wrote {w} {big} {p} {small} as {dec(as_decimal)} {big}"),
                 (w * 1000, f"left out the {p} {small}"),
             ]
             if p < 100:  # the missing zero: 2 kg 75 g as 2 kg 750 g
                 out.append((w * 1000 + p * 10, f"wrote {p} {small} as {p * 10} {small}"))
             out.append((w + p, f"added {w} and {p}"))
+        out.append(((w + 1) * 1000, f"rounded up to {w + 1} {big} before converting"))
         return [(v, why) for v, why in out if v != ans]
 
     def validate(self, params: dict, solution: dict) -> dict:
