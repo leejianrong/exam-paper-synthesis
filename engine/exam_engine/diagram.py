@@ -1316,6 +1316,7 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
             arc_labels.append((str(label), arc_c))
 
     # --- angle marks (small arc, or a square for right angles) --------------
+    overhang: list[tuple[float, float]] = []  # stroke points that may leave the canvas
     for ang in angles:
         vx, vy = pmap[ang["at"]]
         ax, ay = pmap[ang["from"]]
@@ -1352,7 +1353,10 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
                 f'<path d="M {p1x} {p1y} A {rr} {rr} 0 {large} {sweep} {p2x} {p2y}" '
                 f'fill="none" stroke="{_GF_STROKE}" stroke-width="1.5"/>'
             )
-            lay.stroke(svg_arc_points((p1x, p1y), rr, large, sweep, (p2x, p2y)), 1.5)
+            mark_pts = svg_arc_points((p1x, p1y), rr, large, sweep, (p2x, p2y))
+            lay.stroke(mark_pts, 1.5)
+            if reflex:  # it reaches well past its vertex: the canvas must hold it
+                overhang += mark_pts
             if value is not None and not ang.get("unknown"):
                 bisx, bisy = _gf_unit(dax + dbx, day + dby)
                 if bisx == 0 and bisy == 0:
@@ -1415,8 +1419,21 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
             f'<text x="{x}" y="{y}" text-anchor="middle"{turn} fill="{fill}">{_esc(text)}</text>'
         )
 
-    # Grow the canvas where a label would otherwise be clipped.
+    # Grow the canvas where a label or a reflex arc would otherwise be clipped.
     ext = lay.extent()
+    if overhang:
+        xs_o, ys_o = [x for x, _ in overhang], [y for _, y in overhang]
+        box = (min(xs_o) - 1, min(ys_o) - 1, max(xs_o) + 1, max(ys_o) + 1)  # half the stroke
+        ext = (
+            box
+            if ext is None
+            else (
+                min(ext[0], box[0]),
+                min(ext[1], box[1]),
+                max(ext[2], box[2]),
+                max(ext[3], box[3]),
+            )
+        )
     if ext is not None:
         vx0 = min(0, math.floor(ext[0]) - 2)
         vy0 = min(0, math.floor(ext[1]) - 2)

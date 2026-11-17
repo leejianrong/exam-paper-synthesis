@@ -120,7 +120,8 @@ def _build_folded(g: dict) -> dict:
         "angles": angles,
         "answer": ans,
         "text": (
-            "ABCD is a rectangular piece of paper. It is folded along EF so that the corner B "
+            "ABCD is a rectangular piece of paper. E is on AB and F is on BC. It is folded "
+            "along EF so that the corner B "
             f"lands on B', as shown. ∠AEB' = {p}°. Find ∠B'FC. {_NOTE}"
         ),
         "steps": [
@@ -288,7 +289,8 @@ class GeometryAngleCompositeSolver:
     def sample(self, schema: dict, rng: random.Random) -> dict:
         template = rng.choice(list(_COMPOSITE))
         if template == "rhombus_equilateral":
-            givens = {"d": rng.randrange(40, 101, 2)}
+            # d at most 88: past that AE runs close by D and ∠DAE is a sliver (under 16°).
+            givens = {"d": rng.randrange(40, 89, 2)}
         elif template == "parallelogram_isosceles":
             givens = {"b": rng.randint(46, 72)}
         else:
@@ -319,7 +321,7 @@ class GeometryAngleCompositeSolver:
         a, c = g["a"], g["c"]
         base = (180 - a) // 2
         return [
-            (180 - a - c, "used ∠DAB in triangle BCD"),
+            (180 - a // 2 - c, "halved ∠DAB to get the base angle ∠ABD"),
             (base, "found ∠BDC, not ∠DBC"),
             (180 - (180 - a) - c, "did not halve for the isosceles triangle"),
             (180 - c, "subtracted only ∠BCD"),
@@ -399,7 +401,7 @@ def _build_equal_angles(g: dict) -> dict:
     angles = [
         _angle("A-O-D", r),
         _angle("B-O-C", b),
-        _angle("A-O-B", ans, unknown=True),
+        # ∠AOB is not marked: its arc would run into the arc of ∠BOC and read as one.
     ]
     return {
         "coords": coords,

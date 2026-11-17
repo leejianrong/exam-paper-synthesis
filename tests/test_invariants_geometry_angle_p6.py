@@ -117,9 +117,16 @@ def _check_facts(text: str, pts: dict) -> str:
         return on_ab and on_bc and same and sides
 
     fact(
-        rf"({_PT}{_PT}{_PT}{_PT}) is a rectangular piece of paper\. It is folded along "
-        rf"({_PT}{_PT}) so that the corner ({_PT}) lands on ({_PT}), as shown\.",
-        lambda n, line, corner, image: fold(line, corner, image) and rectangle(n),
+        rf"({_PT}{_PT}{_PT}{_PT}) is a rectangular piece of paper\. ({_PT}) is on ({_PT}{_PT}) "
+        rf"and ({_PT}) is on ({_PT}{_PT})\. It is folded along ({_PT}{_PT}) so that the corner "
+        rf"({_PT}) lands on ({_PT}), as shown\.",
+        lambda n, e, ab, f, bc, line, corner, image: (
+            (
+                line == e + f and corner in ab and corner in bc  # fold() checks E on AB, F on BC
+            )
+            and fold(line, corner, image)
+            and rectangle(n)
+        ),
     )
     fact(r"([A-Z]{4}) is a rhombus", rhombus)
     fact(r"([A-Z]{4}) is a parallelogram", parallelogram)
@@ -204,7 +211,7 @@ def _every_param() -> list[tuple[str, dict]]:
     out: list[tuple[str, dict]] = []
     for p in range(40, 141, 2):
         out.append(("geometry_angle_folded", {"template": "corner_fold", "givens": {"p": p}}))
-    for d in range(40, 101, 2):
+    for d in range(40, 89, 2):
         out.append(
             ("geometry_angle_composite", {"template": "rhombus_equilateral", "givens": {"d": d}})
         )

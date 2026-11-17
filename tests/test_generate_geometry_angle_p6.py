@@ -17,10 +17,12 @@ from pathlib import Path
 import pytest
 from exam_engine import canonical, edits, generate, mcq
 from exam_engine.blueprints.registry import get_solver, load_blueprint
+from exam_engine.diagram import render_svg
 from exam_engine.document import verify_snapshot
 from exam_engine.ladder import ladder_for
 from exam_engine.paper import min_rung
 from exam_engine.schema import validate_object
+from svg_labels import parse
 
 GOLDEN = Path(__file__).parent / "golden"
 SEEDS = [1, 2, 7, 42, 100, 999, 123456]
@@ -93,9 +95,13 @@ def test_a_reflex_answer_gets_a_reflex_mark():
     for seed in range(1, 41):
         obj = generate("geometry_angle_reflex", seed)
         part = obj["question"]["parts"][0]
-        (mark,) = [m for m in part["diagram"]["angles"] if m["unknown"]]
-        assert mark["value_deg"] == part["answer"]["value"]
-        assert ("reflex angle" in part["text"].split("Find")[-1]) == (mark["value_deg"] > 180)
+        marks = [m for m in part["diagram"]["angles"] if m["unknown"]]
+        reflex = "reflex angle" in part["text"].split("Find")[-1]
+        if not reflex:  # equal_angles leaves ∠AOB unmarked (it would merge with ∠BOC's arc)
+            assert marks == []
+            continue
+        (mark,) = marks
+        assert mark["value_deg"] == part["answer"]["value"] > 180
 
 
 # ------------------------------------------------------------------ multiple choice
@@ -146,3 +152,15 @@ def test_a_named_mistake_is_rederived_from_the_printed_question(code):
         else:
             expected = (180 - g[0]) // 2  # ∠BDC, not ∠DBC
         assert expected in [v for v, _ in mcq.common_wrong_answers(obj)], (code, seed, text)
+
+
+@pytest.mark.parametrize("code", CASES)
+def test_every_stroke_fits_the_canvas(code):
+    """A reflex arc reaches 30 px past its vertex; the canvas must grow to hold it, not clip
+    it (straight_line reflex questions lost the bottom of the arc)."""
+    for seed in range(1, 301):
+        fig = parse(render_svg(generate(code, seed)["question"]["parts"][0]["diagram"]))
+        x0, y0, w, h = fig.viewbox
+        for s in fig.strokes:
+            for x, y in (s.a, s.b):
+                assert x0 <= x <= x0 + w and y0 <= y <= y0 + h, (code, seed, (x, y), fig.viewbox)
