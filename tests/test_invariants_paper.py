@@ -98,6 +98,8 @@ def _takes(code: str, kind: str, level: str) -> bool:
     m = META[code]
     if m["level"] not in LEVELS[: LEVELS.index(level) + 1] or m["parts"] != 1:
         return False
+    if m["answer_type"] == "choice":  # asks multiple choice itself (EXA-147): mcq slots only
+        return kind == "mcq"
     return kind != "mcq" or m["answer_type"] in _CONVERTIBLE
 
 
@@ -384,7 +386,7 @@ def test_booklet_a_fills_every_slot_and_spreads_topics(level):
             if m["level"] in allowed
             and m["marks"] == 1
             and m["parts"] == 1
-            and m["answer_type"] in _CONVERTIBLE
+            and m["answer_type"] in {*_CONVERTIBLE, "choice"}
         }
         assert eligible <= paper_topics, (seed, eligible - paper_topics)
 
@@ -431,9 +433,9 @@ def test_what_todays_content_fills():
     assert fill("p1_booklet_a", "P6") == (15, 0)  # 13 one-mark MCQ-able (P8e batch 3)
     assert fill("p1_booklet_a", "P5") == (15, 0)  # 12 one-mark at P5
     assert fill("p1_booklet_b", "P6") == (15, 0)
-    assert fill("p1_booklet_b", "P5") == (13, 2)
+    assert fill("p1_booklet_b", "P5") == (14, 1)  # cubes_complete: a 9th two-mark P5
     assert fill("p2", "P6") == (17, 0)  # Section B: 3 multi-part + 9 single-part stand-ins
-    assert fill("p2", "P5") == (16, 3)  # Section B: 11 stand-ins, 3 placeholders (15 marks)
+    assert fill("p2", "P5") == (17, 3)  # Section B: 12 stand-ins, 3 placeholders (15 marks)
 
 
 def test_unknown_template_and_level_are_refused():

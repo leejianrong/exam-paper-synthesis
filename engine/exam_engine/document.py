@@ -511,7 +511,12 @@ def verify_snapshot(obj: dict) -> list[str]:
         return ["a generated question has exactly one part"]
     decimals_view = obj.get("validation", {}).get("checks", {}).get("representation") == "decimals"
     actual = parts[0]["answer"]
-    if actual.get("type") == "choice":
+    if solution["answer"].get("type") == "choice":
+        # a blueprint that asks multiple choice itself (EXA-147: picture options): the options
+        # and the correct one are re-derived from the parameters, so they must match exactly
+        if actual != solution["answer"]:
+            return ["the options do not match the engine's solution for these parameters"]
+    elif actual.get("type") == "choice":
         # P8b multiple choice: the correct option must read exactly as the proven answer does,
         # and no other option may read the same.
         from .mcq import LABELS, answer_text, correct_option_text, legacy_answer_text

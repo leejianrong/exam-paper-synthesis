@@ -1,0 +1,13 @@
+# PROVISIONAL skill codes — remap to MOE P5-P6 syllabus outcomes when the
+# official doc is available (Q-M1). Codes are carried, not queried, in v1
+# (ADR-0016), so remapping is a mechanical find/replace with no data migration.
+# Stacks of unit cubes and nets of a cube (EXA-147). Real P6 prelims ask them in nearly every
+# paper, mostly as 1-mark Booklet A questions. Counting and completing a stack build on P5
+# "Volume of cube and cuboid" (solids made of unit cubes), so they are tagged P5; views and
+# nets are tagged P6.
+strand: "Geometry"
+skills:
+  SOLIDS.COUNT: "Count the unit cubes in a drawn solid, including the hidden ones that support it"  # cubes_count (no ladder)
+  SOLIDS.COMPLETE: "Least number of unit cubes to add to make a solid into a cuboid or a cube"  # cubes_complete (no ladder)
+  SOLIDS.VIEWS: "Identify the front, side or top view of a solid made of unit cubes"  # cubes_view (no ladder)
+  SOLIDS.NETS: "Identify the face opposite a given face when a net of a cube is folded"  # net_opposite (no ladder)

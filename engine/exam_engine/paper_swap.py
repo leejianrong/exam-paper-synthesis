@@ -46,8 +46,7 @@ import copy
 import random
 
 from .document import QUESTION_TYPES, has_content, is_unfilled_placeholder
-from .mcq import to_mcq
-from .paper import KINDS, LEVELS, Candidate, _fits, candidates, rung_shortfall
+from .paper import KINDS, LEVELS, Candidate, _fits, as_slot_question, candidates, rung_shortfall
 from .pipeline import generate
 
 MODES = ("like", "topic", "own")
@@ -268,7 +267,7 @@ def _fresh(code: str, kind: str, rng: random.Random, avoid: dict | None = None) 
             break
         obj = generate(code, rng.randrange(1, 2**31))
     if kind == "mcq":
-        obj = to_mcq(obj, rng.randrange(1, 2**31))
+        obj = as_slot_question(obj, kind, rng.randrange(1, 2**31))
     return obj
 
 

@@ -43,11 +43,12 @@ test('generate a P5 Booklet B: placeholders for what the content cannot fill yet
   await generateSinglePaper(page, 'Paper 1 · Booklet B', 'P5')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
 
-  await expect(page.getByTestId('generate-report')).toContainText('Filled 13 of 15 questions')
-  await expect(page.getByTestId('placeholders-left')).toHaveText('2 placeholders to write')
+  // nine 2-mark P5 blueprints for ten 2-mark slots (cubes_complete is the ninth, EXA-147)
+  await expect(page.getByTestId('generate-report')).toContainText('Filled 14 of 15 questions')
+  await expect(page.getByTestId('placeholders-left')).toHaveText('1 placeholder to write')
   const hints = page.locator('.ff-placeholder-hint:visible')
-  await expect(hints).toHaveCount(2)
-  await expect(hints.first()).toHaveText(/write a [12]-mark short-answer question here/)
+  await expect(hints).toHaveCount(1)
+  await expect(hints.first()).toHaveText(/write a 2-mark short-answer question here/)
   // Booklet B numbers on from A (EXA-134), in a 1-mark and a 2-mark section as real papers (EXA-139)
   await expect(page.locator('.section-block .section-summary')).toHaveText([
     'Questions 16–20 · 5 / 5 marks',
@@ -57,7 +58,7 @@ test('generate a P5 Booklet B: placeholders for what the content cannot fill yet
   // Writing a placeholder's question clears it.
   await page.locator('.ffblock.placeholder-slot .ff-body').first().click()
   await page.keyboard.type('What is 3 + 4?')
-  await expect(page.getByTestId('placeholders-left')).toHaveText('1 placeholder to write')
+  await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
 })
 
 test('generate a P6 Booklet A: multiple-choice questions with four options each', async ({ page }) => {
@@ -72,7 +73,8 @@ test('generate a P6 Booklet A: multiple-choice questions with four options each'
   await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
 
   const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
-  expect(student.match(/<ol class="options">/g)).toHaveLength(15)
+  // text options in one column, picture options (cube views, EXA-147) in a grid
+  expect(student.match(/<ol class="options[ "]/g)).toHaveLength(15)
   expect(student).not.toContain('class="option option-correct"') // the right option never reaches the paper
   const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
   expect(key.match(/option option-correct/g)).toHaveLength(15)
