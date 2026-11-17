@@ -19,7 +19,7 @@ import pytest
 import yaml
 from exam_engine.blueprints.registry import content_dir
 from exam_engine.document import paper_outline, validate_document
-from exam_engine.paper import LEVELS, generate_paper, paper_templates
+from exam_engine.paper import LEVELS, generate_paper, generate_set, paper_templates
 from exam_engine.paper_swap import (
     SwapNotPossible,
     paper_level,
@@ -579,3 +579,16 @@ def test_a_swap_never_trades_a_question_for_an_easier_rung():
         new, _ = swap_question(doc, n["attrs"]["block_id"], "like", 1)
         out = next(b for b in _blocks(new) if b["attrs"].get("block_id") == n["attrs"]["block_id"])
         assert META[_code(out)]["rung"] != "easy"
+
+
+@pytest.mark.parametrize("seed", range(1, 11))
+def test_an_easy_two_marker_may_take_another_topic(seed):
+    """The other half of the rule above: a 2-mark question already on the easy rung has no
+    easier rung to fall to, so "another topic" may take any topic. With today's content the
+    first paper of a P5 exam set has exactly one easy 2-marker for these seeds."""
+    doc, _ = generate_set(["p1_booklet_a", "p1_booklet_b", "p2"], "P5", seed)[0]
+    two = [n for n in _blocks(doc) if _is_q(n) and _marks(n) == 2]
+    easy = [n for n in two if META[_code(n)]["rung"] == "easy"]
+    assert len(easy) == 1
+    _, report = swap_question(doc, easy[0]["attrs"]["block_id"], "topic", 1)
+    assert report["topic"] != META[_code(easy[0])]["topic"]

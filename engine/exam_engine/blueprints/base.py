@@ -40,6 +40,8 @@ class Solver(Protocol):
     # Optional: mcq_ascending = False  (EXA-141) the multiple-choice copy keeps a seeded option
     #   order instead of ascending order, for a question whose answer is an extreme of the
     #   options ("which is the greatest?"), where ascending order would give it away.
+    # Optional: mcq_whole = True  (EXA-148) every option is a whole number, even in a unit that
+    #   allows 1 dp (rental for whole hours: never "3.5 h").
 
 
 @dataclass

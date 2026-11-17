@@ -16,7 +16,10 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   table of mass bands), `rental_table` (P5, 3 marks: the greatest number of hours a sum of
   money rents an item for, from a three-item rental table) and `tariff_gst` (P6, 4 marks,
   multi-part: a three-band water or electricity tariff, then the bill with 9% GST). The paper
-  generator places them by their marks; P5 Booklet B and Paper 2 have fewer placeholders.
+  generator places them by their marks; P5 Booklet B and Paper 2 have fewer placeholders. The
+  editor's question blocks, the Add question picker and the Classic page now show a question's
+  table too. A solver can ask for whole-number options only (`mcq_whole`, used for rental
+  hours).
 
 - **A compact answer key, like a real school key (EXA-142).** A new answer-key layout,
   "Compact" (document schema 1.14.0, `key_options.layout`; "Full" stays the default): a header

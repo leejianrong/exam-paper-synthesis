@@ -18,6 +18,7 @@ cosmetic (W1a) and appears only in the YAML templates.
 from __future__ import annotations
 
 import random
+import zlib
 from fractions import Fraction
 
 from ..registry import register
@@ -41,6 +42,34 @@ def _money_answer(cents: int) -> dict:
 
 def _increasing(xs: list[int]) -> bool:
     return all(a < b for a, b in zip(xs, xs[1:], strict=False))
+
+
+Slip = tuple[int | Fraction, str]
+
+
+def _spread(slips: list[Slip], answer: Fraction, params: dict) -> list[Slip]:
+    """``slips`` (best first) with the first two chosen both below, one either side of, or both
+    above ``answer``, by a key from the numbers in ``params``.
+
+    A multiple-choice copy prints its options in ascending order and takes the first wrong
+    options from the hook in order (``mcq._last_pick`` moves only the last), so without this
+    the answer would sit in the same place every time. Values a copy cannot use (not
+    positive, the answer, more than 20 times off) or that repeat count for neither side.
+    (Open PR #233, EXA-156, adds a shared ``spread_sides`` doing the same for every hook.)"""
+    seen: set[Fraction] = set()
+    below: list[Slip] = []
+    above: list[Slip] = []
+    for slip in slips:
+        v = Fraction(slip[0])
+        if v > 0 and v != answer and answer / 20 <= v <= answer * 20 and v not in seen:
+            seen.add(v)
+            (below if v < answer else above).append(slip)
+    numbers = [params[k] for k in sorted(params) if k != "name"]
+    key = zlib.crc32(repr(numbers).encode())
+    first = [below[:2], below[:1] + above[:1], above[:2]][key % 3]
+    if len(first) < 2:
+        first = below[:1] + above[:1]
+    return [*first, *(s for s in slips if s not in first)]
 
 
 # --------------------------------------------------------------------------- postage
@@ -104,24 +133,30 @@ class PostageTableSolver:
             },
         }
 
-    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
-        """Table-reading slips, as money (cents → dollars), best first."""
+    def distractors(self, params: dict, solution: dict) -> list[Slip]:
+        """Table-reading slips, as money (cents → dollars): rows above give less, rows below
+        more, so the options fall on both sides of the answer."""
         limits, prices = params["limits"], params["prices"]
-        bands = [mass_band(limits, m) for m in params["masses"]]
-        lo, hi = sorted(bands)
-        out: list[tuple[int | Fraction, str]] = []
+        lo, hi = sorted(mass_band(limits, m) for m in params["masses"])
+        total = prices[lo] + prices[hi]
+        cents: list[tuple[int, str]] = [
+            (prices[hi], "found the postage of one letter only"),
+            (2 * prices[hi], "charged both letters at the heavier rate"),
+            (2 * prices[lo], "charged both letters at the lighter rate"),
+        ]
+        if lo > 0:
+            cents.append((prices[lo - 1] + prices[hi], "read the row above"))
+        if hi - 1 > lo:
+            cents.append((prices[lo] + prices[hi - 1], "read the row above"))
+        if lo + 1 < hi:
+            cents.append((prices[lo + 1] + prices[hi], "read the row below"))
+        if hi + 1 < len(prices):
+            cents.append((prices[lo] + prices[hi + 1], "read the row below"))
         combined = sum(params["masses"])
         if combined <= limits[-1]:
-            out.append(
-                (Fraction(prices[mass_band(limits, combined)], 100), "looked up the total mass")
-            )
-        out.append((Fraction(2 * prices[hi], 100), "charged both letters at the heavier rate"))
-        if lo + 1 < hi:
-            out.append((Fraction(prices[lo + 1] + prices[hi], 100), "read the row below"))
-        if hi + 1 < len(prices):
-            out.append((Fraction(prices[lo] + prices[hi + 1], 100), "read the row below"))
-        out.append((Fraction(prices[hi], 100), "found the postage of one letter only"))
-        return out
+            cents.append((prices[mass_band(limits, combined)], "looked up the total mass"))
+        slips: list[Slip] = [(Fraction(c, 100), why) for c, why in cents]
+        return _spread(slips, Fraction(total, 100), params)
 
     def validate(self, params: dict, solution: dict) -> dict:
         limits, prices, masses = params["limits"], params["prices"], params["masses"]
@@ -160,6 +195,8 @@ def _first_label(first_hours: int) -> str:
 class RentalTableSolver:
     """``first``/``extra`` are cents per item (the first period, each additional hour);
     ``pick`` is the row asked about; ``budget`` is whole dollars, in cents."""
+
+    mcq_whole = True  # rented for whole hours, so every option is too
 
     def sample(self, schema: dict, rng: random.Random) -> dict:
         first_hours = rng.choice([1, 2])
@@ -225,27 +262,28 @@ class RentalTableSolver:
             },
         }
 
-    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
+    def distractors(self, params: dict, solution: dict) -> list[Slip]:
+        """Whole numbers of hours, on both sides of the answer."""
         k, fh, budget = params["pick"], params["first_hours"], params["budget"]
         first, extra = params["first"][k], params["extra"][k]
         hours = rental_hours(budget, first, extra, fh)
-        out: list[tuple[int | Fraction, str]] = [
+        slips: list[Slip] = [
             ((budget - first) // extra, "left out the first period's hours"),
             (hours + 1, "rounded the extra hours up"),
+            (fh + (budget - first) // first, "charged the extra hours at the first-period price"),
+            (fh + budget // extra, "did not take the first-period charge off the money"),
             (budget // extra, "charged every hour at the additional-hour price"),
-            (budget // first * fh, "charged every period at the first-period price"),
         ]
         if fh > 1:
-            out.append((hours - fh + 1, "counted the first period as one hour"))
+            slips.append((hours - fh + 1, "counted the first period as one hour"))
+            slips.append((hours + fh, "counted the first period's hours twice"))
+        slips.append((hours - 1, "took the first hour off the total twice"))
+        slips.append((budget * fh // first, "charged every hour at the first-period rate"))
         for j in (k - 1, k + 1):
             if 0 <= j < 3 and budget >= params["first"][j]:
-                out.append(
-                    (
-                        rental_hours(budget, params["first"][j], params["extra"][j], fh),
-                        "read another item's row",
-                    )
-                )
-        return out
+                other = rental_hours(budget, params["first"][j], params["extra"][j], fh)
+                slips.append((other, "read another item's row"))
+        return _spread(slips, Fraction(hours), params)
 
     def validate(self, params: dict, solution: dict) -> dict:
         k, fh, budget = params["pick"], params["first_hours"], params["budget"]
@@ -369,8 +407,8 @@ class TariffGstSolver:
                 "step2": f"Charge for the next {amt(l2 - l1)} = {l2 - l1} × "
                 f"{money2(prices[1])} = {money2(c2)}.",
                 "expr2": f"{l2 - l1}*{_num2(prices[1])}",
-                "step3": f"Charge for the {usage} − {l2} = {amt(usage - l2)} above {amt(l2)} "
-                f"= {usage - l2} × {money2(prices[2])} = {money2(c3)}.",
+                "step3": f"Amount above {amt(l2)} = {usage} − {l2} = {amt(usage - l2)}. "
+                f"Charge for it = {usage - l2} × {money2(prices[2])} = {money2(c3)}.",
                 "expr3": f"{usage - l2}*{_num2(prices[2])}",
                 "step4": f"Charge before GST = {money2(c1)} + {money2(c2)} + {money2(c3)} "
                 f"= {money2(before)}.",

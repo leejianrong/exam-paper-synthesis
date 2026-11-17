@@ -163,3 +163,18 @@ def test_rental_slip_forgetting_the_first_period_is_offered():
         first = obj["question"]["table"]["headers"][1]
         fh = 1 if first == "First hour" else int(first.split()[1])
         assert answer - fh in [v for v, _ in mcq.common_wrong_answers(obj)], seed
+
+
+@pytest.mark.parametrize("code", SINGLE)
+def test_the_answer_moves_over_all_four_options(code):
+    """Options print in ascending order, so the hook offers slips on both sides of the answer:
+    the correct option is not always the smallest or the largest, and lands in every place.
+    A rental is for whole hours, so every rental option is a whole number of hours too."""
+    places: dict[str, int] = {}
+    for seed in range(1, 201):
+        choice = mcq.to_mcq(generate(code, seed), seed)["question"]["parts"][0]["answer"]
+        places[choice["correct"]] = places.get(choice["correct"], 0) + 1
+        if code == "rental_table":
+            assert all(re.fullmatch(r"\d+ h", o["text"]) for o in choice["options"]), choice
+    assert set(places) == {"1", "2", "3", "4"}, places
+    assert all(n >= 20 for n in places.values()), places
