@@ -404,5 +404,6 @@ such items.
     - Shared lead-ins across two consecutive questions.
     - Use "not drawn to scale" sparingly.
     - ~~Rebalance the topic spread: speed, rate and volume are about 2× over-represented relative to the
-      real papers.~~ Done in #227 (EXA-153): an exam set spreads its topics over the whole set, at most
-      4 questions on one topic in a P6 set (was up to 6).
+      real papers.~~ Addressed for exam sets in #227 (EXA-153): a set made by the "+ New" wizard
+      spreads its topics over the whole set, at most 4 questions on one topic in a P6 set (was up
+      to 6). A single paper is unchanged.

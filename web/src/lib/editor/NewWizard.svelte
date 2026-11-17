@@ -241,7 +241,10 @@
   }
 
   /** Make the waiting papers one at a time (each is a full generation), keeping each result. A
-   *  generated set is filled Paper 2 first (EXA-153); the rows keep their printed order. */
+   *  generated set is filled Paper 2 first (EXA-153); the rows keep their printed order. A paper
+   *  that fails doesn't stop the rest: they are made without its topics, and a retried paper is
+   *  told the topics of every paper made by then. So a retried Paper 2 still spreads its topics
+   *  over the set, but chooses last, and may take more easier-rung questions than usual. */
   async function runRows() {
     const folderId = setFolderId
     const order = setLevel ? SET_FILL_ORDER.flatMap((k) => rows.filter((r) => r.part === k)) : rows

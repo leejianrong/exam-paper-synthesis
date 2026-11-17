@@ -386,9 +386,12 @@ in generation (the engine stays deterministic).
   | **P5, cap 3, Paper 2 first** | **5** | **93% / 69% / 50%** | **70%** |
 
   The trade-off left: Booklet A comes last, so its 2-mark MCQs often find the medium topics
-  full and take a 2-mark easy item (about 3 of its 5; 80% overall). A cap of 4 keeps every fit but lets one topic reach 5
-  in every P6 set. P5's fit is the content's ceiling either way. Both ease as topics are added
-  (EXA-143–150).
+  full and take a 2-mark easy item (about 3 of its 5; 80% overall). A cap of 4 keeps every fit
+  but lets one topic reach 5 in every P6 set. P5's fit is the content's ceiling either way.
+  Both ease as topics are added (EXA-143–150).
+- **A failed paper in the wizard** doesn't stop the rest: they are made without its topics, and
+  a retry is told the topics of every paper made by then. A retried Paper 2 still spreads its
+  topics but chooses last, so it may take more easier-rung questions than usual.
 - **Tests.** `test_an_exam_set_spreads_its_topics` (at most 4 of any topic in a P6 set and 5 in
   a P5 set, no set worse than its papers made apart, Paper 2 of a set at least as well fitted as
   alone) and set papers in `test_generated_papers_keep_every_rule`

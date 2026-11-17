@@ -51,6 +51,16 @@ META = _blueprint_meta()
 SET_SEEDS = range(1, 31)
 
 
+# The order a set's papers are filled in (EXA-153), written out: biggest slots first.
+_FILL_ORDER = ["p2", "p1_booklet_b", "p1_booklet_a"]
+
+
+def _topics_by_then(papers, code: str) -> Counter[str]:
+    """A set's topics when ``code`` was filled: the papers filled before it, plus its own."""
+    upto = _FILL_ORDER[: _FILL_ORDER.index(code) + 1]
+    return _set_topics([papers[TEMPLATES.index(c)] for c in upto])
+
+
 @cache
 def _sets(level: str) -> dict[int, list[tuple[dict, dict]]]:
     """Exam sets (EXA-153): Booklet A, Booklet B and Paper 2, made as the wizard makes them."""
@@ -146,12 +156,13 @@ def test_generated_papers_keep_every_rule(code, level):
     allowed = set(LEVELS[: LEVELS.index(level) + 1])
     alone = ((s, *generate_paper(code, level, s), None) for s in SEEDS)
     in_sets = (
-        (s, *papers[TEMPLATES.index(code)], _set_topics(papers))
+        (s, *papers[TEMPLATES.index(code)], _topics_by_then(papers, code))
         for s, papers in _sets(level).items()
     )
     for seed, doc, report, set_topics in (*alone, *in_sets):
         where = f"{code} {level} seed={seed}{'' if set_topics is None else ' in a set'}"
-        # topics the set has filled: its later picks may skip their better-rung blueprints
+        # topics the set had filled by the time this paper was made (the papers filled before
+        # it, plus its own): only those may excuse a better-rung blueprint left unused
         full = {t for t, n in (set_topics or {}).items() if n >= SET_TOPIC_CAP}
 
         # valid, and validate_document re-solves every generated question (engine-proven)
@@ -317,7 +328,7 @@ def test_an_exam_set_spreads_its_topics(level):
     topic takes more questions, and fewer questions sit over the cap, than when the same seeds
     make the papers on their own, and no topic passes _SET_MAX. Paper 2 is filled first
     (set_fill_order), so its hard and medium slots keep the rungs they would have alone."""
-    assert set_fill_order(TEMPLATES) == ["p2", "p1_booklet_b", "p1_booklet_a"]
+    assert set_fill_order(TEMPLATES) == _FILL_ORDER
     for seed, papers in _sets(level).items():
         together = _set_topics(papers)
         apart = _set_topics([generate_paper(code, level, seed) for code in TEMPLATES])
