@@ -24,6 +24,7 @@ from __future__ import annotations
 import random
 from fractions import Fraction
 
+from ..base import spread_sides, sum_slip
 from ..registry import register
 
 _UNIT = "degrees"
@@ -211,6 +212,7 @@ class GeometryAngleHardSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong angles (degrees), best first (EXA-122)."""
         g, template = params["givens"], params["template"]
@@ -221,6 +223,7 @@ class GeometryAngleHardSolver:
                 (180 - a, "found ∠ABC, not ∠BCE"),
                 (a + e, "added the two given angles"),
                 (180 - e, "subtracted only ∠BEC"),
+                *sum_slip(180 - a - e, a, e, f"{a}° and {e}°"),
             ]
         if template == "rhombus":
             b = g["b"]
@@ -229,6 +232,7 @@ class GeometryAngleHardSolver:
                 (Fraction(b, 2), "halved ∠ABC (the diagonal AC does not bisect ∠B)"),
                 (b, "took ∠BAC equal to ∠ABC"),
                 (Fraction(360 - b, 2), "used 360° instead of 180°"),
+                (90 - b, "halved 180° but not ∠ABC"),
             ]
         a, e = g["a"], g["e"]
         return [
@@ -236,6 +240,7 @@ class GeometryAngleHardSolver:
             (180 - a - e, "used ∠DAB inside triangle ADE"),
             (180 - e, "subtracted only ∠AED"),
             (a + e, "added the two given angles"),
+            *sum_slip(a - e, 180 - a, e, f"{180 - a}° and {e}°"),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:
