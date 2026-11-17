@@ -3,7 +3,7 @@
   // blank paper), then a step or two each. (A separate Template choice made the same papers as
   // Single paper → Start it empty, so it was dropped.) A single paper opens in the editor; an exam
   // set makes its three papers one after the other into one folder (each told the topics of those
-  // already made, EXA-153, so the set spreads its topics), says which failed (and keeps
+  // already made, Paper 2 first, EXA-153, so the set spreads its topics), says which failed (and keeps
   // what was made), then shows the folder. Escape goes back a step, or closes on the first;
   // focus stays in the dialog, and the list puts it back on the button that opened it.
   import { onMount, tick } from 'svelte'
@@ -16,7 +16,7 @@
     type PaperTemplateInfo,
   } from './docsApi'
   import type { DocumentRecord, DocumentSummary } from './doc'
-  import { PARTS, PART_TEMPLATES, type PaperPart } from './folders'
+  import { PARTS, PART_TEMPLATES, SET_FILL_ORDER, type PaperPart } from './folders'
   import { lastReport } from './paperReport'
   import { navigate } from '../router'
 
@@ -240,10 +240,12 @@
     await runRows()
   }
 
-  /** Make the waiting papers one at a time (each is a full generation), keeping each result. */
+  /** Make the waiting papers one at a time (each is a full generation), keeping each result. A
+   *  generated set is filled Paper 2 first (EXA-153); the rows keep their printed order. */
   async function runRows() {
     const folderId = setFolderId
-    for (const row of rows) {
+    const order = setLevel ? SET_FILL_ORDER.flatMap((k) => rows.filter((r) => r.part === k)) : rows
+    for (const row of order) {
       if (row.state !== 'waiting') continue
       row.state = 'working'
       rows = rows

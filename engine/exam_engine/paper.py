@@ -30,7 +30,8 @@ Rules (owner's decisions, 2026-11-15):
   ties broken by the seed.
 - In an exam set (EXA-153) topics are spread over the whole set: ``generate_paper`` takes the
   topic counts of the set's papers already made (``set_topics``; :func:`generate_set` and the
-  web wizard pass them on in order). "Least-used" then counts the set, and a topic with
+  web wizard pass them on, filling Paper 2 first: :func:`set_fill_order`). "Least-used" then
+  counts the set, and a topic with
   :data:`SET_TOPIC_CAP` questions in the set is **full**: a slot takes a full topic only when
   every other blueprint for it is full too, even if that means a rung below the one its marks
   ask for. Without ``set_topics`` (a paper on its own) nothing changes.
@@ -485,18 +486,33 @@ def generate_paper(
     return doc, report
 
 
+def set_fill_order(template_codes: list[str]) -> list[str]:
+    """The order to fill an exam set's papers in (EXA-153): the paper with the biggest slots
+    first, then the most marks (Paper 2, Booklet B, Booklet A). Big slots need hard and medium
+    rungs, which few blueprints have, so they choose while every topic is still free; 1-mark
+    slots take any rung, so Booklet A copes best with full topics."""
+
+    def size(code: str) -> tuple[int, int]:
+        sections = paper_template(code)["sections"]
+        biggest = max(s["marks"] for sec in sections for s in sec["slots"])
+        return (-biggest, -sum(sec["marks_target"] for sec in sections))
+
+    return sorted(template_codes, key=size)
+
+
 def generate_set(template_codes: list[str], level: str, seed: int) -> list[tuple[dict, dict]]:
-    """An exam set (EXA-153): the papers in order, each told the topics of those before it, so
-    the set spreads its topics as one paper does. The web's "+ New" wizard does the same one
-    paper per request, passing the running count as ``set_topics``."""
-    out: list[tuple[dict, dict]] = []
+    """An exam set (EXA-153), returned in the given (printed) order. The papers are filled in
+    :func:`set_fill_order`, each told the topics of those filled before it, so the set spreads
+    its topics as one paper does. The web's "+ New" wizard does the same one paper per request,
+    in the same order, passing the running count as ``set_topics``."""
+    made: dict[str, tuple[dict, dict]] = {}
     running: dict[str, int] = {}
-    for code in template_codes:
+    for code in set_fill_order(template_codes):
         doc, report = generate_paper(code, level, seed, running)
         for topic, n in report["topics"].items():
             running[topic] = running.get(topic, 0) + n
-        out.append((doc, report))
-    return out
+        made[code] = (doc, report)
+    return [made[code] for code in template_codes]
 
 
 def unfilled_placeholders(doc: dict) -> int:

@@ -20,6 +20,12 @@ export const PART_TEMPLATES: Record<PaperPart, string> = {
 }
 
 /**
+ * EXA-153: the order a generated exam set is filled in, as the engine's `paper.set_fill_order`:
+ * the biggest slots first (they need the scarce hard and medium questions), so Booklet A last.
+ */
+export const SET_FILL_ORDER: PaperPart[] = ['paper_2', 'booklet_b', 'booklet_a']
+
+/**
  * Which exam-set part a paper is, read from its title: the fallback when a summary has no
  * server-derived `paper_part` (see `partOf`). The templates and the generator title papers
  * "Paper 1 Booklet A" / "P6 Paper 1 Booklet B" / "P5 Paper 2".

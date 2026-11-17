@@ -366,23 +366,30 @@ in generation (the engine stays deterministic).
   One paper of a set is told the topics of the set's papers made before it. "Least-used topic"
   then counts the whole set, and a topic with 3 questions in the set is full: a slot takes a
   full topic only when every blueprint left for it is full, ranked above the rung rule. A paper
-  on its own (no `set_topics`) is exactly as before. The "+ New" wizard makes the set one paper
-  per request (it keeps its per-paper progress and retry) and sends the running count from the
-  reports; `POST /documents/generate` takes `set_topics`.
-- **Effect** (100 seeds; fit = share of filled slots at their rung):
+  on its own (no `set_topics`) is exactly as before.
+- **Fill order** (`paper.set_fill_order`). The set is filled biggest slots first: Paper 2,
+  Booklet B, then Booklet A (printed order unchanged). Paper 2's 3–5-mark slots need the scarce
+  hard and medium blueprints, so they choose while every topic is free; Booklet A's 1-mark slots
+  take any rung, so it copes best with full topics. Filling A first left Paper 2 at 50% fit.
+- **Web.** The "+ New" wizard makes the set one paper per request, in the fill order (the
+  progress list stays in printed order; retry works as before), and sends the running count
+  from the reports; `POST /documents/generate` takes `set_topics`.
+- **Effect** (100 seeds; fit = share of single-part questions at the rung their marks ask for):
 
-  | Set | most per topic | fit A / B / P2 |
-  |---|---|---|
-  | P6 before | 6 | 100% / 80% / 100% |
-  | P6 after | 4 (every set) | 100% / 80% / 50% |
-  | P5 | 6 → 6 | 93% / 69% / 50% (unchanged) |
+  | Set | most per topic | fit A / B / P2 | fit of the set |
+  |---|---|---|---|
+  | P6 before | 6 | 100% / 80% / 100% | 94% |
+  | P6, cap 3, A first | 4 | 100% / 80% / 50% | 76% |
+  | **P6, cap 3, Paper 2 first** | **4** | **80% / 80% / 100%** | **87%** |
+  | P6, cap 4, Paper 2 first | 5 | 100% / 80% / 100% | 94% |
+  | P5 before | 6 (71% of sets) | 93% / 69% / 50% | 70% |
+  | **P5, cap 3, Paper 2 first** | **5** | **93% / 69% / 50%** | **70%** |
 
-  The trade-off: by Paper 2 most topics are full, so half its single-part questions come from
-  an easier rung (2-mark easy items, 3-mark medium stand-ins). A cap of 4 keeps Paper 2 at 92%
-  fit but lets one topic reach 5 in 72% of P6 sets. A P5 set (44 questions, 13 topics) uses
-  nearly every P5 blueprint in each paper, so the pool, not the order, decides it. Both ease as
-  topics are added (EXA-143–150).
-- **Tests.** `test_an_exam_set_spreads_its_topics` (a P6 set holds at most 4 of any topic, and
-  no set is worse than its papers made apart) and set papers in
-  `test_generated_papers_keep_every_rule` (`tests/test_invariants_paper.py`). Swaps stay
-  per-paper.
+  The trade-off left: Booklet A comes last, so its 2-mark MCQs often find the medium topics
+  full and take a 2-mark easy item (about 3 of its 5; 80% overall). A cap of 4 keeps every fit but lets one topic reach 5
+  in every P6 set. P5's fit is the content's ceiling either way. Both ease as topics are added
+  (EXA-143–150).
+- **Tests.** `test_an_exam_set_spreads_its_topics` (at most 4 of any topic in a P6 set and 5 in
+  a P5 set, no set worse than its papers made apart, Paper 2 of a set at least as well fitted as
+  alone) and set papers in `test_generated_papers_keep_every_rule`
+  (`tests/test_invariants_paper.py`). Swaps stay per-paper.

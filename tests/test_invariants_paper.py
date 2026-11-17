@@ -22,6 +22,7 @@ from exam_engine.paper import (
     generate_paper,
     generate_set,
     paper_templates,
+    set_fill_order,
     template_document,
     unfilled_placeholders,
 )
@@ -291,8 +292,19 @@ def test_topics_are_spread_when_choice_allows():
 # give one topic up to 6 (Fractions at AT and CH, Angles at SN) and the per-topic averages run
 # 1.0-4.8 a set (docs/planning/editor/REAL-PAPER-COMPARISON.md, 2b); our P6 blueprints cover 15
 # topics, a fair share of 3.1 each, so 4 is a share and one more. Before EXA-153 seven topics
-# reached 6 in some set.
-_P6_SET_MAX = 4
+# reached 6 in some set. A P5 set (44 questions, 13 topics: 3.4 each) uses nearly every P5
+# blueprint in each paper, so the pool allows no better than 5 (before: 6 in most sets).
+_SET_MAX = {"P5": 5, "P6": 4}
+
+
+def _fit(doc) -> int:
+    """Single-part questions at the rung their marks ask for (EXA-146)."""
+    return sum(
+        _shortfall(n["attrs"]["question"]["blueprint_code"], _marks(n)) == 0
+        for n in _questions(doc)
+        if n["type"] == "templatedQuestion"
+        and META[n["attrs"]["question"]["blueprint_code"]]["parts"] == 1
+    )
 
 
 def _over_cap(counts: Counter[str]) -> int:
@@ -303,9 +315,9 @@ def _over_cap(counts: Counter[str]) -> int:
 def test_an_exam_set_spreads_its_topics(level):
     """EXA-153: made as a set, the three papers spread their topics over the whole set. No
     topic takes more questions, and fewer questions sit over the cap, than when the same seeds
-    make the papers on their own; a P6 set holds at most _P6_SET_MAX of any topic. (A P5 set has
-    44 questions for 13 topics and each paper uses nearly every P5 blueprint, so there the pool,
-    not the order, decides; the set is then never worse.)"""
+    make the papers on their own, and no topic passes _SET_MAX. Paper 2 is filled first
+    (set_fill_order), so its hard and medium slots keep the rungs they would have alone."""
+    assert set_fill_order(TEMPLATES) == ["p2", "p1_booklet_b", "p1_booklet_a"]
     for seed, papers in _sets(level).items():
         together = _set_topics(papers)
         apart = _set_topics([generate_paper(code, level, seed) for code in TEMPLATES])
@@ -313,8 +325,9 @@ def test_an_exam_set_spreads_its_topics(level):
         assert sum(together.values()) == sum(apart.values()), where  # no question lost
         assert max(together.values()) <= max(apart.values()), where
         assert _over_cap(together) <= _over_cap(apart), where
-        if level == "P6":
-            assert max(together.values()) <= _P6_SET_MAX, where
+        assert max(together.values()) <= _SET_MAX[level], where
+        p2 = TEMPLATES.index("p2")
+        assert _fit(papers[p2][0]) >= _fit(generate_paper("p2", level, seed)[0]), where
         # each report counts its own paper's topics, as the wizard adds them up
         assert sum((Counter(r["topics"]) for _, r in papers), Counter()) == together, where
 

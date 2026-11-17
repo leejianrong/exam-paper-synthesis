@@ -184,11 +184,18 @@ describe('NewWizard: Exam set', () => {
     await pick('Generate at P5')
     await waitFor(() => expect(props.onShowFolder).toHaveBeenCalledWith('fs'))
     expect(createFolder).toHaveBeenCalledWith('P5 mocks')
-    // EXA-153: each paper is told the topics of the set's papers made before it
+    // EXA-153: filled Paper 2 first, each paper told the topics of the set's papers made before it
     expect(generatePaper.mock.calls).toEqual([
-      ['p1_booklet_a', 'P5', 'fs', {}],
-      ['p1_booklet_b', 'P5', 'fs', { Ratio: 2, Rate: 1 }],
-      ['p2', 'P5', 'fs', { Ratio: 3, Rate: 1, Volume: 2 }],
+      ['p2', 'P5', 'fs', {}],
+      ['p1_booklet_b', 'P5', 'fs', { Speed: 4 }],
+      ['p1_booklet_a', 'P5', 'fs', { Speed: 4, Ratio: 1, Volume: 2 }],
+    ])
+    // the progress list keeps the printed order
+    const rows = within(screen.getByRole('list', { name: 'Exam set papers' })).getAllByRole('listitem')
+    expect(rows.map((r) => r.textContent)).toEqual([
+      expect.stringContaining('Booklet A'),
+      expect.stringContaining('Booklet B'),
+      expect.stringContaining('Paper 2'),
     ])
     expect(props.onPapersCreated).toHaveBeenCalledTimes(3)
     expect(props.onPapersCreated.mock.calls[0][0][0]).not.toHaveProperty('document')
