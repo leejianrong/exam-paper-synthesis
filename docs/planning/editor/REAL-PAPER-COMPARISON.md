@@ -358,7 +358,9 @@ such items.
    - Uses the existing `number_line` renderer; a scale/ruler reading needs a new small diagram.
 4. ~~**Recalibrate rung to marks in the generator.**~~ Done in #225 (EXA-146): 2-mark slots take a
    medium or hard rung and 3+-mark slots a hard one whenever content allows (P8-SHAPING.md).
-   - Booklet A 2-mark MCQ and Booklet B 2-mark slots should draw hard or multi-step rungs.
+   - ~~Booklet A 2-mark MCQ and Booklet B 2-mark slots should draw hard or multi-step rungs.~~ Done in
+     #228 (EXA-154): 2-mark medium rungs for Ratio, Percentage, Speed and both Geometry ladders, so
+     every P6 Booklet B 2-mark slot is medium (was 7 of 10).
    - Section B 3-mark stand-ins should require 3+ steps.
    - Stop letting a one-step easy rung fill a 2-mark MCQ or a 4-mark slot (2 steps).
    - No diagram.
