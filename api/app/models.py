@@ -6,7 +6,7 @@ do not re-describe the canonical schema.
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -52,6 +52,11 @@ class GeneratePaperRequest(BaseModel):
     level: Literal["P5", "P6"] = "P6"
     seed: int | None = Field(default=None, ge=1, lt=2**31)
     folder_id: str | None = None  # O2
+    # EXA-153: one paper of an exam set: the topics of the set's papers made so far (the sum of
+    # their reports' ``topics``), so this one spreads its topics over the whole set.
+    set_topics: (
+        dict[Annotated[str, Field(max_length=100)], Annotated[int, Field(ge=0, le=500)]] | None
+    ) = Field(default=None, max_length=100)
 
 
 class SwapQuestionRequest(BaseModel):

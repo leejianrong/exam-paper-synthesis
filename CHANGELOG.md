@@ -27,6 +27,13 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Changed
 
+- **An exam set spreads its topics over the whole set (EXA-153).** The "+ New" wizard's exam
+  set used to choose topics paper by paper, so a topic could have 6 questions in a P6 set. Each
+  paper is now told the topics of the papers made before it and fills a topic past 3 questions
+  only when nothing else fits, so no topic has more than 4 in a P6 set (5 in a P5 set). The set
+  is filled Paper 2 first, so its hard questions keep their rung; Booklet A, filled last, now
+  takes an easier question in about 3 of its 5 two-mark MCQs. A single paper is generated
+  exactly as before.
 - **Generated papers match difficulty to marks (EXA-146).** A 2-mark slot now takes a medium or
   hard question and a 3-to-5-mark one a hard question whenever the content has one left, so a
   2-mark Booklet A MCQ is no longer a one-step distance = speed x time. P6 Booklet A and Paper 2
@@ -87,6 +94,16 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **A multiple-choice answer is no longer mostly the smallest or the largest option (EXA-156).**
+  Options print smallest first, and 25 of the 42 blueprints that turn into multiple choice
+  offered wrong answers mostly on one side of the right one, so their answer was rarely or
+  never in one half of the list (`rate_easy`: always (3) or (4); `speed_hard`: always (1) or
+  (2)). Their
+  common wrong answers now include real slips on the other side too (carried tens added twice,
+  "used 180° instead of 360°", "found 10% only", "used half the distance between them", ...),
+  and the first wrong options are chosen to lie below, around or above the answer. Over 400
+  seeds every one of them now puts the answer first or last under 35% of the time and in every
+  place at least 5% of the time. Only multiple-choice copies change.
 - **Answers and working print cm², × and − (EXA-142).** Keys printed "Answer: 60 cm^2", "in
   cm^3" in mark schemes, "speed x time", "30 - 20" and "51 degrees". Area and volume units now
   print with a superscript, multiplication as ×, minus as −, and angles as 51°, on the paper, the

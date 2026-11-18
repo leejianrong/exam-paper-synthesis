@@ -394,3 +394,43 @@ in generation (the engine stays deterministic).
 - **Goldens** `tests/golden/circles_{easy,medium,hard}.jsonl`, 3 each, picked from seeds; a
   person checks them.
 
+## Topics spread over an exam set (EXA-153, 2026-11-17)
+
+- **Why.** Each paper spread its topics on its own, so a topic with a question in every paper
+  had 4–6 in a set (a P6 set: Algebra, Average, Decimals, Rate, Charts, Volume and Whole
+  numbers each up to 6; real sets average 1.3–2.3 on most of these, REAL-PAPER-COMPARISON.md
+  Part 2, 2b).
+- **Rule** (`paper.generate_paper(..., set_topics)`, `paper.generate_set`, `SET_TOPIC_CAP = 3`).
+  One paper of a set is told the topics of the set's papers made before it. "Least-used topic"
+  then counts the whole set, and a topic with 3 questions in the set is full: a slot takes a
+  full topic only when every blueprint left for it is full, ranked above the rung rule. A paper
+  on its own (no `set_topics`) is exactly as before.
+- **Fill order** (`paper.set_fill_order`). The set is filled biggest slots first: Paper 2,
+  Booklet B, then Booklet A (printed order unchanged). Paper 2's 3–5-mark slots need the scarce
+  hard and medium blueprints, so they choose while every topic is free; Booklet A's 1-mark slots
+  take any rung, so it copes best with full topics. Filling A first left Paper 2 at 50% fit.
+- **Web.** The "+ New" wizard makes the set one paper per request, in the fill order (the
+  progress list stays in printed order; retry works as before), and sends the running count
+  from the reports; `POST /documents/generate` takes `set_topics`.
+- **Effect** (100 seeds; fit = share of single-part questions at the rung their marks ask for):
+
+  | Set | most per topic | fit A / B / P2 | fit of the set |
+  |---|---|---|---|
+  | P6 before | 6 | 100% / 80% / 100% | 94% |
+  | P6, cap 3, A first | 4 | 100% / 80% / 50% | 76% |
+  | **P6, cap 3, Paper 2 first** | **4** | **80% / 80% / 100%** | **87%** |
+  | P6, cap 4, Paper 2 first | 5 | 100% / 80% / 100% | 94% |
+  | P5 before | 6 (71% of sets) | 93% / 69% / 50% | 70% |
+  | **P5, cap 3, Paper 2 first** | **5** | **93% / 69% / 50%** | **70%** |
+
+  The trade-off left: Booklet A comes last, so its 2-mark MCQs often find the medium topics
+  full and take a 2-mark easy item (about 3 of its 5; 80% overall). A cap of 4 keeps every fit
+  but lets one topic reach 5 in every P6 set. P5's fit is the content's ceiling either way.
+  Both ease as topics are added (EXA-143–150).
+- **A failed paper in the wizard** doesn't stop the rest: they are made without its topics, and
+  a retry is told the topics of every paper made by then. A retried Paper 2 still spreads its
+  topics but chooses last, so it may take more easier-rung questions than usual.
+- **Tests.** `test_an_exam_set_spreads_its_topics` (at most 4 of any topic in a P6 set and 5 in
+  a P5 set, no set worse than its papers made apart, Paper 2 of a set at least as well fitted as
+  alone) and set papers in `test_generated_papers_keep_every_rule`
+  (`tests/test_invariants_paper.py`). Swaps stay per-paper.

@@ -397,6 +397,8 @@ such items.
     - No new diagram.
 11. **MCQ polish.**
     - ~~Sort numeric options ascending.~~ Done in #223 (EXA-141).
+    - ~~Keep the answer's place in the sorted options from giving it away (25 blueprints' answers
+      were rarely or never in one half of the list).~~ Done in #233 (EXA-156).
     - Filter implausible distractors (angles over 180° for an angle on a line; the improper "4/1" is fixed in #205).
     - Drop "simplest form" wording from MCQ stems.
     - Add picture-option and "which statements are true" MCQs once the grid, net and chart families exist.
@@ -405,5 +407,7 @@ such items.
       local contexts (GST, tariffs, brochures).
     - Shared lead-ins across two consecutive questions.
     - Use "not drawn to scale" sparingly.
-    - Rebalance the topic spread: speed, rate and volume are about 2× over-represented relative to the
-      real papers.
+    - ~~Rebalance the topic spread: speed, rate and volume are about 2× over-represented relative to the
+      real papers.~~ Addressed for exam sets in #227 (EXA-153): a set made by the "+ New" wizard
+      spreads its topics over the whole set, at most 4 questions on one topic in a P6 set (was up
+      to 6). A single paper is unchanged.
