@@ -100,7 +100,7 @@ def test_pi_terms_multiple_choice_golden_fixtures():
     """EXA-155: a medium perimeter in terms of π as a Booklet A multiple-choice question: the
     four options exactly as printed, and which is correct (regression anchors; a person checks
     them, see the PR)."""
-    lines = [ln for ln in (GOLDEN / "circles_pi_mcq.jsonl").read_text().splitlines() if ln]
+    lines = [ln for ln in (GOLDEN / "mcq" / "circles_medium.jsonl").read_text().splitlines() if ln]
     assert len(lines) == 2
     for ln in lines:
         rec = json.loads(ln)
