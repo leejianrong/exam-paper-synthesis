@@ -18,6 +18,7 @@ import random
 from fractions import Fraction
 from math import gcd
 
+from ..base import spread_sides
 from ..registry import register
 from .ratio_easy import NAME_POOL
 
@@ -70,6 +71,7 @@ class RatioDifferenceSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong answers (EXA-122), best first."""
         a, b = params["ratio"]
@@ -81,6 +83,8 @@ class RatioDifferenceSolver:
             (max(a, b) * unit + d, "added the difference to the larger amount"),
             ((a + b) * d, f"took the difference ({d}) as 1 unit"),
             (unit, "found 1 unit only"),
+            ((a + b) * unit + d, "added the difference to the total"),
+            (2 * max(a, b) * unit, "doubled the larger amount"),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:

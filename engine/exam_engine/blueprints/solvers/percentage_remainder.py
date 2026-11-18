@@ -17,6 +17,7 @@ from __future__ import annotations
 import random
 from fractions import Fraction
 
+from ..base import spread_sides
 from ..registry import register
 from .ratio_easy import NAME_POOL
 
@@ -84,6 +85,7 @@ class PercentageRemainderSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong answers (EXA-122), in $, best first."""
         total, p1, p2 = params["total"], params["p1"], params["p2"]
@@ -101,6 +103,10 @@ class PercentageRemainderSolver:
             (rest - spent2, "the money left, not the cost"),
             (Fraction(total * p1, 100), "the cost of the first purchase"),
             (rest, "the remaining money after the first purchase"),
+            (
+                Fraction(total * p1 * p2, 10000),
+                f"{p2}% of the first purchase, not of the money left",
+            ),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:
