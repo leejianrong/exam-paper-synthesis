@@ -35,7 +35,7 @@ ladder (1/2/3 marks) (below).
 | P1 Booklet A | 15 MCQ, 20 marks (10 × 1, 5 × 2) | 15 / 15 (was 13 before batch 3, 0 before P8b) | 15 / 15 (was 12 before batch 3) |
 | P1 Booklet B | 15 short answer, 25 marks (5 × 1, 10 × 2) | 15 / 15, 25 / 25 (was 12 / 15) | 13 / 15, 21 / 25 (was 9 / 15) |
 | P2 Section A | 5 × 2 marks | 5 / 5 | 5 / 5 |
-| P2 Section B | ~12 multi-part, 45 marks | 45 / 45: 8 multi-part + 4 stand-ins (was 3 + 9) | 30 / 45: 11 stand-ins (eight 3-mark, three 2-mark) + 3 placeholders (was 15 / 45) |
+| P2 Section B | ~12 multi-part, 45 marks | 45 / 45: 9 multi-part + 3 stand-ins (was 3 + 9) | 30 / 45: 11 stand-ins (eight 3-mark, three 2-mark) + 3 placeholders (was 15 / 45) |
 
 So a P6 teacher gets a complete paper set, and a P5 teacher complete Booklet A. The remaining
 gaps are P5 2-mark content (Booklet B) and P5 multi-part / 3-mark content for Paper 2
@@ -241,7 +241,7 @@ in generation (the engine stays deterministic).
 - **What it fills now.** P6 Paper 2 Section B: 12 questions, 45 / 45 marks = the three
   multi-part (4 + 5 + 5) and nine single-part stand-ins (five 3-mark, four 4-mark). A P5 paper
   is unchanged (all three are P6). Since EXA-143 (five more multi-part) and EXA-154 (the topic
-  cap, below) a P6 Section B has 8 multi-part questions and 4 stand-ins.
+  cap, below) a P6 Section B has 8 multi-part questions and 4 stand-ins; 9 and 3 since the angles one (EXA-150).
 
 ## P8c polish (EXA-123, 2026-11-15)
 

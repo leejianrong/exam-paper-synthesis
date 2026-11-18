@@ -1,0 +1,46 @@
+code: geometry_angle_reflex
+syllabus:
+  level: P6
+  strand: "Geometry"
+  topic: "Geometry (Angles)"
+  subtopic: "Reflex angles and angles at a point"
+  skill_codes: ["GEO.ANG.REFLEX"]       # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [template, givens, angles]
+  properties:
+    template:
+      type: string
+      enum: ["straight_line", "equal_angles", "crossing_lines"]
+    givens:
+      type: object
+      additionalProperties:
+        type: integer
+    angles:                             # given-angle contract map (see check docstring)
+      type: object
+      additionalProperties:
+        type: integer
+param_roles:
+  template: { role: choice }
+  givens:   { role: number }
+  angles:   { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Finds the angle that makes up 360° with the reflex angle (straight line or angles at a point)." }
+  - { mark: 1, type: A, description: "Correct angle in degrees." }
+answer:
+  type: integer
+  unit: "degrees"
+diagram: geometry_figure

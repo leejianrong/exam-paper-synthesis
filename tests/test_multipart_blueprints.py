@@ -27,6 +27,7 @@ CODES = {
     "ratio_structured": ("Ratio", [2, 3]),
     "speed_structured": ("Speed", [1, 3]),
     "volume_structured": ("Volume", [2, 3]),
+    "geometry_angle_structured": ("Geometry (Angles)", [2, 2]),  # EXA-150
     # P8c batch 2 (EXA-143): the named Paper 2 heuristics
     "supposition_structured": ("Money", [1, 2, 2]),
     "fraction_remainder_structured": ("Fractions", [1, 3]),

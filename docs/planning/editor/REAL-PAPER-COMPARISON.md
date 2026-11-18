@@ -390,7 +390,7 @@ such items.
      π = 3.14.
    - Real: 8 questions (2 per set, always present); ours: 1.
    - Extends `geometry_figure` with arc composites.
-8. **Angles depth.**
+8. ~~**Angles depth.**~~ Done in #229 (EXA-150): folded corner, composite (rhombus, parallelogram, trapezium with an isosceles or equilateral triangle), reflex and a two-part Paper 2 angle blueprint, figures drawn to scale; folding is drawn as the folded shape, not two panels.
    - Folded paper; rhombus, trapezium and parallelogram composites with isosceles or equilateral
      triangles; reflex angles at a point; 2-part angle questions for Section B.
    - Real: 16 questions (the most frequent single topic after fractions); ours: 3, at 1–2 steps.

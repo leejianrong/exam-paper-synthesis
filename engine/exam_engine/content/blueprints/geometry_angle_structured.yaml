@@ -1,0 +1,62 @@
+code: geometry_angle_structured
+syllabus:
+  level: P6
+  strand: "Geometry"
+  topic: "Geometry (Angles)"
+  subtopic: "Structured: a rhombus with an equilateral triangle inside it"
+  skill_codes: ["GEO.ANG.COMPOSITE"]    # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Hidden structure", "Reasoning depth", "Multiple concepts"]
+marks: 4                                # the question total; each part's marks are below
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [template, givens, angles]
+  properties:
+    template:
+      type: string
+      enum: ["rhombus_equilateral_inside"]
+    givens:
+      type: object
+      additionalProperties:
+        type: integer
+    angles:                             # given-angle contract map (see check docstring)
+      type: object
+      additionalProperties:
+        type: integer
+param_roles:
+  template: { role: choice }
+  givens:   { role: number }
+  angles:   { role: number }
+# P8c multi-part: shared stem here, each part's text/marks/scheme/steps/answer under `parts`.
+story_templates:
+  - stem: >
+      In the figure, ABCD is a rhombus and BCE is an equilateral triangle. ∠ADC = {b}°.
+      (The figure is not drawn to scale.)
+parts:
+  - label: a
+    marks: 2
+    text: "Find ∠BAE."
+    solution_template:
+      steps:
+        - text: "∠ABC = ∠ADC = {b}° (opposite angles of a rhombus)."
+        - text: "∠ABE = {b}° − 60° = {abe}° (∠EBC = 60° in the equilateral triangle)."
+        - text: "AB = BC = BE, so triangle ABE is isosceles: ∠BAE = (180° − {abe}°) ÷ 2 = {bae}°."
+    marking_scheme:
+      - { mark: 1, type: M, description: "Finds ∠ABE and sees that AB = BE." }
+      - { mark: 1, type: A, description: "Correct ∠BAE in degrees." }
+    answer: { type: integer, unit: "degrees" }
+  - label: b
+    marks: 2
+    text: "Find ∠DAE."
+    solution_template:
+      steps:
+        - text: "AD ∥ BC, so ∠DAB = 180° − {b}° = {dab}°."
+        - text: "∠DAE = {dab}° − {bae}° = {dae}°."
+    marking_scheme:
+      - { mark: 1, type: M, description: "Finds ∠DAB from the rhombus." }
+      - { mark: 1, type: A, description: "Correct ∠DAE in degrees, using (a)." }
+    answer: { type: integer, unit: "degrees" }
+diagram: geometry_figure
