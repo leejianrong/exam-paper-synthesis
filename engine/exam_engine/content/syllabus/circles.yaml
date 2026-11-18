@@ -1,0 +1,8 @@
+# PROVISIONAL skill codes — remap to MOE P5-P6 syllabus outcomes when the
+# official doc is available (Q-M1). Codes are carried, not queried, in v1
+# (ADR-0016), so remapping is a mechanical find/replace with no data migration.
+strand: "Measurement"
+skills:
+  CIRC.ONE: "Circumference or area of a circle, semicircle or quarter circle"        # used by circles_easy
+  CIRC.COMPOSITE: "Perimeter or area of a square / rectangle with a circle part"     # used by circles_medium
+  CIRC.SHADED: "Area or perimeter of a region bounded by arcs and straight edges"    # used by circles_hard

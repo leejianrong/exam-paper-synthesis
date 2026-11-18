@@ -1,0 +1,3 @@
+{"params": {"template": "quarter_semicircle_area", "pi": "3.14", "givens": {"s": 8}, "lengths": {"A-B": 8}, "radii": {"A": 8, "M": 4.0}}, "expected": {"answer": {"type": "decimal", "value": 38.88, "dp": 2, "unit": "cm^2"}, "total_marks": 3}}
+{"params": {"template": "quarter_semicircle_perimeter", "pi": "terms", "givens": {"s": 10}, "lengths": {"A-B": 10}, "radii": {"A": 10, "M": 5.0}}, "expected": {"answer": {"type": "expression", "terms": [{"coefficient": 10, "symbol": "π"}, {"coefficient": 10, "symbol": null}], "unit": "cm"}, "total_marks": 3}}
+{"params": {"template": "leaf_area", "pi": "22/7", "givens": {"s": 21}, "lengths": {"A-B": 21}, "radii": {"A": 21, "C": 21}}, "expected": {"answer": {"type": "integer", "value": 252, "unit": "cm^2"}, "total_marks": 3}}

@@ -377,7 +377,9 @@ such items.
      this data" MCQ.
    - Real: 15 data questions plus 3 tick tables.
    - Needs a `table` figure (simple) and a tick-table answer type.
-7. **Circles ladder.**
+7. ~~**Circles ladder.**~~ Done in #226 (EXA-149): a P6 `circles` ladder (1/2/3 marks) with
+   semicircle and quarter-circle composites, shaded regions, π = 3.14 or 22/7 and some hard
+   answers in terms of π (P8-SHAPING.md). Not yet built: S-shapes and logos, π-terms MCQs.
    - Composite semicircles and quarter circles (overlapping, S-shapes, logos); perimeter vs area of the
      shaded or unshaded region; "in terms of π" answers through the existing `expression` type; default
      π = 3.14.

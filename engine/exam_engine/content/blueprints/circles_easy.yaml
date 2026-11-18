@@ -1,0 +1,60 @@
+code: circles_easy
+syllabus:
+  level: P6
+  strand: "Measurement"
+  topic: "Circles"
+  subtopic: "Circumference and area of a circle; area of a semicircle or quarter circle"
+  skill_codes: ["CIRC.ONE"]             # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Reasoning depth"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [template, pi, given_as, givens, lengths]
+  properties:
+    template:
+      type: string
+      enum: ["circle_area", "circle_circumference", "quarter_circle_area", "semicircle_area"]
+    pi:                                 # the π the stem states
+      type: string
+      enum: ["3.14", "22/7"]
+    given_as:                           # the stem gives the radius or the diameter
+      type: string
+      enum: ["radius", "diameter"]
+    givens:
+      type: object
+      additionalProperties:
+        type: integer
+    lengths:                            # labelled-length contract map (diagram check)
+      type: object
+      additionalProperties:
+        type: number
+    radii:                              # arc-radius contract map (diagram check)
+      type: object
+      additionalProperties:
+        type: number
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  template: { role: choice }
+  pi:       { role: choice }
+  given_as: { role: choice }
+  givens:   { role: number }
+  lengths:  { role: number }
+  radii:    { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+marking_scheme:
+  - { mark: 1, type: A, description: "Correct circumference (cm) or area (cm²), using the stated π." }
+answer:
+  type: decimal
+  unit: "cm^2"
+diagram: geometry_figure

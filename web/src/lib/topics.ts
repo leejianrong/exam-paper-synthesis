@@ -26,6 +26,7 @@ export const TOPICS: readonly Topic[] = [
   { label: 'Decimals', prefix: 'decimals' },
   { label: 'Rate', prefix: 'rate' },
   { label: 'Algebra', prefix: 'algebra' },
+  { label: 'Circles', prefix: 'circles' },
 ]
 
 export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'medium', 'hard']
