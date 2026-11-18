@@ -19,7 +19,7 @@ import pytest
 import yaml
 from exam_engine.blueprints.registry import content_dir
 from exam_engine.document import paper_outline, validate_document
-from exam_engine.paper import LEVELS, generate_paper, paper_templates
+from exam_engine.paper import LEVELS, generate_paper, generate_set, paper_templates
 from exam_engine.paper_swap import (
     SwapNotPossible,
     paper_level,
