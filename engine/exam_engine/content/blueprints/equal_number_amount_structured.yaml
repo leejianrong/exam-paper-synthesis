@@ -1,0 +1,82 @@
+code: equal_number_amount_structured
+syllabus:
+  level: P6
+  strand: "Measurement"
+  topic: "Money"
+  subtopic: "Structured: equal number vs equal amount of money at two prices"
+  skill_codes: ["WHOLE.HEURISTIC.EQUALNUMBERAMOUNT"]  # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Hidden structure", "Multiple concepts"]
+marks: 4                                # the question total; each part's marks are below
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [names, goods, price, more, spent]
+  properties:
+    names:
+      type: array
+      items: { type: string }
+      minItems: 2
+      maxItems: 2
+    goods:
+      type: array
+      items: { type: string }
+      minItems: 2
+      maxItems: 2
+    price:
+      type: array
+      items: { type: integer, minimum: 2, maximum: 12 }
+      minItems: 2
+      maxItems: 2
+    more: { type: integer, minimum: 1, maximum: 300 }
+    spent: { type: integer, minimum: 2, maximum: 600 }
+# Every parameter_schema property needs a role (W1a). The goods pair is a story choice (the
+# second is the dearer of the two), not a cosmetic slot.
+param_roles:
+  names: { role: name }
+  goods: { role: choice }
+  price: { role: number }
+  more:  { role: number }
+  spent: { role: number }
+# P8c multi-part: shared stem here, each part's text/marks/scheme/steps/answer under `parts`.
+story_templates:
+  - stem: >
+      At a shop, {goods[0]} cost ${price[0]} each and {goods[1]} cost ${price[1]} each.
+parts:
+  - label: a
+    marks: 2
+    text: >
+      {names[0]} bought an equal number of {goods[0]} and {goods[1]}, and spent ${more}
+      more on the {goods[1]} than on the {goods[0]}. How many {goods[0]} and {goods[1]}
+      did {names[0]} buy altogether?
+    solution_template:
+      steps:
+        - text: "For every one of each, {names[0]} spent ${price[1]} − ${price[0]} = ${price_diff} more on the {goods[1]}."
+          expr: "{price[1]}-{price[0]}"
+        - text: "Number of each = ${more} ÷ ${price_diff} = {pairs}."
+          expr: "{more}/{price_diff}"
+        - text: "Altogether = 2 × {pairs} = {total}."
+          expr: "2*{pairs}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Divides the difference in money by the difference in price." }
+      - { mark: 1, type: A, description: "Correct total number of items." }
+    answer: { type: integer }
+  - label: b
+    marks: 2
+    text: >
+      {names[1]} spent an equal amount of money on {goods[0]} and on {goods[1]}, ${spent}
+      altogether. How many more {goods[0]} than {goods[1]} did {names[1]} buy?
+    solution_template:
+      steps:
+        - text: "{names[1]} spent ${spent} ÷ 2 = ${half} on each kind."
+          expr: "{spent}/2"
+        - text: "Number of {goods[0]} = ${half} ÷ ${price[0]} = {n_a}. Number of {goods[1]} = ${half} ÷ ${price[1]} = {n_b}."
+          expr: "{half}/{price[0]}"
+        - text: "{n_a} − {n_b} = {n_diff} more {goods[0]}."
+          expr: "{n_a}-{n_b}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Halves the money and divides each half by its price." }
+      - { mark: 1, type: A, description: "Correct difference in number." }
+    answer: { type: integer }

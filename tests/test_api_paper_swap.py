@@ -139,9 +139,8 @@ def test_regenerate_keeps_locked_questions():
     )
     assert resp.status_code == 200
     out = resp.json()
-    assert (
-        out["report"]["kept"] == 3 and out["report"]["replaced"] == 14
-    )  # P2 has 17 questions since P8c
+    questions = sum(n["type"] == "templatedQuestion" for n in blocks)  # 17-18 in a P6 Paper 2
+    assert out["report"]["kept"] == 3 and out["report"]["replaced"] == questions - 3
     after = {
         n["attrs"]["block_id"]: n
         for n in strip_document_hints(out["document"])["content"]["content"]

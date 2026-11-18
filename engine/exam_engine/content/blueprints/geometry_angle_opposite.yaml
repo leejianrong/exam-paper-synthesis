@@ -1,0 +1,48 @@
+code: geometry_angle_opposite
+syllabus:
+  level: P5
+  strand: "Geometry"
+  topic: "Geometry (Angles)"
+  subtopic: "Vertically opposite angles and angles on a straight line (two-step)"
+  skill_codes: ["GEO.ANG.VERT"]         # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Hidden structure"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [template, givens, angles]
+  properties:
+    template:
+      type: string
+      enum: ["opposite_part", "opposite_sum", "line_part"]
+    givens:
+      type: object
+      additionalProperties:
+        type: integer
+    angles:                             # given-angle contract map (see check docstring)
+      type: object
+      additionalProperties:
+        type: integer
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  template: { role: choice }
+  givens:   { role: number }
+  angles:   { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Find ∠AOD (vertically opposite angles, or angles on a straight line / adding the parts)." }
+  - { mark: 1, type: A, description: "Correct unknown angle in degrees." }
+answer:
+  type: integer
+  unit: "degrees"
+diagram: geometry_figure

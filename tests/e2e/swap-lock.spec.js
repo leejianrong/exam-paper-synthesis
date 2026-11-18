@@ -15,7 +15,9 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
 
   const blocks = page.getByTestId('question-block')
-  await expect(blocks).toHaveCount(17)
+  // 17 questions: Section B has 9 multi-part and 3 stand-ins (EXA-143, EXA-150, EXA-154)
+  await expect(blocks.nth(16)).toBeVisible()
+  expect(await blocks.count()).toBe(17)
 
   // Lock question 1.
   const first = blocks.nth(0)
@@ -51,12 +53,12 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   const lockedBefore = lockedBlock(await api())
   expect(lockedBefore).toHaveLength(1)
   await page.getByRole('button', { name: 'Regenerate unlocked' }).click()
-  await expect(page.getByText(/Regenerated 16 questions; kept 1/)).toBeVisible()
+  await expect(page.getByText(/Regenerated 1[67] questions; kept 1/)).toBeVisible()
   await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
   await expect(stemOf(blocks.nth(0))).toHaveText(lockedStem ?? '')
   await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
   await expect(page.locator('.section-block').nth(1).locator('.section-summary')).toHaveText(
-    'Questions 6–17 · 45 / 45 marks',
+    /Questions 6–1[78] · 45 \/ 45 marks/,
   )
 
   // What the server stored is what the editor shows (the lock survives a reload).

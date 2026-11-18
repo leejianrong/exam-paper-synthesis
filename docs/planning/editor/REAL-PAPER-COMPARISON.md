@@ -336,8 +336,11 @@ such items.
      in the question figure.
    - Fix: do not render solution models on student or MCQ papers, or move them to the key only.
    - Real papers never print a model. No new diagram is needed.
-1. **Multi-part blueprints for P2 Section B built on real heuristics.** About 7 more are needed to reach
-   8–10 per paper.
+1. ~~**Multi-part blueprints for P2 Section B built on real heuristics.** About 7 more are needed to reach
+   8–10 per paper.~~ Five done in #224 (EXA-143): supposition, fraction of a remainder with a unit
+   cost, LCM packs with a budget, ages (constant difference), equal number vs equal amount; a P6
+   Section B now has 8 multi-part questions (was 3). Not yet built: excess and shortage with
+   fractions, constant-total transfers.
    - Candidates: supposition / coins with an equal count (3 parts); equal number vs equal amount at two
      prices; fraction of a remainder linked to unit costs; excess and shortage with fractions;
      constant-difference / constant-total transfers; LCM packs of m and n with a budget.
@@ -358,7 +361,9 @@ such items.
    - Uses the existing `number_line` renderer; a scale/ruler reading needs a new small diagram.
 4. ~~**Recalibrate rung to marks in the generator.**~~ Done in #225 (EXA-146): 2-mark slots take a
    medium or hard rung and 3+-mark slots a hard one whenever content allows (P8-SHAPING.md).
-   - Booklet A 2-mark MCQ and Booklet B 2-mark slots should draw hard or multi-step rungs.
+   - ~~Booklet A 2-mark MCQ and Booklet B 2-mark slots should draw hard or multi-step rungs.~~ Done in
+     #228 (EXA-154): 2-mark medium rungs for Ratio, Percentage, Speed and both Geometry ladders, so
+     every P6 Booklet B 2-mark slot is medium (was 7 of 10).
    - Section B 3-mark stand-ins should require 3+ steps.
    - Stop letting a one-step easy rung fill a 2-mark MCQ or a 4-mark slot (2 steps).
    - No diagram.
@@ -374,7 +379,9 @@ such items.
      this data" MCQ.
    - Real: 15 data questions plus 3 tick tables.
    - Needs a `table` figure (simple) and a tick-table answer type.
-7. **Circles ladder.**
+7. ~~**Circles ladder.**~~ Done in #226 (EXA-149): a P6 `circles` ladder (1/2/3 marks) with
+   semicircle and quarter-circle composites, shaded regions, π = 3.14 or 22/7 and some hard
+   answers in terms of π (P8-SHAPING.md). Not yet built: S-shapes and logos, π-terms MCQs.
    - Composite semicircles and quarter circles (overlapping, S-shapes, logos); perimeter vs area of the
      shaded or unshaded region; "in terms of π" answers through the existing `expression` type; default
      π = 3.14.
