@@ -154,7 +154,6 @@ class GeometryAngleFoldedSolver:
             (180 - p // 2, "found ∠EFC"),
             (p, "took ∠B'FC equal to ∠AEB'"),
             (90 + p // 2, "found ∠AEF"),
-            (2 * (180 - p), "doubled the angle for the fold"),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:
