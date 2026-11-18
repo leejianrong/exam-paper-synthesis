@@ -156,8 +156,8 @@ def test_export_refuses_empty_placeholders_unless_told_to_print_anyway(monkeypat
         assert resp.status_code == 409, mode
         detail = resp.json()["detail"]
         assert detail["code"] == "unfilled_placeholders"
-        assert detail["questions"] == [18, 19, 20]  # the last three Section B questions
-        assert "Questions 18, 19, 20 are still empty" in detail["message"]
+        assert detail["questions"] == [19, 20, 21]  # the last three Section B questions
+        assert "Questions 19, 20, 21 are still empty" in detail["message"]
     assert charged == []  # refused before any export allowance is spent
 
     ok = client.post(f"{url}/student?allow_placeholders=true", headers=ALICE)
@@ -181,7 +181,7 @@ def test_export_refuses_empty_placeholders_unless_told_to_print_anyway(monkeypat
         headers=ALICE,
     ).json()
     one = client.post(f"{url}/student", headers=ALICE).json()["detail"]
-    assert one["questions"] == [20] and "Question 20 is still empty" in one["message"]
+    assert one["questions"] == [21] and "Question 21 is still empty" in one["message"]
     _write(phs[2], "And 2 + 2?")
     resp = client.put(
         f"/documents/{gen['id']}",

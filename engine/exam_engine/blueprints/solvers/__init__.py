@@ -29,6 +29,7 @@ from . import (
     ratio_easy,  # noqa: F401
     ratio_hard,  # noqa: F401
     ratio_medium,  # noqa: F401
+    solids,  # noqa: F401
     speed_easy,  # noqa: F401
     speed_hard,  # noqa: F401
     speed_medium,  # noqa: F401
@@ -67,6 +68,7 @@ __all__ = [
     "ratio_easy",
     "ratio_hard",
     "ratio_medium",
+    "solids",
     "speed_easy",
     "speed_hard",
     "speed_medium",

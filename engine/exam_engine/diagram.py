@@ -28,6 +28,7 @@ from .label_layout import (
     svg_arc_points,
     widest_gap,
 )
+from .net import check_net_consistency, render_net_svg
 from .number_line import check_number_line_consistency, render_number_line_svg
 from .solid import check_solid_consistency, render_solid_svg
 
@@ -66,6 +67,8 @@ def check_consistency(spec: dict, params: dict, solution: dict) -> dict[str, boo
         return check_panels_consistency(spec)
     if dtype == "cube_stack":
         return check_cube_stack_consistency(spec)
+    if dtype == "net":
+        return check_net_consistency(spec)
     raise ValueError(f"no consistency check for diagram type {dtype!r}")
 
 
@@ -389,6 +392,7 @@ _PANEL_STANDALONE = {
     "solid": check_solid_consistency,
     "number_line": check_number_line_consistency,
     "cube_stack": check_cube_stack_consistency,
+    "net": check_net_consistency,
 }
 
 
@@ -520,6 +524,8 @@ def render_svg(spec: dict, given: dict | None = None) -> str:
         return _render_panels(spec)
     if dtype == "cube_stack":
         return render_cube_stack_svg(spec)
+    if dtype == "net":
+        return render_net_svg(spec)
     raise ValueError(f"no SVG renderer for diagram type {dtype!r}")
 
 

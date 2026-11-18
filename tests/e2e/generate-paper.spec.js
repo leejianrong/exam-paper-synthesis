@@ -58,8 +58,8 @@ test('generate a P5 Paper 2: placeholders for what the content cannot fill yet',
   await generateSinglePaper(page, 'Paper 2', 'P5')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
 
-  // P5 has too few 3-5 mark blueprints for Section B: 12 stand-ins and 3 placeholders
-  await expect(page.getByTestId('generate-report')).toContainText('Filled 17 of 20 questions')
+  // P5 has too few 3-5 mark blueprints for Section B: 13 stand-ins and 3 placeholders
+  await expect(page.getByTestId('generate-report')).toContainText('Filled 18 of 21 questions')
   await expect(page.getByTestId('placeholders-left')).toHaveText('3 placeholders to write')
   const hints = page.locator('.ff-placeholder-hint:visible')
   await expect(hints).toHaveCount(3)
@@ -83,7 +83,8 @@ test('generate a P6 Booklet A: multiple-choice questions with four options each'
   await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
 
   const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
-  expect(student.match(/<ol class="options">/g)).toHaveLength(15)
+  // text options in one column, picture options (cube views, EXA-147) in a grid
+  expect(student.match(/<ol class="options[ "]/g)).toHaveLength(15)
   expect(student).not.toContain('class="option option-correct"') // the right option never reaches the paper
   const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
   expect(key.match(/option option-correct/g)).toHaveLength(15)

@@ -125,14 +125,14 @@ def test_the_rung_sits_between_the_easy_and_the_three_mark_medium(code):
     assert edits.apply("make-harder", generate(below, 1), seed=2)["blueprint_code"] == code
 
 
-@pytest.mark.parametrize(("level", "medium"), [("P6", 10), ("P5", 8)])
+@pytest.mark.parametrize(("level", "medium"), [("P6", 10), ("P5", 9)])
 def test_booklet_b_two_mark_slots_take_medium_rungs_across_topics(level, medium):
     """The point of EXA-154: since EXA-146 a 2-mark slot wants a medium rung, and Ratio,
     Percentage, Speed and both Geometry topics had only easy 2-markers. Now a P6 Booklet B
     fills all ten 2-mark slots with medium rungs from at least nine topics (it was 7 medium and
     3 easy);
-    a P5 one fills all ten (it left 2 placeholders), 8 of them medium — every P5 2-mark medium
-    blueprint there is — from at least 8 topics."""
+    a P5 one fills all ten (it left 2 placeholders), 9 of them medium — every P5 2-mark medium
+    blueprint there is, cubes_complete (EXA-147) the ninth — from at least 9 topics."""
     for seed in range(1, 41):
         doc, report = generate_paper("p1_booklet_b", level, seed)
         assert report["placeholders"] == 0, (level, seed)

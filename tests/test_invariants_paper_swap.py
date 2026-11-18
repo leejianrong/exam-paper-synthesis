@@ -129,6 +129,8 @@ def _could_fill(code: str, node, kind: str, level: str) -> bool:
         return False
     if m["parts"] > 1:
         return kind == "structured"
+    if m["answer_type"] == "choice":  # asks multiple choice itself (EXA-147): mcq slots only
+        return kind == "mcq"
     return kind != "mcq" or m["answer_type"] in _CONVERTIBLE
 
 
@@ -587,19 +589,31 @@ def test_the_cover_level_wins_over_the_requested_one():
 
 def test_a_swap_never_trades_a_question_for_an_easier_rung():
     """EXA-146: P5 Booklet B has eight 2-mark medium blueprints (EXA-154) for ten 2-mark slots,
-    so a paper uses all eight and two easy ones. "Another topic" on a medium question would only
+    so a paper used all eight and two easy ones; cubes_complete (EXA-147) is a ninth, so now
+    nine and one easy. "Another topic" on a medium question would only
     find easy ones, so it is refused; on an easy one it may take any other topic (none is
     easier); "like" on a medium question keeps its rung."""
     doc, _ = generate_paper("p1_booklet_b", "P5", 3)
     two = [n for n in _blocks(doc) if _is_q(n) and _marks(n) == 2]
     medium = [n for n in two if META[_code(n)]["rung"] != "easy"]
     easy = [n for n in two if META[_code(n)]["rung"] == "easy"]
-    assert len(medium) == 8 and len(easy) == 2
+    assert len(medium) == 9 and len(easy) == 1
     for n in medium:
         with pytest.raises(SwapNotPossible, match="easier"):
             swap_question(doc, n["attrs"]["block_id"], "topic", 1)
         new, _ = swap_question(doc, n["attrs"]["block_id"], "like", 1)
         out = next(b for b in _blocks(new) if b["attrs"].get("block_id") == n["attrs"]["block_id"])
         assert META[_code(out)]["rung"] != "easy"
+
+
+def test_another_topic_on_an_easy_two_marker_may_take_any_topic():
+    """The other branch: on an easy 2-mark question (a P5 Booklet B takes one: nine 2-mark
+    medium blueprints for ten slots) "another topic" may take any other topic, as none is
+    easier."""
+    doc, _ = generate_paper("p1_booklet_b", "P5", 3)
+    easy = [
+        n for n in _blocks(doc) if _is_q(n) and _marks(n) == 2 and META[_code(n)]["rung"] == "easy"
+    ]
+    assert easy
     new, report = swap_question(doc, easy[0]["attrs"]["block_id"], "topic", 1)
     assert report["topic"] != META[_code(easy[0])]["topic"]

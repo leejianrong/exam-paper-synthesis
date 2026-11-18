@@ -10,6 +10,13 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Cube stacks and nets (EXA-147).** Four new questions on solids, as real P6 prelims ask
+  them: count the cubes in a drawn solid, hidden ones included (1 mark); the least cubes to add
+  to make it a cuboid or a cube (2 marks); which picture is the front or side view (1 mark,
+  picture options); and which face of a folded net is opposite a marked face (1 mark, letter
+  options). Nets are a new figure (`net`, canonical schema 1.13.0), and a stack of cubes can now
+  show a "Front" arrow. The two picture and letter questions go into Booklet A as they are.
+
 - **Deeper P6 angle questions (EXA-150).** Four new blueprints, each with a figure drawn to
   scale: a rectangle's corner folded along a line (2 marks), a rhombus, parallelogram or
   trapezium joined to an isosceles or equilateral triangle (3 marks), reflex angles at a point

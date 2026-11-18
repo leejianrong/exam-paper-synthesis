@@ -140,6 +140,8 @@ def _takes(code: str, kind: str, level: str) -> bool:
     m = META[code]
     if m["level"] not in LEVELS[: LEVELS.index(level) + 1] or m["parts"] != 1:
         return False
+    if m["answer_type"] == "choice":  # asks multiple choice itself (EXA-147): mcq slots only
+        return kind == "mcq"
     return kind != "mcq" or m["answer_type"] in _CONVERTIBLE
 
 
@@ -435,9 +437,14 @@ def test_booklet_a_fills_every_slot_and_spreads_topics(level):
             if m["level"] in allowed
             and m["marks"] == 1
             and m["parts"] == 1
-            and m["answer_type"] in _CONVERTIBLE
+            and m["answer_type"] in {*_CONVERTIBLE, "choice"}
         }
-        assert eligible <= paper_topics, (seed, eligible - paper_topics)
+        # since EXA-147 (Solids, Nets) P6 has 13 such topics for 10 one-mark slots, so a paper
+        # may leave out two (seeds 1-40); P5 has 10 and leaves out none
+        assert len(eligible - paper_topics) <= max(0, len(eligible) - 11), (
+            seed,
+            eligible - paper_topics,
+        )
 
 
 @pytest.mark.parametrize("level", LEVELS)
@@ -496,7 +503,7 @@ def test_what_todays_content_fills():
     assert fill("p2", "P6") == (17, 0)  # Section B: 9 multi-part + 3 single-part stand-ins
     _, r = generate_paper("p2", "P6", 1)
     assert [(s["multipart"], s["stand_ins"]) for s in r["sections"]] == [(0, 0), (9, 3)]
-    assert fill("p2", "P5") == (17, 3)  # Section B: 12 stand-ins, 3 placeholders (13 marks)
+    assert fill("p2", "P5") == (18, 3)  # Section B: 13 stand-ins, 3 placeholders (11 marks)
 
 
 def test_unknown_template_and_level_are_refused():

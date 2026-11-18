@@ -367,7 +367,10 @@ such items.
    - Section B 3-mark stand-ins should require 3+ steps.
    - Stop letting a one-step easy rung fill a 2-mark MCQ or a 4-mark slot (2 steps).
    - No diagram.
-5. **Solids family: cube-stack views and counting.**
+5. ~~**Solids family: cube-stack views and counting.**~~ Done in #230 (EXA-147): count the cubes,
+   least cubes to make a cuboid or cube, front/side view with picture options, and the face
+   opposite a marked one on a cube net (new `net` diagram). Not yet built: asking the top view,
+   "which figure is a net", nets of cuboids and prisms, most cubes without changing the views.
    - Draw or choose the front/side/top view; maximum or least cubes to add without changing the views
      or to make a cube; count cubes.
    - Real: 7 questions on nets, solids, views and cube counting (the topic table), of which 3 are nets.

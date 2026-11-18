@@ -21,7 +21,9 @@ Rules (owner's decisions, 2026-11-15):
   it; the slot count may then differ from the real paper's. Any shortfall becomes placeholders
   of 3–5 marks. Multi-part blueprints are never used in ``short`` or ``mcq`` sections.
 - ``mcq`` slots take a blueprint whose answer is numeric or a fraction and turn its question
-  into four-option multiple choice (P8b, ``mcq.to_mcq``); the marks stay the blueprint's.
+  into four-option multiple choice (P8b, ``mcq.to_mcq``); the marks stay the blueprint's. A
+  blueprint that asks multiple choice itself (picture options, EXA-147) goes in as it is, and
+  only in ``mcq`` slots.
 - A paper of level P6 may use P5 and P6 blueprints; a P5 paper only P5 ones.
 - Difficulty follows marks (EXA-146): a slot prefers blueprints whose ladder rung is at least
   :func:`min_rung` of its marks (2 marks: medium; 3 or more: hard). When none is left it takes
@@ -240,11 +242,20 @@ def candidates(level: str) -> list[Candidate]:
 
 def _fits(c: Candidate, kind: str) -> bool:
     if kind == "mcq":  # P8b: converted to multiple choice, so the answer must be convertible
-        return c.kind == "constructed" and c.answer_type in CONVERTIBLE
+        # EXA-147: or the blueprint asks multiple choice itself (picture options)
+        return c.kind == "constructed" and c.answer_type in (*CONVERTIBLE, "choice")
     if kind == "multipart":  # P8c: only structured sections ask for these
         return c.kind == "multipart"
     # short-answer and (stand-in) structured slots take constructed-response questions.
-    return kind in ("short", "structured") and c.kind == "constructed"
+    return kind in ("short", "structured") and c.kind == "constructed" and c.answer_type != "choice"
+
+
+def as_slot_question(obj: dict, kind: str, seed: int) -> dict:
+    """``obj`` as an ``kind`` slot prints it: multiple choice for an ``mcq`` slot (P8b), unless
+    the blueprint already asks multiple choice (EXA-147)."""
+    if kind == "mcq" and obj["question"]["parts"][0]["answer"].get("type") != "choice":
+        return to_mcq(obj, seed)
+    return obj
 
 
 # ---------------------------------------------------------------------------
@@ -327,7 +338,7 @@ class _Filler:
     def question(self, c: Candidate, slot: dict) -> dict:
         obj = generate(c.code, self.rng.randrange(1, 2**31))
         if slot["kind"] == "mcq":
-            obj = to_mcq(obj, self.rng.randrange(1, 2**31))
+            obj = as_slot_question(obj, "mcq", self.rng.randrange(1, 2**31))
         return {
             "type": "templatedQuestion",
             "attrs": {"block_id": self.block_id(), "question": obj, "slot": slot},
