@@ -1,0 +1,76 @@
+code: tariff_gst
+syllabus:
+  level: P6
+  strand: "Percentage"
+  topic: "Percentage"
+  subtopic: "Structured: a tiered tariff from a table, then the bill with GST"
+  skill_codes: ["PCT.GST.TARIFF"]       # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Multiple concepts", "Representation"]
+marks: 4                                # the question total; each part's marks are below
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, template, limits, prices, usage]
+  properties:
+    name:
+      type: string
+    template: { type: string, enum: [electricity, water] }
+    limits:                             # the two band edges (m³ or units)
+      type: array
+      minItems: 2
+      maxItems: 2
+      items: { type: integer, minimum: 1, maximum: 1000 }
+    prices:                             # cents per m³ or unit, by band
+      type: array
+      minItems: 3
+      maxItems: 3
+      items: { type: integer, minimum: 1, maximum: 1000 }
+    usage: { type: integer, minimum: 1, maximum: 2000 }
+param_roles:
+  name:     { role: name }
+  template: { role: choice }
+  limits:   { role: number }
+  prices:   { role: number }
+  usage:    { role: number }
+# P8c multi-part: shared stem here, each part's text/marks/scheme/steps/answer under `parts`.
+# The tariff table (question.table) is built by the solver's table().
+story_templates:
+  - stem: >
+      The table shows how much a household pays for the {what} it uses in a month.
+      {name}'s family used {used} of {what} in May.
+parts:
+  - label: a
+    marks: 2
+    text: "How much did {name}'s family pay for the {what} used in May, before GST?"
+    solution_template:
+      steps:
+        - text: "{step1}"
+          expr: "{expr1}"
+        - text: "{step2}"
+          expr: "{expr2}"
+        - text: "{step3}"
+          expr: "{expr3}"
+        - text: "{step4}"
+          expr: "{expr4}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Charges each band at its own price." }
+      - { mark: 1, type: A, description: "Correct charge before GST with the $ unit." }
+    answer: { type: decimal, unit: "$" }
+  - label: b
+    marks: 2
+    text: >
+      GST of {gst_percent}% is charged on the amount in (a). How much did {name}'s family
+      pay altogether?
+    solution_template:
+      steps:
+        - text: "{step5}"
+          expr: "{expr5}"
+        - text: "{step6}"
+          expr: "{expr6}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Finds 9% of the charge in (a)." }
+      - { mark: 1, type: A, description: "Correct total with the $ unit." }
+    answer: { type: decimal, unit: "$" }

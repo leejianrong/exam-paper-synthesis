@@ -1,0 +1,47 @@
+code: geometry_angle_folded
+syllabus:
+  level: P6
+  strand: "Geometry"
+  topic: "Geometry (Angles)"
+  subtopic: "Folded paper: a rectangle's corner folded along a line"
+  skill_codes: ["GEO.ANG.FOLD"]         # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Hidden structure", "Reasoning depth"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [template, givens, angles]
+  properties:
+    template:
+      type: string
+      enum: ["corner_fold"]
+    givens:
+      type: object
+      additionalProperties:
+        type: integer
+    angles:                             # given-angle contract map (see check docstring)
+      type: object
+      additionalProperties:
+        type: integer
+param_roles:
+  template: { role: choice }
+  givens:   { role: number }
+  angles:   { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+    - text: "{step3}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Uses the fold: the folded angles are equal (and the folded corner is 90°)." }
+  - { mark: 1, type: A, description: "Correct ∠B'FC in degrees." }
+answer:
+  type: integer
+  unit: "degrees"
+diagram: geometry_figure

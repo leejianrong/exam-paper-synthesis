@@ -1,4 +1,4 @@
-"""EXA-144 — the ``grid`` diagram (schema 1.13.0): consistency gate and renderer."""
+"""EXA-144 — the ``grid`` diagram (schema 1.14.0): consistency gate and renderer."""
 
 from __future__ import annotations
 

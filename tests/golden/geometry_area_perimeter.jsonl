@@ -1,0 +1,3 @@
+{"params": {"template": "area_from_perimeter", "givens": {"length": 15, "width": 8}, "lengths": {"A-B": 15}}, "expected": {"answer": {"type": "integer", "value": 120, "unit": "cm^2"}, "total_marks": 2}}
+{"params": {"template": "perimeter_from_area", "givens": {"length": 12, "width": 7}, "lengths": {"A-B": 12}}, "expected": {"answer": {"type": "integer", "value": 38, "unit": "cm"}, "total_marks": 2}}
+{"params": {"template": "square_area", "givens": {"side": 9}, "lengths": {}}, "expected": {"answer": {"type": "integer", "value": 81, "unit": "cm^2"}, "total_marks": 2}}

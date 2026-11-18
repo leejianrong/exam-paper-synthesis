@@ -1,0 +1,43 @@
+code: speed_minutes
+syllabus:
+  level: P6
+  strand: "Speed"
+  topic: "Speed"
+  subtopic: "Speed, distance or time with the time in minutes"
+  skill_codes: ["SPEED.DST.UNITS"]      # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Direction", "Unit conversion"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [vehicle, kind, speed, minutes]
+  properties:
+    vehicle: { type: string, enum: [bus, car, lorry, train, van] }
+    kind: { type: string, enum: [distance, speed, time] }   # what is asked for
+    speed: { type: integer, minimum: 30, maximum: 120 }     # km/h
+    minutes: { type: integer, minimum: 10, maximum: 119 }   # never a whole number of hours
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  vehicle: { role: choice }
+  kind:    { role: choice }
+  speed:   { role: number }
+  minutes: { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{expr1}"
+    - text: "{step2}"
+      expr: "{expr2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Change the minutes to hours (or the hours to minutes)." }
+  - { mark: 1, type: A, description: "Correct {asked}." }   # e.g. "distance in km"
+answer:
+  type: quantity
+  unit: "km"

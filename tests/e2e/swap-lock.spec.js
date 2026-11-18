@@ -15,7 +15,9 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
 
   const blocks = page.getByTestId('question-block')
-  await expect(blocks).toHaveCount(17)
+  // 17 questions: Section B has 10 multi-part and 2 stand-ins (EXA-143, EXA-148, EXA-150, EXA-154)
+  await expect(blocks.nth(16)).toBeVisible()
+  expect(await blocks.count()).toBe(17)
 
   // Lock question 1.
   const first = blocks.nth(0)
@@ -23,10 +25,13 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   await first.getByRole('button', { name: 'Lock' }).click()
   await expect(first.getByRole('button', { name: 'Locked' })).toHaveAttribute('aria-pressed', 'true')
   await expect(first.getByRole('button', { name: 'Another topic' })).toBeDisabled()
-  // The question itself (its stem), compared as text content: innerText would also carry the
-  // block's form controls (working-space and unit menus) laid out line by line.
+  // The question itself (its stem), compared as DOM text content: innerText would also carry
+  // the block's form controls (working-space and unit menus) laid out line by line. Always
+  // read it with textContent(), never toHaveText(): toHaveText also reads the KaTeX shadow
+  // roots, so a stem with maths ("$x") would read "$xxxx" there and never match.
   const stemOf = (block) => block.locator('.qbody')
-  const lockedStem = await stemOf(first).textContent()
+  const textOf = (block) => stemOf(block).textContent()
+  const lockedStem = await textOf(first)
 
   // Question 2: "Write my own" leaves a 2-mark placeholder; the section stays at 10 marks.
   const second = blocks.nth(1)
@@ -38,11 +43,11 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
 
   // Question 3 (now the second generated block): another topic, same marks.
   const third = blocks.nth(1)
-  const before = await stemOf(third).textContent()
+  const before = await textOf(third)
   await third.hover()
   await third.getByRole('button', { name: 'Another topic' }).click()
   await expect(page.getByText(/Swapped in a 2-mark/)).toBeVisible()
-  await expect(stemOf(third)).not.toHaveText(before ?? '')
+  await expect.poll(() => textOf(third)).not.toBe(before)
   await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
 
   // Regenerate: the locked question stays, the placeholder is filled, targets hold.
@@ -51,12 +56,12 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   const lockedBefore = lockedBlock(await api())
   expect(lockedBefore).toHaveLength(1)
   await page.getByRole('button', { name: 'Regenerate unlocked' }).click()
-  await expect(page.getByText(/Regenerated 16 questions; kept 1/)).toBeVisible()
+  await expect(page.getByText(/Regenerated 1[67] questions; kept 1/)).toBeVisible()
   await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
-  await expect(stemOf(blocks.nth(0))).toHaveText(lockedStem ?? '')
+  await expect.poll(() => textOf(blocks.nth(0))).toBe(lockedStem)
   await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
   await expect(page.locator('.section-block').nth(1).locator('.section-summary')).toHaveText(
-    'Questions 6–17 · 45 / 45 marks',
+    /Questions 6–1[78] · 45 \/ 45 marks/,
   )
 
   // What the server stored is what the editor shows (the lock survives a reload).

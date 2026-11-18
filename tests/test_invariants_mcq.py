@@ -323,6 +323,9 @@ def test_the_correct_option_is_not_predictable_from_its_place():
             total[p] += 1
         top = max(positions.count(p) for p in (1, 2, 3, 4))
         assert top <= 0.8 * len(positions), (code, {p: positions.count(p) for p in total})
+        # nor is it the largest (or the smallest) option most of the time (EXA-147)
+        ends = max(positions.count(1), positions.count(4))
+        assert ends <= 0.65 * len(positions), (code, {p: positions.count(p) for p in total})
     n = sum(total.values())
     assert all(0.12 * n <= total[p] <= 0.4 * n for p in total), total
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte'
   import ChoiceOptions from './ChoiceOptions.svelte'
+  import DataTable from './DataTable.svelte'
   import DiagramView from './DiagramView.svelte'
   import MathText from './MathText.svelte'
   import { fmtAnswer } from './format'
@@ -57,6 +58,7 @@
 
   {#if q.question.stem}<p class="text"><MathText text={q.question.stem} /></p>{/if}
   <DiagramView keyOnly={q.source_type === 'generated'} spec={q.question.diagram} />
+  <DataTable table={q.question.table} />
   <p class="text"><MathText text={part.text} /></p>
   <DiagramView keyOnly={q.source_type === 'generated'} spec={part.diagram} />
   {#if part.answer?.type === 'choice'}<ChoiceOptions options={part.answer.options ?? []} />{/if}

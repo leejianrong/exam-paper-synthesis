@@ -1,4 +1,4 @@
-"""EXA-144 — the ``grid`` diagram (schema 1.13.0): a square grid with points, lines and shading.
+"""EXA-144 — the ``grid`` diagram (schema 1.14.0): a square grid with points, lines and shading.
 
 Real P5/P6 papers set parallel and perpendicular lines, symmetry, directions and area by
 counting squares on a square grid (lines or dots). The spec says what is on the grid in grid

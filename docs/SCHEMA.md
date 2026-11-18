@@ -109,7 +109,7 @@ correct values is always consistent.
 | `points` | yes | `≥2` named vertices `{ id, x, y }` in figure coordinates |
 | `segments` | no | straight edges `{ from, to, label?, ticks? }` (`ticks` = equal-side marks) |
 | `arcs` | no | circular arcs `{ center, radius>0, start_deg, end_deg, label? }` (whole/semi/quarter circles) |
-| `angles` | no | angle marks `{ at, from, to, value_deg?, unknown?, right?, part_label? }`; normally exactly one sets `unknown: true` (the value to solve) |
+| `angles` | no | angle marks `{ at, from, to, value_deg?, unknown?, right?, part_label? }`; normally exactly one sets `unknown: true` (the value to solve); `value_deg` is in (0, 360), and over 180 marks the reflex angle, drawn the long way round (EXA-150) |
 | `shaded` | no | region(s) to fill, each `{ boundary: [ids…], arcs? }` |
 | `labels` | no | free text labels `{ at, text }` anchored at a named point |
 
@@ -460,9 +460,26 @@ a heightmap, plus the views of it.
 - Load gate (`check_cube_stack_consistency`): rectangular grid, cells are integers in range, at
   least one cube, known view. Valid in MCQ options and `panels`. Server-side rendering only.
 
-## `diagram.type: "grid"` (schema 1.13.0)
+## `diagram.type: "net"` and `cube_stack.show_front` (schema 1.13.0)
 
-Additive (EXA-144); every 1.12.0 object still validates. A square grid with what is drawn on it,
+Additive (EXA-147); every 1.12.0 object still validates.
+
+- `net`: a net of a cube on a square grid. `faces` = six `{row, col, label?, shaded?}` squares
+  (rows top to bottom; a label is at most 2 characters and printed in the middle of its square;
+  `shaded` fills it light grey). `exam_engine.net.fold` folds it by rolling a cube over the
+  squares (`None` when it is not a net of a cube) and `opposite` gives the face across.
+- Load gate (`check_net_consistency`): six distinct cells, joined edge to edge, short unique
+  labels. Folding is *not* a load rule, so a "which of these is not a net?" figure can be drawn.
+  Valid in MCQ options and `panels`. Server-side rendering only.
+- `cube_stack.show_front: true` draws a "Front" arrow on the `iso` picture (load gate: only with
+  `view: "iso"`), so a "which is the front view?" question says where the front is.
+- A generated question may ask multiple choice itself (`cubes_view`: picture options;
+  `net_opposite`: letter options). `document.verify_snapshot` then re-solves it and requires the
+  options and the correct one to match exactly.
+
+## `diagram.type: "grid"` (schema 1.14.0)
+
+Additive (EXA-144); every 1.13.0 object still validates. A square grid with what is drawn on it,
 in grid units: `x` runs 0..`cols` left to right and `y` 0..`rows` top to bottom (grid points),
 and cell `(col, row)` has its top-left corner at point `(col, row)`.
 

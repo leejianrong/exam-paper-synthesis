@@ -10,9 +10,14 @@ behind taller stacks) cannot arise: the heightmap says exactly what is there.
 * ``view: "side"`` — looking from the right: front row on the left, back row on the right.
 * ``view: "top"`` — looking down: every occupied cell is a square.
 
+``show_front`` (schema 1.13.0, EXA-147) adds a "Front" arrow to the ``iso`` picture, so a
+"which picture is the front view?" question says which side the front is.
+
 * :func:`check_cube_stack_consistency` — spec-only invariants (run by the load gate).
 * :func:`front_view` / :func:`side_view` / :func:`top_view` / :func:`view_key` /
   :func:`cube_count` — the derivations, for blueprints and invariant tests.
+* :func:`readable` / :func:`visible_cubes` — what the ``iso`` picture lets a pupil see (EXA-147):
+  every stack's top, and which cubes show at least one face.
 * :func:`render_cube_stack_svg` — deterministic, Inter only.
 
 No FastAPI/Pydantic (ADR-0016) and no import of ``diagram``.
@@ -34,6 +39,8 @@ _MAX_SIDE = 6
 _VIEWS = ("iso", "front", "side", "top")
 _COS = math.cos(math.pi / 6)
 _SIN = 0.5
+_ARROW = 1.6  # how far in front of the stack the "Front" arrow starts, in cube edges
+_CAPTION_W = 40.0  # room for the "Front" caption, px
 
 
 def _n(v: float) -> str:
@@ -86,6 +93,68 @@ def view_key(heights: list[list[int]], view: str) -> object:
     return tuple(tuple(r) for r in heights)
 
 
+# What the iso picture shows (EXA-147). The picture is a parallel projection along (1, 1, 1)
+# in (col, row, z), towards the viewer at the front-right above: a point is hidden exactly
+# when moving towards the viewer from it enters a cube.
+
+
+def _occupied(heights: list[list[int]]) -> list[tuple[int, int, int]]:
+    return [
+        (c, r, z)
+        for r, row in enumerate(heights)
+        for c, height in enumerate(row)
+        for z in range(height)
+    ]
+
+
+def hidden(heights: list[list[int]], point: tuple[float, float, float]) -> bool:
+    """Whether ``point`` (col, row, z) is behind a cube in the ``iso`` picture."""
+    x, y, z = point
+    for c, r, k in _occupied(heights):
+        # the k > 0 where point + k(1, 1, 1) is inside cube (c, r, k): three open intervals
+        lo = max(c - x, r - y, k - z, 0.0)
+        hi = min(c + 1 - x, r + 1 - y, k + 1 - z)
+        if lo < hi:
+            return True
+    return False
+
+
+_QUARTERS = ((0.5, 0.5), (0.25, 0.25), (0.75, 0.25), (0.25, 0.75), (0.75, 0.75))
+
+
+def readable(heights: list[list[int]]) -> bool:
+    """Every cell's top (or bare floor) shows in the ``iso`` picture: its centre and at least
+    three of its four quarter points. Then the picture fixes every stack's height, so the cubes
+    hidden under a visible top must be there and none can hide behind a taller stack."""
+    for r, row in enumerate(heights):
+        for c, h in enumerate(row):
+            seen = [not hidden(heights, (c + u, r + v, h)) for u, v in _QUARTERS]
+            if not seen[0] or sum(seen[1:]) < 3:
+                return False
+    return True
+
+
+def visible_cubes(heights: list[list[int]]) -> int:
+    """Cubes with at least part of a face in the ``iso`` picture (top, front or right face
+    centre not covered); the rest are hidden under or behind other cubes."""
+    rows, cols = len(heights), len(heights[0])
+
+    def h(r: int, c: int) -> int:
+        return heights[r][c] if 0 <= r < rows and 0 <= c < cols else 0
+
+    n = 0
+    for c, r, z in _occupied(heights):
+        faces = []
+        if h(r, c) == z + 1:
+            faces.append((c + 0.5, r + 0.5, z + 1.0))
+        if h(r + 1, c) <= z:
+            faces.append((c + 0.5, r + 1.0, z + 0.5))
+        if h(r, c + 1) <= z:
+            faces.append((c + 1.0, r + 0.5, z + 0.5))
+        n += any(not hidden(heights, f) for f in faces)
+    return n
+
+
 # ---------------------------------------------------------------------------
 # Consistency
 # ---------------------------------------------------------------------------
@@ -107,6 +176,7 @@ def check_cube_stack_consistency(spec: dict) -> dict[str, bool]:
     cells_ok = rectangular and all(_is_int(h) and 0 <= h <= _MAX_H for r in grid for h in r)  # type: ignore[operator]
     return {
         "view_known": spec.get("view", "iso") in _VIEWS,
+        "front_arrow_on_iso": not spec.get("show_front") or spec.get("view", "iso") == "iso",
         "heights_rectangular": rectangular,
         "heights_in_range": cells_ok,
         "has_cubes": cells_ok and any(h for r in grid for h in r),
@@ -137,20 +207,25 @@ def _poly(pts: list[tuple[float, float]], fill: str) -> str:
     return f'<polygon points="{p}" fill="{fill}" stroke="{_INK}" stroke-width="1.2" />'
 
 
-def _render_iso(heights: list[list[int]], title: str | None) -> str:
+def _render_iso(heights: list[list[int]], title: str | None, front: bool) -> str:
     rows, cols = len(heights), len(heights[0])
     s = 34.0  # cube edge in px
     a, b = s * _COS, s * _SIN  # screen step per +col (right-down) / +row (left-down)
     tallest = max(max(r) for r in heights)
     top_pad = 30 if title else 12
-    # origin: screen position of the back-left-bottom corner (c=0, r=0, z=0).
+    # The "Front" arrow lies on the floor in front of the middle column, pointing back at it.
+    tail = (cols / 2, rows + _ARROW, 0.0)
+    # origin: screen position of the back-left-bottom corner (c=0, r=0, z=0); far enough right
+    # that the arrow's caption stays on the canvas.
     ox = 12 + rows * a
+    if front:
+        ox = max(ox, 12 + _CAPTION_W / 2 - (tail[0] - tail[1]) * a)
     oy = top_pad + tallest * s
 
     def pt(c: float, r: float, z: float) -> tuple[float, float]:
         return (ox + (c - r) * a, oy + (c + r) * b - z * s)
 
-    w = 12 + (rows + cols) * a + 12
+    w = ox + cols * a + 12
     h = oy + (rows + cols) * b + 12
     body = []
     order = sorted(
@@ -192,6 +267,22 @@ def _render_iso(heights: list[list[int]], title: str | None) -> str:
                 _RIGHT,
             )
         )
+    if front:
+        tx, ty = pt(*tail)
+        hx, hy = pt(cols / 2, rows + 0.25, 0.0)
+        ux, uy = (hx - tx) / math.hypot(hx - tx, hy - ty), (hy - ty) / math.hypot(hx - tx, hy - ty)
+        bx, by = hx - 9 * ux, hy - 9 * uy  # the head's base
+        body.append(
+            f'<line x1="{_n(tx)}" y1="{_n(ty)}" x2="{_n(bx)}" y2="{_n(by)}" '
+            f'stroke="{_INK}" stroke-width="1.4" />'
+        )
+        body.append(_poly([(hx, hy), (bx - 4 * uy, by + 4 * ux), (bx + 4 * uy, by - 4 * ux)], _INK))
+        body.append(
+            f'<text x="{_n(tx)}" y="{_n(ty + 17)}" text-anchor="middle" font-size="13" '
+            f'fill="{_INK}">Front</text>'
+        )
+        w = max(w, tx + _CAPTION_W / 2 + 12)
+        h = max(h, ty + 24)
     return _wrap(w, h, title or "A stack of cubes", body, title)
 
 
@@ -235,4 +326,4 @@ def render_cube_stack_svg(spec: dict) -> str:
         return _render_elevation(side_view(heights), title, "A stack of cubes seen from the right")
     if view == "top":
         return _render_top(top_view(heights), title)
-    return _render_iso(heights, title)
+    return _render_iso(heights, title, bool(spec.get("show_front")))

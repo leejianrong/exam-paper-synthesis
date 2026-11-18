@@ -49,8 +49,8 @@ def test_numbers_are_the_printed_question_numbers_of_unwritten_placeholders():
 
 
 def test_the_generator_report_and_the_numbers_agree():
-    doc, report = generate_paper("p1_booklet_b", "P5", 1)  # Booklet B numbers Q16-30
-    assert unfilled_placeholder_numbers(doc) == [30]
+    doc, report = generate_paper("p2", "P5", 1)  # too few 3-5 mark blueprints at P5
+    assert unfilled_placeholder_numbers(doc) == [22]
     assert report["placeholders"] == 1
 
 

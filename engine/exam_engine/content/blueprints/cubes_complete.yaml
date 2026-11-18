@@ -1,0 +1,48 @@
+code: cubes_complete
+# EXA-147: a 2-mark question, on no difficulty ladder (2 marks: medium, per paper.min_rung).
+syllabus:
+  level: P5                             # P5 Volume: solids made of unit cubes
+  strand: "Geometry"
+  topic: "Solids"
+  subtopic: "Completing a solid of unit cubes into a cuboid or a cube"
+  skill_codes: ["SOLIDS.COMPLETE"]      # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Representation translation"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [heights, shape]
+  properties:
+    heights:
+      type: array
+      minItems: 2
+      maxItems: 3
+      items:
+        type: array
+        minItems: 2
+        maxItems: 4
+        items: { type: integer, minimum: 1, maximum: 4 }
+    shape: { type: string, enum: [cuboid, cube] }
+param_roles:
+  heights: { role: number }
+  shape:   { role: choice }
+story_templates:
+  - stem: null
+    text: "The solid below is made up of identical cubes. Without moving any of the cubes, what is the least number of cubes that must be added to make the solid into a {shape}?"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{e1}"
+    - text: "{step2}"
+      expr: "{e2}"
+    - text: "{step3}"
+      expr: "{e3}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Number of cubes in the solid, or in the smallest cuboid or cube around it." }
+  - { mark: 1, type: A, description: "Correct number of cubes to add." }
+answer:
+  type: integer
+diagram: cube_stack

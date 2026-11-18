@@ -1,0 +1,54 @@
+code: cubes_view
+# EXA-147: a 1-mark Booklet A question whose options are pictures, so the blueprint asks
+# multiple choice itself (paper.as_slot_question leaves it as it is). No difficulty ladder.
+syllabus:
+  level: P6
+  strand: "Geometry"
+  topic: "Solids"
+  subtopic: "Front and side views of a solid made of unit cubes"
+  skill_codes: ["SOLIDS.VIEWS"]         # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Representation translation"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [heights, view, arrangement]
+  properties:
+    heights:
+      type: array
+      minItems: 2
+      maxItems: 3
+      items:
+        type: array
+        minItems: 2
+        maxItems: 4
+        items: { type: integer, minimum: 1, maximum: 4 }
+    # side = seen from the right
+    view: { type: string, enum: [front, side] }
+    # arrangement[i] = where option i prints (0 = the correct picture)
+    arrangement:
+      type: array
+      minItems: 4
+      maxItems: 4
+      items: { type: integer, minimum: 0, maximum: 3 }
+param_roles:
+  heights:     { role: number }
+  view:        { role: choice }
+  arrangement: { role: choice }
+story_templates:
+  - stem: null
+    text: "The solid below is made up of identical cubes. Which of the following shows the view of the solid from {view_words}?"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: null
+    - text: "{step2}"
+      expr: null
+marking_scheme:
+  - { mark: 1, type: A, description: "Correct picture of the view." }
+answer:
+  type: choice
+diagram: cube_stack

@@ -35,7 +35,7 @@ from exam_engine.blueprints.solvers import geometry_area_hard as _ar_hard
 from exam_engine.blueprints.solvers import geometry_area_medium as _ar_medium
 from exam_engine.canonical import assemble
 from exam_engine.diagram import check_consistency
-from exam_engine.pipeline import build_part_diagram
+from exam_engine.pipeline import build_part_diagram, build_table
 from exam_engine.schema import validate_object
 from hypothesis import assume
 from hypothesis import strategies as st
@@ -72,7 +72,13 @@ def build_object(blueprint_code: str, params: dict, *, seed: int = 0) -> dict:
         assert all(dchecks.values()), (blueprint_code, dchecks)
 
     obj = assemble(
-        spec, seed=seed, params=params, solution=solution, report=report, diagram=diagram
+        spec,
+        seed=seed,
+        params=params,
+        solution=solution,
+        report=report,
+        diagram=diagram,
+        table=build_table(solver, params, solution),
     )
     errors = validate_object(obj)
     assert errors == [], (blueprint_code, errors)

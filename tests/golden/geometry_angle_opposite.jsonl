@@ -1,0 +1,3 @@
+{"params": {"template": "opposite_part", "givens": {"r": 110, "q": 35}, "angles": {"B-O-C": 110, "D-O-E": 35}}, "expected": {"answer": {"type": "integer", "value": 75, "unit": "degrees"}, "total_marks": 2}}
+{"params": {"template": "opposite_sum", "givens": {"p": 48, "q": 57}, "angles": {"A-O-E": 48, "E-O-D": 57}}, "expected": {"answer": {"type": "integer", "value": 105, "unit": "degrees"}, "total_marks": 2}}
+{"params": {"template": "line_part", "givens": {"p": 64, "q": 38}, "angles": {"B-O-D": 64, "A-O-E": 38}}, "expected": {"answer": {"type": "integer", "value": 78, "unit": "degrees"}, "total_marks": 2}}
