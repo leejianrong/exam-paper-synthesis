@@ -3,6 +3,7 @@
 from . import (
     algebra,  # noqa: F401
     average,  # noqa: F401
+    circles,  # noqa: F401
     decimals,  # noqa: F401
     fractions_easy,  # noqa: F401
     fractions_hard,  # noqa: F401
@@ -15,6 +16,7 @@ from . import (
     geometry_area_hard,  # noqa: F401
     geometry_area_medium,  # noqa: F401
     geometry_area_perimeter,  # noqa: F401
+    heuristics,  # noqa: F401
     measurement,  # noqa: F401
     number_sense,  # noqa: F401
     percentage_easy,  # noqa: F401
@@ -51,6 +53,7 @@ __all__ = [
     "geometry_area_hard",
     "geometry_area_medium",
     "geometry_area_perimeter",
+    "heuristics",
     "measurement",
     "number_sense",
     "percentage_easy",

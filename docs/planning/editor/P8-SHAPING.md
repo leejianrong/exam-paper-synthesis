@@ -21,13 +21,14 @@ sub-slices.
 
 ## What the content can fill today (computed, not estimated)
 
-There are 47 blueprints: 13 topic ladders × 3 rungs, each single-part with fixed marks,
+There are 50 blueprints: 14 topic ladders × 3 rungs, each single-part with fixed marks,
 3 multi-part ones and 5 single-part 1-mark ones on no ladder. Single-part, counted by marks:
-1 mark: 13, 2 marks: 12, 3 marks: 15, 4 marks: 4; 28 are P5 (1: 12, 2: 8, 3: 8). P8e batch 1
+1 mark: 14, 2 marks: 13, 3 marks: 16, 4 marks: 4; 28 are P5 (1: 12, 2: 8, 3: 8). P8e batch 1
 (EXA-117) added the P5 `average` ladder; P8c (EXA-116) the three P6 multi-part blueprints
 (4, 5, 5 marks) for Paper 2 Section B; P8e batch 2 (EXA-121) the P5 `whole_numbers`,
 `decimals` and `rate` ladders and the P6 `algebra` ladder (1/2/3 marks each); P8e batch 3
-(EXA-145) five P5 1-mark blueprints for Booklet A (below).
+(EXA-145) five P5 1-mark blueprints for Booklet A; P8e batch 4 (EXA-149) the P6 `circles`
+ladder (1/2/3 marks) (below).
 
 | Paper part | Real composition | P6 paper today | P5 paper today |
 |---|---|---|---|
@@ -317,6 +318,38 @@ in generation (the engine stays deterministic).
 - **Goldens** `tests/golden/{whole_numbers_rounding,decimals_compare,fractions_compare,
   measurement_conversion,time_duration}.jsonl`, 3 each, picked from seeds; a person checks them.
 
+## P8c batch 2 as built (EXA-143, 2026-11-17)
+
+- **Why.** Real Paper 2 Section B has 8–10 multi-part questions of 12, built on named
+  heuristics; ours had 3, with 9 single-part stand-ins of 1–2 steps (REAL-PAPER-COMPARISON.md
+  Part 2, ranked gap 1).
+- **Blueprints** (all P6, `solvers/heuristics.py`, not on any ladder), each with a cheap lead-in:
+  - `supposition_structured` (Money, 5 = 1 + 2 + 2): tickets at two prices, the number
+    sold and the money collected: the money if all were child tickets; how many adult
+    tickets; how much more from adult tickets than child tickets.
+  - `fraction_remainder_structured` (Fractions, 4 = 1 + 3): a fraction on a bag, a fraction of
+    the remainder on n identical items, $x left: the fraction left; the cost of each item.
+  - `lcm_packs_structured` (Whole Numbers, 3 = 1 + 2): two goods in packs of m and n, the same
+    number of each: the smallest number (LCM); the most of both a budget buys.
+  - `age_difference_structured` (Ratio, 3 = 1 + 2): two ages now: the age difference ("how old
+    was the parent when the child was born?"); in how many years the ages are r : s.
+  - `equal_number_amount_structured` (Money, 4 = 2 + 2): two prices: an equal number
+    of each and a difference in money (how many altogether); an equal amount on each (how many
+    more of the cheaper).
+- **Proof.** `tests/test_invariants_heuristics.py` re-derives every part from the printed
+  numbers by search (every split of the tickets, the money at first, counting up through whole
+  packs, year by year, one of each at a time). `tests/test_multipart_blueprints.py` covers the
+  five too (generation, tampering with any part, edits, printing, goldens).
+- **What it fills now.** P6 Paper 2 Section B: 8 multi-part (33 marks: 3 + 3 + 4 + 4 + 4 + 5 + 5
+  + 5) and 4 single-part stand-ins of 3 marks, 21 parts in all, on every seed 1–100 (was 3
+  multi-part and 9 stand-ins). No generator change: the pool picks them up as `multipart`. P5
+  papers are unchanged.
+- **Topics.** Supposition and equal number vs equal amount are filed under a new topic, Money
+  (the MOE topic these money heuristics belong to), so that no topic has two multi-part questions
+  alongside a Section A question of the same topic (EXA-146's at-most-two-per-topic rule).
+- **Goldens** `tests/golden/{supposition,fraction_remainder,lcm_packs,age_difference,
+  equal_number_amount}_structured.jsonl`, 3 each, chosen by hand; a person checks them.
+
 ## Difficulty follows marks (EXA-146, 2026-11-17)
 
 - **Why.** Marks were matched exactly but the rung was not, so a 2-mark Booklet A MCQ could be a
@@ -357,6 +390,43 @@ in generation (the engine stays deterministic).
   replay now ranks rung before topic); `_check_rungs` and the no-easier-swap assertion in
   `tests/test_invariants_paper_swap.py`, plus
   `test_a_swap_never_trades_a_question_for_an_easier_rung`.
+
+## P8e batch 4 as built: Circles (EXA-149, 2026-11-17)
+
+- **Why.** Real papers have about 2 circle questions a set, in every school (semicircle and
+  quarter-circle composites, shaded regions, "in terms of π", mostly "Take π = 3.14"); we had
+  one P6 item with a semicircle, always 22/7 when whole (REAL-PAPER-COMPARISON.md Part 2,
+  ranked gap 7).
+- **Ladder** (topic Circles, P6, `solvers/circles.py`, all with a `geometry_figure`):
+  - `circles_easy`, 1 mark: circumference or area of a circle, area of a semicircle or a
+    quarter circle, from a radius or a diameter.
+  - `circles_medium`, 2 marks: a square with a semicircle on one side, a rectangle with a
+    semicircle cut out (perimeter or area), the perimeter of a quarter circle. The shaded
+    figure is what is measured, so an inside edge is not part of the perimeter.
+  - `circles_hard`, 3 marks: shaded regions in a square or rectangle: the leaf of two quarter
+    circles, a quarter circle with a semicircle on a side (total shaded area, or the shaded
+    part's perimeter in terms of π, an `expression` answer), the gap between two quarter
+    circles in a rectangle (area or perimeter: AB counts, the other sides do not).
+- **π.** The stem says "Take π = 3.14" (60% of numeric items) or "22/7" (lengths then
+  multiples of 7), and the lengths are drawn so the answer is whole or has 2 decimal places.
+- **Marks and rungs.** 1 / 2 / 3 marks are exactly what "difficulty follows marks" asks of
+  each rung, so the easy rung fills 1-mark slots (Booklet A MCQ too), the medium 2-mark slots
+  (Booklet A MCQ, Booklet B, Paper 2 Section A) and the hard one a Section B stand-in.
+  "In terms of π" is only on the hard rung: the multiple-choice copy needs numeric options,
+  and a 2-mark medium is a Booklet A MCQ candidate (real papers do ask 2-mark MCQs in terms of
+  π; that needs expression options in `mcq.py`).
+- **Effect** (100 seeds per template, P6): a circle question in every generated paper part:
+  Booklet A 1.27 a paper (easy 68, medium 59 per 100, all as MCQ), Booklet B 1.44 (easy 44,
+  medium 100), Paper 2 1.18 (medium 69, hard 49); about 3.9 a full set against the real 2,
+  because each paper part spreads topics on its own and a new topic is the least used. Rung
+  fit in P6 Booklet B rose from 80% to 87%; no placeholders added. P5 papers never draw it.
+- **Tests.** `tests/test_invariants_circles.py` re-derives every answer from the printed stem
+  by another decomposition and from the drawn figure (each shaded region traced from the spec
+  and measured numerically with the true π; every named wrong answer is told apart),
+  `tests/test_generate_circles.py`, `tests/test_distractors_circles.py`; the figure-label
+  sweep picks the new figures up by itself.
+- **Goldens** `tests/golden/circles_{easy,medium,hard}.jsonl`, 3 each, picked from seeds; a
+  person checks them.
 
 ## Topics spread over an exam set (EXA-153, 2026-11-17)
 

@@ -336,8 +336,11 @@ such items.
      in the question figure.
    - Fix: do not render solution models on student or MCQ papers, or move them to the key only.
    - Real papers never print a model. No new diagram is needed.
-1. **Multi-part blueprints for P2 Section B built on real heuristics.** About 7 more are needed to reach
-   8–10 per paper.
+1. ~~**Multi-part blueprints for P2 Section B built on real heuristics.** About 7 more are needed to reach
+   8–10 per paper.~~ Five done in #224 (EXA-143): supposition, fraction of a remainder with a unit
+   cost, LCM packs with a budget, ages (constant difference), equal number vs equal amount; a P6
+   Section B now has 8 multi-part questions (was 3). Not yet built: excess and shortage with
+   fractions, constant-total transfers.
    - Candidates: supposition / coins with an equal count (3 parts); equal number vs equal amount at two
      prices; fraction of a remainder linked to unit costs; excess and shortage with fractions;
      constant-difference / constant-total transfers; LCM packs of m and n with a budget.
@@ -376,7 +379,9 @@ such items.
      this data" MCQ.
    - Real: 15 data questions plus 3 tick tables.
    - Needs a `table` figure (simple) and a tick-table answer type.
-7. **Circles ladder.**
+7. ~~**Circles ladder.**~~ Done in #226 (EXA-149): a P6 `circles` ladder (1/2/3 marks) with
+   semicircle and quarter-circle composites, shaded regions, π = 3.14 or 22/7 and some hard
+   answers in terms of π (P8-SHAPING.md). Not yet built: S-shapes and logos, π-terms MCQs.
    - Composite semicircles and quarter circles (overlapping, S-shapes, logos); perimeter vs area of the
      shaded or unshaded region; "in terms of π" answers through the existing `expression` type; default
      π = 3.14.

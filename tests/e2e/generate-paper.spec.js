@@ -12,11 +12,8 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
-  // 9 or 10 single-part stand-ins, by seed: a stand-in never gives a topic a third question (EXA-154)
-  await expect(page.getByTestId('generate-report')).toContainText(/Filled (17 of 17|18 of 18) questions/)
-  await expect(page.getByTestId('generate-report')).toContainText(
-    /Section B has 3 multi-part questions; (9|10) single-part questions stand in for the rest/,
-  )
+  await expect(page.getByTestId('generate-report')).toContainText('Filled 17 of 17 questions')
+  await expect(page.getByTestId('generate-report')).toContainText('Section B has 8 multi-part questions; 4 single-part questions stand in for the rest')
   await expect(page.locator('.cover-block')).toHaveCount(1)
   await expect(page.locator('.cover-block').getByLabel('Cover level')).toHaveValue('Primary 6')
   await expect(page.locator('.section-block')).toHaveCount(2)

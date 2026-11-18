@@ -1,0 +1,76 @@
+code: supposition_structured
+syllabus:
+  level: P6
+  strand: "Measurement"
+  topic: "Money"
+  subtopic: "Structured: supposition with two prices (how many of each, then a difference in money)"
+  skill_codes: ["WHOLE.HEURISTIC.SUPPOSITION"]  # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Hidden structure", "Reasoning depth"]
+marks: 5                                # the question total; each part's marks are below
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, total, adult_price, child_price, amount]
+  properties:
+    name: { type: string }
+    total: { type: integer, minimum: 30, maximum: 120 }
+    adult_price: { type: integer, minimum: 5, maximum: 18 }
+    child_price: { type: integer, minimum: 3, maximum: 10 }
+    amount: { type: integer, minimum: 1, maximum: 2000 }
+# Every parameter_schema property needs a role (W1a).
+param_roles:
+  name:        { role: name }
+  total:       { role: number }
+  adult_price: { role: number }
+  child_price: { role: number }
+  amount:      { role: number }
+# P8c multi-part: shared stem here, each part's text/marks/scheme/steps/answer under `parts`.
+story_templates:
+  - stem: >
+      {name} sold {total} tickets for a school concert. Each adult ticket cost
+      ${adult_price} and each child ticket cost ${child_price}. {name} collected
+      ${amount} from the tickets altogether.
+parts:
+  - label: a
+    marks: 1
+    text: "If all {total} tickets had been child tickets, how much would {name} have collected?"
+    solution_template:
+      steps:
+        - text: "{total} child tickets would cost {total} × ${child_price} = ${all_child}."
+          expr: "{total}*{child_price}"
+    marking_scheme:
+      - { mark: 1, type: A, description: "Correct amount with the $ unit." }
+    answer: { type: quantity, unit: "$" }
+  - label: b
+    marks: 2
+    text: "How many adult tickets did {name} sell?"
+    solution_template:
+      steps:
+        - text: "{name} collected ${amount} − ${all_child} = ${extra} more than if all had been child tickets."
+          expr: "{amount}-{all_child}"
+        - text: "Each adult ticket in place of a child ticket adds ${adult_price} − ${child_price} = ${price_diff}."
+          expr: "{adult_price}-{child_price}"
+        - text: "Number of adult tickets = {extra} ÷ {price_diff} = {adult}."
+          expr: "{extra}/{price_diff}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Divides the extra money (from (a)) by the difference in price." }
+      - { mark: 1, type: A, description: "Correct number of adult tickets." }
+    answer: { type: integer }
+  - label: c
+    marks: 2
+    text: "How much more money did {name} collect from the adult tickets than from the child tickets?"
+    solution_template:
+      steps:
+        - text: "Number of child tickets = {total} − {adult} = {child}."
+          expr: "{total}-{adult}"
+        - text: "Adult tickets: {adult} × ${adult_price} = ${adult_amount}. Child tickets: {child} × ${child_price} = ${child_amount}."
+          expr: "{adult}*{adult_price}"
+        - text: "${adult_amount} − ${child_amount} = ${more}."
+          expr: "{adult_amount}-{child_amount}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Finds the money collected from each kind of ticket." }
+      - { mark: 1, type: A, description: "Correct difference with the $ unit." }
+    answer: { type: quantity, unit: "$" }
