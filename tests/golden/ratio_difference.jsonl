@@ -1,0 +1,3 @@
+{"params": {"names": ["Aisha", "Ben"], "item": "stickers", "ratio": [7, 4], "difference": 27}, "expected": {"answer": {"type": "integer", "value": 99, "unit": ""}, "total_marks": 2}}
+{"params": {"names": ["Devi", "Lucas"], "item": "marbles", "ratio": [2, 5], "difference": 36}, "expected": {"answer": {"type": "integer", "value": 84, "unit": ""}, "total_marks": 2}}
+{"params": {"names": ["Gopal", "Kavya"], "item": "stamps", "ratio": [5, 4], "difference": 15}, "expected": {"answer": {"type": "integer", "value": 135, "unit": ""}, "total_marks": 2}}

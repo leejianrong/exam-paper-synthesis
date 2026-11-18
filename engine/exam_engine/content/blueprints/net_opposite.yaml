@@ -1,0 +1,53 @@
+code: net_opposite
+# EXA-147: a 1-mark Booklet A question; the options are face letters, so the blueprint asks
+# multiple choice itself. No difficulty ladder.
+syllabus:
+  level: P6
+  strand: "Geometry"
+  topic: "Nets"
+  subtopic: "Opposite faces of a cube from its net"
+  skill_codes: ["SOLIDS.NETS"]          # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Representation translation"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [cells, letters, asked, marked]
+  properties:
+    # the six squares of the net as [row, col], top-left at [0, 0], sorted
+    cells:
+      type: array
+      minItems: 6
+      maxItems: 6
+      items:
+        type: array
+        minItems: 2
+        maxItems: 2
+        items: { type: integer, minimum: 0, maximum: 4 }
+    # the face letters, in cell order
+    letters: { type: string, pattern: "^[A-F]{6}$" }
+    asked: { type: integer, minimum: 0, maximum: 5 }
+    # letter: "opposite face C"; shaded: the marked face is shaded and has no letter
+    marked: { type: string, enum: [letter, shaded] }
+param_roles:
+  cells:   { role: number }
+  letters: { role: choice }
+  asked:   { role: choice }
+  marked:  { role: choice }
+story_templates:
+  - stem: null
+    text: "The figure shows the net of a cube. When the net is folded to form the cube, which face is opposite {mark}?"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: null
+    - text: "{step2}"
+      expr: null
+marking_scheme:
+  - { mark: 1, type: A, description: "Correct face." }
+answer:
+  type: choice
+diagram: net

@@ -47,6 +47,8 @@ def _figures(obj: dict) -> list[tuple[dict, dict | None]]:
         answer = part.get("answer")
         if isinstance(answer, dict) and answer.get("diagram"):
             out.append((answer["diagram"], part.get("diagram") or stem))
+        if isinstance(answer, dict):  # picture options (EXA-147)
+            out += [(o["diagram"], None) for o in answer.get("options", []) if o.get("diagram")]
     return [(s, g) for s, g in out if s.get("type") != "raster"]
 
 
@@ -60,7 +62,7 @@ DRAWING = _drawing_blueprints()
 
 def test_the_sweep_sees_every_figure_family():
     kinds = {s["type"] for c in DRAWING for s, _ in _figures(generate(c, 1))}
-    assert {"geometry_figure", "bar_model", "chart", "solid"} <= kinds, kinds
+    assert {"geometry_figure", "bar_model", "chart", "solid", "cube_stack", "net"} <= kinds, kinds
     assert any(c.startswith("geometry_area") for c in DRAWING)
 
 

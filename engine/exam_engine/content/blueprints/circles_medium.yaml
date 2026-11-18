@@ -1,0 +1,63 @@
+code: circles_medium
+syllabus:
+  level: P6
+  strand: "Measurement"
+  topic: "Circles"
+  subtopic: "Perimeter or area of a square / rectangle with a semicircle, or of a quarter circle"
+  skill_codes: ["CIRC.COMPOSITE"]       # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Representation translation"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [template, pi, givens, lengths]
+  properties:
+    template:
+      type: string
+      enum:
+        - quarter_circle_perimeter
+        - rectangle_cutout_area
+        - rectangle_cutout_perimeter
+        - square_semicircle_area
+        - square_semicircle_perimeter
+    pi:                                 # the π the stem states
+      type: string
+      enum: ["3.14", "22/7"]
+    givens:
+      type: object
+      additionalProperties:
+        type: integer
+    lengths:                            # labelled-length contract map (diagram check)
+      type: object
+      additionalProperties:
+        type: number
+    radii:                              # arc-radius contract map (diagram check)
+      type: object
+      additionalProperties:
+        type: number
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  template: { role: choice }
+  pi:       { role: choice }
+  givens:   { role: number }
+  lengths:  { role: number }
+  radii:    { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+    - text: "{step3}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Find the circle part (curved edge or area) with the stated π, from the right radius." }
+  - { mark: 1, type: A, description: "Correct perimeter (cm) or area (cm²): only the edges that bound the figure count." }
+answer:
+  type: decimal
+  unit: "cm^2"
+diagram: geometry_figure
