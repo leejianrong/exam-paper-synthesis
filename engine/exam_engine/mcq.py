@@ -188,6 +188,20 @@ def common_wrong_answers(obj: dict) -> list[tuple[Fraction, str]]:
     return out
 
 
+def hook_value_prints(v: Fraction, answer_obj: dict) -> bool:
+    """Whether :func:`distractor_candidates` keeps a solver hook's value ``v`` for this answer:
+    plausible, and (unless a fraction) within 20 times of it. ``blueprints.base.spread`` uses
+    it to balance only the slips that will print."""
+    answer = _value(answer_obj)
+    is_fraction = answer_obj["type"] == "fraction"
+    kind = _kind(answer_obj)
+    # a solver's own hook vouches for a decimal slip on a whole answer (7.4 × 30: "22.2"); a
+    # real slip far off the answer is a giveaway (24000 ℓ for 24 ℓ), 20x still keeps "the
+    # distance in 1 hour" for a 12-hour journey
+    near = is_fraction or answer / 20 <= v <= answer * 20
+    return near and _plausible(v, answer, fraction=is_fraction, kind=kind or "vouched")
+
+
 def distractor_candidates(obj: dict) -> list[tuple[Fraction, str]]:
     """Candidate wrong answers with the reason each is tempting, best first.
 
@@ -201,6 +215,7 @@ def distractor_candidates(obj: dict) -> list[tuple[Fraction, str]]:
     answer = _value(answer_obj)
     is_fraction = answer_obj["type"] == "fraction"
     kind = _kind(answer_obj)
+    whole_only = _solver_flag(obj, "mcq_whole", False)
     out: list[tuple[Fraction, str]] = []
 
     def add(v: Fraction | None, why: str, *, vouched: bool = False) -> None:
@@ -209,15 +224,15 @@ def distractor_candidates(obj: dict) -> list[tuple[Fraction, str]]:
             v, answer, fraction=is_fraction, kind="vouched" if vouched and not kind else kind
         ):
             return
+        if whole_only and v.denominator != 1:  # e.g. whole hours of rental: never "3.5 h"
+            return
         if all(v != have for have, _ in out):
             out.append((v, why))
 
     hooked = common_wrong_answers(obj)
     for v, why in hooked:
-        # a real slip, but one far off the answer is a giveaway (24000 ℓ for 24 ℓ); 20x
-        # still keeps "the distance in 1 hour" for a 12-hour journey
-        if is_fraction or answer / 20 <= v <= answer * 20:
-            add(v, why, vouched=True)
+        if hook_value_prints(v, answer_obj) and all(v != have for have, _ in out):
+            out.append((v, why))
 
     if is_fraction:
         n, d = answer.numerator, answer.denominator
@@ -278,14 +293,19 @@ def _gives_it_away(answer: Fraction, chosen: list[Fraction]) -> bool:
     return between or odd
 
 
-def _ascending(obj: dict) -> bool:
-    """Options print in ascending order unless the solver opts out (``mcq_ascending = False``:
-    "which is the greatest?", whose answer would then always be (1) or (4))."""
+def _solver_flag(obj: dict, name: str, default: bool) -> bool:
+    """A solver's optional multiple-choice setting (``default`` for a sourced question)."""
     try:
         solver = get_solver(obj.get("blueprint_code") or "")
     except Exception:  # a sourced or unknown blueprint
-        return True
-    return bool(getattr(solver, "mcq_ascending", True))
+        return default
+    return bool(getattr(solver, name, default))
+
+
+def _ascending(obj: dict) -> bool:
+    """Options print in ascending order unless the solver opts out (``mcq_ascending = False``:
+    "which is the greatest?", whose answer would then always be (1) or (4))."""
+    return _solver_flag(obj, "mcq_ascending", True)
 
 
 def _last_pick(

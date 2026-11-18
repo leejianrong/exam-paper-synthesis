@@ -336,15 +336,21 @@ such items.
      in the question figure.
    - Fix: do not render solution models on student or MCQ papers, or move them to the key only.
    - Real papers never print a model. No new diagram is needed.
-1. **Multi-part blueprints for P2 Section B built on real heuristics.** About 7 more are needed to reach
-   8–10 per paper.
+1. ~~**Multi-part blueprints for P2 Section B built on real heuristics.** About 7 more are needed to reach
+   8–10 per paper.~~ Five done in #224 (EXA-143): supposition, fraction of a remainder with a unit
+   cost, LCM packs with a budget, ages (constant difference), equal number vs equal amount; a P6
+   Section B now has 8 multi-part questions (was 3). Not yet built: excess and shortage with
+   fractions, constant-total transfers.
    - Candidates: supposition / coins with an equal count (3 parts); equal number vs equal amount at two
      prices; fraction of a remainder linked to unit costs; excess and shortage with fractions;
      constant-difference / constant-total transfers; LCM packs of m and n with a budget.
    - Give each a cheap 1-mark (a) and a 2–3-mark (b).
    - No new diagram.
-2. **Square-grid geometry family:** ∥/⊥ identification, symmetry (shade k squares), 8-point compass
-   directions and turns, area by counting squares, and completing a trapezium, parallelogram or rhombus.
+2. ~~**Square-grid geometry family:** ∥/⊥ identification, symmetry (shade k squares), 8-point compass
+   directions and turns, area by counting squares, and completing a trapezium, parallelogram or rhombus.~~
+   Done in #232 (EXA-144): a `grid` diagram and four blueprints with a number or letter answer (area by
+   whole and half squares; which point gives a ∥/⊥ line; compass direction or turn; which square completes
+   the symmetry). Not built: drawing answers (shade, draw, complete a shape).
    - Real: 13 questions, about 3 a set, in every paper part.
    - Needs a new `grid` diagram and a grid-cell or point answer type, which can be auto-checked as a cell set.
 3. ~~**Booklet A number-sense and measurement 1-markers.** These fill the 2 placeholders and widen 1-mark coverage.~~
@@ -358,11 +364,16 @@ such items.
    - Uses the existing `number_line` renderer; a scale/ruler reading needs a new small diagram.
 4. ~~**Recalibrate rung to marks in the generator.**~~ Done in #225 (EXA-146): 2-mark slots take a
    medium or hard rung and 3+-mark slots a hard one whenever content allows (P8-SHAPING.md).
-   - Booklet A 2-mark MCQ and Booklet B 2-mark slots should draw hard or multi-step rungs.
+   - ~~Booklet A 2-mark MCQ and Booklet B 2-mark slots should draw hard or multi-step rungs.~~ Done in
+     #228 (EXA-154): 2-mark medium rungs for Ratio, Percentage, Speed and both Geometry ladders, so
+     every P6 Booklet B 2-mark slot is medium (was 7 of 10).
    - Section B 3-mark stand-ins should require 3+ steps.
    - Stop letting a one-step easy rung fill a 2-mark MCQ or a 4-mark slot (2 steps).
    - No diagram.
-5. **Solids family: cube-stack views and counting.**
+5. ~~**Solids family: cube-stack views and counting.**~~ Done in #230 (EXA-147): count the cubes,
+   least cubes to make a cuboid or cube, front/side view with picture options, and the face
+   opposite a marked one on a cube net (new `net` diagram). Not yet built: asking the top view,
+   "which figure is a net", nets of cuboids and prisms, most cubes without changing the views.
    - Draw or choose the front/side/top view; maximum or least cubes to add without changing the views
      or to make a cube; count cubes.
    - Real: 7 questions on nets, solids, views and cube counting (the topic table), of which 3 are nets.
@@ -374,13 +385,18 @@ such items.
      this data" MCQ.
    - Real: 15 data questions plus 3 tick tables.
    - Needs a `table` figure (simple) and a tick-table answer type.
-7. **Circles ladder.**
+   - ~~Data tables~~ done in #231 (EXA-148): `postage_table`, `rental_table` and the multi-part
+     `tariff_gst` print the existing content-level `question.table` (no schema change). Still open:
+     the tick-table answer type, the tank line graph and pie charts in fractions.
+7. ~~**Circles ladder.**~~ Done in #226 (EXA-149): a P6 `circles` ladder (1/2/3 marks) with
+   semicircle and quarter-circle composites, shaded regions, π = 3.14 or 22/7 and some hard
+   answers in terms of π (P8-SHAPING.md). Not yet built: S-shapes and logos, π-terms MCQs.
    - Composite semicircles and quarter circles (overlapping, S-shapes, logos); perimeter vs area of the
      shaded or unshaded region; "in terms of π" answers through the existing `expression` type; default
      π = 3.14.
    - Real: 8 questions (2 per set, always present); ours: 1.
    - Extends `geometry_figure` with arc composites.
-8. **Angles depth.**
+8. ~~**Angles depth.**~~ Done in #229 (EXA-150): folded corner, composite (rhombus, parallelogram, trapezium with an isosceles or equilateral triangle), reflex and a two-part Paper 2 angle blueprint, figures drawn to scale; folding is drawn as the folded shape, not two panels.
    - Folded paper; rhombus, trapezium and parallelogram composites with isosceles or equilateral
      triangles; reflex angles at a point; 2-part angle questions for Section B.
    - Real: 16 questions (the most frequent single topic after fractions); ours: 3, at 1–2 steps.
@@ -395,6 +411,8 @@ such items.
     - No new diagram.
 11. **MCQ polish.**
     - ~~Sort numeric options ascending.~~ Done in #223 (EXA-141).
+    - ~~Keep the answer's place in the sorted options from giving it away (25 blueprints' answers
+      were rarely or never in one half of the list).~~ Done in #233 (EXA-156).
     - Filter implausible distractors (angles over 180° for an angle on a line; the improper "4/1" is fixed in #205).
     - Drop "simplest form" wording from MCQ stems.
     - Add picture-option and "which statements are true" MCQs once the grid, net and chart families exist.
@@ -403,5 +421,7 @@ such items.
       local contexts (GST, tariffs, brochures).
     - Shared lead-ins across two consecutive questions.
     - Use "not drawn to scale" sparingly.
-    - Rebalance the topic spread: speed, rate and volume are about 2× over-represented relative to the
-      real papers.
+    - ~~Rebalance the topic spread: speed, rate and volume are about 2× over-represented relative to the
+      real papers.~~ Addressed for exam sets in #227 (EXA-153): a set made by the "+ New" wizard
+      spreads its topics over the whole set, at most 4 questions on one topic in a P6 set (was up
+      to 6). A single paper is unchanged.

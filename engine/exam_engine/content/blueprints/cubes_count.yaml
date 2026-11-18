@@ -1,0 +1,48 @@
+code: cubes_count
+# EXA-147: a 1-mark Booklet A question, on no difficulty ladder.
+syllabus:
+  level: P5                             # P5 Volume: solids made of unit cubes
+  strand: "Geometry"
+  topic: "Solids"
+  subtopic: "Counting the unit cubes in a solid"
+  skill_codes: ["SOLIDS.COUNT"]         # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Representation translation"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [heights]
+  properties:
+    # cubes on each cell, rows back to front, columns left to right (the drawn heightmap)
+    heights:
+      type: array
+      minItems: 2
+      maxItems: 3
+      items:
+        type: array
+        minItems: 2
+        maxItems: 4
+        items: { type: integer, minimum: 1, maximum: 4 }
+# Every parameter_schema property needs a role (W1a). number|choice drive the maths and are
+# not cosmetically editable.
+param_roles:
+  heights: { role: number }
+story_templates:
+  - stem: null
+    text: "The solid below is made up of identical cubes. How many cubes are there in the solid?"
+  - stem: null
+    text: "Some identical cubes are stacked to make the solid below. How many cubes are used?"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: null
+    - text: "{step2}"
+      expr: "{e2}"
+marking_scheme:
+  - { mark: 1, type: A, description: "Correct number of cubes, the hidden ones included." }
+answer:
+  type: integer
+diagram: cube_stack

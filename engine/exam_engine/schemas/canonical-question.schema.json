@@ -314,7 +314,9 @@
         { "$ref": "#/$defs/diagram_solid" },
         { "$ref": "#/$defs/diagram_number_line" },
         { "$ref": "#/$defs/diagram_panels" },
-        { "$ref": "#/$defs/diagram_cube_stack" }
+        { "$ref": "#/$defs/diagram_cube_stack" },
+        { "$ref": "#/$defs/diagram_net" },
+        { "$ref": "#/$defs/diagram_grid" }
       ]
     },
     "diagram_bar_model": {
@@ -697,7 +699,9 @@
         { "$ref": "#/$defs/diagram_chart" },
         { "$ref": "#/$defs/diagram_solid" },
         { "$ref": "#/$defs/diagram_number_line" },
-        { "$ref": "#/$defs/diagram_cube_stack" }
+        { "$ref": "#/$defs/diagram_cube_stack" },
+        { "$ref": "#/$defs/diagram_net" },
+        { "$ref": "#/$defs/diagram_grid" }
       ]
     },
     "diagram_cube_stack": {
@@ -708,6 +712,7 @@
         "type": { "const": "cube_stack" },
         "title": { "type": ["string", "null"] },
         "view": { "enum": ["iso", "front", "side", "top"], "default": "iso" },
+        "show_front": { "type": "boolean", "default": false, "description": "Draw a 'Front' arrow on the iso picture (schema 1.13.0, EXA-147). Only with view iso." },
         "heights": {
           "type": "array", "minItems": 1, "maxItems": 6,
           "items": {
@@ -716,6 +721,92 @@
           }
         }
       }
+    },
+    "diagram_net": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "faces"],
+      "$comment": "A net of a cube drawn on a square grid (added schema 1.13.0, EXA-147): six unit squares at (row, col), rows top to bottom, each with an optional short label and an optional shading. Six distinct cells joined edge to edge and unique labels are enforced at load by exam_engine.net.check_net_consistency; whether it folds into a cube is not (a 'which is not a net' figure is allowed), see exam_engine.net.fold.",
+      "properties": {
+        "type": { "const": "net" },
+        "title": { "type": ["string", "null"] },
+        "faces": {
+          "type": "array", "minItems": 6, "maxItems": 6,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["row", "col"],
+            "properties": {
+              "row": { "type": "integer", "minimum": 0, "maximum": 5 },
+              "col": { "type": "integer", "minimum": 0, "maximum": 5 },
+              "label": { "type": ["string", "null"], "maxLength": 2 },
+              "shaded": { "type": "boolean", "default": false }
+            }
+          }
+        }
+      }
+    },
+    "diagram_grid": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "cols", "rows"],
+      "$comment": "A square grid (added schema 1.14.0, EXA-144): lines or dots, with shaded or lettered cells, polygons and segments with vertices on grid points, lettered points and an optional compass rose (north up). x runs 0..cols left to right and y 0..rows top to bottom; cell (col, row) has its top-left corner at point (col, row). Everything inside the grid, simple polygons, distinct points and unique letters are enforced at load by exam_engine.grid.check_grid_consistency.",
+      "properties": {
+        "type": { "const": "grid" },
+        "title": { "type": ["string", "null"] },
+        "cols": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "rows": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "style": { "enum": ["lines", "dots"], "default": "lines" },
+        "compass": { "type": "boolean", "default": false },
+        "cells": {
+          "type": "array", "maxItems": 192,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["col", "row"],
+            "properties": {
+              "col": { "type": "integer", "minimum": 0 },
+              "row": { "type": "integer", "minimum": 0 },
+              "shaded": { "type": "boolean", "default": true },
+              "label": { "type": ["string", "null"], "pattern": "^[A-Z][0-9]?$" }
+            }
+          }
+        },
+        "polygons": {
+          "type": "array", "maxItems": 6,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["vertices"],
+            "properties": {
+              "vertices": { "type": "array", "minItems": 3, "maxItems": 16, "items": { "$ref": "#/$defs/grid_point" } },
+              "shaded": { "type": "boolean", "default": true }
+            }
+          }
+        },
+        "segments": {
+          "type": "array", "maxItems": 16,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["from", "to"],
+            "properties": {
+              "from": { "$ref": "#/$defs/grid_point" },
+              "to": { "$ref": "#/$defs/grid_point" },
+              "dashed": { "type": "boolean", "default": false }
+            }
+          }
+        },
+        "points": {
+          "type": "array", "maxItems": 16,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["x", "y", "label"],
+            "properties": {
+              "x": { "type": "integer", "minimum": 0 },
+              "y": { "type": "integer", "minimum": 0 },
+              "label": { "type": "string", "pattern": "^[A-Z][0-9]?$" }
+            }
+          }
+        }
+      }
+    },
+    "grid_point": {
+      "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "integer", "minimum": 0 }
     },
     "diagram_raster": {
       "type": "object", "additionalProperties": false,

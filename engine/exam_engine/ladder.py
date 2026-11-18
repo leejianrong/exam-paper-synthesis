@@ -3,16 +3,35 @@
 The ladder is data, not inferred from ``cognitive.difficulty``: an edit op
 ("make it harder/easier") is a deterministic hop to the adjacent blueprint code.
 Extend :data:`LADDERS` when a topic gains more rungs (V6 adds more topics).
+
+A ladder may hold more than three rungs: EXA-154 put a 2-mark medium blueprint between the
+2-mark easy and the 3-mark medium rungs of Ratio, Percentage, Speed and both Geometry
+ladders, so each step up is harder or worth more marks.
 """
 
 from __future__ import annotations
 
-RATIO = ["ratio_easy", "ratio_medium", "ratio_hard"]
-PERCENTAGE = ["percentage_easy", "percentage_medium", "percentage_hard"]
+RATIO = ["ratio_easy", "ratio_difference", "ratio_medium", "ratio_hard"]
+PERCENTAGE = [
+    "percentage_easy",
+    "percentage_remainder",
+    "percentage_medium",
+    "percentage_hard",
+]
 FRACTIONS = ["fractions_easy", "fractions_medium", "fractions_hard"]
-SPEED = ["speed_easy", "speed_medium", "speed_hard"]
-GEOMETRY_ANGLE = ["geometry_angle_easy", "geometry_angle_medium", "geometry_angle_hard"]
-GEOMETRY_AREA = ["geometry_area_easy", "geometry_area_medium", "geometry_area_hard"]
+SPEED = ["speed_easy", "speed_minutes", "speed_medium", "speed_hard"]
+GEOMETRY_ANGLE = [
+    "geometry_angle_easy",
+    "geometry_angle_opposite",
+    "geometry_angle_medium",
+    "geometry_angle_hard",
+]
+GEOMETRY_AREA = [
+    "geometry_area_easy",
+    "geometry_area_perimeter",
+    "geometry_area_medium",
+    "geometry_area_hard",
+]
 STATISTICS_CHART = ["statistics_chart_easy", "statistics_chart_medium", "statistics_chart_hard"]
 VOLUME = ["volume_easy", "volume_medium", "volume_hard"]
 AVERAGE = ["average_easy", "average_medium", "average_hard"]
@@ -20,6 +39,7 @@ WHOLE_NUMBERS = ["whole_numbers_easy", "whole_numbers_medium", "whole_numbers_ha
 DECIMALS = ["decimals_easy", "decimals_medium", "decimals_hard"]
 RATE = ["rate_easy", "rate_medium", "rate_hard"]
 ALGEBRA = ["algebra_easy", "algebra_medium", "algebra_hard"]
+CIRCLES = ["circles_easy", "circles_medium", "circles_hard"]
 
 # Keyed by topic; each value is the ordered list of rungs, easiest first.
 LADDERS: dict[str, list[str]] = {
@@ -36,6 +56,7 @@ LADDERS: dict[str, list[str]] = {
     "Decimals": DECIMALS,
     "Rate": RATE,
     "Algebra": ALGEBRA,
+    "Circles": CIRCLES,
 }
 
 

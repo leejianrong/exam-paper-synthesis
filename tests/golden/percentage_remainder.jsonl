@@ -1,0 +1,3 @@
+{"params": {"name": "Chloe", "context": "bag_shoes", "ask": "left", "total": 400, "p1": 25, "p2": 40}, "expected": {"answer": {"type": "quantity", "value": 180, "unit": "$"}, "total_marks": 2}}
+{"params": {"name": "Ismail", "context": "book_calculator", "ask": "second", "total": 250, "p1": 20, "p2": 15}, "expected": {"answer": {"type": "quantity", "value": 30, "unit": "$"}, "total_marks": 2}}
+{"params": {"name": "Jia En", "context": "watch_wallet", "ask": "left", "total": 900, "p1": 30, "p2": 50}, "expected": {"answer": {"type": "quantity", "value": 315, "unit": "$"}, "total_marks": 2}}

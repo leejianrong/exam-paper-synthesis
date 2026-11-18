@@ -176,9 +176,57 @@ def test_non_positive_radius_flips_check():
 
 def test_out_of_range_angle_flips_check():
     bad = copy.deepcopy(ANGLE_SPEC)
-    bad["angles"][0]["value_deg"] = 200  # not in (0, 180)
-    checks = check_geometry_figure_consistency(bad, {}, ANGLE_SOLUTION)
-    assert checks["angle_values_in_range"] is False
+    for value in (0, 360, 400):  # not in (0, 360)
+        bad["angles"][0]["value_deg"] = value
+        checks = check_geometry_figure_consistency(bad, {}, ANGLE_SOLUTION)
+        assert checks["angle_values_in_range"] is False
+    bad["angles"][0]["value_deg"] = 200  # a reflex angle is in range (EXA-150)
+    assert check_geometry_figure_consistency(bad, {}, ANGLE_SOLUTION)["angle_values_in_range"]
+
+
+# EXA-150: rays OA (west) and OB (north) from O; the marked angle is either the
+# 90° between them or the 270° reflex angle the long way round.
+_REFLEX_SPEC = {
+    "type": "geometry_figure",
+    "unit": "degrees",
+    "points": [
+        {"id": "O", "x": 0.0, "y": 0.0},
+        {"id": "A", "x": -4.0, "y": 0.0},
+        {"id": "B", "x": 0.0, "y": -4.0},
+    ],
+    "segments": [{"from": "O", "to": "A"}, {"from": "O", "to": "B"}],
+    "angles": [{"at": "O", "from": "A", "to": "B", "value_deg": 270, "unknown": False}],
+}
+
+
+def _arc_flags(svg: str) -> list[tuple[int, int, int]]:
+    """(radius, large-arc, sweep) of each angle-mark arc."""
+    import re
+
+    return [
+        (int(r), int(large), int(sweep))
+        for r, large, sweep in re.findall(r"A (\d+) \d+ 0 (\d) (\d) ", svg)
+    ]
+
+
+def test_reflex_angle_is_drawn_the_long_way_round_on_a_wider_arc():
+    minor = copy.deepcopy(_REFLEX_SPEC)
+    minor["angles"][0]["value_deg"] = 90
+    ((r1, large1, sweep1),) = _arc_flags(render_svg(minor))
+    ((r2, large2, sweep2),) = _arc_flags(render_svg(_REFLEX_SPEC))
+    assert (large1, large2) == (0, 1)
+    assert sweep1 != sweep2  # same end points, the other way round
+    assert r2 > r1
+
+
+def test_reflex_angle_value_sits_in_the_reflex_region():
+    """The 270° label goes south-east of O (away from both rays), not between them."""
+    import re
+
+    svg = render_svg(_REFLEX_SPEC)
+    x, y = (int(v) for v in re.search(r'<text x="(\d+)" y="(\d+)"[^>]*>270°', svg).groups())
+    ox, oy = (int(v) for v in re.search(r'<line x1="(\d+)" y1="(\d+)"', svg).groups())
+    assert x > ox and y > oy
 
 
 def test_shaded_boundary_unknown_point_flips_check():

@@ -161,9 +161,18 @@ describe('NewWizard: New folder', () => {
 })
 
 describe('NewWizard: Exam set', () => {
+  const TOPICS: Record<string, Record<string, number>> = {
+    p1_booklet_a: { Ratio: 2, Rate: 1 },
+    p1_booklet_b: { Ratio: 1, Volume: 2 },
+    p2: { Speed: 4 },
+  }
+
   it('generates the three papers at a level into a new folder, one at a time, then shows it', async () => {
     createFolder.mockResolvedValue(folder('fs', 'P5 mocks'))
-    generatePaper.mockImplementation(async (code: string, _level: string, fid: string) => record(`g-${code}`, fid))
+    generatePaper.mockImplementation(async (code: string, _level: string, fid: string) => ({
+      ...record(`g-${code}`, fid),
+      report: { topics: TOPICS[code] },
+    }))
     open()
     await pick('Exam set')
     expect(screen.getByRole('radio', { name: 'A new folder' })).toBeChecked()
@@ -175,10 +184,18 @@ describe('NewWizard: Exam set', () => {
     await pick('Generate at P5')
     await waitFor(() => expect(props.onShowFolder).toHaveBeenCalledWith('fs'))
     expect(createFolder).toHaveBeenCalledWith('P5 mocks')
+    // EXA-153: filled Paper 2 first, each paper told the topics of the set's papers made before it
     expect(generatePaper.mock.calls).toEqual([
-      ['p1_booklet_a', 'P5', 'fs'],
-      ['p1_booklet_b', 'P5', 'fs'],
-      ['p2', 'P5', 'fs'],
+      ['p2', 'P5', 'fs', {}],
+      ['p1_booklet_b', 'P5', 'fs', { Speed: 4 }],
+      ['p1_booklet_a', 'P5', 'fs', { Speed: 4, Ratio: 1, Volume: 2 }],
+    ])
+    // the progress list keeps the printed order
+    const rows = within(screen.getByRole('list', { name: 'Exam set papers' })).getAllByRole('listitem')
+    expect(rows.map((r) => r.textContent)).toEqual([
+      expect.stringContaining('Booklet A'),
+      expect.stringContaining('Booklet B'),
+      expect.stringContaining('Paper 2'),
     ])
     expect(props.onPapersCreated).toHaveBeenCalledTimes(3)
     expect(props.onPapersCreated.mock.calls[0][0][0]).not.toHaveProperty('document')
@@ -206,7 +223,7 @@ describe('NewWizard: Exam set', () => {
     createFolder.mockResolvedValue(folder('fs', 'P6 exam set'))
     generatePaper.mockImplementation(async (code: string, _l: string, fid: string) => {
       if (code === 'p1_booklet_b') throw new Error('API 503: try later')
-      return record(`g-${code}`, fid)
+      return { ...record(`g-${code}`, fid), report: { topics: TOPICS[code] } }
     })
     open()
     await pick('Exam set')
@@ -226,6 +243,8 @@ describe('NewWizard: Exam set', () => {
     await pick('Try Booklet B again')
     await waitFor(() => expect(props.onShowFolder).toHaveBeenCalledWith('fs'))
     expect(generatePaper.mock.calls.filter((c) => c[0] === 'p1_booklet_b')).toHaveLength(2)
+    // the retried paper is told the topics of both papers already made
+    expect(generatePaper.mock.calls.at(-1)).toEqual(['p1_booklet_b', 'P6', 'fs', { Ratio: 2, Rate: 1, Speed: 4 }])
     expect(generatePaper.mock.calls.filter((c) => c[0] === 'p1_booklet_a')).toHaveLength(1)
     expect(createFolder).toHaveBeenCalledTimes(1)
   })

@@ -28,6 +28,8 @@ export interface ServerSpec {
     | 'number_line'
     | 'panels'
     | 'cube_stack'
+    | 'net'
+    | 'grid'
   [key: string]: unknown
 }
 

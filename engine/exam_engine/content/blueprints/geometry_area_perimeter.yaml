@@ -1,0 +1,48 @@
+code: geometry_area_perimeter
+syllabus:
+  level: P5
+  strand: "Measurement"
+  topic: "Geometry (Area & Perimeter)"
+  subtopic: "Rectangle or square: from the perimeter to the area, or the area to the perimeter"
+  skill_codes: ["GEO.AREA.PERIM"]       # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Inverse direction"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [template, givens, lengths]
+  properties:
+    template:
+      type: string
+      enum: ["area_from_perimeter", "perimeter_from_area", "square_area"]
+    givens:
+      type: object
+      additionalProperties:
+        type: integer
+    lengths:                            # labelled-length contract map (see check docstring)
+      type: object
+      additionalProperties:
+        type: number
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  template: { role: choice }
+  givens:   { role: number }
+  lengths:  { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{step2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Find the missing side from the perimeter or the area." }
+  - { mark: 1, type: A, description: "Correct area (cm²) or perimeter (cm)." }
+answer:
+  type: integer
+  unit: "cm^2"
+diagram: geometry_figure

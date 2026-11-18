@@ -17,6 +17,7 @@ from __future__ import annotations
 import random
 from fractions import Fraction
 
+from ..base import spread_sides
 from ..registry import register
 
 # Singapore-appropriate given names (PSLE style, R1.6).
@@ -60,6 +61,7 @@ class SpeedHardSolver:
             "intermediates": {"combined_speed": combined_speed, "t_meet": t_meet},
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong meeting times (h), best first (EXA-122). The gap is built from the
         combined speed, so only the mean-speed slip is always a whole number of hours; the
@@ -72,6 +74,10 @@ class SpeedHardSolver:
             out.append((Fraction(gap, abs(s1 - s2)), "used the difference of the speeds"))
         out.append((Fraction(gap, s1), f"used only {params['name1']}'s speed"))
         out.append((Fraction(gap, s2), f"used only {params['name2']}'s speed"))
+        # a smaller time: as if they had only half the gap to close
+        out.append((Fraction(gap, 2 * (s1 + s2)), "used half the distance between them"))
+        hours = gap // (s1 + s2)
+        out.append((hours - 1, "stopped one hour short in an hour-by-hour table"))
         return out
 
     def validate(self, params: dict, solution: dict) -> dict:
