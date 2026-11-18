@@ -19,13 +19,14 @@ import pytest
 import yaml
 from exam_engine.blueprints.registry import content_dir
 from exam_engine.document import paper_outline, validate_document
-from exam_engine.paper import LEVELS, generate_paper, generate_set, paper_templates
+from exam_engine.paper import LEVELS, generate_paper, paper_templates
 from exam_engine.paper_swap import (
     SwapNotPossible,
     paper_level,
     regenerate_unlocked,
     swap_question,
 )
+from exam_engine.pipeline import generate
 
 SEEDS = range(1, 9)
 TEMPLATES = [t["code"] for t in paper_templates()]
@@ -607,13 +608,14 @@ def test_a_swap_never_trades_a_question_for_an_easier_rung():
 
 
 def test_another_topic_on_an_easy_two_marker_may_take_any_topic():
-    """The other branch: on an easy 2-mark question (a P5 Paper 2 in an exam set, filled after
-    the booklets have used the 2-mark mediums, EXA-153) "another topic" may take any other
-    topic, as none is easier."""
-    doc, _ = generate_set(["p1_booklet_a", "p1_booklet_b", "p2"], "P5", 3)[2]
-    easy = [
-        n for n in _blocks(doc) if _is_q(n) and _marks(n) == 2 and META[_code(n)]["rung"] == "easy"
-    ]
-    assert easy
+    """The other branch: on an easy 2-mark question "another topic" may take any other topic,
+    as none is easier. Since EXA-147/148 P5 has ten 2-mark mediums, so no generated paper
+    leaves an easy 2-marker where another topic is free under the cap; the teacher's paper
+    here swaps one in (as "like" or the bank could)."""
+    doc, _ = generate_paper("p1_booklet_b", "P5", 3)
+    two = [n for n in _blocks(doc) if _is_q(n) and _marks(n) == 2]
+    assert _code(two[0]) == "postage_table"  # the only Statistics (Tables) question
+    two[0]["attrs"]["question"] = generate("ratio_easy", 1)
+    easy = [two[0]]
     new, report = swap_question(doc, easy[0]["attrs"]["block_id"], "topic", 1)
     assert report["topic"] != META[_code(easy[0])]["topic"]
