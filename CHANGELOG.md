@@ -148,7 +148,7 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 ### Fixed
 
 - **Web dependencies (Dependabot #207, re-applied on main).** Minor and patch bumps: TipTap
-  3.33, Svelte 5.57.3, eslint-plugin-svelte, globals, tslib, @tsconfig/svelte and raised floors
+  3.34, Svelte 5.58, eslint-plugin-svelte, svelte-eslint-parser, globals, tslib, @tsconfig/svelte and raised floors
   for the dev tools the minimatch fix already moved. No version goes down; `npm audit` is clean.
 
 - **minimatch advisory (GHSA-g3hv-75wg-m249).** `npm audit fix` moves the web dev tools'
