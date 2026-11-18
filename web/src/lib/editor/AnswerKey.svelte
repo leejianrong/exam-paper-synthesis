@@ -122,7 +122,7 @@
       <li class="entry" class:excluded={!included(block)}>
         <div class="head">
           <span class="n">{start + i}.</span>
-          <span class="ans"><span class="label">Answer</span> {fmtAnswer(part.answer)}</span>
+          <span class="ans"><span class="label">Answer</span> <MathText text={fmtAnswer(part.answer)} /></span>
           {@render include(block, start + i)}
           <span class="marks">[{part.marks}]</span>
         </div>

@@ -59,12 +59,13 @@ def _numbers(params: object) -> list[int | float]:
     return []
 
 
-def spread(
-    slips: list[Slip],
-    answer: Fraction,
+def spread[T](
+    slips: list[tuple[T, str]],
+    answer: Any,
     params: dict,
-    prints: Callable[[Fraction], bool] | None = None,
-) -> list[Slip]:
+    prints: Callable[[Any], bool] | None = None,
+    key: Callable[[Any], Any] = Fraction,
+) -> list[tuple[T, str]]:
     """``slips`` (best first) reordered so the first two lie both below, either side of, or
     both above ``answer``, chosen by a key from the numbers in ``params`` (EXA-147, EXA-156).
 
@@ -73,23 +74,27 @@ def spread(
     ``mcq._last_pick``), so a hook whose best slips all lie on one side would put the answer
     nearly always in one half of the options. Slips a copy cannot use (``prints`` false, by
     default: not positive, the answer itself, or more than 20 times off it) and repeated values
-    count for neither side."""
+    count for neither side.
 
-    def usable(v: Fraction) -> bool:
+    ``key`` maps a slip's value to what is compared with ``answer`` (and passed to
+    ``prints``): the number itself, or for an answer in terms of π (EXA-155) its
+    ``(π coefficient, constant)``, the order its options print in."""
+
+    def usable(v: Any) -> bool:
         if prints is not None:
             return prints(v)
         return v > 0 and v != answer and answer / 20 <= v <= answer * 20
 
-    seen: set[Fraction] = set()
-    below: list[Slip] = []
-    above: list[Slip] = []
+    seen: set = set()
+    below: list[tuple[T, str]] = []
+    above: list[tuple[T, str]] = []
     for s in slips:  # a value given twice is one option
-        v = Fraction(s[0])
+        v = key(s[0])
         if usable(v) and v not in seen:
             seen.add(v)
             (below if v < answer else above).append(s)
-    key = zlib.crc32(repr(_numbers(params)).encode())
-    first = [below[:2], below[:1] + above[:1], above[:2]][key % 3]
+    pick = zlib.crc32(repr(_numbers(params)).encode())
+    first = [below[:2], below[:1] + above[:1], above[:2]][pick % 3]
     if len(first) < 2:
         first = below[:1] + above[:1]
     first.sort(key=slips.index)  # still best first: mcq's give-away guard drops the later one
@@ -171,6 +176,21 @@ class BlueprintSpec:
     def part_count(self) -> int:
         """How many parts every question of this blueprint has (1 for single-part)."""
         return len(self.parts) or 1
+
+    @property
+    def answer_types(self) -> tuple[str, ...]:
+        """Every answer type this blueprint's questions can have (EXA-155): the YAML answer's
+        ``types`` list when it declares one (a solver that answers some questions in terms of
+        π), else its ``type``; over all parts for a multi-part blueprint. The paper generator
+        routes on it, so it must be honest: ``tests/test_answer_types.py`` sweeps every solver.
+        """
+        answers = [p.get("answer") or {} for p in self.parts] or [self.answer or {}]
+        out: list[str] = []
+        for a in answers:
+            for t in a.get("types") or [a.get("type")]:
+                if t and t not in out:
+                    out.append(str(t))
+        return tuple(out)
 
     @classmethod
     def from_dict(cls, data: dict) -> BlueprintSpec:

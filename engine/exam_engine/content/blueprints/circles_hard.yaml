@@ -61,4 +61,7 @@ marking_scheme:
 answer:
   type: decimal
   unit: "cm^2"
+  # every type an answer can have (EXA-155): a number, or a perimeter in terms of π. The paper
+  # generator routes on this list (an mcq slot needs all of them convertible).
+  types: [integer, decimal, expression]
 diagram: geometry_figure

@@ -19,6 +19,12 @@ picks the last wrong option so the answer's place in that order varies. A solver
 is an extreme of the options ("which is the greatest?") opts out with ``mcq_ascending = False``
 and gets a seeded order instead.
 
+An answer "in terms of π" (an ``expression`` ``aπ + b``, EXA-155) converts too: its wrong
+options are expression slips (the solver's hook gives them, with reasons: the radius used for
+the diameter, a missed straight edge, π × r × r for 2 × π × r, halved twice), printed by the
+same LaTeX path as the answer key, and listed by coefficient (the π part, then the number), as
+real papers list them.
+
 Pure and deterministic: the same ``(obj, seed)`` gives the same options in the same order.
 ``document.verify_snapshot`` re-solves the blueprint and checks the correct option's text
 equals the proven answer, so a converted question stays engine-proven.
@@ -31,14 +37,19 @@ import copy
 import operator
 import random
 from fractions import Fraction
+from typing import Any
 
 from .blueprints.registry import get_solver
 from .errors import EditNotApplicable
+from .expression import check_expression_consistency, in_terms_of_pi, pi_parts, to_latex
 from .units import printed_unit
 
 LABELS = ("1", "2", "3", "4")  # PSLE Booklet A numbers its options (1)–(4)
 NUMERIC = ("integer", "decimal", "quantity")
-CONVERTIBLE = (*NUMERIC, "fraction")
+CONVERTIBLE = (*NUMERIC, "fraction", "expression")  # an expression: in terms of π only
+# π as the give-away guard weighs an option in terms of π: rational, so "exactly between" is
+# exact arithmetic, and close enough that no two printed options tie by accident.
+_PI = Fraction(355, 113)
 
 _OPS = {
     ast.Add: operator.add,
@@ -69,13 +80,14 @@ def _eval(expr: str) -> Fraction | None:
 
 
 def convertible(obj: dict) -> bool:
-    """A generated, single-part question with a numeric answer."""
+    """A generated, single-part question with a numeric answer, or one in terms of π."""
     parts = obj["question"]["parts"]
-    return (
-        obj.get("source_type") == "generated"
-        and len(parts) == 1
-        and parts[0]["answer"].get("type") in CONVERTIBLE
-    )
+    if obj.get("source_type") != "generated" or len(parts) != 1:
+        return False
+    answer = parts[0]["answer"]
+    if answer.get("type") == "expression":
+        return pi_parts(answer) is not None
+    return answer.get("type") in CONVERTIBLE
 
 
 def legacy_answer_text(answer: dict) -> str:
@@ -87,6 +99,8 @@ def answer_text(answer: dict) -> str:
     """How an answer reads as an option: ``$344``, ``$12.50``, ``53 kg``, ``45%``, ``95°``,
     ``297 cm³``, or a KaTeX fraction. The document check uses the same function on the
     re-solved answer, so an option and the proof can never disagree on format."""
+    if answer["type"] == "expression":  # as the answer key prints it, unit included
+        return rf"\({to_latex(answer)}\)"
     unit = answer.get("unit") or ""
     if answer["type"] == "fraction":
         body = rf"\(\frac{{{answer['numerator']}}}{{{answer['denominator']}}}\)"
@@ -169,11 +183,8 @@ def _kind(answer: dict) -> str:
     return "measure" if unit in _MEASURES else ""
 
 
-def common_wrong_answers(obj: dict) -> list[tuple[Fraction, str]]:
-    """The solver's own "common wrong answers" (an optional ``distractors(params, solution)``
-    hook, see ``blueprints.base.Solver``): ``(value, why)`` pairs, best first. Each is a
-    wrong answer a pupil really gives *in the answer's own quantity and unit*: forgetting a
-    step, using the wrong total, the other person's share. ``[]`` when the solver has none."""
+def _hook(obj: dict) -> list[tuple[object, str]]:
+    """What the solver's ``distractors(params, solution)`` hook returns, or ``[]``."""
     try:
         solver = get_solver(obj.get("blueprint_code") or "")
     except Exception:  # a sourced or unknown blueprint: no hook
@@ -182,9 +193,79 @@ def common_wrong_answers(obj: dict) -> list[tuple[Fraction, str]]:
     params = obj.get("parameters")
     if hook is None or not isinstance(params, dict):
         return []
+    return [(value, str(why)) for value, why in hook(params, solver.solve(params))]
+
+
+def common_wrong_answers(obj: dict) -> list[tuple[Fraction, str]]:
+    """The solver's own "common wrong answers" (an optional ``distractors(params, solution)``
+    hook, see ``blueprints.base.Solver``): ``(value, why)`` pairs, best first. Each is a
+    wrong answer a pupil really gives *in the answer's own quantity and unit*: forgetting a
+    step, using the wrong total, the other person's share. ``[]`` when the solver has none,
+    and for an answer in terms of π (its slips are expressions, see
+    :func:`expression_wrong_answers`)."""
     out = []
-    for value, why in hook(params, solver.solve(params)):
-        out.append((value if isinstance(value, Fraction) else Fraction(str(value)), str(why)))
+    for value, why in _hook(obj):
+        if isinstance(value, dict):
+            continue
+        out.append((value if isinstance(value, Fraction) else Fraction(str(value)), why))
+    return out
+
+
+def pi_key_prints(k: tuple[Fraction, Fraction], answer: tuple[Fraction, Fraction]) -> bool:
+    """Whether an option ``(π coefficient, constant)`` is fair against the answer's: a π part
+    (within 20 times of the answer's), no negative number, and not the answer itself.
+    ``blueprints.base.spread`` uses it to balance only the slips that will print."""
+    return k != answer and k[1] >= 0 and answer[0] / 20 <= k[0] <= answer[0] * 20 and k[0] > 0
+
+
+def expression_slip_prints(slip: dict, answer: dict) -> bool:
+    """A solver's expression slip prints as an option: a well-formed answer in terms of π, in
+    the answer's unit, and (:func:`pi_key_prints`) fair against it."""
+    k, a = pi_parts(slip), pi_parts(answer)
+    return (
+        k is not None
+        and a is not None
+        and (slip.get("unit") or "") == (answer.get("unit") or "")
+        and all(check_expression_consistency(slip).values())
+        and pi_key_prints(k, a)
+    )
+
+
+def expression_wrong_answers(obj: dict) -> list[tuple[dict, str]]:
+    """The solver's common wrong answers to an answer in terms of π: ``(expression, why)``
+    pairs, best first, kept only when they print (:func:`expression_slip_prints`)."""
+    answer = obj["question"]["parts"][0]["answer"]
+    return [
+        (e, why)
+        for e, why in _hook(obj)
+        if isinstance(e, dict) and expression_slip_prints(e, answer)
+    ]
+
+
+def expression_candidates(obj: dict) -> list[tuple[dict, str]]:
+    """Candidate wrong answers to an answer ``aπ + b``, best first: the solver's slips, then
+    generic ones (the π part doubled or halved, the number left out or doubled, the two
+    swapped), then near misses in the π part, so never short."""
+    answer = obj["question"]["parts"][0]["answer"]
+    unit = answer.get("unit") or ""
+    k = pi_parts(answer)
+    assert k is not None
+    a, b = k
+    out = list(expression_wrong_answers(obj))
+    step = Fraction(1) if a.denominator == 1 else Fraction(1, 2)
+    generic = [
+        (2 * a, b, "doubled the π part"),
+        (a / 2, b, "halved the π part"),
+        (a, Fraction(0), "left out the number part"),
+        (a, 2 * b, "doubled the number part"),
+        (b, a, "swapped the π part and the number"),
+    ]
+    generic += [(a + n * step, b, "a near miss") for n in range(1, 40)]
+    generic += [(a - n * step, b, "a near miss") for n in range(1, 40)]
+    for pa, pb, why in generic:
+        e = in_terms_of_pi(pa, pb, unit)
+        if pa > 0 and expression_slip_prints(e, answer):
+            out.append((e, why))
     return out
 
 
@@ -300,12 +381,12 @@ def _ascending(obj: dict) -> bool:
     return bool(getattr(solver, "mcq_ascending", True))
 
 
-def _last_pick(
-    answer: Fraction,
-    chosen: list[Fraction],
-    fits: list[tuple[Fraction, str, str]],
-    rng: random.Random,
-) -> tuple[Fraction, str, str]:
+# An option as to_mcq weighs it: (order key, value for the give-away guard, text, reason). The
+# order key is the number itself, or (π coefficient, constant) for an answer in terms of π.
+_Option = tuple[Any, Fraction, str, str]
+
+
+def _last_pick(answer: Any, chosen: list[Any], fits: list[_Option], rng: random.Random) -> _Option:
     """The last wrong option, picked so the answer's place in the ascending list varies.
 
     Options print in ascending order, so a solver whose common wrong answers all lie on one
@@ -314,56 +395,91 @@ def _last_pick(
     seed picks one of the places the remaining candidates allow, then the best candidate that
     puts the answer there."""
     below = sum(c < answer for c in chosen)
-    places = sorted({below + (v < answer) for v, _, _ in fits})
+    places = sorted({below + (f[0] < answer) for f in fits})
     place = rng.choice(places)
     return next(f for f in fits if below + (f[0] < answer) == place)
+
+
+def _number_options(obj: dict, answer: dict) -> tuple[Fraction, list[_Option]]:
+    """A numeric or fraction answer's order key and its candidate options, best first."""
+    out: list[_Option] = []
+    for v, reason in distractor_candidates(obj):
+        shown = _with_value(answer, v)
+        if _value(shown) != v:  # printed rounded: its reason would not match what is shown
+            continue
+        out.append((v, v, answer_text(shown), reason))
+    return _value(answer), out
+
+
+def _pi_weight(k: tuple[Fraction, Fraction]) -> Fraction:
+    return k[0] * _PI + k[1]
+
+
+def _expression_options(obj: dict, answer: dict) -> tuple[tuple, list[_Option]]:
+    """An answer in terms of π: its ``(π coefficient, constant)`` and candidate options."""
+    k = pi_parts(answer)
+    assert k is not None
+    out: list[_Option] = []
+    for e, reason in expression_candidates(obj):
+        ek = pi_parts(e)
+        assert ek is not None
+        out.append((ek, _pi_weight(ek), answer_text(e), reason))
+    return k, out
 
 
 def to_mcq(obj: dict, seed: int) -> dict:
     """A four-option multiple-choice copy of ``obj`` (see the module docstring)."""
     if not convertible(obj):
-        raise EditNotApplicable("to-mcq", "only a generated question with a numeric answer")
+        raise EditNotApplicable(
+            "to-mcq", "only a generated question with a numeric answer or one in terms of π"
+        )
     if obj.get("validation", {}).get("checks", {}).get("representation") == "decimals":
         raise EditNotApplicable("to-mcq", "not a question shown in decimals")
     out = copy.deepcopy(obj)
     part = out["question"]["parts"][0]
     answer = part["answer"]
     correct_text = answer_text(answer)
-    value = _value(answer)
+    value: Any
+    if answer["type"] == "expression":
+        value, candidates = _expression_options(obj, answer)
+        weight = _pi_weight(value)
+    else:
+        value, candidates = _number_options(obj, answer)
+        weight = value
 
     rng = random.Random(f"mcq|{obj['id']}|{seed}")
     ascending = _ascending(obj)
     texts = [correct_text]
     why: dict[str, str] = {}
-    chosen: list[Fraction] = []
-    candidates = distractor_candidates(obj)
+    chosen: list[Any] = []  # order keys
+    weights: list[Fraction] = []
     for strict in (True, False):  # avoid a give-away set when the candidates allow it
-        fits: list[tuple[Fraction, str, str]] = []
-        for v, reason in candidates:
-            shown = _with_value(answer, v)
-            if _value(shown) != v:  # printed rounded: its reason would not match what is shown
-                continue
-            t = answer_text(shown)
-            if t in texts or (strict and _gives_it_away(value, [*chosen, v])):
+        fits: list[_Option] = []
+        for cand in candidates:
+            v, w, t, reason = cand
+            if t in texts or (strict and _gives_it_away(weight, [*weights, w])):
                 continue
             if len(texts) < len(LABELS) - 1:
                 texts.append(t)
                 why[t] = reason
                 chosen.append(v)
-            elif all(t != have for _, _, have in fits):
-                fits.append((v, reason, t))
+                weights.append(w)
+            elif all(t != f[2] for f in fits):
+                fits.append(cand)
         if fits:  # the last wrong option: see _last_pick
-            v, reason, t = _last_pick(value, chosen, fits, rng) if ascending else fits[0]
+            v, w, t, reason = _last_pick(value, chosen, fits, rng) if ascending else fits[0]
             texts.append(t)
             why[t] = reason
             chosen.append(v)
+            weights.append(w)
         if len(texts) == len(LABELS):
             break
     assert len(texts) == len(LABELS), texts
 
     if ascending:
         # as real papers list numeric options (about 36 of 40 in the 2025 prelims): every
-        # option here is a number in the answer's own unit and form
+        # option here is a number in the answer's own unit and form, or an expression in terms
+        # of π listed by coefficient (the π part, then the number)
         texts = [t for _, t in sorted(zip([value, *chosen], texts, strict=True))]
     else:
         rng.shuffle(texts)

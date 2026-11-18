@@ -41,7 +41,10 @@ def _blueprint_meta() -> dict[str, dict]:
             "marks": data["marks"],
             "parts": len(data.get("parts") or []) or 1,  # P8c multi-part blueprints
             "topic": data["syllabus"]["topic"],
-            "answer_type": (data.get("answer") or {}).get("type"),
+            # every type its answers can have (EXA-155: a list when some are in terms of π)
+            "answer_types": set(
+                (data.get("answer") or {}).get("types") or [(data.get("answer") or {}).get("type")]
+            ),
             "rung": data["cognitive"]["difficulty"],
         }
     return out
@@ -98,7 +101,7 @@ def _takes(code: str, kind: str, level: str) -> bool:
     m = META[code]
     if m["level"] not in LEVELS[: LEVELS.index(level) + 1] or m["parts"] != 1:
         return False
-    return kind != "mcq" or m["answer_type"] in _CONVERTIBLE
+    return kind != "mcq" or m["answer_types"] <= _CONVERTIBLE
 
 
 def _questions(doc):
@@ -343,7 +346,8 @@ def test_an_exam_set_spreads_its_topics(level):
         assert sum((Counter(r["topics"]) for _, r in papers), Counter()) == together, where
 
 
-_CONVERTIBLE = {"integer", "decimal", "quantity", "fraction"}  # a number: multiple choice
+# a number, or an answer in terms of π (EXA-155): multiple choice
+_CONVERTIBLE = {"integer", "decimal", "quantity", "fraction", "expression"}
 
 
 @pytest.mark.parametrize("level", LEVELS)
@@ -384,7 +388,7 @@ def test_booklet_a_fills_every_slot_and_spreads_topics(level):
             if m["level"] in allowed
             and m["marks"] == 1
             and m["parts"] == 1
-            and m["answer_type"] in _CONVERTIBLE
+            and m["answer_types"] <= _CONVERTIBLE
         }
         assert eligible <= paper_topics, (seed, eligible - paper_topics)
 

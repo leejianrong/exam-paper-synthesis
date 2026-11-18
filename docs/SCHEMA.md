@@ -248,8 +248,14 @@ Additive (tier-2 slice T5); every 1.10.0 object still validates. For answers "in
   have one representation and `expressions_equal` / `evaluate` can verify them.
 - Printed as KaTeX in the key (`to_latex`: `\left(42\pi + 84\right)\ \text{m}`, `\$17n`,
   `\$(7n - 8)`) and as a `math` node by `convert`. Like every answer it appears only in the key.
-- Web mirror: not needed (bank questions render server-side); the classic page only shows
-  generated questions, which never produce expressions yet.
+- Web mirror: `fmtAnswer` in `web/src/lib/format.ts` (the circles ladder answers some
+  perimeters in terms of π).
+- Multiple choice (EXA-155): `mcq.to_mcq` converts an answer in terms of π (π and constant terms
+  only). Each option's `text` is the same `\(…\)` KaTeX as the key (`mcq.answer_text`), the wrong
+  options are the solver's expression slips with reasons, listed by coefficient (π part, then the
+  number). A blueprint that answers some questions this way declares it in its YAML
+  (`answer.types: [integer, decimal, expression]`); the paper generator lets a blueprint into a
+  multiple-choice slot only when every declared type converts.
 
 ## `question.table`, `geometry_figure.grid`/`polygons`, and `answer.type: "construction"` (schema 1.6.0)
 

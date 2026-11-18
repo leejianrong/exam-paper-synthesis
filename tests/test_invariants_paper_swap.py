@@ -42,7 +42,10 @@ def _meta() -> dict[str, dict]:
             "marks": d["marks"],
             "parts": len(d.get("parts") or []) or 1,  # P8c multi-part blueprints
             "rung": d["cognitive"]["difficulty"],
-            "answer_type": (d.get("answer") or {}).get("type"),
+            # every type its answers can have (EXA-155: a list when some are in terms of π)
+            "answer_types": set(
+                (d.get("answer") or {}).get("types") or [(d.get("answer") or {}).get("type")]
+            ),
         }
     return out
 
@@ -110,7 +113,8 @@ def _check_rules(doc, level, where):
 
 
 _RUNG = {"easy": 0, "medium": 1, "hard": 2}
-_CONVERTIBLE = {"integer", "decimal", "quantity", "fraction"}  # a number: multiple choice
+# a number, or an answer in terms of π (EXA-155): multiple choice
+_CONVERTIBLE = {"integer", "decimal", "quantity", "fraction", "expression"}
 
 
 def _shortfall(code: str, marks: int) -> int:
@@ -126,7 +130,7 @@ def _could_fill(code: str, node, kind: str, level: str) -> bool:
         return False
     if m["parts"] > 1:
         return kind == "structured"
-    return kind != "mcq" or m["answer_type"] in _CONVERTIBLE
+    return kind != "mcq" or m["answer_types"] <= _CONVERTIBLE
 
 
 def _possible_other_topic(doc, idx, level) -> bool:

@@ -295,4 +295,23 @@ describe('QuestionCard', () => {
     expect(container.textContent).not.toContain('\\(')
     expect(container.querySelector('.math-host')?.getAttribute('data-latex')).toBe('3x')
   })
+
+  it('typesets a multiple-choice answer in terms of π (EXA-155)', () => {
+    const mcq = structuredClone(question)
+    const pi = '\\(\\left(6\\pi + 24\\right)\\ \\text{cm}\\)'
+    mcq.question.parts[0].answer = {
+      type: 'choice',
+      options: [
+        { label: '1', text: '\\(6\\pi\\ \\text{cm}\\)' },
+        { label: '2', text: pi },
+      ],
+      correct: '2',
+    }
+    const { container } = render(QuestionCard, { props: { q: mcq } })
+    const val = container.querySelector('.val')
+    expect(val?.textContent).not.toContain('\\(')
+    expect(val?.querySelector('.math-host')?.getAttribute('data-latex')).toBe(
+      '\\left(6\\pi + 24\\right)\\ \\text{cm}',
+    )
+  })
 })
