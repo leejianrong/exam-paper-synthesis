@@ -493,9 +493,9 @@ def test_what_todays_content_fills():
     assert fill("p1_booklet_a", "P5") == (15, 0)  # 12 one-mark at P5
     assert fill("p1_booklet_b", "P6") == (15, 0)
     assert fill("p1_booklet_b", "P5") == (15, 0)  # 12 two-mark medium at P5 (EXA-154)
-    assert fill("p2", "P6") == (17, 0)  # Section B: 8 multi-part + 4 single-part stand-ins
+    assert fill("p2", "P6") == (17, 0)  # Section B: 9 multi-part + 3 single-part stand-ins
     _, r = generate_paper("p2", "P6", 1)
-    assert [(s["multipart"], s["stand_ins"]) for s in r["sections"]] == [(0, 0), (8, 4)]
+    assert [(s["multipart"], s["stand_ins"]) for s in r["sections"]] == [(0, 0), (9, 3)]
     assert fill("p2", "P5") == (17, 3)  # Section B: 12 stand-ins, 3 placeholders (13 marks)
 
 

@@ -10,6 +10,13 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Deeper P6 angle questions (EXA-150).** Four new blueprints, each with a figure drawn to
+  scale: a rectangle's corner folded along a line (2 marks), a rhombus, parallelogram or
+  trapezium joined to an isosceles or equilateral triangle (3 marks), reflex angles at a point
+  (2 marks), and a two-part Paper 2 question on a rhombus with an equilateral triangle inside
+  it (4 marks). Figures can now mark a reflex angle: it is drawn the long way round, on a wider
+  arc. A P6 Paper 2 now has 9 multi-part questions in Section B and 3 stand-ins.
+
 - **2-mark medium questions for Ratio, Percentage, Speed and both Geometry topics (EXA-154).**
   Five new blueprints, each a rung between the topic's 2-mark easy and 3-mark medium ones: the
   total from a ratio and a difference, a percentage of the remainder, speed with the time in

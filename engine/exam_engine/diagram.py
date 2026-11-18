@@ -47,7 +47,15 @@ def check_consistency(spec: dict, params: dict, solution: dict) -> dict[str, boo
     if dtype == "shaded_fraction":
         return check_shaded_fraction_consistency(spec, params, solution)
     if dtype == "geometry_figure":
-        return check_geometry_figure_consistency(spec, params, solution)
+        # A multi-part question's figure (P8c) carries one unknown per part, bound by its
+        # ``part_label``; ``answers`` are in part order (a, b, ...).
+        answers = (solution or {}).get("answers")
+        part_solutions = (
+            {chr(ord("a") + i): {"answer": a} for i, a in enumerate(answers)} if answers else None
+        )
+        return check_geometry_figure_consistency(
+            spec, params, solution, part_solutions=part_solutions
+        )
     if dtype == "chart":
         return check_chart_consistency(spec)
     if dtype == "solid":
@@ -245,7 +253,8 @@ def check_geometry_figure_consistency(
 
     Degeneracy guards (independent of params): point ids are non-null and
     distinct, every arc radius is > 0, every numeric ``value_deg`` lies in
-    ``(0, 180)``, and every ``shaded[].boundary`` id exists in ``points``.
+    ``(0, 360)`` (over 180 is a reflex angle, drawn the long way round, EXA-150), and
+    every ``shaded[].boundary`` id exists in ``points``.
     """
     points = spec.get("points") or []
     ids = [p.get("id") for p in points]
@@ -270,7 +279,7 @@ def check_geometry_figure_consistency(
         v = ang.get("value_deg")
         if isinstance(v, (int, float)):
             numeric_angle_vals.append(float(v))
-    checks["angle_values_in_range"] = all(0 < v < 180 for v in numeric_angle_vals)
+    checks["angle_values_in_range"] = all(0 < v < 360 for v in numeric_angle_vals)
 
     def _region_ids_valid(region: dict) -> bool:
         if not all(pid in idset for pid in (region.get("boundary") or [])):
@@ -936,6 +945,7 @@ def _render_sf_circle(total_parts: int, shaded_parts: int) -> str:
 _GF_SIZE = 240  # target max drawing dimension (px, before padding)
 _GF_PAD = 28  # padding around the figure (room for labels)
 _GF_ANGLE_R = 18  # angle-mark arc radius (canvas px)
+_GF_REFLEX_R = 30  # reflex angle-mark arc radius (EXA-150)
 _GF_RIGHT = 14  # right-angle square side (canvas px)
 _GF_TICK = 6  # equal-length tick half-length (canvas px)
 _GF_TICK_SP = 4  # spacing between adjacent tick marks
@@ -1306,6 +1316,7 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
             arc_labels.append((str(label), arc_c))
 
     # --- angle marks (small arc, or a square for right angles) --------------
+    overhang: list[tuple[float, float]] = []  # stroke points that may leave the canvas
     for ang in angles:
         vx, vy = pmap[ang["at"]]
         ax, ay = pmap[ang["from"]]
@@ -1324,23 +1335,34 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
             )
             lay.stroke([p1, p2, p3], 1.5)
         else:
-            rr = _GF_ANGLE_R
+            value = ang.get("value_deg")
+            # A reflex angle (over 180°, EXA-150) goes the long way round its vertex, on a
+            # wider arc so it clears the smaller angle marks it passes.
+            reflex = isinstance(value, (int, float)) and value > 180
+            rr = _GF_REFLEX_R if reflex else _GF_ANGLE_R
             p1x, p1y = _r(vX + dax * rr), _r(vY + day * rr)
             p2x, p2y = _r(vX + dbx * rr), _r(vY + dby * rr)
             a1 = math.degrees(math.atan2(day, dax))
             a2 = math.degrees(math.atan2(dby, dbx))
             diff = (a2 - a1 + 180) % 360 - 180
             sweep = 1 if diff > 0 else 0
+            large = 1 if reflex else 0
+            if reflex:
+                sweep = 1 - sweep
             lines.append(
-                f'<path d="M {p1x} {p1y} A {rr} {rr} 0 0 {sweep} {p2x} {p2y}" '
+                f'<path d="M {p1x} {p1y} A {rr} {rr} 0 {large} {sweep} {p2x} {p2y}" '
                 f'fill="none" stroke="{_GF_STROKE}" stroke-width="1.5"/>'
             )
-            lay.stroke(svg_arc_points((p1x, p1y), rr, 0, sweep, (p2x, p2y)), 1.5)
-            value = ang.get("value_deg")
+            mark_pts = svg_arc_points((p1x, p1y), rr, large, sweep, (p2x, p2y))
+            lay.stroke(mark_pts, 1.5)
+            if reflex:  # it reaches well past its vertex: the canvas must hold it
+                overhang += mark_pts
             if value is not None and not ang.get("unknown"):
                 bisx, bisy = _gf_unit(dax + dbx, day + dby)
                 if bisx == 0 and bisy == 0:
                     bisx, bisy = -day, dax  # straight angle: fall back to perpendicular
+                elif reflex:
+                    bisx, bisy = -bisx, -bisy
                 angle_values.append((f"{value}°", vX, vY, (bisx, bisy), rr))
 
     # --- text: angle values, side lengths, arc labels, then vertex letters ---
@@ -1397,8 +1419,21 @@ def _render_geometry_figure(spec: dict, given: dict | None = None) -> str:
             f'<text x="{x}" y="{y}" text-anchor="middle"{turn} fill="{fill}">{_esc(text)}</text>'
         )
 
-    # Grow the canvas where a label would otherwise be clipped.
+    # Grow the canvas where a label or a reflex arc would otherwise be clipped.
     ext = lay.extent()
+    if overhang:
+        xs_o, ys_o = [x for x, _ in overhang], [y for _, y in overhang]
+        box = (min(xs_o) - 1, min(ys_o) - 1, max(xs_o) + 1, max(ys_o) + 1)  # half the stroke
+        ext = (
+            box
+            if ext is None
+            else (
+                min(ext[0], box[0]),
+                min(ext[1], box[1]),
+                max(ext[2], box[2]),
+                max(ext[3], box[3]),
+            )
+        )
     if ext is not None:
         vx0 = min(0, math.floor(ext[0]) - 2)
         vy0 = min(0, math.floor(ext[1]) - 2)

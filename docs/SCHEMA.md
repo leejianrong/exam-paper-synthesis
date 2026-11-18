@@ -109,7 +109,7 @@ correct values is always consistent.
 | `points` | yes | `≥2` named vertices `{ id, x, y }` in figure coordinates |
 | `segments` | no | straight edges `{ from, to, label?, ticks? }` (`ticks` = equal-side marks) |
 | `arcs` | no | circular arcs `{ center, radius>0, start_deg, end_deg, label? }` (whole/semi/quarter circles) |
-| `angles` | no | angle marks `{ at, from, to, value_deg?, unknown?, right?, part_label? }`; normally exactly one sets `unknown: true` (the value to solve) |
+| `angles` | no | angle marks `{ at, from, to, value_deg?, unknown?, right?, part_label? }`; normally exactly one sets `unknown: true` (the value to solve); `value_deg` is in (0, 360), and over 180 marks the reflex angle, drawn the long way round (EXA-150) |
 | `shaded` | no | region(s) to fill, each `{ boundary: [ids…], arcs? }` |
 | `labels` | no | free text labels `{ at, text }` anchored at a named point |
 
