@@ -22,6 +22,7 @@ from __future__ import annotations
 import random
 from fractions import Fraction
 
+from ..base import spread_sides
 from ..registry import register
 
 # Singapore-appropriate given names (PSLE style, R1.6).
@@ -77,6 +78,7 @@ class SpeedMediumSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong average speeds (km/h), best first (EXA-122)."""
         d1, t1 = params["d1"], params["t1"]

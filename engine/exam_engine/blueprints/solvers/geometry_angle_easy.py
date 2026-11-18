@@ -20,7 +20,9 @@ so the printed key is provably the solution to the printed figure (no LLM).
 from __future__ import annotations
 
 import random
+from fractions import Fraction
 
+from ..base import spread_sides, sum_slip
 from ..registry import register
 
 _UNIT = "degrees"
@@ -198,7 +200,8 @@ class GeometryAngleEasySolver:
             },
         }
 
-    def distractors(self, params: dict, solution: dict) -> list[tuple[int, str]]:
+    @spread_sides
+    def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong angles (degrees), best first (EXA-122)."""
         g, template = params["givens"], params["template"]
         if template == "straight_line":
@@ -208,6 +211,9 @@ class GeometryAngleEasySolver:
                 (p + q, "added the two given angles"),
                 (180 - p, "subtracted only ∠AOP"),
                 (180 - q, "subtracted only ∠POQ"),
+                *sum_slip(180 - p - q, p, q, f"{p}° and {q}°"),
+                (90 - p - q, "used 90° instead of 180°"),
+                (p, "took ∠QOB equal to ∠AOP"),
             ]
         if template == "at_point":
             a, c = g["a"], g["c"]
@@ -215,6 +221,9 @@ class GeometryAngleEasySolver:
                 (a + c, "the reflex angle, not ∠BOC"),
                 (360 - a, "subtracted only ∠AOB"),
                 (360 - c, "subtracted only ∠COA"),
+                (180 - a - c, "used 180° instead of 360°"),
+                *sum_slip(360 - a - c, a, c, f"{a}° and {c}°"),
+                (a, "took ∠BOC equal to ∠AOB"),
             ]
         a, b = g["a"], g["b"]
         return [
@@ -222,6 +231,9 @@ class GeometryAngleEasySolver:
             (a + b, "the exterior angle at C"),
             (180 - a, "subtracted only ∠BAC"),
             (180 - b, "subtracted only ∠ABC"),
+            *sum_slip(180 - a - b, a, b, f"{a}° and {b}°"),
+            (a, "took ∠ACB equal to ∠BAC"),
+            (b, "took ∠ACB equal to ∠ABC"),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:
