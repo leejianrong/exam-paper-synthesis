@@ -94,6 +94,11 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **minimatch advisory (GHSA-g3hv-75wg-m249).** `npm audit fix` moves the web dev tools'
+  minimatch to a fixed release (11.0.9), so the Dependency audit check passes again. It also
+  refreshes eslint, typescript-eslint, svelte-check, vite and vitest within their existing
+  ranges (lockfile only).
+
 - **A multiple-choice answer is no longer mostly the smallest or the largest option (EXA-156).**
   Options print smallest first, and 25 of the 42 blueprints that turn into multiple choice
   offered wrong answers mostly on one side of the right one, so their answer was rarely or
