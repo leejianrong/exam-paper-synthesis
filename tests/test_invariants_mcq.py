@@ -328,3 +328,38 @@ def test_the_correct_option_is_not_predictable_from_its_place():
         assert ends <= 0.65 * len(positions), (code, {p: positions.count(p) for p in total})
     n = sum(total.values())
     assert all(0.12 * n <= total[p] <= 0.4 * n for p in total), total
+
+
+def _hooked() -> list[str]:
+    from exam_engine.blueprints.registry import get_solver
+    from exam_engine.errors import UnknownBlueprint
+
+    out = []
+    for code in BLUEPRINTS:
+        try:
+            solver = get_solver(code)
+        except UnknownBlueprint:  # a sourced-only or unregistered blueprint
+            continue
+        if hasattr(solver, "distractors") and code not in EXTREME:
+            out.append(code)
+    return out
+
+
+@pytest.mark.parametrize("code", _hooked())
+def test_a_hooked_answer_is_not_mostly_the_smallest_or_largest(code):
+    """EXA-156: a pupil who always picks the smallest (or the largest) option must not score
+    well above chance. Over 400 seeds, every blueprint with a distractors hook puts the answer
+    first or last at most 40% of the time each, and in every place at least 5% of the time.
+
+    The thresholds come from the data. A hook that goes through ``blueprints.base.spread``
+    leads with two slips below, one each side, or two above, so with two on each side the
+    answer is first or last 1/6 of the time each. Over 400 seeds the largest end share is now
+    34.5% and the smallest place share 5.5% (a hook with only one sensible slip on a side for
+    some question forms): 22 seeds against a floor of 20, a margin of 2 seeds. A hook change
+    that trips the floor should add a slip on the scarce side rather than lower it. Before
+    EXA-156, 25 of these blueprints failed, e.g. rate_easy put the answer (1) 0%, (4) 50%
+    of the time and speed_hard (1) 60%, (3) and (4) never."""
+    positions = _correct_positions(code, range(1, 401))
+    share = {p: positions.count(p) / len(positions) for p in (1, 2, 3, 4)}
+    assert share[1] <= 0.4 and share[4] <= 0.4, share
+    assert min(share.values()) >= 0.05, share
