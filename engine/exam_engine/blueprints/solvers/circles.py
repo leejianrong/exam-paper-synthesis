@@ -25,6 +25,7 @@ import random
 from collections.abc import Callable
 from fractions import Fraction
 
+from ..base import spread
 from ..registry import register
 from .geometry_area_common import AREA_UNIT, LEN_UNIT, _labels, _pt, format_measure
 
@@ -98,12 +99,14 @@ def _easy_circle(g: dict, pi: str, given_as: str, *, area: bool) -> dict:
                 (p * d * d, "used the diameter as the radius"),
                 (2 * p * r, "the circumference, not the area"),
                 (p * r * r / 2, "halved the area (a semicircle)"),
+                (p * d * r, "multiplied the diameter by the radius"),
             ]
         else:
             wrong = [
                 (2 * p * r, "multiplied the radius by 2 instead of by itself"),
                 (p * d * d, "doubled the radius before squaring"),
                 (p * r * r / 2, "halved the area (a semicircle)"),
+                (p * d * r, "multiplied the diameter by the radius"),
             ]
         unit = AREA_UNIT
     else:
@@ -118,6 +121,8 @@ def _easy_circle(g: dict, pi: str, given_as: str, *, area: bool) -> dict:
                 (p * r, "used the radius as the diameter (π × r)"),
                 (p * r * r, "the area, not the circumference"),
                 (4 * p * r, "doubled the radius twice"),
+                (p * r + d, "the perimeter of a semicircle"),
+                (p * r / 2, "a quarter circle's curved edge"),
             ]
         else:
             steps = [
@@ -128,6 +133,8 @@ def _easy_circle(g: dict, pi: str, given_as: str, *, area: bool) -> dict:
                 (2 * p * d, "used the diameter as the radius (2 × π × d)"),
                 (p * r, "halved the circumference (a semicircle's curved edge)"),
                 (p * r * r, "the area, not the circumference"),
+                (p * r + d, "the perimeter of a semicircle"),
+                (p * r / 2, "a quarter circle's curved edge"),
             ]
         unit = LEN_UNIT
     text = (
@@ -167,6 +174,7 @@ def _easy_semicircle(g: dict, pi: str, given_as: str) -> dict:
         (p * d * d / 2, "used the diameter as the radius"),
         (p * r + d, "the perimeter, not the area"),
         (p * r * r / 4, "a quarter circle"),
+        (p * r, "the curved edge, not the area"),
     ]
     return _fig(
         points=_circle_points(r),
@@ -223,6 +231,7 @@ def _easy_quarter(g: dict, pi: str, given_as: str) -> dict:
             (p * r * r, "the whole circle (forgot to take a quarter)"),
             (p * r * r / 2, "a semicircle, not a quarter circle"),
             (p * r / 2, "the curved edge, not the area"),
+            (p * r / 2 + 2 * r, "the perimeter, not the area"),
         ],
     }
 
@@ -781,11 +790,17 @@ class _CirclesSolver:
         """Common wrong answers in the answer's own unit, best first (EXA-122)."""
         built = self._build(params)
         right = built["answer"].get("value")
-        return [
+        slips = [
             (Fraction(v), why)
             for v, why in built["wrong"]
             if v > 0 and (right is None or Fraction(v) != Fraction(str(right)))
         ]
+        if right is None:  # an "in terms of π" answer has no numeric options
+            return slips
+        from ...mcq import hook_value_prints  # mcq imports the registry, which imports us
+
+        a = built["answer"]
+        return spread(slips, Fraction(str(right)), params, lambda v: hook_value_prints(v, a))
 
     def validate(self, params: dict, solution: dict) -> dict:
         built = self._build(params)
