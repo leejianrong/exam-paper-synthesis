@@ -310,7 +310,10 @@ class _Filler:
         options = [
             c
             for c in self.pool
-            if c.code not in self.used and c.marks <= max_marks and _fits(c, "multipart")
+            if c.code not in self.used
+            and c.marks <= max_marks
+            and _fits(c, "multipart")
+            and self.topics.get(c.topic, 0) < TOPIC_CAP
         ]
         if not options:
             return None
@@ -416,10 +419,10 @@ def _fill_fixed(f: _Filler, section: dict, report: dict) -> list[dict]:
     return blocks
 
 
-def _fill_structured(f: _Filler, section: dict, report: dict) -> list[dict]:
-    """Real multi-part questions first (P8c), then single-part stand-ins for the rest of the
-    marks target, then placeholders for any shortfall. Questions are ordered by marks (stable),
-    so the section reads from shorter to longer questions."""
+def _pick_multiparts(f: _Filler, section: dict) -> list[dict]:
+    """A structured section's real multi-part questions (P8c). :func:`generate_paper` picks
+    these before any other question of the paper (EXA-154): they are scarce, so they claim
+    their topics before a short question can fill one to :data:`TOPIC_CAP`."""
     target = section["marks_target"]
     n_slots = sum(s["count"] for s in section["slots"])
     blocks: list[dict] = []
@@ -428,9 +431,20 @@ def _fill_structured(f: _Filler, section: dict, report: dict) -> list[dict]:
         if mp is None:
             break
         blocks.append(f.question(mp, {"marks": mp.marks, "kind": "structured"}))
+    return blocks
+
+
+def _fill_structured(f: _Filler, section: dict, report: dict, multiparts: list[dict]) -> list[dict]:
+    """The section's ``multiparts`` (:func:`_pick_multiparts`), then single-part stand-ins for
+    the rest of the marks target, then placeholders for any shortfall. Questions are ordered by
+    marks (stable), so the section reads from shorter to longer questions."""
+    target = section["marks_target"]
+    n_slots = sum(s["count"] for s in section["slots"])
+    blocks = list(multiparts)
+    for b in blocks:
         report["filled"] += 1
         report["multipart"] += 1
-        report["blueprints"].append(mp.code)
+        report["blueprints"].append(b["attrs"]["question"]["blueprint_code"])
     rest = target - sum(b["attrs"]["slot"]["marks"] for b in blocks)
     # EXA-154: the biggest stand-in first, so it claims a topic before a 2-marker does; after
     # each pick the plan is made again, because that pick may have filled its topic
@@ -470,9 +484,14 @@ def generate_paper(
     t = paper_template(template_code)
     f = _Filler(t, level, seed, set_topics)
 
+    multiparts = {
+        i: _pick_multiparts(f, sec)
+        for i, sec in enumerate(t["sections"])
+        if sec["mode"] == "structured"
+    }
     blocks: list[dict] = _cover_blocks(t, level)
     sections_report = []
-    for section in t["sections"]:
+    for i, section in enumerate(t["sections"]):
         rep = {
             "title": section["title"],
             "mode": section["mode"],
@@ -487,7 +506,7 @@ def generate_paper(
         }
         blocks.append(_section_node(section))
         if section["mode"] == "structured":
-            blocks += _fill_structured(f, section, rep)
+            blocks += _fill_structured(f, section, rep, multiparts[i])
         else:
             blocks += _fill_fixed(f, section, rep)
         sections_report.append(rep)

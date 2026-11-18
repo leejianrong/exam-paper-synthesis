@@ -18,7 +18,8 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   and covers 13.5 topics on average (was 11.5); a P5 Booklet B has no placeholders (was 2). In
   Paper 2 a stand-in (and any swap or "Regenerate unlocked") never gives a topic a third
   question, and the 3-mark stand-ins are chosen first, so a P5 Section B takes `ratio_medium`
-  rather than a 2-mark easy question.
+  rather than a 2-mark easy question. Paper 2's multi-part questions are picked before any
+  other question, so a P6 Paper 2 keeps all 8 of them under the same cap of 2 a topic.
 
 - **A P6 Circles ladder (EXA-149).** Three blueprints with a drawn figure: the circumference or
   area of a circle, semicircle or quarter circle (1 mark); the perimeter or area of a square or

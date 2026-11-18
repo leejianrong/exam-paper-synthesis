@@ -240,8 +240,8 @@ in generation (the engine stays deterministic).
   `stand_in`.
 - **What it fills now.** P6 Paper 2 Section B: 12 questions, 45 / 45 marks = the three
   multi-part (4 + 5 + 5) and nine single-part stand-ins (five 3-mark, four 4-mark). A P5 paper
-  is unchanged (all three are P6). Since EXA-154 (the topic cap, below) a P6 Section B has 12 or
-  13 questions (9 or 10 stand-ins; 13 in about 40% of seeds).
+  is unchanged (all three are P6). Since EXA-143 (five more multi-part) and EXA-154 (the topic
+  cap, below) a P6 Section B has 8 multi-part questions and 4 stand-ins.
 
 ## P8c polish (EXA-123, 2026-11-15)
 
@@ -484,10 +484,15 @@ in generation (the engine stays deterministic).
   after every pick (a pick can fill its topic, and the plan counts only topics under the cap),
   so a 3-mark question claims a topic before a 2-mark one: a P5 Section B takes `ratio_medium`,
   not `ratio_easy`. Regenerate refills structured stand-ins in the same order.
+- **Multi-part first** (after EXA-143 added five heuristic multi-part blueprints). A multi-part
+  question is under the same cap, and `generate_paper` picks every structured section's
+  multi-part questions before any other question of the paper, so Section A cannot fill their
+  topics first: a P6 Paper 2 keeps all 8 (500 seeds: 8 multi-part + 4 stand-ins, every topic
+  at most 2).
 - **Effect** (500 seeds a paper on its own): P6 Booklet B's 2-mark slots 70% → 100% medium,
   topics per booklet 11.5 → 13.5; P5 Booklet B placeholders 2 → 0 (8 of its 10 2-mark slots
   medium, the P5 ceiling); P6 Booklet A's 2-mark MCQs draw on 12 topics (was 7); P5 Paper 2
-  keeps 3 placeholders (P5 has few 3–5-markers); P6 Paper 2 has 17 or 18 questions.
+  keeps 3 placeholders (P5 has few 3–5-markers); P6 Paper 2 has 17 questions.
 - **Tests.** `tests/test_invariants_two_mark_medium.py`, `tests/test_distractors_group_e.py`,
   `tests/test_generate_two_mark_medium.py`; the rung checks in `tests/test_invariants_paper.py`
   excuse a stand-in whose better-rung blueprint's topic had two questions when it was picked;

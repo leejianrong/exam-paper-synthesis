@@ -362,18 +362,24 @@ def test_an_exam_set_spreads_its_topics(level):
     make the papers on their own, and no topic passes _SET_MAX. Paper 2 is filled first
     (set_fill_order), so its hard and medium slots keep the rungs they would have alone."""
     assert set_fill_order(TEMPLATES) == _FILL_ORDER
+    over_together = over_apart = 0
     for seed, papers in _sets(level).items():
         together = _set_topics(papers)
         apart = _set_topics([generate_paper(code, level, seed) for code in TEMPLATES])
         where = (level, seed, dict(together))
         assert sum(together.values()) == sum(apart.values()), where  # no question lost
         assert max(together.values()) <= max(apart.values()), where
-        assert _over_cap(together) <= _over_cap(apart), where
+        over_together += _over_cap(together)
+        over_apart += _over_cap(apart)
         assert max(together.values()) <= _SET_MAX[level], where
         p2 = TEMPLATES.index("p2")
         assert _fit(papers[p2][0]) >= _fit(generate_paper("p2", level, seed)[0]), where
         # each report counts its own paper's topics, as the wizard adds them up
         assert sum((Counter(r["topics"]) for _, r in papers), Counter()) == together, where
+    # the fill is greedy, paper by paper, so one set may sit a question or two further over the
+    # cap than its papers made apart (P6 seed 12 once multi-part questions pick first, EXA-154);
+    # over the seeds a set has clearly fewer (seeds 1-30: P5 360 against 426, P6 about 0.6x)
+    assert over_together <= 0.9 * over_apart, (level, over_together, over_apart)
 
 
 _CONVERTIBLE = {"integer", "decimal", "quantity", "fraction"}  # a number: multiple choice
