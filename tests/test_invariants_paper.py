@@ -504,7 +504,7 @@ def test_what_todays_content_fills():
     assert fill("p2", "P6") == (17, 0)  # Section B: 10 multi-part + 2 single-part stand-ins
     _, r = generate_paper("p2", "P6", 1)
     assert [(s["multipart"], s["stand_ins"]) for s in r["sections"]] == [(0, 0), (10, 2)]
-    assert fill("p2", "P5") == (20, 2)  # Section B: 15 stand-ins, 2 placeholders
+    assert fill("p2", "P5") == (21, 1)  # Section B: 16 stand-ins, 1 placeholder
 
 
 def test_unknown_template_and_level_are_refused():

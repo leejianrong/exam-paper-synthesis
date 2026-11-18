@@ -346,8 +346,11 @@ such items.
      constant-difference / constant-total transfers; LCM packs of m and n with a budget.
    - Give each a cheap 1-mark (a) and a 2–3-mark (b).
    - No new diagram.
-2. **Square-grid geometry family:** ∥/⊥ identification, symmetry (shade k squares), 8-point compass
-   directions and turns, area by counting squares, and completing a trapezium, parallelogram or rhombus.
+2. ~~**Square-grid geometry family:** ∥/⊥ identification, symmetry (shade k squares), 8-point compass
+   directions and turns, area by counting squares, and completing a trapezium, parallelogram or rhombus.~~
+   Done in #232 (EXA-144): a `grid` diagram and four blueprints with a number or letter answer (area by
+   whole and half squares; which point gives a ∥/⊥ line; compass direction or turn; which square completes
+   the symmetry). Not built: drawing answers (shade, draw, complete a shape).
    - Real: 13 questions, about 3 a set, in every paper part.
    - Needs a new `grid` diagram and a grid-cell or point answer type, which can be auto-checked as a cell set.
 3. ~~**Booklet A number-sense and measurement 1-markers.** These fill the 2 placeholders and widen 1-mark coverage.~~

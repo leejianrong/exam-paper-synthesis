@@ -34,6 +34,7 @@ from . import (
     speed_hard,  # noqa: F401
     speed_medium,  # noqa: F401
     speed_minutes,  # noqa: F401
+    square_grid,  # noqa: F401
     statistics_chart,  # noqa: F401
     structured,  # noqa: F401
     tables,  # noqa: F401
@@ -74,6 +75,7 @@ __all__ = [
     "speed_hard",
     "speed_medium",
     "speed_minutes",
+    "square_grid",
     "statistics_chart",
     "structured",
     "tables",

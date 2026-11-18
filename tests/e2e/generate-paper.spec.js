@@ -58,17 +58,17 @@ test('generate a P5 Paper 2: placeholders for what the content cannot fill yet',
   await generateSinglePaper(page, 'Paper 2', 'P5')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
 
-  // P5 has too few 3-5 mark blueprints for Section B: 15 stand-ins and 2 placeholders
-  await expect(page.getByTestId('generate-report')).toContainText('Filled 20 of 22 questions')
-  await expect(page.getByTestId('placeholders-left')).toHaveText('2 placeholders to write')
+  // P5 has too few 3-5 mark blueprints for Section B: 16 stand-ins and 1 placeholder
+  await expect(page.getByTestId('generate-report')).toContainText('Filled 21 of 22 questions')
+  await expect(page.getByTestId('placeholders-left')).toHaveText('1 placeholder to write')
   const hints = page.locator('.ff-placeholder-hint:visible')
-  await expect(hints).toHaveCount(2)
+  await expect(hints).toHaveCount(1)
   await expect(hints.first()).toHaveText(/write a [345]-mark structured question here/)
 
   // Writing a placeholder's question clears it.
   await page.locator('.ffblock.placeholder-slot .ff-body').first().click()
   await page.keyboard.type('What is 3 + 4?')
-  await expect(page.getByTestId('placeholders-left')).toHaveText('1 placeholder to write')
+  await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
 })
 
 test('generate a P6 Booklet A: multiple-choice questions with four options each', async ({ page }) => {

@@ -1,0 +1,49 @@
+code: grid_area
+# EXA-144: a 2-mark question on no difficulty ladder. The figure has 45-degree cuts, so every
+# square it covers is whole or half.
+syllabus:
+  level: P5
+  strand: "Geometry"
+  topic: "Square Grids"
+  subtopic: "Area of a figure on a grid by counting whole and half squares"
+  skill_codes: ["GRID.AREA"]            # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Representation translation"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [vertices]
+  properties:
+    # the figure's corners on grid points [x, y], in order, x right and y down
+    vertices:
+      type: array
+      minItems: 3
+      maxItems: 12
+      items:
+        type: array
+        minItems: 2
+        maxItems: 2
+        items: { type: integer, minimum: 0, maximum: 12 }
+param_roles:
+  vertices: { role: number }
+story_templates:
+  - stem: null
+    text: "The figure is drawn on a grid of 1-cm squares. Find the area of the shaded figure."
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: null
+    - text: "{step2}"
+      expr: null
+    - text: "{step3}"
+      expr: "{e3}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Counts the whole squares and the half squares." }
+  - { mark: 1, type: A, description: "Correct area." }
+answer:
+  type: quantity
+  unit: "cm^2"
+diagram: grid

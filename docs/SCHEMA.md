@@ -476,3 +476,19 @@ Additive (EXA-147); every 1.12.0 object still validates.
 - A generated question may ask multiple choice itself (`cubes_view`: picture options;
   `net_opposite`: letter options). `document.verify_snapshot` then re-solves it and requires the
   options and the correct one to match exactly.
+
+## `diagram.type: "grid"` (schema 1.14.0)
+
+Additive (EXA-144); every 1.13.0 object still validates. A square grid with what is drawn on it,
+in grid units: `x` runs 0..`cols` left to right and `y` 0..`rows` top to bottom (grid points),
+and cell `(col, row)` has its top-left corner at point `(col, row)`.
+
+- `cols` (1–16), `rows` (1–12), `style`: `lines` (default) or `dots`, `compass`: a four-point
+  rose beside the grid (north is up).
+- `cells`: whole squares, `shaded` (default true) and/or with a `label` letter in the middle.
+- `polygons`: `vertices` on grid points, `shaded` (default true). `segments`: `from`/`to` grid
+  points, `dashed` for a line of symmetry. `points`: lettered grid points, drawn as dots.
+- Load gate (`check_grid_consistency`): everything inside the grid, simple polygons, segments
+  of non-zero length, distinct points and unique letters. Valid in MCQ options and `panels`.
+  Server-side rendering only (`exam_engine.grid`); a point's letter goes inside a square next to
+  it, clear of every grid line (`label_layout`).

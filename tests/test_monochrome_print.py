@@ -34,6 +34,7 @@ DRAWN_TYPES = {
     "number_line",
     "panels",
     "cube_stack",
+    "grid",
 }
 
 _HEX = re.compile(r"(?<![&\w])#([0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b")
