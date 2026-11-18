@@ -63,6 +63,14 @@ and by topic spread second, and fall back to the closest rung below only when th
 no fitting blueprint left (see `docs/planning/editor/P8-SHAPING.md`). The rung, not the printed
 step count, is the signal: step counts include the answer line and do not track depth.
 
+Ratio, Percentage, Speed and both Geometry ladders had a 2-mark easy and a 3-mark medium rung,
+so their topics could not fill a 2-mark slot at the right rung. EXA-154 gives each a fourth
+rung between them, a 2-mark medium blueprint: `ratio_difference` (total from a ratio and a
+difference), `percentage_remainder` (a percentage of the remainder), `speed_minutes` (the time
+in minutes), `geometry_angle_opposite` (vertically opposite angles) and
+`geometry_area_perimeter` (perimeter to area, or area to perimeter). Make harder / easier walk
+easy → 2-mark medium → 3-mark medium → hard.
+
 ## Caveat (calibration)
 
 Difficulty is partly **empirical**: a "hard" blueprint may test as "medium" with

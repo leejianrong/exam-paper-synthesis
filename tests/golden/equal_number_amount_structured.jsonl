@@ -1,0 +1,3 @@
+{"params": {"names": ["Ben", "Chloe"], "goods": ["pens", "notebooks"], "price": [2, 5], "more": 45, "spent": 60}, "expected": {"answers": [{"type": "integer", "value": 30}, {"type": "integer", "value": 9}], "marks": [2, 2], "total_marks": 4}}
+{"params": {"names": ["Devi", "Ethan"], "goods": ["apples", "mangoes"], "price": [3, 4], "more": 12, "spent": 120}, "expected": {"answers": [{"type": "integer", "value": 24}, {"type": "integer", "value": 5}], "marks": [2, 2], "total_marks": 4}}
+{"params": {"names": ["Faridah", "Gopal"], "goods": ["erasers", "files"], "price": [2, 6], "more": 80, "spent": 72}, "expected": {"answers": [{"type": "integer", "value": 40}, {"type": "integer", "value": 12}], "marks": [2, 2], "total_marks": 4}}

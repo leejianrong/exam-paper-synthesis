@@ -25,6 +25,8 @@ in them — are kept exactly as they are.
 Every choice follows the generator's rung rule first (EXA-146, ``paper.rung_shortfall``): a
 candidate whose rung fits the slot's marks beats one that falls short, whatever the order of
 preference below, so a swap or a regenerate never makes a slot easier than the content allows.
+And a swap or a regenerate never gives a topic more than ``paper.TOPIC_CAP`` (2) questions in
+the paper (EXA-154): a candidate from a topic the rest of the paper already has twice is out.
 
 Candidates are ``paper._fits`` for the slot's kind, so an ``mcq`` slot only takes blueprints
 ``mcq.to_mcq`` can convert, and its new question is converted like the generator's (P8b).
@@ -46,7 +48,16 @@ import copy
 import random
 
 from .document import QUESTION_TYPES, has_content, is_unfilled_placeholder
-from .paper import KINDS, LEVELS, Candidate, _fits, as_slot_question, candidates, rung_shortfall
+from .paper import (
+    KINDS,
+    LEVELS,
+    TOPIC_CAP,
+    Candidate,
+    _fits,
+    as_slot_question,
+    candidates,
+    rung_shortfall,
+)
 from .pipeline import generate
 
 MODES = ("like", "topic", "own")
@@ -163,11 +174,16 @@ class _Paper:
             if topic:
                 self.topics[topic] = self.topics.get(topic, 0) + 1
 
-    def options(self, slot: dict) -> list[Candidate]:
+    def options(self, slot: dict, capped: bool = True) -> list[Candidate]:
+        """Unused blueprints for ``slot``; with ``capped``, only from a topic the paper has
+        fewer than ``TOPIC_CAP`` questions of (EXA-154)."""
         return [
             c
             for c in self.pool
-            if c.code not in self.used and c.marks == slot["marks"] and _slot_takes(c, slot)
+            if c.code not in self.used
+            and c.marks == slot["marks"]
+            and _slot_takes(c, slot)
+            and (not capped or self.topics.get(c.topic, 0) < TOPIC_CAP)
         ]
 
     def take(self, c: Candidate) -> None:
@@ -359,11 +375,12 @@ def swap_question(
 
     if choice is None:
         what = "another topic" if mode == "topic" else "this topic"
-        why = (
-            "the ones left are easier than this one"
-            if easier
-            else "each question is used once per paper"
-        )
+        if easier:
+            why = "the ones left are easier than this one"
+        elif len(paper.options(slot, capped=False)) > len(paper.options(slot)):
+            why = "the ones left are from topics the paper already has two questions of"
+        else:
+            why = "each question is used once per paper"
         raise SwapNotPossible(
             f"No other {slot['marks']}-mark question from {what} fits this paper ({why})."
         )
@@ -406,7 +423,14 @@ def regenerate_unlocked(doc: dict, level: str | None, seed: int) -> tuple[dict, 
             if c is not None:
                 paper.take(c)
                 chosen[i] = c
-    for i in targets:
+
+    # then the rest in print order, except that structured stand-ins go biggest first, as in
+    # generate_paper, so a 3-mark question claims a topic before a 2-mark one (EXA-154)
+    def order(i: int) -> tuple[int, int]:
+        slot = _slot_of(blocks[i], modes[i])
+        return (-slot["marks"], i) if slot["kind"] == "structured" else (0, i)
+
+    for i in sorted(targets, key=order):
         node = blocks[i]
         slot = _slot_of(node, modes[i])
         c = chosen.get(i) or _least_used(paper.options(slot), paper.topics, rng, slot["marks"])
