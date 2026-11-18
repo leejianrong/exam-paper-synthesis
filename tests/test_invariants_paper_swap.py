@@ -79,6 +79,9 @@ def _check_rules(doc, level, where):
         assert info["marks"] == info["marks_target"], (where, info)
     codes = [_code(n) for n in _blocks(doc) if _code(n)]
     assert len(codes) == len(set(codes)), (where, Counter(codes))
+    # EXA-154: a swap or a regenerate never gives a topic a third question in the paper
+    topics = Counter(META[c]["topic"] for c in codes)
+    assert max(topics.values(), default=0) <= 2, (where, topics)
     allowed = LEVELS[: LEVELS.index(level) + 1]
     mode = None
     for n in _blocks(doc):
@@ -149,8 +152,10 @@ def _possible_other_topic(doc, idx, level) -> bool:
 
 def _check_rungs(doc, level, where, only=None):
     """EXA-146: a single-part question below its slot's rung only when no unused blueprint
-    that could fill the slot has the rung (``only``: the block indexes to check)."""
+    that could fill the slot has the rung (``only``: the block indexes to check). A blueprint
+    whose topic has two other questions in the paper is excused: the cap (EXA-154)."""
     used = {_code(n) for n in _blocks(doc) if _code(n)}
+    topics = Counter(META[c]["topic"] for c in used)
     mode = None
     for i, n in enumerate(_blocks(doc)):
         if n["type"] == "section":
@@ -167,6 +172,7 @@ def _check_rungs(doc, level, where, only=None):
             if c not in used
             and _could_fill(c, n, mode, level)
             and _shortfall(c, marks) < _shortfall(code, marks)
+            and topics[META[c]["topic"]] - (META[c]["topic"] == META[code]["topic"]) < 2
         ]
         assert not better, (where, i, code, better)
 
@@ -326,10 +332,21 @@ def test_regenerate_never_touches_a_hand_written_or_bank_question():
     assert report["kept"] == 2
 
 
+@pytest.mark.parametrize("level", ["P5", "P6"])
+def test_regenerating_a_paper_2_keeps_two_questions_a_topic_at_most(level):
+    """EXA-154: with four blueprints a topic, a Paper 2 refilled from scratch could give a topic
+    three questions (Section A, then two stand-ins); the cap holds for regenerate as it does
+    for the generator."""
+    for seed in range(1, 41):
+        doc, _ = generate_paper("p2", level, seed)
+        new, _ = regenerate_unlocked(doc, level, seed + 1000)
+        _check_rules(new, level, f"p2 {level} seed={seed} regenerate")
+
+
 def test_regenerate_with_everything_unlocked_gives_a_new_paper():
     doc, _ = generate_paper("p2", "P6", 4)
     new, report = regenerate_unlocked(doc, "P6", 99)
-    assert report["kept"] == 0 and report["replaced"] == 17
+    assert report["kept"] == 0 and report["replaced"] == 17  # 5 short, 8 multi-part, 4 stand-ins
     assert json.dumps(new) != json.dumps(doc)
     _check_rules(new, "P6", "p2 regenerate")
     # P8c: like the generator, Section B takes every multi-part blueprint again
@@ -428,15 +445,18 @@ def test_swaps_are_deterministic_and_leave_the_input_alone():
 
 
 def test_a_placeholder_is_filled_by_like_and_topic_when_content_allows():
-    # P5 Booklet B has ten 2-mark slots and fewer 2-mark P5 blueprints, so a 2-mark
-    # placeholder is left and every 2-mark blueprint is used already ...
-    doc, _ = generate_paper("p1_booklet_b", "P5", 1)
-    ph = _first(doc, lambda n: n["type"] == "freeformQuestion" and n["attrs"]["slot"]["marks"] == 2)
+    # P5 has too few 3-5 mark blueprints for Paper 2 Section B, so placeholders are left that
+    # no unused blueprint fits ...
+    doc, _ = generate_paper("p2", "P5", 1)
+    ph = _first(doc, lambda n: n["type"] == "freeformQuestion")
     with pytest.raises(SwapNotPossible):
         swap_question(doc, ph["attrs"]["block_id"], "like", 1)
-    # ... until the teacher writes their own instead of one of them
+    # ... while P5 Booklet B fills its 2-mark slots (EXA-154), and a 2-mark placeholder the
+    # teacher makes there is filled again from the blueprints left
+    doc, _ = generate_paper("p1_booklet_b", "P5", 1)
     used = _first(doc, lambda n: n["type"] == "templatedQuestion" and _marks(n) == 2)
     doc, _ = swap_question(doc, used["attrs"]["block_id"], "own", 1)
+    ph = _first(doc, lambda n: n["type"] == "freeformQuestion" and n["attrs"]["slot"]["marks"] == 2)
     new, _ = swap_question(doc, ph["attrs"]["block_id"], "like", 1)
     filled = _first(new, lambda n: n["attrs"].get("block_id") == ph["attrs"]["block_id"])
     assert filled["type"] == "templatedQuestion" and _marks(filled) == 2
@@ -566,15 +586,15 @@ def test_the_cover_level_wins_over_the_requested_one():
 
 
 def test_a_swap_never_trades_a_question_for_an_easier_rung():
-    """EXA-146: P5 Booklet A has four 2-mark medium MCQ blueprints for five 2-mark slots, so a
-    paper uses all four and one easy one. "Another topic" on a medium question would only find
-    easy ones, so it is refused; on the easy one it may take any other topic (none is easier);
-    "like" on a medium question keeps its rung."""
-    doc, _ = generate_paper("p1_booklet_a", "P5", 3)
+    """EXA-146: P5 Booklet B has eight 2-mark medium blueprints (EXA-154) for ten 2-mark slots,
+    so a paper uses all eight and two easy ones. "Another topic" on a medium question would only
+    find easy ones, so it is refused; on an easy one it may take any other topic (none is
+    easier); "like" on a medium question keeps its rung."""
+    doc, _ = generate_paper("p1_booklet_b", "P5", 3)
     two = [n for n in _blocks(doc) if _is_q(n) and _marks(n) == 2]
     medium = [n for n in two if META[_code(n)]["rung"] != "easy"]
     easy = [n for n in two if META[_code(n)]["rung"] == "easy"]
-    assert len(medium) == 4 and len(easy) == 1
+    assert len(medium) == 8 and len(easy) == 2
     for n in medium:
         with pytest.raises(SwapNotPossible, match="easier"):
             swap_question(doc, n["attrs"]["block_id"], "topic", 1)

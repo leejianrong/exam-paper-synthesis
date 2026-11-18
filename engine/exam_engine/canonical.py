@@ -111,6 +111,15 @@ def to_json(obj: dict, *, indent: int | None = None) -> str:
     return json.dumps(obj, ensure_ascii=False, indent=indent)
 
 
+def _scheme(scheme: list[dict], ctx: dict) -> list[dict]:
+    """The marking scheme, a description with ``{name}`` filled from ``ctx`` (EXA-154: a line
+    can name what this question asks for); one without braces is left exactly as written."""
+    return [
+        {**m, "description": _fill(m["description"], ctx)} if "{" in m["description"] else m
+        for m in scheme
+    ]
+
+
 def _fill(template: str, ctx: dict) -> str:
     """Fill ``{name}`` / ``{name[i]}`` placeholders from ``ctx`` via str.format.
 
@@ -148,7 +157,7 @@ def _multipart(
             "text": _fill(p["text"], ctx),
             "marks": p["marks"],
             "answer": answer,
-            "marking_scheme": p["marking_scheme"],
+            "marking_scheme": _scheme(p["marking_scheme"], ctx),
             "solution_steps": _steps(p.get("solution_template") or {}, ctx),
             "diagram": diagram if i == 0 else None,
         }
@@ -190,7 +199,7 @@ def assemble(
                 "text": _fill(template["text"], ctx),
                 "marks": spec.marks,
                 "answer": solution["answer"],
-                "marking_scheme": spec.marking_scheme,
+                "marking_scheme": _scheme(spec.marking_scheme, ctx),
                 "solution_steps": _steps(spec.solution_template, ctx),
                 "diagram": diagram,  # aid bar_model (A5); None when a blueprint has no diagram
             }
