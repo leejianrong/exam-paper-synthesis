@@ -98,6 +98,16 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **A multiple-choice answer is no longer mostly the smallest or the largest option (EXA-156).**
+  Options print smallest first, and 25 of the 42 blueprints that turn into multiple choice
+  offered wrong answers mostly on one side of the right one, so their answer was rarely or
+  never in one half of the list (`rate_easy`: always (3) or (4); `speed_hard`: always (1) or
+  (2)). Their
+  common wrong answers now include real slips on the other side too (carried tens added twice,
+  "used 180° instead of 360°", "found 10% only", "used half the distance between them", ...),
+  and the first wrong options are chosen to lie below, around or above the answer. Over 400
+  seeds every one of them now puts the answer first or last under 35% of the time and in every
+  place at least 5% of the time. Only multiple-choice copies change.
 - **Answers and working print cm², × and − (EXA-142).** Keys printed "Answer: 60 cm^2", "in
   cm^3" in mark schemes, "speed x time", "30 - 20" and "51 degrees". Area and volume units now
   print with a superscript, multiplication as ×, minus as −, and angles as 51°, on the paper, the

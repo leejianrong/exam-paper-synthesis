@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import functools
 import random
+import zlib
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
+from fractions import Fraction
+from typing import Any, Protocol, runtime_checkable
 
 from ..schema import validate_against
 
@@ -42,6 +46,103 @@ class Solver(Protocol):
     #   options ("which is the greatest?"), where ascending order would give it away.
     # Optional: mcq_whole = True  (EXA-148) every option is a whole number, even in a unit that
     #   allows 1 dp (rental for whole hours: never "3.5 h").
+
+
+Slip = tuple[int | Fraction, str]
+
+
+def _numbers(params: object) -> list[int | float]:
+    """The numbers in ``params``, in key order (names and items left out, so renaming a
+    person keeps the same slips order)."""
+    if isinstance(params, dict):
+        return [n for k in sorted(params) for n in _numbers(params[k])]
+    if isinstance(params, list | tuple):
+        return [n for v in params for n in _numbers(v)]
+    if isinstance(params, int | float) and not isinstance(params, bool):
+        return [params]
+    return []
+
+
+def spread(
+    slips: list[Slip],
+    answer: Fraction,
+    params: dict,
+    prints: Callable[[Fraction], bool] | None = None,
+) -> list[Slip]:
+    """``slips`` (best first) reordered so the first two lie both below, either side of, or
+    both above ``answer``, chosen by a key from the numbers in ``params`` (EXA-147, EXA-156).
+
+    A multiple-choice copy prints its options in ascending order and takes the first wrong
+    options from the hook in order (only the last one is picked to move the answer, see
+    ``mcq._last_pick``), so a hook whose best slips all lie on one side would put the answer
+    nearly always in one half of the options. Slips a copy cannot use (``prints`` false, by
+    default: not positive, the answer itself, or more than 20 times off it) and repeated values
+    count for neither side."""
+
+    def usable(v: Fraction) -> bool:
+        if prints is not None:
+            return prints(v)
+        return v > 0 and v != answer and answer / 20 <= v <= answer * 20
+
+    seen: set[Fraction] = set()
+    below: list[Slip] = []
+    above: list[Slip] = []
+    for s in slips:  # a value given twice is one option
+        v = Fraction(s[0])
+        if usable(v) and v not in seen:
+            seen.add(v)
+            (below if v < answer else above).append(s)
+    key = zlib.crc32(repr(_numbers(params)).encode())
+    first = [below[:2], below[:1] + above[:1], above[:2]][key % 3]
+    if len(first) < 2:
+        first = below[:1] + above[:1]
+    first.sort(key=slips.index)  # still best first: mcq's give-away guard drops the later one
+    return [*first, *(s for s in slips if s not in first)]
+
+
+def spread_sides(
+    hook: Callable[[Any, dict, dict], list[Slip]],
+) -> Callable[[Any, dict, dict], list[Slip]]:
+    """A ``distractors`` hook whose slips go through :func:`spread`, about the solved answer."""
+
+    @functools.wraps(hook)
+    def wrapped(self: Any, params: dict, solution: dict) -> list[Slip]:
+        from ..mcq import hook_value_prints  # mcq imports the registry, which imports us
+
+        slips = hook(self, params, solution)
+        a = solution.get("answer")
+        if not a:  # called before solving (a sampler counting its slips)
+            return slips
+        answer = (
+            Fraction(a["numerator"], a["denominator"])
+            if a.get("type") == "fraction"
+            else Fraction(str(a["value"]))
+        )
+        return spread(slips, answer, params, lambda v: hook_value_prints(v, a))
+
+    return wrapped
+
+
+def carry_slips(a: int, b: int) -> list[Slip]:
+    """Carrying slips in the long multiplication ``a × b`` (``b`` one digit), when the ones
+    column carries ``c`` tens (``(a % 10) × b // 10``): the carried tens added twice, or left
+    out, so the product is ``10c`` too big or too small."""
+    c = (a % 10) * b // 10
+    if b > 9 or c == 0:
+        return []
+    tens = "ten" if c == 1 else f"{c} tens"
+    return [
+        (a * b + 10 * c, f"added the carried {tens} twice when multiplying"),
+        (a * b - 10 * c, f"left out the carried {tens} when multiplying"),
+    ]
+
+
+def sum_slip(answer: int, x: int, y: int, what: str) -> list[Slip]:
+    """``answer`` is 180° or 360° less ``x + y``: when adding ``x`` and ``y`` carries a ten,
+    the carried ten added twice makes the sum 10 too big and the answer 10 too small."""
+    if (x % 10) + (y % 10) < 10:
+        return []
+    return [(answer - 10, f"added the carried ten twice when adding {what}")]
 
 
 @dataclass

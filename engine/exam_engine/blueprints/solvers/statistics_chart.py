@@ -20,6 +20,7 @@ from __future__ import annotations
 import random
 from fractions import Fraction
 
+from ..base import spread_sides
 from ..registry import register
 
 _DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
@@ -137,6 +138,7 @@ class StatisticsChartEasySolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong answers (a count read off the bar graph), best first (EXA-122)."""
         _, cats, _, _, _ = BAR_CONTEXTS[params["context"]]
@@ -146,8 +148,12 @@ class StatisticsChartEasySolver:
             if 0 <= n < len(v) and n != a:
                 out.append((v[a] - v[n], f"read the bar for {cats[n]} instead of {cats[b]}"))
         out.append((v[a], f"read the bar for {cats[a]} only"))
+        out.append((v[b], f"read the bar for {cats[b]} only"))
         out.append((v[a] - v[b] - step, "misread a bar by one gridline"))
         out.append((v[a] - v[b] + step, "misread a bar by one gridline"))
+        out.append(
+            (v[a] - v[b] - 2 * step, "misread both bars by one gridline, towards each other")
+        )
         return out
 
     def validate(self, params: dict, solution: dict) -> dict:
@@ -191,6 +197,7 @@ class StatisticsChartMediumSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong answers (a number of pupils), best first (EXA-122)."""
         _, _, labels = PIE_CONTEXTS[params["context"]]

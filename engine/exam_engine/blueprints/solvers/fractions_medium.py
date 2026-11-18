@@ -16,6 +16,7 @@ from __future__ import annotations
 import random
 from fractions import Fraction
 
+from ..base import spread_sides
 from ..registry import register
 
 # Singapore-appropriate given names (PSLE style, R1.6).
@@ -67,6 +68,7 @@ class FractionsMediumSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong answers (EXA-122), in $, best first."""
         whole = params["whole"]
@@ -79,6 +81,13 @@ class FractionsMediumSolver:
             (rest - food, "the money left at the end"),
             (Fraction(whole * n1, d1), "the first amount spent"),
             (whole - rest + food, "the total amount spent"),
+            (Fraction(whole * n1 * n2, d1 * d2), f"took {n2}/{d2} of the first amount spent"),
+            *([(rest / d2, f"found 1/{d2} of the remainder only")] if n2 > 1 else []),
+            (Fraction(whole, d1 * d2), "found 1 unit only"),
+            (
+                whole - Fraction(whole * n1, d1) - Fraction(whole * n2, d2),
+                "the money left, taking both fractions of the whole",
+            ),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:

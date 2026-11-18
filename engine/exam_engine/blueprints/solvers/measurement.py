@@ -21,6 +21,7 @@ import random
 from fractions import Fraction
 
 from ...units import printed_unit
+from ..base import spread_sides
 from ..registry import register
 from .decimals import dec
 
@@ -91,6 +92,7 @@ class MeasurementConversionSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Conversion slips, in the smaller unit, best first."""
         big, small = (printed_unit(u) for u in PAIRS[params["pair"]])
@@ -116,6 +118,7 @@ class MeasurementConversionSolver:
             if p < 100:  # the missing zero: 2 kg 75 g as 2 kg 750 g
                 out.append((w * 1000 + p * 10, f"wrote {p} {small} as {p * 10} {small}"))
             out.append((w + p, f"added {w} and {p}"))
+        out.append(((w + 1) * 1000, f"rounded up to {w + 1} {big} before converting"))
         return [(v, why) for v, why in out if v != ans]
 
     def validate(self, params: dict, solution: dict) -> dict:
@@ -213,6 +216,7 @@ class TimeDurationSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Clock-arithmetic slips, in minutes, best first."""
         start, duration = params["start"], params["duration"]
@@ -229,6 +233,8 @@ class TimeDurationSolver:
             (duration + 60, "counted one hour too many"),
             (duration - 60, "counted one hour too few"),
             ((h2 - h1) * 60, "counted the whole hours only"),
+            (duration - (60 - m1), "left out the minutes up to the next whole hour"),
+            (duration - m2, "left out the minutes after the last whole hour"),
         ]
         return [(v, why) for v, why in out if v != duration and v > 0]
 

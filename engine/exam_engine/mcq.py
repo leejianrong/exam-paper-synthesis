@@ -188,6 +188,20 @@ def common_wrong_answers(obj: dict) -> list[tuple[Fraction, str]]:
     return out
 
 
+def hook_value_prints(v: Fraction, answer_obj: dict) -> bool:
+    """Whether :func:`distractor_candidates` keeps a solver hook's value ``v`` for this answer:
+    plausible, and (unless a fraction) within 20 times of it. ``blueprints.base.spread`` uses
+    it to balance only the slips that will print."""
+    answer = _value(answer_obj)
+    is_fraction = answer_obj["type"] == "fraction"
+    kind = _kind(answer_obj)
+    # a solver's own hook vouches for a decimal slip on a whole answer (7.4 × 30: "22.2"); a
+    # real slip far off the answer is a giveaway (24000 ℓ for 24 ℓ), 20x still keeps "the
+    # distance in 1 hour" for a 12-hour journey
+    near = is_fraction or answer / 20 <= v <= answer * 20
+    return near and _plausible(v, answer, fraction=is_fraction, kind=kind or "vouched")
+
+
 def distractor_candidates(obj: dict) -> list[tuple[Fraction, str]]:
     """Candidate wrong answers with the reason each is tempting, best first.
 
@@ -217,10 +231,8 @@ def distractor_candidates(obj: dict) -> list[tuple[Fraction, str]]:
 
     hooked = common_wrong_answers(obj)
     for v, why in hooked:
-        # a real slip, but one far off the answer is a giveaway (24000 ℓ for 24 ℓ); 20x
-        # still keeps "the distance in 1 hour" for a 12-hour journey
-        if is_fraction or answer / 20 <= v <= answer * 20:
-            add(v, why, vouched=True)
+        if hook_value_prints(v, answer_obj) and all(v != have for have, _ in out):
+            out.append((v, why))
 
     if is_fraction:
         n, d = answer.numerator, answer.denominator
