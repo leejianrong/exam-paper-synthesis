@@ -31,6 +31,12 @@ def build_part_diagram(solver: Solver, params: dict, solution: dict) -> dict | N
     return diagram_fn(params, solution)
 
 
+def build_table(solver: Solver, params: dict, solution: dict) -> dict | None:
+    """The question's data table (``question.table``, EXA-148) if the solver prints one."""
+    table_fn = getattr(solver, "table", None)
+    return None if table_fn is None else table_fn(params, solution)
+
+
 def _try_build(
     spec: BlueprintSpec, solver: Solver, seed: int, params: dict
 ) -> tuple[dict | None, dict]:
@@ -62,7 +68,13 @@ def _try_build(
 
     # Success: assemble + schema-validate (a failure here is an engine bug).
     obj = assemble(
-        spec, seed=seed, params=params, solution=solution, report=report, diagram=diagram
+        spec,
+        seed=seed,
+        params=params,
+        solution=solution,
+        report=report,
+        diagram=diagram,
+        table=build_table(solver, params, solution),
     )
     return obj, report.get("checks", {})
 

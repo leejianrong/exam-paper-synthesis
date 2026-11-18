@@ -6,6 +6,15 @@
 import type { EditOp } from './api'
 import type { DiagramSpec } from './diagram'
 
+/** A table cell: a value, empty (null), or a part's answer surface (blank until the key). */
+export type TableCell = string | number | null | { answer_for: string }
+
+export interface DataTableSpec {
+  caption?: string | null
+  headers?: Array<string | number | null> | null
+  rows: TableCell[][]
+}
+
 export type ValidationStatus = 'pass' | 'fail'
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
@@ -73,6 +82,8 @@ export interface Question {
   question: {
     stem?: string | null
     diagram?: DiagramSpec | null
+    /** A data table printed before the parts (EXA-148; schema `question.table`). */
+    table?: DataTableSpec | null
     parts: QuestionPart[]
     total_marks: number
   }

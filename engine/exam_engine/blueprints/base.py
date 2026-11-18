@@ -34,6 +34,8 @@ class Solver(Protocol):
         ...
 
     # Optional: def diagram(self, params, solution) -> dict  (added in V2)
+    # Optional: def table(self, params, solution) -> dict  (EXA-148) the data table printed
+    #   before the parts (``question.table``: caption, headers, rows of display strings).
     # Optional: def distractors(self, params, solution) -> list[tuple[number, str]]
     #   (EXA-122) the "common wrong answers" for a multiple-choice copy (mcq.to_mcq): values
     #   in the answer's own quantity and unit, each with the reason a pupil gives it, best
@@ -42,6 +44,8 @@ class Solver(Protocol):
     # Optional: mcq_ascending = False  (EXA-141) the multiple-choice copy keeps a seeded option
     #   order instead of ascending order, for a question whose answer is an extreme of the
     #   options ("which is the greatest?"), where ascending order would give it away.
+    # Optional: mcq_whole = True  (EXA-148) every option is a whole number, even in a unit that
+    #   allows 1 dp (rental for whole hours: never "3.5 h").
 
 
 Slip = tuple[int | Fraction, str]

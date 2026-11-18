@@ -36,6 +36,7 @@ from . import (
     speed_minutes,  # noqa: F401
     statistics_chart,  # noqa: F401
     structured,  # noqa: F401
+    tables,  # noqa: F401
     volume,  # noqa: F401
     whole_numbers,  # noqa: F401
 )
@@ -75,6 +76,7 @@ __all__ = [
     "speed_minutes",
     "statistics_chart",
     "structured",
+    "tables",
     "volume",
     "whole_numbers",
 ]

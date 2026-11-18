@@ -26,6 +26,7 @@ from exam_engine.paper_swap import (
     regenerate_unlocked,
     swap_question,
 )
+from exam_engine.pipeline import generate
 
 SEEDS = range(1, 9)
 TEMPLATES = [t["code"] for t in paper_templates()]
@@ -348,7 +349,7 @@ def test_regenerating_a_paper_2_keeps_two_questions_a_topic_at_most(level):
 def test_regenerate_with_everything_unlocked_gives_a_new_paper():
     doc, _ = generate_paper("p2", "P6", 4)
     new, report = regenerate_unlocked(doc, "P6", 99)
-    assert report["kept"] == 0 and report["replaced"] == 17  # 5 short, 9 multi-part, 3 stand-ins
+    assert report["kept"] == 0 and report["replaced"] == 17  # 5 short, 10 multi-part, 2 stand-ins
     assert json.dumps(new) != json.dumps(doc)
     _check_rules(new, "P6", "p2 regenerate")
     # P8c: like the generator, Section B takes every multi-part blueprint again
@@ -589,15 +590,15 @@ def test_the_cover_level_wins_over_the_requested_one():
 
 def test_a_swap_never_trades_a_question_for_an_easier_rung():
     """EXA-146: P5 Booklet B has eight 2-mark medium blueprints (EXA-154) for ten 2-mark slots,
-    so a paper used all eight and two easy ones; cubes_complete (EXA-147) is a ninth, so now
-    nine and one easy. "Another topic" on a medium question would only
+    so a paper used all eight and two easy ones; cubes_complete (EXA-147) and postage_table
+    (EXA-148) make ten, so now all ten are medium. "Another topic" on a medium question would only
     find easy ones, so it is refused; on an easy one it may take any other topic (none is
     easier); "like" on a medium question keeps its rung."""
     doc, _ = generate_paper("p1_booklet_b", "P5", 3)
     two = [n for n in _blocks(doc) if _is_q(n) and _marks(n) == 2]
     medium = [n for n in two if META[_code(n)]["rung"] != "easy"]
     easy = [n for n in two if META[_code(n)]["rung"] == "easy"]
-    assert len(medium) == 9 and len(easy) == 1
+    assert len(medium) == 10 and not easy
     for n in medium:
         with pytest.raises(SwapNotPossible, match="easier"):
             swap_question(doc, n["attrs"]["block_id"], "topic", 1)
@@ -607,13 +608,21 @@ def test_a_swap_never_trades_a_question_for_an_easier_rung():
 
 
 def test_another_topic_on_an_easy_two_marker_may_take_any_topic():
-    """The other branch: on an easy 2-mark question (a P5 Booklet B takes one: nine 2-mark
-    medium blueprints for ten slots) "another topic" may take any other topic, as none is
-    easier."""
+    """The other branch: on an easy 2-mark question "another topic" may take any other topic,
+    even an easy one, as none is easier. Since EXA-147/148 a P5 Booklet B uses all ten 2-mark
+    mediums, so no generated paper leaves an easy 2-marker with another topic free under the
+    cap; here the teacher has added one by hand. Every 2-mark blueprint left is easy, so the
+    swap succeeds only under the easy rule (the medium rule would refuse it as easier)."""
     doc, _ = generate_paper("p1_booklet_b", "P5", 3)
-    easy = [
-        n for n in _blocks(doc) if _is_q(n) and _marks(n) == 2 and META[_code(n)]["rung"] == "easy"
-    ]
-    assert easy
-    new, report = swap_question(doc, easy[0]["attrs"]["block_id"], "topic", 1)
-    assert report["topic"] != META[_code(easy[0])]["topic"]
+    blocks = doc["content"]["content"]
+    last = max(i for i, n in enumerate(blocks) if _is_q(n))
+    added = {
+        "type": "templatedQuestion",
+        "attrs": {"block_id": "hand-added", "question": generate("ratio_easy", 1)},
+    }
+    blocks.insert(last + 1, added)
+    assert validate_document(doc) == []
+    new, report = swap_question(doc, "hand-added", "topic", 1)
+    assert report["topic"] != "Ratio"
+    out = next(b for b in _blocks(new) if b["attrs"].get("block_id") == "hand-added")
+    assert META[_code(out)]["rung"] == "easy"

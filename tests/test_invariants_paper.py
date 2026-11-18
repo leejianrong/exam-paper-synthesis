@@ -439,9 +439,10 @@ def test_booklet_a_fills_every_slot_and_spreads_topics(level):
             and m["parts"] == 1
             and m["answer_type"] in {*_CONVERTIBLE, "choice"}
         }
-        # since EXA-147 (Solids, Nets) P6 has 13 such topics for 10 one-mark slots, so a paper
-        # may leave out two (seeds 1-40); P5 has 10 and leaves out none
-        assert len(eligible - paper_topics) <= max(0, len(eligible) - 11), (
+        # since EXA-147 (Solids, Nets) P6 has 13 such topics for its 10 one-mark slots, so a
+        # paper may leave out up to 3; P5 has 10 and leaves out none
+        one_mark = sum(1 for c in codes if META[c]["marks"] == 1)
+        assert len(eligible - paper_topics) <= max(0, len(eligible) - one_mark), (
             seed,
             eligible - paper_topics,
         )
@@ -497,13 +498,13 @@ def test_what_todays_content_fills():
         return r["filled"], r["placeholders"]
 
     assert fill("p1_booklet_a", "P6") == (15, 0)  # 13 one-mark MCQ-able (P8e batch 3)
-    assert fill("p1_booklet_a", "P5") == (15, 0)  # 12 one-mark at P5
+    assert fill("p1_booklet_a", "P5") == (15, 0)  # 13 one-mark at P5 (cubes_count, EXA-147)
     assert fill("p1_booklet_b", "P6") == (15, 0)
-    assert fill("p1_booklet_b", "P5") == (15, 0)  # 12 two-mark medium at P5 (EXA-154)
-    assert fill("p2", "P6") == (17, 0)  # Section B: 9 multi-part + 3 single-part stand-ins
+    assert fill("p1_booklet_b", "P5") == (15, 0)  # all 10 P5 two-mark mediums (EXA-147, 148, 154)
+    assert fill("p2", "P6") == (17, 0)  # Section B: 10 multi-part + 2 single-part stand-ins
     _, r = generate_paper("p2", "P6", 1)
-    assert [(s["multipart"], s["stand_ins"]) for s in r["sections"]] == [(0, 0), (9, 3)]
-    assert fill("p2", "P5") == (18, 3)  # Section B: 13 stand-ins, 3 placeholders (11 marks)
+    assert [(s["multipart"], s["stand_ins"]) for s in r["sections"]] == [(0, 0), (10, 2)]
+    assert fill("p2", "P5") == (20, 2)  # Section B: 15 stand-ins, 2 placeholders
 
 
 def test_unknown_template_and_level_are_refused():
