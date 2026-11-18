@@ -101,20 +101,31 @@ def _capped(code: str, kind: str, topics: Counter) -> bool:
 
 def _topics_at_pick(doc, node) -> Counter[str]:
     """The paper's topics when ``node`` (a structured stand-in) was picked, written out from the
-    fill order: every earlier section, then this section's multi-part questions, then its
-    stand-ins biggest first (equal marks in print order, since the section is sorted stably)."""
+    fill order: every section's multi-part questions first (EXA-154), then every earlier
+    section, then this section's stand-ins biggest first (equal marks in print order, since the
+    section is sorted stably)."""
+
+    def multipart(n) -> bool:
+        return META[n["attrs"]["question"]["blueprint_code"]]["parts"] > 1
+
     out: Counter[str] = Counter()
+    sections = [
+        [n for n in nodes if n["type"] == "templatedQuestion"] for _, nodes in _by_section(doc)
+    ]
+    for nodes in sections:
+        out.update(_topic(n) for n in nodes if multipart(n))
     for _, nodes in _by_section(doc):
         if node not in nodes:
-            out.update(_topic(n) for n in nodes if n["type"] == "templatedQuestion")
+            out.update(
+                _topic(n) for n in nodes if n["type"] == "templatedQuestion" and not multipart(n)
+            )
             continue
         here = nodes.index(node)
         for i, n in enumerate(nodes):
             if n["type"] != "templatedQuestion" or n is node:
                 continue
-            multipart = META[n["attrs"]["question"]["blueprint_code"]]["parts"] > 1
             bigger = _marks(n) > _marks(node) or (_marks(n) == _marks(node) and i < here)
-            if multipart or bigger:
+            if bigger and not multipart(n):
                 out[_topic(n)] += 1
         return out
     raise AssertionError("node not in the paper")
@@ -378,7 +389,8 @@ def test_an_exam_set_spreads_its_topics(level):
         assert sum((Counter(r["topics"]) for _, r in papers), Counter()) == together, where
     # the fill is greedy, paper by paper, so one set may sit a question or two further over the
     # cap than its papers made apart (P6 seed 12 once multi-part questions pick first, EXA-154);
-    # over the seeds a set has clearly fewer (seeds 1-30: P5 360 against 426, P6 about 0.6x)
+    # over the seeds a set has clearly fewer (seeds 1-30: P5 360 against 426, P6 70 against
+    # 118; picking multi-part first under the cap cost the P6 sets 65 -> 70)
     assert over_together <= 0.9 * over_apart, (level, over_together, over_apart)
 
 

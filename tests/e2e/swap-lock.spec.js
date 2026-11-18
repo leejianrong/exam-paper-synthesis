@@ -15,9 +15,9 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
 
   const blocks = page.getByTestId('question-block')
-  // 17 or 18 questions, by seed: Section B takes 9 or 10 stand-ins (EXA-154)
+  // 17 questions: Section B has 8 multi-part and 4 stand-ins (EXA-143, EXA-154)
   await expect(blocks.nth(16)).toBeVisible()
-  expect([17, 18]).toContain(await blocks.count())
+  expect(await blocks.count()).toBe(17)
 
   // Lock question 1.
   const first = blocks.nth(0)

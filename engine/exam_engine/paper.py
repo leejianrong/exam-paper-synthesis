@@ -27,9 +27,10 @@ Rules (owner's decisions, 2026-11-15):
   :func:`min_rung` of its marks (2 marks: medium; 3 or more: hard). When none is left it takes
   the closest rung below, so the rule never adds a placeholder.
 - Topics are spread: among the best-fitting rung, each slot takes the least-used topic so far,
-  ties broken by the seed. A stand-in never gives a topic its third question in the paper
-  (:data:`TOPIC_CAP`, EXA-154): the biggest stand-ins are chosen first, and marks no topic
-  under the cap can take become placeholders.
+  ties broken by the seed. A multi-part question or a stand-in never gives a topic its third
+  question in the paper (:data:`TOPIC_CAP`, EXA-154): every structured section's multi-part
+  questions are picked before any other question, the biggest stand-ins are chosen first, and
+  marks no topic under the cap can take become placeholders.
 - In an exam set (EXA-153) topics are spread over the whole set: ``generate_paper`` takes the
   topic counts of the set's papers already made (``set_topics``; :func:`generate_set` and the
   web wizard pass them on, filling Paper 2 first: :func:`set_fill_order`). "Least-used" then
