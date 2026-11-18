@@ -131,8 +131,9 @@ def test_booklet_b_two_mark_slots_take_medium_rungs_across_topics(level, medium)
     Percentage, Speed and both Geometry topics had only easy 2-markers. Now a P6 Booklet B
     fills all ten 2-mark slots with medium rungs from at least nine topics (it was 7 medium and
     3 easy);
-    a P5 one fills all ten (it left 2 placeholders), 9 of them medium — every P5 2-mark medium
-    blueprint there is, cubes_complete (EXA-147) the ninth — from at least 9 topics."""
+    a P5 one fills all ten (it left 2 placeholders) with medium rungs too, every P5 2-mark
+    medium blueprint there is (cubes_complete and postage_table, EXA-147/148, the ninth and
+    tenth), from at least 9 topics."""
     for seed in range(1, 41):
         doc, report = generate_paper("p1_booklet_b", level, seed)
         assert report["placeholders"] == 0, (level, seed)

@@ -609,13 +609,20 @@ def test_a_swap_never_trades_a_question_for_an_easier_rung():
 
 def test_another_topic_on_an_easy_two_marker_may_take_any_topic():
     """The other branch: on an easy 2-mark question "another topic" may take any other topic,
-    as none is easier. Since EXA-147/148 P5 has ten 2-mark mediums, so no generated paper
-    leaves an easy 2-marker where another topic is free under the cap; the teacher's paper
-    here swaps one in (as "like" or the bank could)."""
+    even an easy one, as none is easier. Since EXA-147/148 a P5 Booklet B uses all ten 2-mark
+    mediums, so no generated paper leaves an easy 2-marker with another topic free under the
+    cap; here the teacher has added one by hand. Every 2-mark blueprint left is easy, so the
+    swap succeeds only under the easy rule (the medium rule would refuse it as easier)."""
     doc, _ = generate_paper("p1_booklet_b", "P5", 3)
-    two = [n for n in _blocks(doc) if _is_q(n) and _marks(n) == 2]
-    assert _code(two[0]) == "postage_table"  # the only Statistics (Tables) question
-    two[0]["attrs"]["question"] = generate("ratio_easy", 1)
-    easy = [two[0]]
-    new, report = swap_question(doc, easy[0]["attrs"]["block_id"], "topic", 1)
-    assert report["topic"] != META[_code(easy[0])]["topic"]
+    blocks = doc["content"]["content"]
+    last = max(i for i, n in enumerate(blocks) if _is_q(n))
+    added = {
+        "type": "templatedQuestion",
+        "attrs": {"block_id": "hand-added", "question": generate("ratio_easy", 1)},
+    }
+    blocks.insert(last + 1, added)
+    assert validate_document(doc) == []
+    new, report = swap_question(doc, "hand-added", "topic", 1)
+    assert report["topic"] != "Ratio"
+    out = next(b for b in _blocks(new) if b["attrs"].get("block_id") == "hand-added")
+    assert META[_code(out)]["rung"] == "easy"
