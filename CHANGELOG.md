@@ -10,6 +10,13 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Five more multi-part questions for Paper 2 Section B, built on the real heuristics
+  (EXA-143).** Supposition (tickets at two prices), a fraction of a remainder with the cost of
+  each item, packs of two sizes with a budget (LCM), ages with the constant difference, and
+  equal number vs equal amount at two prices; each has 2–3 parts worth 3, 4 or 5 marks with a
+  short lead-in part. A generated P6 Paper 2 now has 8 multi-part questions in Section B
+  (was 3) and 4 single-part stand-ins (was 9).
+
 - **A compact answer key, like a real school key (EXA-142).** A new answer-key layout,
   "Compact" (document schema 1.14.0, `key_options.layout`; "Full" stays the default): a header
   block (school, level, subject, exam) from the cover, an answer grid for each multiple-choice
