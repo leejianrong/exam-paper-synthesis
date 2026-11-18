@@ -15,6 +15,7 @@ from __future__ import annotations
 import random
 from fractions import Fraction
 
+from ..base import carry_slips, spread_sides
 from ..registry import register
 
 # Singapore-appropriate given names (PSLE style, R1.6).
@@ -55,6 +56,7 @@ class SpeedEasySolver:
             "intermediates": {"distance": distance},
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong distances (km), best first (EXA-122)."""
         speed, time = params["speed"], params["time"]
@@ -63,6 +65,8 @@ class SpeedEasySolver:
             (speed + time, "added the speed and the time"),
             (Fraction(speed, time), "divided the speed by the time"),
             (speed * time * 60, "multiplied by the time in minutes"),
+            (speed * (time + 1), "counted one hour too many"),
+            *carry_slips(speed, time),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:

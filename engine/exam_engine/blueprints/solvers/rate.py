@@ -21,6 +21,7 @@ from __future__ import annotations
 import random
 from fractions import Fraction
 
+from ..base import carry_slips, spread_sides
 from ..registry import register
 
 # Singapore-appropriate given names (PSLE style, R1.6).
@@ -163,6 +164,7 @@ class RateEasySolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Rate × time slips, best first."""
         c = CONTEXTS[params["template"]]
@@ -173,6 +175,7 @@ class RateEasySolver:
             (rate * (t - 1), f"counted one {c['time']} too few"),
             (rate * (t + 1), f"counted one {c['time']} too many"),
             (Fraction(rate, t), "divided instead of multiplying"),
+            *carry_slips(rate, t),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:
@@ -244,6 +247,7 @@ class RateMediumSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Unitary-method slips in the asked quantity (items, or time units), best first."""
         c = CONTEXTS[params["template"]]
@@ -359,6 +363,7 @@ class RateHardSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Tiered-charge slips, as money (cents → dollars), best first."""
         template = params["template"]

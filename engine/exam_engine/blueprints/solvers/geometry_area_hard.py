@@ -29,6 +29,7 @@ from __future__ import annotations
 import random
 from fractions import Fraction
 
+from ..base import spread_sides
 from ..registry import register
 from .geometry_area_common import (
     AREA_UNIT,
@@ -253,6 +254,7 @@ class GeometryAreaHardSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong answers in the answer's own unit (cm² or cm), best first (EXA-122)."""
         g, template = params["givens"], params["template"]
@@ -283,6 +285,7 @@ class GeometryAreaHardSolver:
             (tri + pi * r * r, "a whole circle, not a semicircle"),
             (tri + pi * b * b / 2, "used the diameter as the radius"),
             (tri, "the triangle only"),
+            (semi, "the semicircle only"),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:

@@ -18,6 +18,7 @@ import random
 from fractions import Fraction
 from math import gcd
 
+from ..base import carry_slips, spread_sides
 from ..registry import register
 
 # (length, width) pairs in cm whose base area has a small litre step.
@@ -75,6 +76,7 @@ class VolumeEasySolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong volumes (cm³), best first (EXA-122)."""
         l, w, h = params["length"], params["width"], params["height"]  # noqa: E741
@@ -83,6 +85,8 @@ class VolumeEasySolver:
             (2 * (l * w + w * h + l * h), "the total area of the faces"),
             (l + w + h, "added the three edges"),
             (4 * (l + w + h), "the total length of the edges"),
+            (max(l, w, h) ** 3, f"took every edge as {max(l, w, h)} cm"),
+            *carry_slips(l * w, h),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:
@@ -126,6 +130,7 @@ class VolumeMediumSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong answers (litres), best first (EXA-122)."""
         l, w, d, e = params["length"], params["width"], params["depth"], params["empty"]  # noqa: E741
@@ -133,6 +138,7 @@ class VolumeMediumSolver:
             (Fraction(l * w * (d + e), 1000), "the capacity of the whole tank"),
             (Fraction(l * w * d, 1000), "the water already in the tank"),
             (Fraction(l * w * e, 100), "divided by 100 instead of 1000"),
+            (Fraction(l * w * e, 10000), "divided by 10 000 instead of 1000"),
             (l * w * e, "forgot to convert cm³ to litres"),
         ]
 
@@ -182,6 +188,7 @@ class VolumeHardSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong block volumes (cm³), best first (EXA-122)."""
         l, w, b, r = params["length"], params["width"], params["before"], params["rise"]  # noqa: E741
@@ -191,6 +198,7 @@ class VolumeHardSolver:
             (l * w * b, "used the water level before"),
             (l * w * h, "the capacity of the tank"),
             (l * w, "the area of the base only"),
+            (l * r, "left out the width"),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:
