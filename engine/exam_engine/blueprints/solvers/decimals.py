@@ -25,6 +25,7 @@ from __future__ import annotations
 import random
 from fractions import Fraction
 
+from ..base import spread_sides
 from ..registry import register
 
 # Singapore-appropriate shoppers (PSLE style, R1.6). Titles avoid any pronoun in the text.
@@ -246,6 +247,7 @@ class DecimalsMediumSolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Unitary-method slips, as money (whole cents), best first."""
         n, cost, m = params["n"], params["cost"], params["m"]
@@ -341,6 +343,7 @@ class DecimalsHardSolver:
         )
         return {"answer": money_answer(ans), "intermediates": inter}
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Shopping-change slips, as money (whole cents), best first."""
         qty, price, budget = params["qty"], params["price"], params["budget"] * 100
@@ -355,6 +358,12 @@ class DecimalsHardSolver:
         if spent % 100:  # took the dollars away but kept the cents: $30 − $17.45 → $13.45
             kept = Fraction(budget - spent // 100 * 100 + spent % 100, 100)
             out.append((kept, "subtracted the dollars and kept the cents"))
+        # carrying slips adding the two costs make the total too big, the change too small
+        (d0, c0), (d1, c1) = divmod(costs[0], 100), divmod(costs[1], 100)
+        if c0 + c1 >= 100:
+            out.append((Fraction(budget - spent - 100, 100), "added the carried dollar twice"))
+        if d0 % 10 + d1 % 10 + (c0 + c1) // 100 >= 10:
+            out.append((Fraction(budget - spent - 1000, 100), "added the carried ten twice"))
         return out
 
     def validate(self, params: dict, solution: dict) -> dict:

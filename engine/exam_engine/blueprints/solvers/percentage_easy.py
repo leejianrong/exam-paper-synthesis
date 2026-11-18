@@ -12,6 +12,7 @@ from __future__ import annotations
 import random
 from fractions import Fraction
 
+from ..base import spread_sides
 from ..registry import register
 
 # Singapore-appropriate given names (PSLE style, R1.6).
@@ -59,6 +60,7 @@ class PercentageEasySolver:
             },
         }
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong answers (EXA-122), in $, best first."""
         p, whole = params["percent"], params["whole"]
@@ -67,6 +69,8 @@ class PercentageEasySolver:
             (whole - part, "the amount left, not the amount given"),
             (whole + part, f"added {p}% on to the amount"),
             (Fraction(whole * 100, p), f"divided by {p}% instead of multiplying"),
+            (Fraction(whole, 10), "found 10% only"),
+            (Fraction(whole, p), f"divided by {p} instead of finding {p}%"),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:
