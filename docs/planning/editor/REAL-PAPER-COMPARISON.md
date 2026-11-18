@@ -397,6 +397,8 @@ such items.
     - No new diagram.
 11. **MCQ polish.**
     - ~~Sort numeric options ascending.~~ Done in #223 (EXA-141).
+    - ~~Keep the answer's place in the sorted options from giving it away (25 blueprints' answers
+      were rarely or never in one half of the list).~~ Done in #233 (EXA-156).
     - Filter implausible distractors (angles over 180° for an angle on a line; the improper "4/1" is fixed in #205).
     - Drop "simplest form" wording from MCQ stems.
     - Add picture-option and "which statements are true" MCQs once the grid, net and chart families exist.
