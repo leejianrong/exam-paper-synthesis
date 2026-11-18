@@ -25,7 +25,7 @@ import random
 from collections.abc import Callable
 from fractions import Fraction
 
-from ..base import spread
+from ..base import Slip, spread
 from ..registry import register
 from .geometry_area_common import AREA_UNIT, LEN_UNIT, _labels, _pt, format_measure
 
@@ -786,11 +786,11 @@ class _CirclesSolver:
         inter.update(zip(_step_keys(len(built["steps"])), built["steps"], strict=True))
         return {"answer": built["answer"], "intermediates": inter}
 
-    def distractors(self, params: dict, solution: dict) -> Distractors:
+    def distractors(self, params: dict, solution: dict) -> list[Slip]:
         """Common wrong answers in the answer's own unit, best first (EXA-122)."""
         built = self._build(params)
         right = built["answer"].get("value")
-        slips = [
+        slips: list[Slip] = [
             (Fraction(v), why)
             for v, why in built["wrong"]
             if v > 0 and (right is None or Fraction(v) != Fraction(str(right)))
