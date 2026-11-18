@@ -13,7 +13,7 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
   const id = page.url().split('/docs/')[1]
 
   await expect(page.getByTestId('generate-report')).toContainText('Filled 17 of 17 questions')
-  await expect(page.getByTestId('generate-report')).toContainText('Section B has 3 multi-part questions; 9 single-part questions stand in for the rest')
+  await expect(page.getByTestId('generate-report')).toContainText('Section B has 8 multi-part questions; 4 single-part questions stand in for the rest')
   await expect(page.locator('.cover-block')).toHaveCount(1)
   await expect(page.locator('.cover-block').getByLabel('Cover level')).toHaveValue('Primary 6')
   await expect(page.locator('.section-block')).toHaveCount(2)

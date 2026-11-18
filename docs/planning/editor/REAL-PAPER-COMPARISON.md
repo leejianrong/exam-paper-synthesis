@@ -336,8 +336,11 @@ such items.
      in the question figure.
    - Fix: do not render solution models on student or MCQ papers, or move them to the key only.
    - Real papers never print a model. No new diagram is needed.
-1. **Multi-part blueprints for P2 Section B built on real heuristics.** About 7 more are needed to reach
-   8–10 per paper.
+1. ~~**Multi-part blueprints for P2 Section B built on real heuristics.** About 7 more are needed to reach
+   8–10 per paper.~~ Five done in #224 (EXA-143): supposition, fraction of a remainder with a unit
+   cost, LCM packs with a budget, ages (constant difference), equal number vs equal amount; a P6
+   Section B now has 8 multi-part questions (was 3). Not yet built: excess and shortage with
+   fractions, constant-total transfers.
    - Candidates: supposition / coins with an equal count (3 parts); equal number vs equal amount at two
      prices; fraction of a remainder linked to unit costs; excess and shortage with fractions;
      constant-difference / constant-total transfers; LCM packs of m and n with a budget.

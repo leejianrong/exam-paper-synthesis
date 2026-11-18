@@ -1,0 +1,75 @@
+code: fraction_remainder_structured
+syllabus:
+  level: P6
+  strand: "Fractions"
+  topic: "Fractions"
+  subtopic: "Structured: fraction of a remainder, then the cost of each item"
+  skill_codes: ["FRAC.REMAINDER.UNITCOST"]  # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Direction", "Reasoning depth"]
+marks: 4                                # the question total; each part's marks are below
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, item, spent_first, spent_then, count, left]
+  properties:
+    name: { type: string }
+    item: { type: string }
+    spent_first:
+      type: array
+      items: { type: integer, minimum: 1, maximum: 8 }
+      minItems: 2
+      maxItems: 2
+    spent_then:
+      type: array
+      items: { type: integer, minimum: 1, maximum: 6 }
+      minItems: 2
+      maxItems: 2
+    count: { type: integer, minimum: 2, maximum: 8 }
+    left: { type: integer, minimum: 1, maximum: 800 }
+# Every parameter_schema property needs a role (W1a).
+param_roles:
+  name:        { role: name }
+  item:        { role: item }
+  spent_first: { role: number }
+  spent_then:  { role: number }
+  count:       { role: number }
+  left:        { role: number }
+# P8c multi-part: shared stem here, each part's text/marks/scheme/steps/answer under `parts`.
+story_templates:
+  - stem: >
+      {name} had some money. {name} spent {spent_first[0]}/{spent_first[1]} of it on a bag
+      and {spent_then[0]}/{spent_then[1]} of the remaining money on {count} identical
+      {item}. {name} had ${left} left.
+parts:
+  - label: a
+    marks: 1
+    text: "What fraction of the money did {name} have left? Give your answer in its simplest form."
+    solution_template:
+      steps:
+        - text: "After the bag, {name} had 1 − {spent_first[0]}/{spent_first[1]} = {kept_first}/{spent_first[1]} of the money."
+        - text: "Fraction left = {kept_then}/{spent_then[1]} × {kept_first}/{spent_first[1]} = {left_num}/{left_den}."
+          expr: "{kept_then}/{spent_then[1]}*{kept_first}/{spent_first[1]}"
+    marking_scheme:
+      - { mark: 1, type: A, description: "Correct fraction in its simplest form." }
+    answer: { type: fraction }
+  - label: b
+    marks: 3
+    text: "How much did each of the {item} cost?"
+    solution_template:
+      steps:
+        - text: "{left_num}/{left_den} of the money is ${left}, so the money at first = {money_calc} = ${money}."
+          expr: "{left}/{left_num}*{left_den}"
+        - text: "Money left after the bag = {kept_first}/{spent_first[1]} × ${money} = ${remainder}."
+          expr: "{kept_first}/{spent_first[1]}*{money}"
+        - text: "Spent on the {item} = {spent_then[0]}/{spent_then[1]} × ${remainder} = ${on_items}."
+          expr: "{spent_then[0]}/{spent_then[1]}*{remainder}"
+        - text: "Each cost ${on_items} ÷ {count} = ${each}."
+          expr: "{on_items}/{count}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Uses the fraction from (a) to find the money at first." }
+      - { mark: 1, type: M, description: "Finds the money spent on the identical items (a fraction of the remainder, not of the whole)." }
+      - { mark: 1, type: A, description: "Correct cost of each item with the $ unit." }
+    answer: { type: quantity, unit: "$" }
