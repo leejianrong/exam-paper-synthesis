@@ -26,6 +26,7 @@ import math
 import random
 from fractions import Fraction
 
+from ..base import spread_sides
 from ..registry import register
 
 _UNIT = "degrees"
@@ -143,6 +144,7 @@ class GeometryAngleFoldedSolver:
     def solve(self, params: dict) -> dict:
         return _single_answer(_build_folded(params["givens"]))
 
+    @spread_sides
     def distractors(self, params: dict, solution: dict) -> list[tuple[int | Fraction, str]]:
         """Common wrong angles (degrees), best first (EXA-122)."""
         p = params["givens"]["p"]
@@ -151,6 +153,8 @@ class GeometryAngleFoldedSolver:
             ((180 - p) // 2, "found ∠B'EF"),
             (180 - p // 2, "found ∠EFC"),
             (p, "took ∠B'FC equal to ∠AEB'"),
+            (90 + p // 2, "found ∠AEF"),
+            (2 * (180 - p), "doubled the angle for the fold"),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:
