@@ -8,6 +8,15 @@ export function isMac(): boolean {
   return /mac|iphone|ipad/i.test(platform)
 }
 
+/** Does this key press type its character (`e.key`) rather than run a chord? Plain keys and
+ *  Shift do; so does AltGr, which Windows reports as Ctrl+Alt (German AltGr+8 is "["), and ⌥ on
+ *  a Mac (German Mac ⌥5 is "["). Ctrl or Cmd without AltGr, and Alt elsewhere, are chords. */
+export function typesCharacter(e: KeyboardEvent, mac = isMac()): boolean {
+  const altGraph = !!e.getModifierState?.('AltGraph')
+  if (e.metaKey || (e.ctrlKey && !altGraph)) return false
+  return !e.altKey || mac || altGraph
+}
+
 /** "Ctrl+Alt+K" as this computer's keyboard shows it: "⌥⌘K" on a Mac, unchanged elsewhere. */
 export function keyLabel(shortcut: string, mac = isMac()): string {
   if (!mac) return shortcut
