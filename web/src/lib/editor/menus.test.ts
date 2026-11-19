@@ -276,7 +276,7 @@ describe('paper actions', () => {
     await open()
     await fireEvent.click(within(await openMenu('Paper')).getByRole('menuitem', { name: 'Make a copy' }))
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent("Couldn't make a copy. Something went wrong on our side. Try again in a moment. Check Your papers before trying again.")
+    expect(alert).toHaveTextContent("Couldn't make a copy. Something went wrong on our side. Check Your papers before trying again.")
     expect(within(alert).queryByRole('button', { name: 'Try again' })).toBeNull()
     expect(posts).toBe(1)
   })

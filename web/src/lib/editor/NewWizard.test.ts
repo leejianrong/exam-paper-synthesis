@@ -131,7 +131,7 @@ describe('NewWizard: the first step', () => {
     open()
     await pick('Blank paper')
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      "The paper wasn't made. Something went wrong on our side. Try again in a moment. Check Your papers before trying again.",
+      "The paper wasn't made. Something went wrong on our side. Check Your papers before trying again.",
     )
     expect(props.onClose).not.toHaveBeenCalled()
     expect(location.hash).toBe('')

@@ -151,7 +151,16 @@ describe('EditorPage', () => {
      *  once the autosave debounce would have run (an empty editor saving would wipe it). */
     async function noSaveFromAFailedLoad() {
       expect(puts()).toBe(0)
+      // the debounce's timer is set by the edit, so the clock is faked first
       vi.useFakeTimers()
+      // try to edit whatever might be there: an editor mounted behind the page would save this
+      const title = document.querySelector<HTMLInputElement>('input[aria-label="Paper title"]')
+      if (title) await fireEvent.input(title, { target: { value: 'Edited behind the error page' } })
+      const surface = document.querySelector<HTMLElement>('.surface .ProseMirror') ?? document.querySelector<HTMLElement>('.surface')
+      if (surface) {
+        await fireEvent.keyDown(surface, { key: 'a' })
+        await fireEvent.input(surface)
+      }
       try {
         await vi.advanceTimersByTimeAsync(5000)
       } finally {
@@ -633,7 +642,7 @@ describe('EditorPage action errors (EXA-165)', () => {
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
       if (String(url).includes('/export/')) return { ok: false, status: 503, json: async () => ({ detail: 'export is busy' }) }
       if (String(url).endsWith('/assets') && init?.method === 'POST') {
-        return { ok: false, status: 422, json: async () => ({ detail: 'only PNG and JPEG images are accepted' }) }
+        return { ok: false, status: 413, json: async () => ({ detail: 'image is larger than 2 MB' }) }
       }
       return { ok: true, status: 200, json: async () => record([]), text: async () => '' }
     })
@@ -644,8 +653,10 @@ describe('EditorPage action errors (EXA-165)', () => {
     expect(first).toHaveTextContent("Couldn't export the PDF. The server is busy.")
     expect(within(first).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
 
-    const input = screen.getByLabelText('Choose image') as HTMLInputElement
-    await fireEvent.change(input, { target: { files: [new File(['x'], 'a.gif', { type: 'image/gif' })] } })
+    // pasted into the page (the ImageUpload extension), with nothing else clearing the strip first
+    const pm = document.querySelector('.surface .ProseMirror') as HTMLElement
+    const file = new File(['png'], 'big.png', { type: 'image/png' })
+    await fireEvent.paste(pm, { clipboardData: { files: [file], items: [], types: ['Files'], getData: () => '' } })
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("The image wasn't added."))
     expect(within(screen.getByRole('alert')).queryByRole('button', { name: 'Try again' })).toBeNull()
     expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/export/'))).toHaveLength(1)

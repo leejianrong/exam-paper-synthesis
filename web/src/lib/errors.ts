@@ -118,8 +118,10 @@ export function mayHaveHappened(e: unknown): boolean {
 
 /** A failed create, which is never retried for the teacher: it may have been made anyway. */
 export function createFailedText(e: unknown, action: string): string {
-  const text = errorText(e, action)
-  return mayHaveHappened(e) ? `${text} Check Your papers before trying again.` : text
+  if (!mayHaveHappened(e)) return errorText(e, action)
+  // no "Try again in a moment" here: the next step is to look, not to ask again
+  const text = errorText(e, action).replace(/ Try again in a moment\.$/, '')
+  return `${text} Check Your papers before trying again.`
 }
 
 /** The text to show for a failure: what didn't happen (`action`, e.g. "Couldn't save"), then why. */

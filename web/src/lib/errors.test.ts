@@ -114,6 +114,9 @@ describe('a failed create (make a copy, a new paper)', () => {
     expect(createFailedText(new ApiError(0, ''), "Couldn't make a copy")).toBe(
       "Couldn't make a copy. Can't reach the server. Check your internet connection. Check Your papers before trying again.",
     )
+    expect(createFailedText(new ApiError(502, ''), "Couldn't make a copy")).toBe(
+      "Couldn't make a copy. Something went wrong on our side. Check Your papers before trying again.",
+    )
     expect(createFailedText(new ApiError(422, 'name too long'), "Couldn't make a copy")).toBe(
       "Couldn't make a copy. Name too long.",
     )
