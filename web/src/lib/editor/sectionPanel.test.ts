@@ -324,7 +324,7 @@ describe('SidePanel: Paper / Question / Section / Cover', () => {
 describe('in the editor', () => {
   const fetchMock = vi.fn()
   const content = [
-    coverNode({ school: 'Pandan Primary', exam: 'Prelim' }),
+    coverNode({ school: 'Example Primary', exam: 'Prelim' }),
     sectionNode('Section A', { marks_target: 2 }),
     freeformDocNode({ id: 'ff_1', marks: 2 }),
   ]
@@ -431,7 +431,7 @@ describe('in the editor', () => {
     localStorage.setItem('exam.editor.sidePanel', 'hidden')
     await open()
     expect(screen.queryByRole('complementary', { name: 'Side panel' })).toBeNull()
-    expect(document.querySelector('.cover-block')).toHaveTextContent('Pandan Primary')
+    expect(document.querySelector('.cover-block')).toHaveTextContent('Example Primary')
     await fireEvent.click(screen.getByRole('button', { name: 'Edit cover page' }))
     const panel = await screen.findByRole('tabpanel', { name: 'Cover page' })
     await waitFor(() => expect(within(panel).getByLabelText('School')).toHaveFocus())

@@ -18,7 +18,7 @@ export const BLANK_TEXT: Record<BlankKind, string> = {
 
 /** The cover's text fields, in form order (all optional strings). */
 export const COVER_FIELDS = [
-  { key: 'school', label: 'School', placeholder: 'e.g. Pandan Primary School', max: 120 },
+  { key: 'school', label: 'School', placeholder: 'Your school’s name', max: 120 },
   { key: 'exam', label: 'Exam', placeholder: 'e.g. Preliminary Examination (2026)', max: 120 },
   { key: 'level', label: 'Level', placeholder: 'e.g. Primary 6', max: 60 },
   { key: 'subject', label: 'Subject', placeholder: 'Mathematics', max: 60 },

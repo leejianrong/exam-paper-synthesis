@@ -197,11 +197,11 @@ describe('the menu row (EXA-163)', () => {
 
   it('Paper > Cover page… shows the side panel when it was hidden', async () => {
     localStorage.setItem('exam.editor.sidePanel', 'hidden')
-    serve([{ type: 'coverPage', attrs: { school: 'Pandan Primary' } }, { type: 'paragraph' }])
+    serve([{ type: 'coverPage', attrs: { school: 'Example Primary' } }, { type: 'paragraph' }])
     await open()
     expect(screen.queryByRole('complementary', { name: 'Side panel' })).toBeNull()
     await fireEvent.click(within(await openMenu('Paper')).getByRole('menuitem', { name: 'Cover page…' }))
-    await waitFor(() => expect(document.activeElement).toHaveValue('Pandan Primary'))
+    await waitFor(() => expect(document.activeElement).toHaveValue('Example Primary'))
     expect(screen.getByRole('tab', { name: 'Cover page' })).toHaveAttribute('aria-selected', 'true')
   })
 })

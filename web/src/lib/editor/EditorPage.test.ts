@@ -1003,7 +1003,7 @@ describe('multi-part free-form questions (P3)', () => {
 
 describe('opening a paper that starts with a block (cover / section)', () => {
   it('opens with a text cursor, not the first block selected (typing must never replace it)', async () => {
-    const cover = { type: 'coverPage', attrs: { school: 'Pandan Primary', subject: 'Mathematics' } }
+    const cover = { type: 'coverPage', attrs: { school: 'Example Primary', subject: 'Mathematics' } }
     const body = freeformDocNode({ id: 'ff_one', marks: 2, body: 'A tank holds water.' })
     fetchMock.mockResolvedValue({
       ok: true,
