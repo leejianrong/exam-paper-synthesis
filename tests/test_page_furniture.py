@@ -143,7 +143,8 @@ def test_go_on_is_on_every_page_but_the_last_and_the_end_marker_closes_the_bookl
 
 def test_the_footer_tag_names_the_school_and_paper_only_when_the_cover_does(booklet_b, browser):
     pages, _, _ = booklet_b
-    assert {p["tag"] for p in pages if p["kind"] == "q"} == {"Example Primary · Paper 1 (Booklet B)"}
+    tags = {p["tag"] for p in pages if p["kind"] == "q"}
+    assert tags == {"Example Primary · Paper 1 (Booklet B)"}
     plain, _, _ = _render(browser, make_doc(_cover("Paper 2"), _q("Q1 x")))
     assert plain[1]["tag"] == ""
 
