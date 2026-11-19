@@ -17,7 +17,7 @@
   } from './layout'
   // The WYSIWYG page (W1c): an A4-width column of rich text and question blocks, a "+"
   // to add questions, the answer key below, autosave, and the export/preview menu.
-  import { onDestroy, onMount } from 'svelte'
+  import { onDestroy, onMount, tick as nextTick } from 'svelte'
   import { Editor } from '@tiptap/core'
   import StarterKit from '@tiptap/starter-kit'
   import { NodeSelection, TextSelection } from '@tiptap/pm/state'
@@ -319,6 +319,8 @@
   }
 
   function trackBlock(e: Event) {
+    // A menu row removes itself before its click bubbles here: that is no move out of the block.
+    if (!(e.target as Node).isConnected) return
     const host = (e.target as HTMLElement).closest('[data-block-id]')
     selectedId = host?.getAttribute('data-block-id') ?? null
   }
@@ -577,8 +579,12 @@
     }
   }
 
-  function swapBlock(blockId: string, mode: SwapMode): Promise<void> {
-    return paperOp((base) => swapQuestion(id, blockId, mode, base), swapNotice)
+  async function swapBlock(blockId: string, mode: SwapMode): Promise<void> {
+    await paperOp((base) => swapQuestion(id, blockId, mode, base), swapNotice)
+    // The swapped block is selected; give the editor focus back (the menu that asked is gone),
+    // so its pill shows and R swaps again (EXA-161).
+    await nextTick()
+    if (editor && (!document.activeElement || document.activeElement === document.body)) editor.view.focus()
   }
 
   function regenerate(): Promise<void> {

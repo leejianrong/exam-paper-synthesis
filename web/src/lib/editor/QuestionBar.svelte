@@ -119,6 +119,12 @@
     host.classList.toggle('is-active', active)
   })
 
+  // A press on a control must not take focus from the editor first: with the caret in a
+  // free-form question, that blur would deselect the block and drop the pill mid-click.
+  function keepFocus(e: MouseEvent) {
+    if (!(e.target as HTMLElement).closest('input')) e.preventDefault()
+  }
+
   function marksInput(e: Event) {
     const raw = (e.currentTarget as HTMLInputElement).value
     if (raw.trim() === '') return onMarks?.(null)
@@ -133,11 +139,13 @@
   tabindex="-1"
   aria-label="Menu for {name}"
   title="Menu for {name}"
+  onmousedown={keepFocus}
   onclick={() => void openMenu()}><Icon name="grip" /></button
 >
 
 {#if active}
-  <div class="qpill" role="group" aria-label="Actions for {name}">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="qpill" role="group" aria-label="Actions for {name}" onmousedown={keepFocus}>
     {#if onMarks}
       <label class="marks">
         Marks
@@ -222,7 +230,7 @@
     position: absolute;
     right: 10px;
     top: -17px;
-    z-index: 30;
+    z-index: 5; /* above the next blocks, below the sticky header (10) */
     display: flex;
     align-items: center;
     gap: 2px;

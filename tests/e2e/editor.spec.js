@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { settled, newBlankPaper, exportPdf } from './helpers.js'
+import { settled, newBlankPaper, exportPdf, questionHost, questionMenu, selectQuestion } from './helpers.js'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -49,13 +49,13 @@ test('build a paper, edit questions, reload, preview and export', async ({ page 
 
   // Make the first question harder (ratio_medium -> ratio_hard).
   const firstBefore = await blocks.first().innerText()
-  await blocks.first().getByRole('button', { name: 'Make harder' }).click()
+  await questionMenu(blocks.first(), 'Make harder')
   await expect(async () => {
     expect(await blocks.first().innerText()).not.toBe(firstBefore)
   }).toPass()
 
   // Rename the people in the second question.
-  await blocks.nth(1).getByRole('button', { name: 'Edit names' }).click()
+  await questionMenu(blocks.nth(1), 'Edit names…')
   const nameField = blocks.nth(1).getByLabel('Name', { exact: true })
   await nameField.fill('Zainab')
   await blocks.nth(1).getByRole('button', { name: 'Apply' }).click()
@@ -143,7 +143,10 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
   const inspector = page.getByRole('complementary', { name: 'Side panel' })
   await expect(inspector).toContainText('From my bank')
   await expect(inspector).toContainText('not yet reviewed')
-  await expect(block.getByRole('button', { name: 'Make harder' })).toHaveCount(0)
+  await selectQuestion(block)
+  await questionHost(block).getByRole('button', { name: /^More actions/ }).click()
+  await expect(questionHost(block).getByRole('menuitem', { name: 'Make harder' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
   await expect(block.locator('li.option').first()).toBeVisible()
 
   // The key region uses the engine key markup for it.
@@ -242,9 +245,9 @@ test('a multi-part free-form question: lettered parts with marks, answers, reloa
   await page.keyboard.type('A tank is 40 cm by 25 cm by 30 cm.')
 
   // Two parts; the caret lands in each new part, so type its question straight away.
-  await block.getByRole('button', { name: 'Add a lettered part' }).click()
+  await block.getByRole('button', { name: 'Part', exact: true }).click()
   await page.keyboard.type('Find its volume.')
-  await block.getByRole('button', { name: 'Add a lettered part' }).click()
+  await block.getByRole('button', { name: 'Part', exact: true }).click()
   await page.keyboard.type('How much water fills it?')
   await expect(block.locator('.ffp-label')).toHaveText(['(a)', '(b)'])
   const marks = block.getByLabel('Part marks')
@@ -363,7 +366,8 @@ test('convert a generated question to free-form: text, answer and its figure as 
   await expect(block).toHaveCount(1)
   const original = await block.locator('.part-text, .text').first().innerText().catch(() => '')
 
-  await block.getByRole('button', { name: 'Convert to free-form' }).click()
+  await questionMenu(block, 'Edit as my own text…')
+  await page.getByRole('alertdialog', { name: 'Edit as your own text?' }).getByRole('button', { name: 'Edit as my own text' }).click()
   const ff = page.locator('.ffblock')
   await expect(ff).toHaveCount(1)
   await expect(page.getByTestId('question-block')).toHaveCount(0)
@@ -478,7 +482,7 @@ test('a remark is private: kept through edits and reloads, never in a preview or
   await expect(block).not.toContainText(SECRET)
 
   // Editing the question afterwards (Make harder) must not lose the remark.
-  await block.getByRole('button', { name: 'Make harder' }).click()
+  await questionMenu(block, 'Make harder')
   await expect(remark).toHaveValue(SECRET)
 
   await settled(page)

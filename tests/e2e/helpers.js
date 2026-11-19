@@ -77,3 +77,30 @@ export async function moreTools(page) {
 export async function paperTab(page) {
   await page.getByRole('tab', { name: 'Paper', exact: true }).click()
 }
+
+/**
+ * A question block's controls (EXA-161) show once it is selected: focus the block (the
+ * node view around `[data-testid=question-block]`), then use its pill or its ⋯ menu.
+ */
+export const questionHost = (block) =>
+  block.locator('xpath=ancestor-or-self::*[contains(concat(" ", normalize-space(@class), " "), " qblock ")][1]')
+
+export async function selectQuestion(block) {
+  const host = questionHost(block)
+  await host.focus()
+  await expect(host.locator('.qpill')).toBeVisible()
+  return host
+}
+
+/** A button in the selected question's pill ("Another like this", "Lock", …). */
+export async function questionPill(block, name) {
+  const host = await selectQuestion(block)
+  return host.locator('.qpill').getByRole('button', { name, exact: true })
+}
+
+/** Choose a row from the question's ⋯ menu. */
+export async function questionMenu(block, name) {
+  const host = await selectQuestion(block)
+  await host.getByRole('button', { name: /^More actions/ }).click()
+  await host.getByRole('menuitem', { name, exact: true }).click()
+}
