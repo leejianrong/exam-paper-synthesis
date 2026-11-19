@@ -48,7 +48,6 @@
 </script>
 
 <main>
-  <a class="back" href="#/">← Your papers</a>
   <h1>Settings</h1>
   <p class="lede">Saved on your account, so they apply wherever you sign in.</p>
 
@@ -99,7 +98,7 @@
       />
     </section>
     {#if $settings.classic_generator}
-      <p class="muted">Open it from <a href="#/classic">Classic generator</a> on Your papers.</p>
+      <p class="muted">It's the <a href="#/classic">Classic</a> tab at the top of the page.</p>
     {/if}
   {/if}
   <p class="status" role="status">{saved}</p>
@@ -111,10 +110,6 @@
     max-width: 720px;
     margin: 0 auto;
     padding: 2rem 1rem 4rem;
-  }
-  .back {
-    font-size: 13px;
-    color: var(--ink-faint);
   }
   h1 {
     font-family: var(--serif);

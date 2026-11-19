@@ -56,6 +56,28 @@ describe('App sign-in gate', () => {
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
   })
 
+  it('one app header on the list, the bank and Settings (EXA-167)', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith('/auth/me')) return reply(200, { id: 'u1', email: null, name: 'Ann', dev: false })
+      if (String(url).endsWith('/documents')) return reply(200, { documents: [] })
+      if (String(url).endsWith('/bank')) return reply(200, { items: [] })
+      if (String(url).endsWith('/settings')) return reply(200, { classic_generator: false, answer_key_style: 'school' })
+      return reply(404)
+    })
+    render(App)
+    await screen.findByRole('heading', { name: 'Your papers' })
+    expect(screen.getAllByRole('navigation', { name: 'Main' })).toHaveLength(1)
+    globalThis.location.hash = '#/bank'
+    await fireEvent(window, new HashChangeEvent('hashchange'))
+    expect(await screen.findByRole('heading', { name: 'Question bank' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Question bank' })).toHaveAttribute('aria-current', 'page')
+    globalThis.location.hash = '#/settings'
+    await fireEvent(window, new HashChangeEvent('hashchange'))
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument()
+    expect(screen.getAllByRole('navigation', { name: 'Main' })).toHaveLength(1)
+    expect(screen.queryByRole('link', { name: '← Your papers' })).toBeNull()
+  })
+
   it('a failed provider sign-in lands on the login page with the reason', async () => {
     route({ status: 401 })
     globalThis.location.hash = '#/login?error=denied'

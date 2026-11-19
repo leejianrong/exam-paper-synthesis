@@ -120,8 +120,8 @@
 
 <section class="import" aria-label="Import questions">
   <p class="lead">
-    Import canonical question JSON — one object or an array — into your bank. Imported
-    questions start <b>unreviewed</b>.
+    Choose question files (.json), or paste what's in one. A file can hold one question or a
+    list of them. Imported questions start <b>unreviewed</b>.
   </p>
 
   <label class="field"
@@ -208,7 +208,7 @@
   .go {
     border-color: var(--verify);
     background: var(--verify);
-    color: #fff;
+    color: var(--on-accent);
   }
   button:disabled {
     opacity: 0.55;

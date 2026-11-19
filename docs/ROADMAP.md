@@ -47,7 +47,9 @@ options in a strip above it, and Edit answer… for your own questions; S6, EXA-
 as a compact header and the cover as a compact card, their settings in the side panel, and one
 "Marks shown" control for the paper and each section; S7, EXA-165, the
 states: an unknown paper is a page of its own with the way back, errors in plain words with Try again,
-and loading skeletons for the papers list and the editor).
+and loading skeletons for the papers list and the editor; S9, EXA-167, one app header on every
+screen but the editor (Papers, Question bank, Classic when on, the avatar menu) and the question
+bank as its own page with filters, search, review and "Import questions from a file").
 
 ---
 

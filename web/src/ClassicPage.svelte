@@ -59,15 +59,6 @@
 </script>
 
 <main>
-  <div class="masthead">
-    <svg class="glyph" viewBox="0 0 20 20" aria-hidden="true">
-      <rect x="0" y="3" width="20" height="4" rx="1" />
-      <rect x="0" y="8" width="13" height="4" rx="1" />
-      <rect x="0" y="13" width="8" height="4" rx="1" />
-    </svg>
-    <span class="wordmark">exam-paper-synthesis</span>
-  </div>
-
   <h1 class="title">Craft a question</h1>
   <p class="standfirst">
     Generate a fresh, validated P5&ndash;P6 question, nudge its difficulty, then approve it into a
@@ -127,35 +118,6 @@
     max-width: 760px;
     margin: 0 auto;
     padding: 2.5rem 1.35rem 4.5rem;
-  }
-
-  /* --- masthead (mono wordmark + unit-coloured glyph) --- */
-  .masthead {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    margin-bottom: 1.75rem;
-  }
-  .glyph {
-    width: 22px;
-    height: 22px;
-    flex: none;
-  }
-  .glyph rect:nth-child(1) {
-    fill: var(--u1);
-  }
-  .glyph rect:nth-child(2) {
-    fill: var(--u2);
-  }
-  .glyph rect:nth-child(3) {
-    fill: var(--u3);
-  }
-  .wordmark {
-    font-family: var(--mono);
-    font-size: 13.5px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: var(--ink);
   }
 
   /* --- page title: serif = the trusted paper --- */
