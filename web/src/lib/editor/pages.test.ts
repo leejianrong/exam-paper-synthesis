@@ -73,7 +73,7 @@ describe('cover page (P7)', () => {
       cleanNode({
         type: 'coverPage',
         attrs: {
-          school: ' Pandan ',
+          school: ' Example Primary ',
           exam: '',
           level: null,
           subject: 'Mathematics',
@@ -83,7 +83,7 @@ describe('cover page (P7)', () => {
           examiner_table: null,
         },
       }).attrs,
-    ).toEqual({ school: 'Pandan', subject: 'Mathematics', paper: 'Paper 1', instructions: 'Answer all.' })
+    ).toEqual({ school: 'Example Primary', subject: 'Mathematics', paper: 'Paper 1', instructions: 'Answer all.' })
     expect(cleanNode({ type: 'coverPage', attrs: { examiner_table: false } }).attrs).toEqual({
       examiner_table: false,
     })

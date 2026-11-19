@@ -20,7 +20,7 @@ describe('after a swap the caret is in the changed block (EXA-129)', () => {
   it("'Write my own' leaves the caret in the new placeholder, so typing never hits the cover", () => {
     const sent = {
       type: 'doc',
-      content: [coverNode({ school: 'Pandan' }), { type: 'templatedQuestion', attrs: { block_id: 'q1' } }, { type: 'templatedQuestion', attrs: { block_id: 'q2' } }],
+      content: [coverNode({ school: 'Example Primary' }), { type: 'templatedQuestion', attrs: { block_id: 'q1' } }, { type: 'templatedQuestion', attrs: { block_id: 'q2' } }],
     } as unknown as DocJSON
     editor = new Editor({ extensions: [StarterKit, CoverPage, BlankPage, Templated, Freeform], content: sent })
     // The swap button's click selected the cover (the stale selection that caused the bug).
@@ -35,7 +35,7 @@ describe('after a swap the caret is in the changed block (EXA-129)', () => {
     expect($from.node(1).type.name).toBe('freeformQuestion')
     editor.commands.insertContent('My own question.')
     const json = editor.getJSON().content ?? []
-    expect(json[0]).toMatchObject({ type: 'coverPage', attrs: { school: 'Pandan' } })
+    expect(json[0]).toMatchObject({ type: 'coverPage', attrs: { school: 'Example Primary' } })
     expect(JSON.stringify(json[1])).toContain('My own question.')
   })
 
