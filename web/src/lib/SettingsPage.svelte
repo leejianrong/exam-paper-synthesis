@@ -1,10 +1,13 @@
 <script lang="ts">
   // Settings (O1, EXA-125): saved on the account, so they follow the teacher across devices.
   import { onMount } from 'svelte'
+  import ErrorNote from './ErrorNote.svelte'
+  import { canRetry, errorText } from './errors'
   import { loadSettings, settings, updateSettings, type AnswerKeyStyle } from './settings'
 
   let busy = false
   let error = ''
+  let retry: (() => void) | null = null
   let saved = ''
 
   onMount(() => {
@@ -14,12 +17,14 @@
   async function save(patch: Parameters<typeof updateSettings>[0], done: string) {
     busy = true
     error = ''
+    retry = null
     saved = ''
     try {
       await updateSettings(patch)
       saved = done
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e)
+      error = errorText(e, "The setting wasn't saved")
+      retry = canRetry(e) ? () => void save(patch, done) : null
     } finally {
       busy = false
     }
@@ -98,7 +103,7 @@
     {/if}
   {/if}
   <p class="status" role="status">{saved}</p>
-  {#if error}<p class="error" role="alert">{error}</p>{/if}
+  {#if error}<ErrorNote message={error} onRetry={retry} busy={busy} />{/if}
 </main>
 
 <style>
@@ -230,9 +235,6 @@
     min-height: 1.2em;
     font-size: 13px;
     color: var(--ink-soft);
-  }
-  .error {
-    color: var(--mark);
   }
   @media (max-width: 560px) {
     .row:has(.seg) {

@@ -41,7 +41,7 @@ describe('FragmentView', () => {
   it('shows an error and no html when the render fails', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 422, text: async () => 'invalid question' })
     render(FragmentView, { props: { question: makeBankQuestion() } })
-    expect(await screen.findByRole('alert')).toHaveTextContent('API 422')
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't show this question.")
   })
 })
 

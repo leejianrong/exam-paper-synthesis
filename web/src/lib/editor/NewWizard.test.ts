@@ -1,3 +1,4 @@
+import { ApiError } from '../errors'
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/svelte'
 import { get } from 'svelte/store'
@@ -126,10 +127,12 @@ describe('NewWizard: the first step', () => {
   })
 
   it('shows an error and stays open when making the paper fails', async () => {
-    createDocument.mockRejectedValue(new Error('API 500: boom'))
+    createDocument.mockRejectedValue(new ApiError(500, 'boom'))
     open()
     await pick('Blank paper')
-    expect(await screen.findByRole('alert')).toHaveTextContent('boom')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "The paper wasn't made. Something went wrong on our side. Check Your papers before trying again.",
+    )
     expect(props.onClose).not.toHaveBeenCalled()
     expect(location.hash).toBe('')
   })
@@ -222,7 +225,7 @@ describe('NewWizard: Exam set', () => {
   it('on a partial failure says which paper failed, keeps the others, and can try it again', async () => {
     createFolder.mockResolvedValue(folder('fs', 'P6 exam set'))
     generatePaper.mockImplementation(async (code: string, _l: string, fid: string) => {
-      if (code === 'p1_booklet_b') throw new Error('API 503: try later')
+      if (code === 'p1_booklet_b') throw new ApiError(503, 'try later')
       return { ...record(`g-${code}`, fid), report: { topics: TOPICS[code] } }
     })
     open()
@@ -231,7 +234,7 @@ describe('NewWizard: Exam set', () => {
     await pick('Generate at P6')
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Booklet B could not be made. Booklet A and Paper 2 are in P6 exam set.')
-    expect(alert).toHaveTextContent('Booklet B: API 503: try later')
+    expect(alert).toHaveTextContent('Booklet B: The server is busy. Try again in a moment.')
     const rows = within(screen.getByRole('list', { name: 'Exam set papers' })).getAllByRole('listitem')
     expect(rows.map((r) => r.className.split(' ')[0])).toEqual(['done', 'failed', 'done'])
     expect(props.onPapersCreated).toHaveBeenCalledTimes(2)
@@ -251,7 +254,7 @@ describe('NewWizard: Exam set', () => {
 
   it('after a failure, Show the folder and Escape both leave with what was made', async () => {
     createFolder.mockResolvedValue(folder('fs', 'P6 exam set'))
-    createDocument.mockRejectedValue(new Error('API 500: down'))
+    createDocument.mockRejectedValue(new ApiError(500, 'down'))
     const dialog = open()
     await pick('Exam set')
     await pick('Next')
@@ -266,12 +269,12 @@ describe('NewWizard: Exam set', () => {
   })
 
   it('if the folder cannot be made, no paper is attempted and the step stays', async () => {
-    createFolder.mockRejectedValue(new Error('API 422: name must be 1-80 characters'))
+    createFolder.mockRejectedValue(new ApiError(422, 'name must be 1-80 characters'))
     open()
     await pick('Exam set')
     await pick('Next')
     await pick('Empty starters')
-    expect(await screen.findByRole('alert')).toHaveTextContent('The folder could not be made, so no paper was')
+    expect(await screen.findByRole('alert')).toHaveTextContent("The folder wasn't made, so no paper was. Name must be 1-80 characters.")
     expect(createDocument).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Empty starters' })).toBeInTheDocument()
   })

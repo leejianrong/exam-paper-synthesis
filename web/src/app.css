@@ -242,3 +242,36 @@ body {
     transition: none !important;
   }
 }
+
+/* Loading skeletons (EXA-165): grey bars where content is about to be. A slow sheen moves over
+   them; with reduced motion they stay still. */
+.skel {
+  display: block;
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--line-soft) 0%, var(--wash) 50%, var(--line-soft) 100%);
+  background-size: 200% 100%;
+  animation: skel-sheen 1.4s ease-in-out infinite;
+}
+@keyframes skel-sheen {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel {
+    animation: none;
+    background: var(--line-soft);
+  }
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

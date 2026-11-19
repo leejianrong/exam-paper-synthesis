@@ -272,8 +272,24 @@ describe('paper actions', () => {
     await open()
     await fireEvent.click(within(await openMenu('Paper')).getByRole('menuitem', { name: 'Make a copy' }))
     await waitFor(() => expect(deleted).toEqual(['d2']))
-    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("Couldn't make a copy. Something went wrong on our side.")
     expect(location.hash).toBe('#/docs/d1')
+  })
+
+  it("a copy whose reply was lost offers no Try again (it may exist) and says to check Your papers", async () => {
+    serve()
+    let posts = 0
+    routes.push([/\/documents$/, 'POST', () => {
+      posts += 1
+      return { status: 502, body: { detail: 'Bad Gateway' } }
+    }])
+    await open()
+    await fireEvent.click(within(await openMenu('Paper')).getByRole('menuitem', { name: 'Make a copy' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("Couldn't make a copy. Something went wrong on our side. Check Your papers before trying again.")
+    expect(within(alert).queryByRole('button', { name: 'Try again' })).toBeNull()
+    expect(posts).toBe(1)
   })
 
   it('Move to folder… and Delete paper… wait while an export runs', async () => {

@@ -29,6 +29,8 @@
   import type { DocumentRecord, DocumentSummary } from './doc'
   import AccountMenu from './AccountMenu.svelte'
   import { settings } from '../settings'
+  import ErrorNote from '../ErrorNote.svelte'
+  import { canRetry, createFailedText, errorText } from '../errors'
 
   const COLLAPSED_KEY = 'exam.papers.collapsed'
 
@@ -38,6 +40,10 @@
   // A polite announcement of what an action did.
   let announce = $state('')
   let error = $state('')
+  /** Try again for the failure in `error`, when the same request may work now (EXA-165). */
+  let errorRetry: (() => void) | null = $state(null)
+  /** Why the list itself didn't load: it shows in place of the list, with Try again. */
+  let listError: unknown = $state(null)
   // Paper templates (P8a) come from the engine, for the wizard.
   let templates: PaperTemplateInfo[] = $state([])
   let levels: string[] = $state(['P5', 'P6'])
@@ -58,7 +64,15 @@
   let dialogBusy = $state(false)
   let dialogError = $state('')
 
-  const msg = (e: unknown): string => (e instanceof Error ? e.message : String(e))
+  /** Show a failed action in plain words, with Try again when it may work now. */
+  function failed(e: unknown, action: string, retry?: () => void) {
+    error = errorText(e, action)
+    errorRetry = retry && canRetry(e) ? retry : null
+  }
+  function clearError() {
+    error = ''
+    errorRetry = null
+  }
   const titleOf = (d: { title: string }): string => d.title || 'Untitled paper'
 
   function readCollapsed(): Set<string> {
@@ -84,10 +98,12 @@
   }
 
   async function refresh() {
+    loaded = false
+    listError = null
     try {
       ;[docs, folders] = await Promise.all([listDocuments(), listFolders()])
     } catch (e) {
-      error = msg(e)
+      listError = e
     } finally {
       loaded = true
     }
@@ -106,15 +122,18 @@
       const res = await listPaperTemplates()
       templates = res.templates
       levels = res.levels
+      if (errorRetry === retryTemplates) clearError()
     } catch (e) {
-      error = msg(e)
+      failed(e, "Couldn't load the paper templates", retryTemplates)
     }
   }
+
+  const retryTemplates = () => void loadTemplates()
 
   function openWizard(from: HTMLElement | null, folder: Folder | null = null) {
     opener = from
     wizardFolder = folder
-    error = ''
+    clearError()
     wizardOpen = true
   }
 
@@ -160,7 +179,7 @@
   })
 
   async function onRenamePaper(d: DocumentSummary, title: string): Promise<boolean> {
-    error = ''
+    clearError()
     try {
       const rec = await renameDocument(d.id, title)
       docs = docs.map((x) => (x.id === d.id ? summaryOf(rec, x) : x))
@@ -173,13 +192,13 @@
       }
       return true
     } catch (e) {
-      error = msg(e)
+      failed(e, "The paper wasn't renamed")
       return false
     }
   }
 
   async function onCopy(d: DocumentSummary) {
-    error = ''
+    clearError()
     try {
       const rec = await copyDocument(d.id)
       const copy = summaryOf(rec, { ...d, folder_id: d.folder_id ?? null })
@@ -187,7 +206,8 @@
       docs = [...docs.slice(0, at + 1), copy, ...docs.slice(at + 1)]
       announce = `Made “${titleOf(copy)}”.`
     } catch (e) {
-      error = msg(e)
+      // no Try again: the copy may have been made although the reply was lost
+      error = createFailedText(e, "Couldn't make a copy")
     }
   }
 
@@ -212,7 +232,7 @@
       await tick()
       document.querySelector<HTMLElement>(`[data-doc-id="${d.id}"] .more`)?.focus()
     } catch (e) {
-      dialogError = msg(e)
+      dialogError = errorText(e, "The paper wasn't moved")
     } finally {
       dialogBusy = false
     }
@@ -231,21 +251,21 @@
       await tick()
       heading?.focus()
     } catch (e) {
-      dialogError = msg(e)
+      dialogError = errorText(e, "The paper wasn't deleted")
     } finally {
       dialogBusy = false
     }
   }
 
   async function onRenameFolder(id: string, name: string): Promise<boolean> {
-    error = ''
+    clearError()
     try {
       const f = await renameFolder(id, name)
       folders = folders.map((x) => (x.id === id ? f : x)).sort(byName)
       announce = `Folder renamed to “${f.name}”.`
       return true
     } catch (e) {
-      error = msg(e)
+      failed(e, "The folder wasn't renamed")
       return false
     }
   }
@@ -265,7 +285,7 @@
       await tick()
       heading?.focus()
     } catch (e) {
-      dialogError = msg(e)
+      dialogError = errorText(e, "The folder wasn't deleted")
     } finally {
       dialogBusy = false
     }
@@ -330,7 +350,7 @@
     >
   </div>
 
-  {#if error}<p class="error" role="alert">{error}</p>{/if}
+  {#if error}<ErrorNote message={error} onRetry={errorRetry} />{/if}
 
   {#snippet row(d: DocumentSummary)}
     <PaperRow
@@ -353,8 +373,20 @@
   <p class="sr" role="status">{announce}</p>
 
   {#if !loaded}
-    <p class="empty">Loading your papers…</p>
-  {:else if docs.length === 0 && folders.length === 0 && !error}
+    <div class="loading" role="status" data-testid="list-skeleton">
+      <span class="visually-hidden">Loading your papers…</span>
+      <ul class="docs loose" aria-hidden="true">
+        {#each [62, 48, 70, 55] as w, i (i)}
+          <li class="skel-row">
+            <span class="skel" style:width="{w}%" style:height="14px"></span>
+            <span class="skel" style:width="9rem" style:height="10px"></span>
+          </li>
+        {/each}
+      </ul>
+    </div>
+  {:else if listError}
+    <ErrorNote message={errorText(listError, "Couldn't load your papers")} onRetry={() => void refresh()} />
+  {:else if docs.length === 0 && folders.length === 0}
     <p class="empty">No papers yet. Start with <b>+ New</b>: an exam set makes Booklet A, Booklet B and Paper 2 in one go.</p>
   {:else}
     {#if searching && matches === 0}
@@ -585,7 +617,16 @@
   .empty {
     color: var(--ink-soft);
   }
-  .error {
-    color: var(--mark);
+  .skel-row {
+    display: grid;
+    gap: var(--s2);
+    align-content: center;
+    min-height: 56px;
+    padding: var(--s2) var(--s4);
+    box-sizing: border-box;
+    border-top: 1px solid var(--line-soft);
+  }
+  .skel-row:first-child {
+    border-top: 0;
   }
 </style>

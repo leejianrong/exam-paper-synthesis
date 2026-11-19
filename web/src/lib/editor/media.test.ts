@@ -123,12 +123,12 @@ describe('insertBlock / uploadAndInsert', () => {
 
   it('uploads first, then inserts; a failure reports and inserts nothing', async () => {
     make({ type: 'doc', content: [para('x')] })
-    upload.mockResolvedValueOnce(meta).mockRejectedValueOnce(new Error('Could not upload the image: too big'))
+    upload.mockResolvedValueOnce(meta).mockRejectedValueOnce(new Error('Image is larger than 2 MB.'))
     const files = [new File(['a'], 'a.png'), new File(['b'], 'b.png')]
     await uploadAndInsert(editor, files, { upload, onError })
     expect(upload).toHaveBeenCalledTimes(2)
     expect(editor.getJSON().content!.filter((n) => n.type === 'image')).toHaveLength(1)
-    expect(onError).toHaveBeenCalledWith('Could not upload the image: too big')
+    expect(onError).toHaveBeenCalledWith("The image wasn't added. Image is larger than 2 MB.")
   })
 })
 

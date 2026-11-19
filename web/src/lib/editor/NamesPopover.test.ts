@@ -57,7 +57,7 @@ describe('NamesPopover', () => {
   it('shows the load error and disables Apply', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 404, text: async () => 'nope' })
     render(NamesPopover, { props: { q: makeQuestion() } })
-    expect(await screen.findByRole('alert')).toHaveTextContent('API 404: nope')
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the names to edit.")
     expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled()
   })
 })

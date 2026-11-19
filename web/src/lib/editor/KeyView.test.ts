@@ -1,3 +1,4 @@
+import { ApiError } from '../errors'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte'
 import KeyView, { KEY_REFRESH_MS } from './KeyView.svelte'
@@ -69,9 +70,10 @@ describe('the answer key view (EXA-162)', () => {
 
   it('says when the key did not load and tries again on request', async () => {
     const { load } = setup()
-    load.mockRejectedValueOnce(new Error('API 500: boom'))
+    load.mockRejectedValueOnce(new ApiError(500, 'boom'))
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent("The answer key didn't load")
+    expect(alert).toHaveTextContent("The answer key didn't load. Something went wrong on our side.")
+    expect(alert).not.toHaveTextContent('boom')
     expect(load).toHaveBeenCalledTimes(1) // no retry loop on its own
     await fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
     await waitFor(() => expect(frames()).toHaveLength(1))
@@ -171,8 +173,8 @@ describe('the answer key view keeps up with the paper (review of #242)', () => {
     await vi.advanceTimersByTimeAsync(KEY_REFRESH_MS + 10)
     // the old key stays while the new one is asked for
     expect(screen.getByText('Updating…')).toBeInTheDocument()
-    pending[1].reject(new Error('API 500: boom'))
-    expect(await screen.findByRole('alert')).toHaveTextContent("The answer key didn't update")
+    pending[1].reject(new ApiError(500, 'boom'))
+    expect(await screen.findByRole('alert')).toHaveTextContent("The answer key didn't update. Something went wrong on our side.")
     expect(frames().map((f) => f.getAttribute('srcdoc'))).toEqual(['<p>KEY 1</p>'])
     expect(screen.queryByText('Updating…')).toBeNull()
   })

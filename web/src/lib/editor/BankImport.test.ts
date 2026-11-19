@@ -118,7 +118,7 @@ describe('BankImport', () => {
     render(BankImport, { events: { done } })
     await fireEvent.input(screen.getByLabelText('Paste JSON'), { target: { value: '{}' } })
     await fireEvent.click(screen.getByRole('button', { name: 'Import' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Import failed: import is larger than 2 MB')
+    expect(await screen.findByRole('alert')).toHaveTextContent('The import stopped. Import is larger than 2 MB.')
     expect(done).not.toHaveBeenCalled()
   })
 })

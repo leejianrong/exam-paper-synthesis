@@ -10,6 +10,24 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Plain errors, a not-found page and loading skeletons (EXA-165, UI redesign S7).** Opening a
+  paper that doesn't exist (or was deleted) shows a page that says so, with **Back to Your
+  papers**, instead of an empty editor claiming "Saved" (the server answers "not found" for
+  another account's paper too). A server that can't be reached and a server failure each get
+  their own page with **Try again**; a "no access" page is there only as a fallback. Errors across the app are in plain words with no status codes or server text: one
+  helper (`web/src/lib/errors.ts`) words every failed request (signed out, no access, doesn't
+  exist, changed elsewhere, too large, the server's own reason, too many requests with how long
+  to wait, "Something went wrong on our side", "Can't reach the server") and says what didn't
+  happen first ("Couldn't load your papers.", "The question wasn't swapped."). **Try again**
+  appears where the same request may work in a moment: the papers list, opening a paper,
+  saving (the save chip says **Not saved**, where it used to promise "will retry", and the
+  strip under the header retries), exports and the preview, swap and regenerate,
+  listing folders, generating questions, the question bank and the settings (a wait of over a
+  minute for "too many requests" offers none). A failed **Make a copy** or new paper is never
+  retried for you, as it may have been made although the reply was lost: it says to check Your
+  papers first. The
+  papers list and the editor show grey skeletons while they load; with reduced motion they hold
+  still.
 - **Section and cover settings in the side panel (EXA-164, UI redesign S6).** On the page a
   section is now a compact header (its title, "Questions 16–30 · 40 / 40 marks", the mode and
   whether it has a marking margin, and its instructions; a generic title such as "Section A",

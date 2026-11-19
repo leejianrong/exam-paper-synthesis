@@ -3,6 +3,7 @@
   // so its stylesheet cannot leak into — or be changed by — the app. Used for bank
   // questions: any shape the schema holds (MCQ options, tables, grids, constructions…)
   // draws correctly with no TypeScript mirror to drift from the PDF.
+  import { errorText } from '../errors'
   import { onDestroy } from 'svelte'
   import type { Question } from '../types'
   import { loadFragmentAssets, renderQuestion, typeset } from './fragments'
@@ -42,7 +43,7 @@
       typeset(mountPoint)
       error = ''
     } catch (e) {
-      if (alive && ticket === latest) error = e instanceof Error ? e.message : String(e)
+      if (alive && ticket === latest) error = errorText(e, "Couldn't show this question")
     }
   }
 
