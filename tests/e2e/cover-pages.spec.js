@@ -1,21 +1,24 @@
 import { test, expect } from '@playwright/test'
-import { settled, newBlankPaper, newFromTemplate } from './helpers.js'
+import { settled, newBlankPaper, newFromTemplate, insertMenu } from './helpers.js'
 import { API } from './ports.js'
 
 /**
- * Browser acceptance for P7: add a cover page and a blank page from the toolbar, fill the cover,
+ * Browser acceptance for P7: add a cover page and a blank page from the Insert menu, fill the cover,
  * reload, and check the student paper prints the cover in place of the header while the answer
  * key leaves both out. Needs the API with EXAM_DEV_AUTH (playwright.config.js).
  */
-test('the toolbar adds a cover page to a new paper, first and only once', async ({ page }) => {
+test('the Insert menu adds a cover page to a new paper, first and only once', async ({ page }) => {
   await page.goto('/')
   await newBlankPaper(page)
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
-  const coverButton = page.getByRole('button', { name: 'Cover page', exact: true })
-  await expect(coverButton).toBeEnabled()
-  await coverButton.click()
+  let menu = await insertMenu(page)
+  const coverItem = menu.getByRole('menuitem', { name: 'Cover page', exact: true })
+  await expect(coverItem).not.toHaveAttribute('aria-disabled')
+  await coverItem.click()
   await expect(page.locator('.cover-block')).toHaveCount(1)
-  await expect(coverButton).toBeDisabled()
+  menu = await insertMenu(page)
+  await expect(menu.getByRole('menuitem', { name: 'Cover page', exact: true })).toHaveAttribute('aria-disabled', 'true')
+  await page.keyboard.press('Escape')
   await expect(page.locator('.surface .ProseMirror > *').first()).toHaveClass(/cover-block/)
 })
 
@@ -26,10 +29,11 @@ test('a starter template comes with its cover; fill it, add a blank page, reload
   const id = page.url().split('/docs/')[1]
 
   // The template's cover is prefilled like a generated paper's; the level is the teacher's.
-  const coverButton = page.getByRole('button', { name: 'Cover page', exact: true })
   const cover = page.locator('.cover-block')
   await expect(cover).toHaveCount(1)
-  await expect(coverButton).toBeDisabled()
+  const menu = await insertMenu(page)
+  await expect(menu.getByRole('menuitem', { name: 'Cover page', exact: true })).toHaveAttribute('aria-disabled', 'true')
+  await page.keyboard.press('Escape')
   await expect(page.locator('.surface .ProseMirror > *').first()).toHaveClass(/cover-block/)
   await expect(cover.getByLabel('Cover paper')).toHaveValue('Paper 2')
   await expect(cover.getByLabel('Cover level')).toHaveValue('')
@@ -43,7 +47,7 @@ test('a starter template comes with its cover; fill it, add a blank page, reload
   const blank = page.locator('.blank-block')
   await expect(blank).toHaveCount(1)
   await page.locator('.surface .ProseMirror').click()
-  await page.getByRole('button', { name: 'Blank page', exact: true }).click()
+  await (await insertMenu(page)).getByRole('menuitem', { name: 'Blank or rough-work page', exact: true }).click()
   await expect(blank).toHaveCount(2)
   await blank.nth(1).getByLabel('Blank page kind').selectOption('rough')
 
@@ -66,14 +70,15 @@ test('a starter template comes with its cover; fill it, add a blank page, reload
   expect(key).not.toContain('<div class="blank-page')
 })
 
-test('a selected cover is never replaced by a toolbar insert or typing (EXA-129)', async ({ page }) => {
+test('a selected cover is never replaced by an insert or typing (EXA-129)', async ({ page }) => {
   await page.goto('/')
   await newFromTemplate(page, 'Paper 2')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const cover = page.locator('.cover-block')
   await cover.locator('.page-block-title').click() // one click selects the whole cover block
-  for (const tool of ['Section', 'Blank page', 'Page break']) {
-    await page.getByRole('button', { name: tool, exact: true }).click()
+  for (const tool of ['Section', 'Blank or rough-work page', 'Page break']) {
+    if (tool === 'Section') await page.getByRole('button', { name: tool, exact: true }).click()
+    else await (await insertMenu(page)).getByRole('menuitem', { name: tool, exact: true }).click()
     await expect(cover).toHaveCount(1)
     await expect(page.locator('.surface .ProseMirror > *').first()).toHaveClass(/cover-block/)
     await cover.locator('.page-block-title').click()

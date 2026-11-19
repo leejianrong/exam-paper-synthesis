@@ -1,9 +1,10 @@
+import { chooseFromMenu, host, menuLabels, pillButton, selectBlock } from './blockTesting'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte'
 import EditorPage from './EditorPage.svelte'
 import { cleanNode } from './doc'
 import { makeBankQuestion, makeQuestion } from './fixtures'
-import { hasGeneratedSlots, regenerateNotice, swapNotice } from './paperOps'
+import { hasGeneratedSlots, regenerateCounts, regenerateNotice, swapNotice } from './paperOps'
 
 const fetchMock = vi.fn()
 beforeEach(() => {
@@ -62,6 +63,37 @@ describe('paper ops helpers (P8d)', () => {
     ).toBe(false)
   })
 
+  it('a placeholder you have written in is yours: nothing to regenerate or lock', () => {
+    const written = { ...placeholder('gq2'), content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Mine.' }] }] }
+    expect(hasGeneratedSlots({ type: 'doc', content: [written] })).toBe(false)
+    expect(regenerateCounts({ type: 'doc', content: [written] })).toEqual({ unlocked: 0, locked: 0 })
+  })
+
+  it('counts what "Regenerate unlocked" would replace and keep', () => {
+    const doc = {
+      type: 'doc' as const,
+      content: [
+        generated('gq1', 'x'),
+        generated('gq2', 'y', { locked: true }),
+        placeholder('gq3'),
+        // a placeholder the teacher has written in is theirs now: never refilled, locked or not
+        {
+          ...placeholder('gq4'),
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'My own question.' }] }],
+        },
+        {
+          ...placeholder('gq5'),
+          attrs: { ...placeholder('gq5').attrs, locked: true },
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Also mine.' }] }],
+        },
+        { type: 'templatedQuestion', attrs: { block_id: 'bank', question: makeBankQuestion() } },
+      ],
+    }
+    expect(regenerateCounts(doc)).toEqual({ unlocked: 2, locked: 1 })
+    // only filled placeholders and bank questions: nothing to regenerate
+    expect(regenerateCounts({ type: 'doc', content: doc.content.slice(3) })).toEqual({ unlocked: 0, locked: 0 })
+  })
+
   it('says what happened in one line', () => {
     expect(swapNotice({ block_id: 'b', mode: 'topic', marks: 2, placeholder: false, topic: 'Volume' })).toBe(
       'Swapped in a 2-mark Volume question.',
@@ -86,7 +118,7 @@ describe('swap and lock in the editor (P8d)', () => {
     }))
     await open()
     const block = (await screen.findByText('Old question.')).closest('[data-testid="question-block"]') as HTMLElement
-    await fireEvent.click(within(block).getByRole('button', { name: 'Another like this' }))
+    await fireEvent.click(await pillButton(block, 'Another like this'))
     expect(await screen.findByText('New question.')).toBeInTheDocument()
     expect(screen.queryByText('Old question.')).not.toBeInTheDocument()
     expect(screen.getByText('Kept question.')).toBeInTheDocument()
@@ -100,12 +132,21 @@ describe('swap and lock in the editor (P8d)', () => {
     serve([generated('gq1', 'Locked one.', { locked: true })], () => ({}))
     await open()
     const block = (await screen.findByText('Locked one.')).closest('[data-testid="question-block"]') as HTMLElement
-    const lock = within(block).getByRole('button', { name: 'Locked' })
+    // at rest only a padlock badge says so, with words for screen readers
+    expect(within(block).getByTitle('Locked: kept when you regenerate')).toHaveTextContent('locked')
+    expect(host(block)).toHaveAccessibleName(/, locked$/)
+    const lock = await pillButton(block, 'Lock')
     expect(lock).toHaveAttribute('aria-pressed', 'true')
-    expect(within(block).getByRole('button', { name: 'Another topic' })).toBeDisabled()
-    await fireEvent.click(lock)
-    await waitFor(() => expect(within(block).getByRole('button', { name: 'Lock' })).toHaveAttribute('aria-pressed', 'false'))
-    expect(within(block).getByRole('button', { name: 'Another topic' })).toBeEnabled()
+    // the swaps are hidden while it is locked, not greyed
+    let labels = await menuLabels(block)
+    expect(labels).not.toContain('Another topic')
+    expect(labels).toContain('Unlock')
+    await fireEvent.click(await pillButton(block, 'Lock'))
+    await waitFor(() => expect(within(block).queryByTitle('Locked: kept when you regenerate')).toBeNull())
+    expect(await pillButton(block, 'Lock')).toHaveAttribute('aria-pressed', 'false')
+    labels = await menuLabels(block)
+    expect(labels).toContain('Another topic')
+    expect(labels).toContain('Lock')
   })
 
   it('a refusal from the server is shown, and the paper is unchanged', async () => {
@@ -117,7 +158,7 @@ describe('swap and lock in the editor (P8d)', () => {
     )
     await open()
     const block = (await screen.findByText('Only one.')).closest('[data-testid="question-block"]') as HTMLElement
-    await fireEvent.click(within(block).getByRole('button', { name: 'Another topic' }))
+    await chooseFromMenu(block, 'Another topic')
     expect(await screen.findByRole('alert')).toHaveTextContent('No other 3-mark question from another topic')
     expect(screen.getByText('Only one.')).toBeInTheDocument()
   })
@@ -130,11 +171,12 @@ describe('swap and lock in the editor (P8d)', () => {
     await open()
     const hand = (await screen.findByText('Hand added.')).closest('[data-testid="question-block"]') as HTMLElement
     // "Regenerate unlocked" refills it, so it can be locked (and swapped) like a slotted one
-    expect(within(hand).getByRole('button', { name: 'Another like this' })).toBeInTheDocument()
-    expect(within(hand).getByRole('button', { name: 'Lock' })).toBeInTheDocument()
+    expect(await pillButton(hand, 'Another like this')).toBeInTheDocument()
+    expect(await pillButton(hand, 'Lock')).toBeInTheDocument()
     const ff = document.querySelector('.ffblock') as HTMLElement
-    expect(within(ff).getByRole('button', { name: 'Lock' })).toBeVisible()
-    await fireEvent.click(within(ff).getByRole('button', { name: 'Fill with a question' }))
+    expect(ff).toHaveClass('placeholder-slot')
+    expect(await menuLabels(ff)).toContain('Lock')
+    await fireEvent.click(await pillButton(ff, 'Fill with a question'))
     expect(await screen.findByText('Filled in.')).toBeInTheDocument()
     expect(calls[0].body).toEqual({ block_id: 'gq3', mode: 'like', base_version: 4 })
   })
@@ -146,7 +188,7 @@ describe('swap and lock in the editor (P8d)', () => {
     }))
     await open()
     const ff = await waitFor(() => document.querySelector('.ffblock') as HTMLElement)
-    await fireEvent.click(within(ff).getByRole('button', { name: 'Another topic' }))
+    await chooseFromMenu(ff, 'Another topic')
     expect(await screen.findByText('From elsewhere.')).toBeInTheDocument()
     expect(calls[0].body).toEqual({ block_id: 'gq3', mode: 'topic', base_version: 4 })
   })
@@ -158,22 +200,52 @@ describe('swap and lock in the editor (P8d)', () => {
     }))
     await open()
     await screen.findByText('Before.')
-    const regen = screen.getByRole('button', { name: 'Regenerate unlocked' })
-    expect(regen.title).toMatch(/Locked questions and your own writing are kept/)
+    const regen = screen.getByRole('button', { name: 'Regenerate 1 unlocked…' })
+    regen.focus()
     await fireEvent.click(regen)
+    // An in-page confirmation names what happens; nothing is sent until it is accepted.
+    const dialog = screen.getByRole('alertdialog', { name: 'Regenerate unlocked questions?' })
+    expect(dialog).toHaveTextContent('Replaces 1 unlocked question. 1 locked question stays.')
+    expect(calls).toHaveLength(0)
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Regenerate' }))
     expect(await screen.findByText('After.')).toBeInTheDocument()
     expect(screen.getByText('Locked.')).toBeInTheDocument()
     expect(calls[0]).toEqual({ url: expect.stringMatching(/\/regenerate$/), body: { base_version: 4 } })
     expect(screen.getByText(/Regenerated 1 question; kept 1/)).toBeInTheDocument()
+    // focus waited out the operation (the button disabled, the page inert) and came back
+    await waitFor(() => expect(regen).toHaveFocus())
+  })
+
+  it('a paper whose only generated places are written-in placeholders has no Generated paper group, and no Lock on them', async () => {
+    const written = {
+      ...placeholder('gq3'),
+      attrs: { ...placeholder('gq3').attrs, locked: true },
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'I wrote this one.' }] }],
+    }
+    serve([written], () => ({}))
+    await open()
+    await waitFor(() => expect(document.querySelector('.ffblock')).toHaveTextContent('I wrote this one.'))
+    expect(screen.queryByText('Generated paper')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Regenerate .*unlocked/ })).toBeNull()
+    const ff = document.querySelector('.ffblock') as HTMLElement
+    expect(ff).not.toHaveClass('placeholder-slot')
+    expect(ff.querySelector('.ff-badge')).toHaveProperty('hidden', true)
+    expect(ff).not.toHaveAccessibleName(/locked/)
+    await selectBlock(ff)
+    expect(within(ff).queryByRole('button', { name: 'Lock' })).toBeNull()
+    const labels = await menuLabels(ff)
+    expect(labels).not.toContain('Lock')
+    expect(labels).not.toContain('Unlock')
   })
 
   it('bank questions get no paper tools, and a paper of only those no "Regenerate unlocked"', async () => {
     serve([{ type: 'templatedQuestion', attrs: { block_id: 'bank1', question: makeBankQuestion() } }], () => ({}))
     await open()
     const block = await waitFor(() => screen.getByTestId('question-block'))
+    await selectBlock(block)
     expect(within(block).queryByRole('button', { name: 'Another like this' })).toBeNull()
     expect(within(block).queryByRole('button', { name: 'Lock' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Regenerate unlocked' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Regenerate .*unlocked/ })).toBeNull()
   })
 
   it('an edit made while a swap is out never puts the old question back, and is saved after it', async () => {
@@ -195,9 +267,10 @@ describe('swap and lock in the editor (P8d)', () => {
       await open()
       const old = (await screen.findByText('Old question.')).closest('[data-testid="question-block"]') as HTMLElement
       const other = screen.getByText('Other question.').closest('[data-testid="question-block"]') as HTMLElement
-      await fireEvent.click(within(old).getByRole('button', { name: 'Another like this' }))
+      const lockOther = await pillButton(other, 'Lock')
+      await fireEvent.click(await pillButton(old, 'Another like this'))
       // The page is inert, but say a change gets through anyway: a lock on another question.
-      await fireEvent.click(within(other).getByRole('button', { name: 'Lock' }))
+      await fireEvent.click(lockOther)
       await vi.advanceTimersByTimeAsync(3000) // well past the autosave debounce
       expect(puts).toHaveLength(0) // nothing races the swap
       answer(
@@ -215,7 +288,7 @@ describe('swap and lock in the editor (P8d)', () => {
       expect(JSON.stringify(saved)).toContain('New question.')
       expect(JSON.stringify(saved)).not.toContain('Old question.')
       expect(saved.find((n) => n.attrs?.block_id === 'gq2')?.attrs.locked).toBe(true)
-      expect(within(other).getByRole('button', { name: 'Locked' })).toBeInTheDocument()
+      expect(within(other).getByTitle('Locked: kept when you regenerate')).toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }
@@ -227,6 +300,17 @@ describe('swap and lock in the editor (P8d)', () => {
     return !!el && (el.inert === true || el.hasAttribute('inert'))
   }
 
+  it('cancelling the confirmation regenerates nothing', async () => {
+    const calls = serve([generated('gq1', 'Q.')], () => ({}))
+    await open()
+    await screen.findByText('Q.')
+    await fireEvent.click(screen.getByRole('button', { name: 'Regenerate 1 unlocked…' }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('No questions are locked.')
+    await fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' })
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(calls).toHaveLength(0)
+  })
+
   it('the page is inert while the server works', async () => {
     let answer: (v: unknown) => void = () => {}
     fetchMock.mockImplementation(async (url: string) =>
@@ -234,9 +318,10 @@ describe('swap and lock in the editor (P8d)', () => {
     )
     await open()
     await screen.findByText('Q.')
-    await fireEvent.click(screen.getByRole('button', { name: 'Regenerate unlocked' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Regenerate 1 unlocked…' }))
+    await fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Regenerate' }))
     await waitFor(() => expect(isInert('.desk')).toBe(true))
-    expect(isInert('.bar')).toBe(true)
+    expect(isInert('.ehead')).toBe(true)
     answer(ok({ ...record([generated('gq1', 'Q2.')], 5), report: { replaced: 1, kept: 0, placeholders: 0 } }))
     await screen.findByText('Q2.')
     expect(isInert('.desk')).toBe(false)

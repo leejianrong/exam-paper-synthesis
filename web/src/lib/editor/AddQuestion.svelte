@@ -1,6 +1,6 @@
 <script lang="ts">
-  // The "+" picker: choose how to add a question. Templated (generated), From my bank, or
-  // Free-form (an empty teacher-written block, inserted straight away).
+  // The "+" picker: choose how to add a question. Generate (templated), From my bank, or
+  // Write my own (an empty free-form block, inserted straight away; EXA-161 names).
   import { createEventDispatcher } from 'svelte'
   import { generate, listBank, type BankItem } from '../api'
   import ReviewControl from './ReviewControl.svelte'
@@ -104,7 +104,7 @@
         aria-selected={tab === 'templated'}
         class="tab"
         class:on={tab === 'templated'}
-        on:click={() => (tab = 'templated')}>Templated</button
+        on:click={() => (tab = 'templated')}>Generate</button
       >
       <button
         role="tab"
@@ -118,7 +118,7 @@
         aria-selected="false"
         class="tab"
         title="Type your own question on the page"
-        on:click={() => dispatch('freeform')}>Free-form</button
+        on:click={() => dispatch('freeform')}>Write my own</button
       >
     </div>
 

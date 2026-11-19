@@ -1,14 +1,13 @@
 <script lang="ts">
-  // The right-hand inspector (EXA-93): status, provenance and metadata for the block you
-  // are in, or a summary of the paper. Everything here is for the author; none of it prints.
+  // The inspector (EXA-93), the side panel's Question tab (EXA-160): status, provenance and
+  // metadata for the block you are in. Everything here is for the author; none of it prints.
   import { createEventDispatcher } from 'svelte'
   import type { DocNode } from './doc'
-  import { describeBlock, summarise } from './inspector'
+  import { describeBlock } from './inspector'
   import ReviewControl from './ReviewControl.svelte'
   import type { Question } from '../types'
 
   export let blocks: DocNode[] = []
-  export let marks = 0
   export let selectedId: string | null = null
   /** The paper's first question number (EXA-134). */
   export let start = 1
@@ -21,7 +20,6 @@
 
   $: index = blocks.findIndex((b) => b.attrs?.block_id === selectedId)
   $: facts = index >= 0 ? describeBlock(blocks[index], start + index) : null
-  $: summary = summarise(blocks, marks)
   $: bankQuestion =
     index >= 0 && blocks[index].type === 'templatedQuestion' &&
     (blocks[index].attrs?.question as Question).source_type === 'sourced'
@@ -30,7 +28,7 @@
   $: remark = index >= 0 ? String(blocks[index].attrs?.remark ?? '') : ''
 </script>
 
-<aside class="inspector" aria-label="Inspector">
+<div class="inspector">
   {#if facts}
     <h2>{facts.heading}</h2>
     <p class="status {facts.status.tone}">{facts.status.text}</p>
@@ -59,32 +57,12 @@
       ></textarea>
     </label>
   {:else}
-    <h2>This paper</h2>
-    <dl>
-      <dt>Questions</dt>
-      <dd>{summary.questions}</dd>
-      <dt>Total marks</dt>
-      <dd>{summary.marks}</dd>
-      {#if summary.generated}<dt>Generated</dt><dd>{summary.generated}</dd>{/if}
-      {#if summary.bank}<dt>From my bank</dt><dd>{summary.bank}</dd>{/if}
-      {#if summary.freeform}<dt>Free-form</dt><dd>{summary.freeform}</dd>{/if}
-      {#if summary.remarks}<dt>Remarks</dt><dd>{summary.remarks}</dd>{/if}
-    </dl>
     <p class="hint">Click a question to see where it came from and how far it can be trusted.</p>
   {/if}
-</aside>
+</div>
 
 <style>
   .inspector {
-    width: 15rem;
-    flex: 0 0 auto;
-    position: sticky;
-    top: 3.4rem;
-    align-self: flex-start;
-    background: var(--page);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 0.8rem 1rem;
     font-size: 13px;
     color: var(--ink);
   }
@@ -143,16 +121,6 @@
   }
   .hint {
     color: var(--ink-faint);
-    margin: 0.8rem 0 0;
-  }
-  @media (max-width: 1150px) {
-    .inspector {
-      position: static;
-      width: 210mm;
-      max-width: 100%;
-      box-sizing: border-box;
-      margin: 0 auto 0.6rem;
-      order: -1;
-    }
+    margin: 0;
   }
 </style>

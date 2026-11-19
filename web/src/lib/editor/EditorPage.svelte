@@ -1,6 +1,17 @@
 <script lang="ts">
   import { BlockSelectionGuard, insertBlockSafely } from './blockSelection'
-  import ToolIcon from './ToolIcon.svelte'
+  import Icon from '../Icon.svelte'
+  import Menu, { type MenuItem } from '../Menu.svelte'
+  import ConfirmDialog from '../ConfirmDialog.svelte'
+  import Dialog from '../Dialog.svelte'
+  import MenuBar, { type BarMenu } from '../MenuBar.svelte'
+  import { ariaKeys, keyLabel } from '../keys'
+  import { navigate } from '../router'
+  import EditorBar from './EditorBar.svelte'
+  import CommandPalette from './CommandPalette.svelte'
+  import MoveDialog from './MoveDialog.svelte'
+  import ShortcutSheet from './ShortcutSheet.svelte'
+  import SidePanel, { type SectionRow } from './SidePanel.svelte'
   import { describePage, summarisePages, type PageSummary } from './pageSummary'
   import { paperSettings } from './paperSettings'
   import {
@@ -13,15 +24,13 @@
   } from './layout'
   // The WYSIWYG page (W1c): an A4-width column of rich text and question blocks, a "+"
   // to add questions, the answer key below, autosave, and the export/preview menu.
-  import { onDestroy, onMount } from 'svelte'
+  import { onDestroy, onMount, tick as nextTick } from 'svelte'
   import { Editor } from '@tiptap/core'
   import StarterKit from '@tiptap/starter-kit'
   import { NodeSelection, TextSelection } from '@tiptap/pm/state'
   import type { Question } from '../types'
   import AddQuestion from './AddQuestion.svelte'
-  import AccountChip from './AccountChip.svelte'
   import AnswerKey from './AnswerKey.svelte'
-  import Inspector from './Inspector.svelte'
   import { withReviewed } from './inspector'
   import { createAutosaver, type Autosaver } from './autosave'
   import {
@@ -35,14 +44,19 @@
   } from './doc'
   import {
     ApiError,
+    createDocument,
+    deleteDocument,
     exportDocument,
     getDocument,
+    listFolders,
+    moveDocument,
     previewDocument,
     regeneratePaper,
     saveDocument,
     swapQuestion,
     unfilledDetail,
     type ExportMode,
+    type Folder,
     type SwapMode,
   } from './docsApi'
   import { FreeformQuestion, QuestionDocument, insertFreeform } from './freeformQuestion'
@@ -57,6 +71,7 @@
     applyServerContent,
     goToQuestion,
     hasGeneratedSlots,
+    regenerateCounts,
     regenerateNotice,
     swapNotice,
   } from './paperOps'
@@ -64,6 +79,14 @@
   import { Section, outline } from './sections'
   import { loadQuota, type Quota } from '../session'
   import { TemplatedQuestion, questionNode } from './templatedQuestion'
+  import {
+    BlockShortcuts,
+    GLOBAL_KEYS,
+    commandsForBlock,
+    globalShortcut,
+    type Command,
+    type GlobalCommand,
+  } from './shortcuts'
 
   export let id: string
 
@@ -81,6 +104,9 @@
   let busy = ''
   let actionError = ''
   let notice = ''
+  /** EXA-161: a question was just deleted; the toast offers the editor's undo. */
+  let deleted = false
+  let deletedTimer: ReturnType<typeof setTimeout> | undefined
   /** EXA-137: the export refused a paper with empty placeholders; ask before printing it. */
   let unfilled: { mode: ExportMode; questions: number[] } | null = null
   let quota: Quota | null = null
@@ -90,6 +116,37 @@
   let pageSummary: PageSummary | null = null // the paginated preview's pages and tallies (P6d)
   let barH = 0 // the sticky top bar's height: the formatting toolbar sticks just below it
   let tick = 0 // bumps on every editor transaction so toolbar state re-reads
+  let folderName: string | null = null
+  let folderId: string | null = null
+  let titleInput: HTMLInputElement
+  let panelTab: 'paper' | 'question' = 'paper'
+  let confirmRegen = false
+  let innerWidth = 1440
+  /** Below 1024 px the toolbar's tail (lists, equation, image) moves into its ⋯ menu. */
+  $: narrow = innerWidth < 1024
+  /** Below 900 px the menu row folds into one "Menu" button. */
+  $: compactMenus = innerWidth < 900
+
+  // EXA-163: the menus' dialogs and the side panel's visibility (remembered per viewer).
+  const PANEL_KEY = 'exam.editor.sidePanel'
+  let panelShown = readPanelShown()
+  let paletteOpen = false
+  let paletteCommands: Command[] = []
+  let sheetOpen = false
+  let verifiedOpen = false
+  let moveFolders: Folder[] | null = null
+  let moveError = ''
+  let confirmDelete = false
+  let deleteError = ''
+  let keyEl: HTMLElement
+
+  function readPanelShown(): boolean {
+    try {
+      return localStorage.getItem(PANEL_KEY) !== 'hidden'
+    } catch {
+      return true
+    }
+  }
 
   $: blocks = numberedNodes(content)
   $: marks = totalMarks(content)
@@ -101,16 +158,170 @@
   $: start = numberFrom($paperSettings)
   $: outline.set(paperOutline(content, start))
   $: keyOpts = keyOptionsOf($paperSettings)
-  $: statusLabel = {
-    saved: 'Saved',
-    dirty: 'Unsaved changes',
-    saving: 'Saving…',
-    conflict: 'Conflict',
-    error: 'Save failed — will retry',
-  }[status]
+  $: regenInfo = canRegenerate ? regenerateCounts(content) : null
+
+  // The side panel's Marks group and the header total: each section against its target.
+  $: sectionRows = sectionRowsOf(content, start)
+  $: target =
+    sectionRows.length && sectionRows.every((r) => r.target !== null)
+      ? sectionRows.reduce((sum, r) => sum + (r.target ?? 0), 0)
+      : null
+  $: offTarget = sectionRows
+    .filter((r) => r.target !== null && r.marks !== r.target)
+    .map((r, i) => `${r.title || `Section ${i + 1}`}: ${r.marks} of ${r.target} marks`)
+    .join('; ')
+
+  function sectionRowsOf(doc: DocJSON, first: number): SectionRow[] {
+    const titles = (doc.content ?? [])
+      .filter((n) => n.type === 'section')
+      .map((n) => String(n.attrs?.title ?? '').trim())
+    return paperOutline(doc, first).map((o, i) => ({ title: titles[i] || `Section ${i + 1}`, marks: o.marks, target: o.target }))
+  }
+
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+  $: regenBody = regenInfo
+    ? `Replaces ${plural(regenInfo.unlocked, 'unlocked question')}. ` +
+      (regenInfo.locked
+        ? `${plural(regenInfo.locked, 'locked question')} ${regenInfo.locked === 1 ? 'stays' : 'stay'}. `
+        : 'No questions are locked. ') +
+      'Questions you wrote yourself stay.'
+    : ''
+
+  /** The header's "N placeholders to write": the Paper tab's Generated paper group. */
+  async function showPlaceholders() {
+    if (!panelShown) await setPanel(true)
+    panelTab = 'paper'
+    await nextTick()
+    const group = document.getElementById('panel-generated')
+    group?.scrollIntoView?.({ block: 'nearest' })
+    group?.focus()
+  }
+
+  async function setPanel(shown: boolean) {
+    const hadFocus = !shown && !!document.activeElement?.closest('.panel')
+    panelShown = shown
+    try {
+      localStorage.setItem(PANEL_KEY, shown ? 'shown' : 'hidden')
+    } catch {
+      // private window or blocked storage: the choice lasts for this visit
+    }
+    if (hadFocus) {
+      await nextTick()
+      editor?.view.focus()
+    }
+  }
+
+  /** Paper > Paper settings…: the side panel's Paper tab, shown if it was hidden. */
+  async function openPaperSettings() {
+    if (!panelShown) await setPanel(true)
+    panelTab = 'paper'
+    await nextTick()
+    document.getElementById('tab-paper')?.focus()
+  }
+
+  /** Paper > Cover page…: go to the cover's first field, adding a cover first if there is none. */
+  async function openCover() {
+    if (!editor) return
+    if (!coverPresent) editor.chain().insertContentAt(0, coverNode()).run()
+    await nextTick()
+    const field = element.querySelector<HTMLElement>('.cover-block input, .cover-block select')
+    field?.scrollIntoView?.({ block: 'center' })
+    field?.focus()
+  }
+
+  /** View > Paper / Answer key. The key sits under the paper for now (S4 makes it a view). */
+  let view: 'paper' | 'key' = 'paper'
+  function showView(to: 'paper' | 'key') {
+    view = to
+    if (to === 'key') {
+      keyEl?.scrollIntoView?.({ block: 'start' })
+      keyEl?.focus({ preventScroll: true })
+    } else {
+      editor?.view.focus()
+      window.scrollTo?.({ top: 0 })
+    }
+  }
+
+  /** Ctrl+Alt+K: to the key, or back to the paper when the key is already on screen. */
+  function toggleView() {
+    // at the key: focus is in it, or it was the last view asked for and is still on screen
+    const onScreen = !!keyEl && keyEl.getBoundingClientRect().top < window.innerHeight
+    showView(keyEl?.contains(document.activeElement) || (view === 'key' && onScreen) ? 'paper' : 'key')
+  }
+
+  async function openMove() {
+    moveError = ''
+    try {
+      moveFolders = await listFolders()
+    } catch (e) {
+      actionError = e instanceof Error ? e.message : String(e)
+    }
+  }
+
+  async function moveTo(folder: string | null) {
+    if (busy) return // another operation (an export, say) owns busy until it ends
+    moveError = ''
+    busy = 'move'
+    try {
+      await moveDocument(id, folder)
+      const name = moveFolders?.find((f) => f.id === folder)?.name ?? null
+      folderId = folder
+      folderName = name
+      moveFolders = null
+      notice = name ? `Moved to ${name}.` : 'Moved out of its folder: the paper is unfiled.'
+    } catch (e) {
+      moveError = e instanceof Error ? e.message : String(e)
+    } finally {
+      busy = ''
+    }
+  }
+
+  /** Paper > Make a copy: a new paper with this one's content and settings, opened at once. */
+  async function makeCopy() {
+    const ed = editor
+    if (!ed || busy) return
+    busy = 'copy'
+    actionError = ''
+    let made: string | null = null
+    try {
+      await autosaver?.flush()
+      const name = `Copy of ${title || 'Untitled paper'}`
+      const rec = await createDocument(name, undefined, folderId)
+      made = rec.id
+      await saveDocument(rec.id, buildDocument(name, ed.getJSON() as DocJSON, $paperSettings), rec.version)
+      navigate(`/docs/${rec.id}`)
+    } catch (e) {
+      // the copy exists but is empty: take it away again rather than leave a blank "Copy of …"
+      if (made) await deleteDocument(made).catch(() => {})
+      actionError = e instanceof Error ? e.message : String(e)
+    } finally {
+      busy = ''
+    }
+  }
+
+  async function deletePaper() {
+    if (busy) return
+    busy = 'delete'
+    deleteError = ''
+    try {
+      await deleteDocument(id)
+      autosaver?.dispose() // nothing left to save to
+      confirmDelete = false
+      navigate('/')
+    } catch (e) {
+      deleteError = e instanceof Error ? e.message : String(e)
+    } finally {
+      busy = ''
+    }
+  }
+
+  function rename() {
+    titleInput?.focus()
+    titleInput?.select()
+  }
 
   function setPlacement(e: Event) {
-    const marks_placement = (e.currentTarget as HTMLSelectElement).value as MarksPlacement
+    const marks_placement = (e.target as HTMLSelectElement).value as MarksPlacement
     paperSettings.update((s) => ({ ...s, marks_placement }))
     scheduleSave()
   }
@@ -135,7 +346,7 @@
     setBlockAttrs(blockId, ['templatedQuestion', 'freeformQuestion'], { in_key: included })
 
   function setTime(e: Event) {
-    const raw = (e.currentTarget as HTMLInputElement).value
+    const raw = (e.target as HTMLInputElement).value
     const n = raw === '' ? null : Math.max(1, Math.min(600, Math.round(+raw)))
     paperSettings.update((s) => ({ ...s, time_min: n }))
     scheduleSave()
@@ -143,7 +354,7 @@
 
   // EXA-134: Booklet B carries on from Booklet A, so its first question is 16, not 1.
   function setNumberFrom(e: Event) {
-    const raw = (e.currentTarget as HTMLInputElement).value
+    const raw = (e.target as HTMLInputElement).value
     const n = raw === '' ? null : Math.max(1, Math.min(999, Math.round(+raw)))
     paperSettings.update((s) => ({ ...s, number_from: n }))
     scheduleSave()
@@ -166,6 +377,8 @@
   }
 
   onMount(async () => {
+    // capture: ahead of the editor's own keys (its Ctrl+Enter line break, say)
+    window.addEventListener('keydown', onGlobalKey, true)
     void loadQuota().then((q) => (quota = q))
     try {
       const rec = await getDocument(id)
@@ -175,6 +388,13 @@
         ...(rec.document.settings ?? {}),
       })
       content = rec.document.content
+      folderId = rec.folder_id ?? null
+      if (rec.folder_id) {
+        const folder = rec.folder_id
+        void listFolders()
+          .then((fs) => (folderName = fs.find((f) => f.id === folder)?.name ?? null))
+          .catch(() => undefined)
+      }
       autosaver = createAutosaver({
         initialVersion: rec.version,
         save: (doc, base) => saveDocument(id, doc, base),
@@ -207,14 +427,17 @@
           CoverPage,
           BlankPage,
           BlockSelectionGuard,
+          BlockShortcuts,
           FreeformQuestion.configure({
             onAddBelow: (pos: number) => (pickerAt = pos),
             onSwap: swapBlock,
+            onDeleted: questionDeleted,
           }),
           TemplatedQuestion.configure({
             onAddBelow: (pos: number) => (pickerAt = pos),
             onNotice: (m: string) => (notice = m),
             onSwap: swapBlock,
+            onDeleted: questionDeleted,
           }),
         ],
         content: rec.document.content,
@@ -222,10 +445,16 @@
           content = e.getJSON() as DocJSON
           scheduleSave()
         },
-        onTransaction: () => (tick += 1),
+        onTransaction: ({ transaction }) => {
+          tick += 1
+          // The toast's Undo undoes only the deletion it reports: any later change (or a
+          // Ctrl+Z) closes it. The deletion itself comes before `questionDeleted`.
+          if (deleted && transaction.docChanged) closeDeleted()
+        },
       })
       startWithTextCursor(editor)
       content = editor.getJSON() as DocJSON
+      tick += 1 // the toolbar reads the opening selection, before any transaction
     } catch (e) {
       loadError =
         e instanceof ApiError && e.status === 404
@@ -239,6 +468,8 @@
   })
 
   onDestroy(() => {
+    window.removeEventListener('keydown', onGlobalKey, true)
+    clearTimeout(deletedTimer)
     void autosaver?.flush()
     unsubscribe?.()
     editor?.destroy()
@@ -259,7 +490,26 @@
     if (sel) ed.view.dispatch(state.tr.setSelection(sel))
   }
 
+  function questionDeleted() {
+    deleted = true
+    clearTimeout(deletedTimer)
+    deletedTimer = setTimeout(() => (deleted = false), 8000)
+  }
+
+  function closeDeleted() {
+    deleted = false
+    clearTimeout(deletedTimer)
+  }
+
+  function undoDelete() {
+    if (!deleted) return
+    closeDeleted()
+    editor?.chain().focus().undo().run()
+  }
+
   function trackBlock(e: Event) {
+    // A menu row removes itself before its click bubbles here: that is no move out of the block.
+    if (!(e.target as Node).isConnected) return
     const host = (e.target as HTMLElement).closest('[data-block-id]')
     selectedId = host?.getAttribute('data-block-id') ?? null
   }
@@ -382,7 +632,198 @@
     }
   }
   $: act = readActive(tick)
-  $: headingActive = [act.h1, act.h2, act.h3]
+  $: styleName = act.h1 ? 'Heading 1' : act.h2 ? 'Heading 2' : act.h3 ? 'Heading 3' : 'Normal text'
+  const EQUATION_OFF = 'Equation: click into a line of text first, then insert it there'
+
+  /** Run an editor command from a menu and put the caret back in the paper at once. */
+  function inPaper(run: (e: Editor) => void) {
+    const e = editor
+    if (!e) return
+    run(e)
+    e.view.focus()
+  }
+
+  const styleItems: MenuItem[] = [
+    { label: 'Normal text', onSelect: () => inPaper((e) => e.chain().setParagraph().run()) },
+    ...([1, 2, 3] as const).map((level) => ({
+      label: `Heading ${level}`,
+      onSelect: () => inPaper((e) => e.chain().setHeading({ level }).run()),
+    })),
+  ]
+
+  // The toolbar's ⋯ holds its tail (lists, equation, image) on a narrow window only; the
+  // page-level inserts live in the Insert menu (EXA-163).
+  $: moreItems = [
+    { label: 'Bulleted list', icon: 'bullets', onSelect: () => inPaper((e) => e.chain().toggleBulletList().run()) },
+    { label: 'Numbered list', icon: 'numbers', onSelect: () => inPaper((e) => e.chain().toggleOrderedList().run()) },
+    {
+      label: 'Equation',
+      icon: 'sigma',
+      shortcut: GLOBAL_KEYS.equation,
+      disabled: !act.inText,
+      hint: act.inText ? undefined : EQUATION_OFF,
+      onSelect: addEquation,
+    },
+    { label: 'Image', icon: 'image', onSelect: () => fileInput.click() },
+  ] satisfies MenuItem[]
+
+  // EXA-163: the Paper / Insert / View / Help menus under the title (UI-REDESIGN 4.2).
+  $: idle = !busy
+  $: barMenus = [
+    {
+      label: 'Paper',
+      items: [
+        { label: 'Paper settings…', icon: 'settings', onSelect: openPaperSettings },
+        {
+          label: 'Cover page…',
+          icon: 'cover',
+          hint: coverPresent ? 'Go to the cover page' : 'Add a cover page at the start and fill it in',
+          onSelect: () => void openCover(),
+        },
+        {
+          label: regenInfo ? `Regenerate ${plural(regenInfo.unlocked, 'unlocked question')}…` : 'Regenerate unlocked questions…',
+          icon: 'swap',
+          disabled: !regenInfo || !idle,
+          hint: regenInfo ? 'New questions in every unlocked place; locked ones stay' : 'Only a generated paper can be regenerated',
+          onSelect: () => (confirmRegen = true),
+        },
+        { label: 'Rename', icon: 'pen', separator: true, onSelect: rename },
+        { label: 'Move to folder…', icon: 'folder', disabled: !idle, onSelect: () => void openMove() },
+        { label: 'Make a copy', icon: 'copy', disabled: !idle, onSelect: () => void makeCopy() },
+        {
+          label: 'Delete paper…',
+          icon: 'trash',
+          danger: true,
+          separator: true,
+          disabled: !idle,
+          onSelect: () => (confirmDelete = true),
+        },
+      ],
+    },
+    {
+      label: 'Insert',
+      items: [
+        { label: 'Question…', icon: 'plus', shortcut: GLOBAL_KEYS.addQuestion, onSelect: () => (pickerAt = null) },
+        {
+          label: 'Section',
+          icon: 'section',
+          onSelect: () => inPaper((e) => insertBlockSafely(e, { type: 'section', attrs: { title: '' } })),
+        },
+        {
+          label: 'Cover page',
+          icon: 'cover',
+          disabled: coverPresent,
+          hint: coverPresent ? 'The paper already has a cover page' : 'Add a cover page at the start',
+          onSelect: () => inPaper((e) => e.chain().insertContentAt(0, coverNode()).run()),
+        },
+        {
+          label: 'Blank or rough-work page',
+          icon: 'blankpage',
+          onSelect: () => inPaper((e) => insertBlockSafely(e, blankPageNode())),
+        },
+        {
+          label: 'Page break',
+          icon: 'pagebreak',
+          onSelect: () => inPaper((e) => insertBlockSafely(e, { type: 'pageBreak' })),
+        },
+        { label: 'Image…', icon: 'image', separator: true, onSelect: () => fileInput.click() },
+        {
+          label: 'Equation',
+          icon: 'sigma',
+          shortcut: GLOBAL_KEYS.equation,
+          disabled: !act.inText,
+          hint: act.inText ? undefined : EQUATION_OFF,
+          onSelect: addEquation,
+        },
+      ],
+    },
+    {
+      label: 'View',
+      items: [
+        { label: 'Paper', icon: 'blankpage', onSelect: () => showView('paper') },
+        { label: 'Answer key', icon: 'key', shortcut: GLOBAL_KEYS.answerKey, onSelect: () => showView('key') },
+        {
+          label: 'Preview pages',
+          icon: 'eye',
+          shortcut: GLOBAL_KEYS.preview,
+          separator: true,
+          disabled: !idle,
+          onSelect: () => void preview('full'),
+        },
+        {
+          label: 'Show side panel',
+          shortcut: GLOBAL_KEYS.panel,
+          checked: panelShown,
+          onSelect: () => void setPanel(!panelShown),
+        },
+      ],
+    },
+    {
+      label: 'Help',
+      items: [
+        { label: 'Keyboard shortcuts', icon: 'keyboard', shortcut: GLOBAL_KEYS.sheet, onSelect: () => (sheetOpen = true) },
+        { label: 'What “verified” means', icon: 'info', onSelect: () => (verifiedOpen = true) },
+      ],
+    },
+  ] satisfies BarMenu[]
+
+  /** Everything the palette can run now: the selected question's rows, then every menu row
+   *  and the exports. Rows that don't apply (disabled) are left out. */
+  function collectCommands(): Command[] {
+    const block = selectedId ? element?.querySelector(`[data-block-id="${CSS.escape(selectedId)}"]`) : null
+    const rows: Command[] = commandsForBlock(block)
+    for (const m of barMenus) {
+      for (const item of m.items as MenuItem[]) {
+        if (item.disabled) continue
+        const label = item.checked ? item.label.replace(/^Show/, 'Hide') : item.label
+        rows.push({ label, group: m.label, shortcut: item.shortcut, run: item.onSelect })
+      }
+    }
+    if (!busy) {
+      rows.push(
+        { label: 'Export student paper (PDF)', group: 'Export', run: () => void download('student') },
+        ...(blocks.length ? [{ label: 'Export answer key (PDF)', group: 'Export', run: () => void download('key') }] : []),
+        { label: 'Export paper and key together (PDF)', group: 'Export', run: () => void download('full') },
+      )
+    }
+    return rows
+  }
+
+  function openPalette() {
+    paletteCommands = collectCommands()
+    paletteOpen = true
+  }
+
+  async function runCommand(c: Command) {
+    paletteOpen = false
+    await nextTick() // the palette is gone and focus is back where it was
+    c.run()
+  }
+
+  /** The editor-wide shortcuts (shortcuts.ts GLOBAL_KEYS). Inside the editor Ctrl+P previews the
+   *  paper instead of printing this screen. */
+  function onGlobalKey(e: KeyboardEvent) {
+    if (loading || loadError || !editor) return
+    const t = e.target as HTMLElement | null
+    const cmd = globalShortcut(e, !!t?.matches?.('input, textarea, select'))
+    if (!cmd) return
+    e.preventDefault()
+    // an open dialog (the picker, a confirmation, the palette itself) keeps the keyboard
+    if (document.querySelector('[aria-modal="true"]') || busy === 'paper') return
+    e.stopPropagation()
+    runGlobal(cmd)
+  }
+
+  function runGlobal(cmd: GlobalCommand) {
+    if (cmd === 'palette') openPalette()
+    else if (cmd === 'addQuestion') pickerAt = null
+    else if (cmd === 'answerKey') toggleView()
+    else if (cmd === 'preview') {
+      if (!busy) void preview('full')
+    } else if (cmd === 'panel') void setPanel(!panelShown)
+    else if (cmd === 'sheet') sheetOpen = true
+    else if (cmd === 'equation' && act.inText) addEquation()
+  }
 
   async function download(mode: ExportMode, allowPlaceholders = false) {
     busy = `export-${mode}`
@@ -463,8 +904,12 @@
     }
   }
 
-  function swapBlock(blockId: string, mode: SwapMode): Promise<void> {
-    return paperOp((base) => swapQuestion(id, blockId, mode, base), swapNotice)
+  async function swapBlock(blockId: string, mode: SwapMode): Promise<void> {
+    await paperOp((base) => swapQuestion(id, blockId, mode, base), swapNotice)
+    // The swapped block is selected; give the editor focus back (the menu that asked is gone),
+    // so its pill shows and R swaps again (EXA-161).
+    await nextTick()
+    if (editor && (!document.activeElement || document.activeElement === document.body)) editor.view.focus()
   }
 
   function regenerate(): Promise<void> {
@@ -504,49 +949,231 @@
   }
 </script>
 
-<svelte:window on:beforeunload={onBeforeUnload} />
+<svelte:window on:beforeunload={onBeforeUnload} bind:innerWidth />
 
-<div class="bar" bind:clientHeight={barH} inert={busy === 'paper'}>
-  <a class="back" href="#/">← Papers</a>
-  <span class="chip {status}" role="status" aria-live="polite">{statusLabel}</span>
-  <span class="total">{marks} marks</span>
-  <label class="placement">
-    Marks shown
-    <select
-      aria-label="Marks shown"
-      value={$paperSettings.marks_placement ?? DEFAULT_PLACEMENT}
-      on:change={setPlacement}
+<header class="ehead" bind:clientHeight={barH} inert={busy === 'paper'}>
+  <EditorBar
+    {title}
+    {folderName}
+    {status}
+    {marks}
+    {target}
+    {offTarget}
+    {busy}
+    {quota}
+    hasQuestions={blocks.length > 0}
+    {placeholdersLeft}
+    onShowPlaceholders={showPlaceholders}
+    onPreview={() => preview('full')}
+    onExport={(mode) => download(mode)}
+    onRename={rename}
+  >
+    {#snippet menus()}<MenuBar menus={barMenus} compact={compactMenus} />{/snippet}
+  </EditorBar>
+  <!-- Clicking a tool must not take focus from the page (like Word/Docs): the editor keeps its
+       caret, so keys typed right after a click go to the paper, not the button (a space would
+       "press" it again; TipTap's focus() only refocuses a frame later). Keyboard use is unaffected. -->
+  <div
+    class="tools"
+    role="toolbar"
+    aria-label="Formatting"
+    tabindex="-1"
+    on:mousedown|preventDefault>
+    <button
+      class="btn quiet"
+      title="Add a question ({keyLabel(GLOBAL_KEYS.addQuestion)})"
+      aria-keyshortcuts={ariaKeys(GLOBAL_KEYS.addQuestion)}
+      on:click={() => (pickerAt = null)}><Icon name="plus" />Question</button
     >
-      <option value="answer">beside the answer line</option>
-      <option value="question">beside the question</option>
-      <option value="both">both</option>
-    </select>
-  </label>
-  <label class="placement">
-    Time (min)
+    <button
+      class="btn quiet"
+      title="Insert a section"
+      on:click={() => editor && insertBlockSafely(editor, { type: 'section', attrs: { title: '' } })}
+      ><Icon name="plus" />Section</button
+    >
+    <span class="sep"></span>
+    <button
+      class="icon-btn"
+      aria-label="Undo"
+      title="Undo (Ctrl+Z)"
+      on:click={() => editor?.chain().focus().undo().run()}><Icon name="undo" /></button
+    >
+    <button
+      class="icon-btn"
+      aria-label="Redo"
+      title="Redo (Ctrl+Y)"
+      on:click={() => editor?.chain().focus().redo().run()}><Icon name="redo" /></button
+    >
+    <span class="sep"></span>
+    <Menu items={styleItems} label="Text style: {styleName}" menuLabel="Text style" triggerClass="styleselect">
+      {#snippet trigger()}<span class="style-name">{styleName}</span><Icon name="down" />{/snippet}
+    </Menu>
+    <span class="sep"></span>
+    <button
+      class="icon-btn"
+      aria-label="Bold"
+      title="Bold (Ctrl+B)"
+      aria-pressed={act.bold}
+      on:click={() => editor?.chain().focus().toggleBold().run()}><b>B</b></button
+    >
+    <button
+      class="icon-btn"
+      aria-label="Italic"
+      title="Italic (Ctrl+I)"
+      aria-pressed={act.italic}
+      on:click={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button
+    >
+    <button
+      class="icon-btn"
+      aria-label="Underline"
+      title="Underline (Ctrl+U)"
+      aria-pressed={act.underline}
+      on:click={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></button
+    >
+    {#if !narrow}
+      <span class="sep"></span>
+      <button
+        class="icon-btn"
+        aria-pressed={act.bullet}
+        aria-label="Bulleted list"
+        title="Bulleted list"
+        on:click={() => editor?.chain().focus().toggleBulletList().run()}><Icon name="bullets" /></button
+      >
+      <button
+        class="icon-btn"
+        aria-pressed={act.ordered}
+        aria-label="Numbered list"
+        title="Numbered list"
+        on:click={() => editor?.chain().focus().toggleOrderedList().run()}><Icon name="numbers" /></button
+      >
+      <span class="sep"></span>
+      <button
+        class="icon-btn"
+        aria-label="Equation"
+        title={act.inText ? `Equation (${keyLabel(GLOBAL_KEYS.equation)})` : EQUATION_OFF}
+        aria-keyshortcuts={ariaKeys(GLOBAL_KEYS.equation)}
+        aria-disabled={!act.inText}
+        on:click={() => act.inText && addEquation()}><Icon name="sigma" /></button
+      >
+      <button class="icon-btn" aria-label="Image" title="Insert image" on:click={() => fileInput.click()}
+        ><Icon name="image" /></button
+      >
+    {/if}
     <input
-      class="time"
-      type="number"
-      min="1"
-      max="600"
-      aria-label="Paper time in minutes"
-      value={$paperSettings.time_min ?? ''}
-      on:input={setTime}
+      bind:this={fileInput}
+      type="file"
+      accept={IMAGE_TYPES.join(',')}
+      multiple
+      hidden
+      aria-label="Choose image"
+      on:change={onPickImages}
     />
-  </label>
-  <label class="placement">
-    First Q
+    {#if narrow}
+      <span class="tail">
+        <Menu items={moreItems} label="More tools" align="end" triggerClass="icon-btn" triggerTitle="More tools">
+          {#snippet trigger()}<Icon name="more" />{/snippet}
+        </Menu>
+      </span>
+    {/if}
+  </div>
+</header>
+
+{#if status === 'conflict'}
+  <p class="banner" role="alert">
+    This paper changed in another tab or window. Your latest edits were not saved.
+    <button on:click={() => location.reload()}>Reload</button>
+  </p>
+{/if}
+{#if actionError}<p class="banner err" role="alert">{actionError}</p>{/if}
+{#if generated}
+  <p class="banner note" aria-live="polite" data-testid="generate-report">
+    {generated} <button on:click={() => lastReport.set(null)}>Dismiss</button>
+  </p>
+{/if}
+{#if notice}
+  <p class="banner note" aria-live="polite">
+    {notice} <button on:click={() => (notice = '')}>Dismiss</button>
+  </p>
+{/if}
+
+{#if deleted}
+  <div class="toast" role="status">
+    Question deleted · <button on:click={undoDelete}>Undo</button>
+  </div>
+{/if}
+
+{#if loading}
+  <p class="loading">Loading…</p>
+{:else if loadError}
+  <p class="banner err" role="alert">{loadError} <a href="#/">Back to papers</a></p>
+{/if}
+
+<div
+  class="desk"
+  class:nopanel={!panelShown}
+  class:hidden={loading || !!loadError}
+  style="--bar-h:{barH}px"
+  inert={busy === 'paper'}
+  aria-busy={busy === 'paper'}
+>
+<div class="main">
+  <div class="page">
     <input
-      class="time"
-      type="number"
-      min="1"
-      max="999"
-      placeholder="1"
-      aria-label="First question number"
-      value={$paperSettings.number_from ?? ''}
-      on:input={setNumberFrom}
+      class="title"
+      aria-label="Paper title"
+      placeholder="Untitled paper"
+      bind:this={titleInput}
+      bind:value={title}
+      on:input={scheduleSave}
     />
-  </label>
+    <p class="sheetmeta"><span>Name: ______________</span><span>Total: {marks} marks</span></p>
+    <div
+      class="surface"
+      style:--q-start={start - 1}
+      role="presentation"
+      bind:this={element}
+      on:click={trackBlock}
+      on:focusin={trackBlock}
+      on:keyup={trackBlock}
+    ></div>
+
+    <button class="plus" aria-label="Add question" on:click={() => (pickerAt = null)}>
+      <span class="plus-sign">+</span> Add question
+    </button>
+  </div>
+
+  <div class="keywrap" bind:this={keyEl} tabindex="-1">
+  <AnswerKey
+    {blocks}
+    {start}
+    options={keyOpts}
+    on:include={(e) => setInKey(e.detail.blockId, e.detail.included)}
+    on:answer={(e) => setAnswer(e.detail.blockId, e.detail.answer)}
+    on:partanswer={(e) => setPartAnswer(e.detail.blockId, e.detail.index, e.detail.answer)}
+    on:error={(e) => (actionError = e.detail)}
+  />
+  </div>
+</div>
+{#if panelShown}
+<SidePanel
+  bind:tab={panelTab}
+  {blocks}
+  {marks}
+  {selectedId}
+  {start}
+  sections={sectionRows}
+  regen={regenInfo}
+  {placeholdersLeft}
+  busy={!!busy}
+  on:time={(e) => setTime(e.detail)}
+  on:numberfrom={(e) => setNumberFrom(e.detail)}
+  on:placement={(e) => setPlacement(e.detail)}
+  on:regenerate={() => (confirmRegen = true)}
+  on:remark={(e) => setRemark(e.detail.blockId, e.detail.remark)}
+  on:review={(e) => setReviewed(e.detail.blockId, e.detail.reviewed)}
+>
+  <!-- EXA-160: a temporary home for the key options until S4 moves them to the key view. -->
+  <svelte:fragment slot="key">
   <fieldset class="keyopts">
     <legend>Answer key</legend>
     <select
@@ -599,219 +1226,74 @@
       </label>
     {/if}
   </fieldset>
-  <span class="spacer"></span>
-  {#if placeholdersLeft}
-    <span class="quota placeholders" title="Generated placeholders still to write" data-testid="placeholders-left"
-      >{placeholdersLeft} placeholder{placeholdersLeft === 1 ? '' : 's'} to write</span
-    >
-  {/if}
-  {#if quota && typeof quota.left_day === 'number'}
-    <span class="quota" title="PDF exports left in the last 24 hours">{quota.left_day} exports left today</span>
-  {/if}
-  {#if canRegenerate}
-    <button
-      class="regen"
-      disabled={!!busy}
-      title="Refill every generated question and empty placeholder you haven't locked, including generated questions you added by hand. Locked questions and your own writing are kept."
-      on:click={regenerate}>Regenerate unlocked</button
-    >
-  {/if}
-  <AccountChip />
-  <div class="export" role="group" aria-label="Export">
-    <button disabled={!!busy} on:click={() => preview('full')}>Preview</button>
-    <button disabled={!!busy} on:click={() => download('student')}>Student PDF</button>
-    <button disabled={!!busy || blocks.length === 0} on:click={() => download('key')}
-      >Answer key PDF</button
-    >
-    <button disabled={!!busy} on:click={() => download('full')}>Full copy PDF</button>
-  </div>
+  </svelte:fragment>
+</SidePanel>
+{/if}
 </div>
 
-{#if status === 'conflict'}
-  <p class="banner" role="alert">
-    This paper changed in another tab or window. Your latest edits were not saved.
-    <button on:click={() => location.reload()}>Reload</button>
-  </p>
-{/if}
-{#if actionError}<p class="banner err" role="alert">{actionError}</p>{/if}
-{#if generated}
-  <p class="banner note" aria-live="polite" data-testid="generate-report">
-    {generated} <button on:click={() => lastReport.set(null)}>Dismiss</button>
-  </p>
-{/if}
-{#if notice}
-  <p class="banner note" aria-live="polite">
-    {notice} <button on:click={() => (notice = '')}>Dismiss</button>
-  </p>
-{/if}
-
-{#if loading}
-  <p class="loading">Loading…</p>
-{:else if loadError}
-  <p class="banner err" role="alert">{loadError} <a href="#/">Back to papers</a></p>
-{/if}
-
-<div
-  class="desk"
-  class:hidden={loading || !!loadError}
-  style="--bar-h:{barH}px"
-  inert={busy === 'paper'}
-  aria-busy={busy === 'paper'}
->
-<div class="main">
-  <div class="toolstrip">
-  <!-- Clicking a tool must not take focus from the page (like Word/Docs): the editor keeps its
-       caret, so keys typed right after a click go to the paper, not the button (a space would
-       "press" it again; TipTap's focus() only refocuses a frame later). Keyboard use is unaffected. -->
-  <div
-    class="tools"
-    role="toolbar"
-    aria-label="Formatting"
-    tabindex="-1"
-    on:mousedown|preventDefault>
-    <button
-      aria-label="Bold"
-      title="Bold"
-      aria-pressed={act.bold}
-      on:click={() => editor?.chain().focus().toggleBold().run()}><b>B</b></button
-    >
-    <button
-      aria-label="Italic"
-      title="Italic"
-      aria-pressed={act.italic}
-      on:click={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button
-    >
-    <button
-      aria-label="Underline"
-      title="Underline"
-      aria-pressed={act.underline}
-      on:click={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></button
-    >
-    <span class="sep"></span>
-    {#each [1, 2, 3] as level (level)}
-      <button
-        aria-pressed={headingActive[level - 1]}
-        on:click={() => editor?.chain().focus().toggleHeading({ level: level as 1 | 2 | 3 }).run()}
-        >H{level}</button
-      >
-    {/each}
-    <span class="sep"></span>
-    <button
-      aria-pressed={act.bullet}
-      aria-label="Bulleted list"
-      title="Bulleted list"
-      on:click={() => editor?.chain().focus().toggleBulletList().run()}
-      ><ToolIcon name="bullet" /></button
-    >
-    <button
-      aria-pressed={act.ordered}
-      aria-label="Numbered list"
-      title="Numbered list"
-      on:click={() => editor?.chain().focus().toggleOrderedList().run()}
-      ><ToolIcon name="ordered" /></button
-    >
-    <button
-      aria-label="Section"
-      title="Insert a section"
-      on:click={() =>
-        editor && insertBlockSafely(editor, { type: 'section', attrs: { title: '' } })}
-      ><ToolIcon name="section" /></button
-    >
-    <button
-      aria-label="Cover page"
-      title={coverPresent ? 'The paper already has a cover page' : 'Add a cover page'}
-      disabled={coverPresent}
-      on:click={() => editor?.chain().insertContentAt(0, coverNode()).run()}
-      ><ToolIcon name="cover" /></button
-    >
-    <button
-      aria-label="Blank page"
-      title="Insert a blank or rough-work page"
-      on:click={() => editor && insertBlockSafely(editor, blankPageNode())}
-      ><ToolIcon name="blankpage" /></button
-    >
-    <button
-      aria-label="Page break"
-      title="Page break"
-      on:click={() => editor && insertBlockSafely(editor, { type: 'pageBreak' })}
-      ><ToolIcon name="pagebreak" /></button
-    >
-    <span class="sep"></span>
-    <button
-      aria-label="Equation"
-      title="Equation"
-      disabled={!act.inText}
-      on:click={addEquation}><ToolIcon name="equation" /></button
-    >
-    <button aria-label="Image" title="Insert image" on:click={() => fileInput.click()}
-      ><ToolIcon name="image" /></button
-    >
-    <input
-      bind:this={fileInput}
-      type="file"
-      accept={IMAGE_TYPES.join(',')}
-      multiple
-      hidden
-      aria-label="Choose image"
-      on:change={onPickImages}
-    />
-    <span class="sep"></span>
-    <button
-      aria-label="Undo"
-      title="Undo"
-      on:click={() => editor?.chain().focus().undo().run()}><ToolIcon name="undo" /></button
-    >
-    <button
-      aria-label="Redo"
-      title="Redo"
-      on:click={() => editor?.chain().focus().redo().run()}><ToolIcon name="redo" /></button
-    >
-  </div>
-  </div>
-
-  <div class="page">
-    <input
-      class="title"
-      aria-label="Paper title"
-      placeholder="Untitled paper"
-      bind:value={title}
-      on:input={scheduleSave}
-    />
-    <p class="sheetmeta"><span>Name: ______________</span><span>Total: {marks} marks</span></p>
-    <div
-      class="surface"
-      style:--q-start={start - 1}
-      role="presentation"
-      bind:this={element}
-      on:click={trackBlock}
-      on:focusin={trackBlock}
-      on:keyup={trackBlock}
-    ></div>
-
-    <button class="plus" aria-label="Add question" on:click={() => (pickerAt = null)}>
-      <span class="plus-sign">+</span> Add question
-    </button>
-  </div>
-
-  <AnswerKey
-    {blocks}
-    {start}
-    options={keyOpts}
-    on:include={(e) => setInKey(e.detail.blockId, e.detail.included)}
-    on:answer={(e) => setAnswer(e.detail.blockId, e.detail.answer)}
-    on:partanswer={(e) => setPartAnswer(e.detail.blockId, e.detail.index, e.detail.answer)}
-    on:error={(e) => (actionError = e.detail)}
+{#if confirmRegen && regenInfo}
+  <ConfirmDialog
+    title="Regenerate unlocked questions?"
+    body={regenBody}
+    confirmLabel="Regenerate"
+    onConfirm={() => {
+      confirmRegen = false
+      void regenerate()
+    }}
+    onCancel={() => (confirmRegen = false)}
   />
-</div>
-<Inspector
-  {blocks}
-  {marks}
-  {selectedId}
-  {start}
-  on:remark={(e) => setRemark(e.detail.blockId, e.detail.remark)}
-  on:review={(e) => setReviewed(e.detail.blockId, e.detail.reviewed)}
-/>
-</div>
+{/if}
+
+{#if confirmDelete}
+  <ConfirmDialog
+    title="Delete this paper?"
+    body={`“${title || 'Untitled paper'}” and its answer key are deleted for good. This can't be undone.`}
+    confirmLabel="Delete paper"
+    danger
+    busy={busy === 'delete'}
+    error={deleteError}
+    onConfirm={() => void deletePaper()}
+    onCancel={() => {
+      confirmDelete = false
+      deleteError = ''
+    }}
+  />
+{/if}
+
+{#if moveFolders}
+  <MoveDialog
+    folders={moveFolders}
+    current={folderId}
+    busy={busy === 'move'}
+    error={moveError}
+    onMove={(f) => void moveTo(f)}
+    onClose={() => (moveFolders = null)}
+  />
+{/if}
+
+{#if paletteOpen}
+  <CommandPalette commands={paletteCommands} onRun={runCommand} onClose={() => (paletteOpen = false)} />
+{/if}
+
+{#if sheetOpen}
+  <ShortcutSheet onClose={() => (sheetOpen = false)} />
+{/if}
+
+{#if verifiedOpen}
+  <Dialog title="What “verified” means" width="30rem" onClose={() => (verifiedOpen = false)}>
+    <div class="verified">
+      <p>
+        A question the app generates is <strong>verified</strong>: a program works out its answer from the numbers
+        printed in it. The answer in the key is the solution to exactly the question on the paper.
+      </p>
+      <p>
+        Questions you write yourself, edit as your own text, or import are <strong>not verified</strong>. The app
+        prints them as they are, so check their answers yourself.
+      </p>
+      <p>Verified means the maths is right. It does not mean the question suits your class: read the paper before you print it.</p>
+    </div>
+  </Dialog>
+{/if}
 
 <MathPopover />
 
@@ -858,96 +1340,97 @@
 {/if}
 
 <style>
-  .bar {
+  /* EXA-160: one sticky header, two rows (EditorBar, then the formatting toolbar). */
+  .ehead {
     position: sticky;
     top: 0;
     z-index: 10;
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    padding: 0.5rem 1rem;
-    background: var(--paper-2);
+    background: var(--page);
     border-bottom: 1px solid var(--line);
     font-size: 13px;
   }
-  .placement {
-    display: inline-flex;
+  .tools {
+    display: flex;
     align-items: center;
-    gap: 0.35rem;
-    color: var(--ink-soft);
+    gap: 2px;
+    height: 44px;
+    margin-top: var(--s2);
+    padding: var(--s1) var(--s4) var(--s1) calc(var(--s4) - 4px);
+    border-top: 1px solid var(--line-soft);
   }
-  .keyopts {
+  .tools .btn {
     display: inline-flex;
     align-items: center;
-    gap: 0.6rem;
-    margin: 0;
+    gap: 6px;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .tools .icon-btn,
+  .tools :global(.icon-btn) {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
     padding: 0;
-    border: 0;
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    background: transparent;
     color: var(--ink-soft);
+    font-size: 14px;
+    cursor: pointer;
   }
-  .keyopts legend {
-    float: left;
-    padding: 0;
-    margin-right: 0.4rem;
-  }
-  .keyopts label {
+  .tools :global(.styleselect) {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
-  }
-  .placement .time {
-    width: 4.5rem;
+    gap: 6px;
+    height: 30px;
+    padding: 0 var(--s2);
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--ink-soft);
     font: inherit;
-    font-size: 12.5px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--paper);
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .tools .btn:hover,
+  .tools .icon-btn:hover,
+  .tools :global(.icon-btn:hover),
+  .tools :global(.styleselect:hover),
+  .tools :global([aria-expanded='true']) {
+    background: var(--wash);
     color: var(--ink);
   }
-  .placement select {
-    font: inherit;
-    font-size: 12.5px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--paper);
-    color: var(--ink);
-  }
-  .back {
-    color: var(--ink-soft);
-    text-decoration: none;
-  }
-  .chip {
-    font-family: var(--mono);
-    font-size: 11.5px;
-    padding: 0.1rem 0.5rem;
-    border-radius: 999px;
+  .tools .icon-btn[aria-pressed='true'] {
     background: var(--verify-soft);
     color: var(--verify-ink);
   }
-  .chip.dirty,
-  .chip.saving {
-    background: var(--paper-sink);
-    color: var(--ink-soft);
-  }
-  .chip.conflict,
-  .chip.error {
-    background: var(--mark-soft);
-    color: var(--mark);
-  }
-  .total {
-    font-family: var(--mono);
-    color: var(--mark);
-  }
-  .quota {
+  .tools .icon-btn[aria-disabled='true'] {
     color: var(--ink-faint);
-    font-size: 12.5px;
+    opacity: 0.5;
+    cursor: default;
   }
-  .spacer {
-    flex: 1;
+  .tools .icon-btn[aria-disabled='true']:hover {
+    background: transparent;
   }
-  .export {
-    display: flex;
-    gap: 0.35rem;
+  .sep {
+    flex: none;
+    width: 1px;
+    height: 20px;
+    margin: 0 var(--s2);
+    background: var(--line);
+  }
+  .tail {
+    margin-left: auto;
   }
   button {
     font: inherit;
@@ -963,10 +1446,6 @@
     opacity: 0.5;
     cursor: default;
   }
-  button[aria-pressed='true'] {
-    background: var(--verify-soft);
-    border-color: var(--verify);
-  }
   .banner {
     margin: 0;
     padding: 0.5rem 1rem;
@@ -978,6 +1457,36 @@
     background: var(--wash);
     color: var(--ink-soft);
   }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: var(--s6);
+    z-index: 50;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: var(--s2) var(--s2) var(--s2) var(--s4);
+    background: var(--ink);
+    color: var(--on-accent);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow);
+    font-size: 13.5px;
+  }
+  .toast button {
+    font: inherit;
+    font-weight: 600;
+    padding: 4px var(--s2);
+    border: 0;
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--on-accent);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .toast button:hover {
+    background: color-mix(in srgb, var(--on-accent) 15%, transparent);
+  }
   .loading {
     text-align: center;
     color: var(--ink-faint);
@@ -988,58 +1497,74 @@
 
   .desk :global(.qblock),
   .desk :global(.ffblock) {
-    scroll-margin-top: calc(var(--bar-h, 0px) + 5rem); /* clear the sticky bars */
+    scroll-margin-top: calc(var(--bar-h, 0px) + 1rem); /* clear the sticky header */
   }
+  /* The page in the middle, the side panel to its right (EXA-160). Narrower: the page takes
+     what is left beside a fixed panel; below 900 px the panel stacks above the page. */
   .desk {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 210mm) minmax(260px, 1fr);
+    gap: var(--s6);
+    align-items: start;
     background: var(--desk);
-    padding: 1rem 1rem 4rem;
+    padding: var(--s6) var(--s4) 4rem;
     min-height: 100vh;
   }
   .main {
-    flex: 1 1 auto;
+    grid-column: 2;
     min-width: 0;
   }
-  @media (max-width: 1150px) {
+  .desk > :global(.panel) {
+    grid-column: 3;
+    justify-self: start;
+    width: 100%;
+    max-width: 300px;
+  }
+  /* View > Show side panel off (EXA-163): the page gets its full A4 width at every size. */
+  .desk.nopanel {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 210mm) minmax(0, 1fr);
+    column-gap: 0;
+  }
+  .desk.nopanel > .main {
+    grid-column: 2;
+    grid-row: auto;
+  }
+  .keywrap {
+    scroll-margin-top: calc(var(--bar-h, 0px) + 1rem);
+    outline: none;
+  }
+  .verified p {
+    margin: 0 0 var(--s3);
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .verified p:last-child {
+    margin-bottom: 0;
+  }
+  @media (max-width: 1199px) {
     .desk {
-      flex-direction: column;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: var(--s4);
+    }
+    .main {
+      grid-column: 1;
+    }
+    .desk > :global(.panel) {
+      grid-column: 2;
+      max-width: none;
     }
   }
-  /* Stays in view while the paper scrolls: sticks just under the (also sticky) top bar. The
-     opaque strip hides the page sliding underneath. */
-  .toolstrip {
-    position: sticky;
-    top: var(--bar-h, 0px);
-    z-index: 9;
-    margin: -1rem -1rem 0.6rem;
-    padding: 0.5rem 1rem;
-    background: var(--desk);
-    border-bottom: 1px solid var(--line-soft);
-  }
-  .tools {
-    width: 210mm;
-    max-width: 100%;
-    margin: 0 auto;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-    align-items: center;
-  }
-  .tools button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 1.9rem;
-    height: 1.9rem;
-    padding: 0 0.4rem;
-  }
-  .sep {
-    width: 1px;
-    height: 1.2rem;
-    background: var(--line);
-    margin: 0 0.2rem;
+  @media (max-width: 899px) {
+    .desk {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .desk > :global(.panel) {
+      grid-column: 1;
+      grid-row: 1;
+    }
+    .main {
+      grid-row: 2;
+    }
   }
   .page {
     width: 210mm;
@@ -1077,21 +1602,40 @@
     counter-reset: q var(--q-start, 0);
     font-family: var(--serif);
   }
+  /* A question block (EXA-161): nothing at rest, a faint wash on hover, a green edge and ring
+     when selected (QuestionBar sets .is-active). The ⋮⋮ handle sits in the left gutter. */
   .surface :global(.qblock) {
     counter-increment: q;
+    position: relative;
+    padding: var(--s3) var(--s3) var(--s3) var(--s2);
+    margin: 0 -14px var(--s2);
+    border: 1px solid transparent;
+    border-radius: var(--r-md);
+  }
+  .surface :global(.qblock:hover) {
+    background: color-mix(in srgb, var(--wash) 60%, transparent);
+  }
+  .surface :global(.qblock.is-active) {
+    border-color: var(--verify);
+    background: var(--page);
+    box-shadow: 0 0 0 3px var(--verify-soft);
+  }
+  .surface :global(.qblock:focus-visible) {
+    outline: none; /* .is-active is the focus ring */
+  }
+  .surface :global(.qblock.ProseMirror-selectednode) {
+    outline: none;
   }
   .surface :global(.ffblock) {
     display: grid;
     grid-template-columns: 2rem 1fr;
     gap: 0.25rem;
-    padding: 0.6rem 0.4rem;
-    border: 1px solid transparent;
-    border-radius: 8px;
   }
-  .surface :global(.ffblock:hover),
-  .surface :global(.ffblock:focus-within) {
-    border-color: var(--line);
-    background: var(--wash);
+  .surface :global(.ff-num) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
   .surface :global(.ff-num::before) {
     content: counter(q) '.';
@@ -1120,53 +1664,6 @@
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--mark);
-  }
-  .surface :global(.ff-bar) {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.3rem;
-    margin-top: 0.4rem;
-    opacity: 0;
-    transition: opacity 0.12s;
-    font-family: var(--sans);
-    font-size: 12px;
-  }
-  .surface :global(.ffblock:hover .ff-bar),
-  .surface :global(.ffblock:focus-within .ff-bar) {
-    opacity: 1;
-  }
-  .surface :global(.ff-spacer) {
-    flex: 1;
-  }
-  .surface :global(.ff-marks-input) {
-    width: 3.6rem;
-    font: inherit;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 0.15rem 0.3rem;
-    background: var(--paper);
-    color: var(--ink);
-  }
-  .surface :global(.ff-bar button) {
-    font: inherit;
-    border: 1px solid var(--line);
-    background: var(--paper);
-    color: var(--ink);
-    border-radius: 6px;
-    padding: 0.2rem 0.55rem;
-    cursor: pointer;
-  }
-  .surface :global(.ff-bar button.danger) {
-    color: var(--mark);
-  }
-  .surface :global(.ff-bar button:disabled) {
-    opacity: 0.5;
-    cursor: default;
-  }
-  .surface :global(.ff-bar button.ff-lock[aria-pressed='true']) {
-    background: var(--paper-sink);
-    font-weight: 600;
   }
   .surface :global(.doc-image-node) {
     margin: 0.5rem 0;
@@ -1307,9 +1804,6 @@
   .surface :global(.ffblock.placeholder-slot .ff-body > p:first-child) {
     min-height: 2.2em;
     margin: 0;
-  }
-  .placeholders {
-    color: var(--mark, #b42318);
   }
   .surface :global(.page-block) {
     margin: 1rem 0;

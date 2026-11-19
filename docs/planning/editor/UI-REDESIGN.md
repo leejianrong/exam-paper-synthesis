@@ -430,3 +430,32 @@ Step 2 sources: the popular-editor patterns in section 2 come from product knowl
 - Not in S2: the editor's key view still shows the worked layout (S4), and the options stay in
   the top bar's "Answer key" group until S1 and S4 move them.
 
+---
+
+## 12. S5 as built (EXA-163)
+
+- The menu row is `MenuBar.svelte` (WAI-ARIA menubar: one Tab stop, ←/→ between menus and between
+  open menus, the pointer moving onto another name opens it) over the existing `Menu.svelte`,
+  which gained checkbox rows and Mac labels. Below 900 px it folds into one "Menu" button.
+- Paper > Cover page… goes to the cover's first field, adding a cover first if there is none (S6
+  moves its fields to the panel). View > Answer key scrolls to the key under the paper until S4
+  makes it a view. "Send feedback" is left out: there is no feedback address or page yet. View > Show working space outlines is not built.
+- Make a copy has no API of its own: the browser creates a paper ("Copy of …", same folder) and
+  saves this paper's content and settings into it, then opens it.
+- The side panel's visibility is kept in `localStorage` (`exam.editor.sidePanel`), wrapped in
+  try/catch; without storage the panel shows and a hide lasts for the visit.
+- The palette lists the selected question's menu rows first (the block registers them in
+  `shortcuts.ts`, busy blocks list none and a run re-checks busy), then every enabled menu row
+  and the three exports. Words match anywhere in the name or its menu; labels rank first.
+
+**Keyboard shortcuts** (Cmd in place of Ctrl on a Mac, labels ⌘ and ⌥ there):
+
+| Group | Keys |
+|---|---|
+| Paper | Ctrl+K command palette · Ctrl+Enter add a question · Ctrl+Alt+K answer key / back to the paper · Ctrl+P preview pages · Ctrl+\\ side panel · Ctrl+/ shortcut sheet |
+| Questions (a selected question) | R another like this · L lock · [ easier · ] harder · Alt+↑/↓ move · Del delete (with undo) · Shift+F10 or the Menu key its menu |
+| Text | Ctrl+B/I/U · Ctrl+M equation · Shift+Enter line break · Ctrl+Z undo · Ctrl+Y redo |
+
+Ctrl+Enter and Ctrl+M never fire from a form field (the title, a marks box, a dialog). With a
+dialog open no global shortcut runs, though Ctrl+P is still kept from printing the screen.
+

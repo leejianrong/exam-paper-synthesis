@@ -11,7 +11,7 @@ import { API } from './ports.js'
  * and skipped if the edit was already saved), then wait for "Saved" again.
  */
 export async function settled(page) {
-  const chip = page.locator('.bar .chip')
+  const chip = page.locator('.ehead .saved')
   await chip.filter({ hasNotText: 'Saved' }).waitFor({ timeout: 3000 }).catch(() => {})
   await expect(chip).toHaveText('Saved', { timeout: 15_000 })
 }
@@ -58,4 +58,52 @@ export async function generateSinglePaper(page, label, level) {
   await dialog.getByRole('button', { name: 'Single paper', exact: true }).click()
   await dialog.getByRole('button', { name: label, exact: true }).click()
   await dialog.getByRole('button', { name: `Generate at ${level}`, exact: true }).click()
+}
+
+/** EXA-160: choose a PDF from the editor header's Export ▾ menu. */
+export async function exportPdf(page, item) {
+  await page.getByRole('button', { name: 'Export', exact: true }).click()
+  await page.getByRole('menu', { name: 'Export' }).getByRole('menuitem', { name: item, exact: true }).click()
+}
+
+/** EXA-163: open a menu of the header's menu row (Paper, Insert, View, Help) and return it. */
+export async function headerMenu(page, name) {
+  await page.getByRole('menubar', { name: 'Paper menus' }).getByRole('menuitem', { name, exact: true }).click()
+  return page.getByRole('menu', { name, exact: true })
+}
+
+/** The Insert menu: cover page, blank or rough-work page, page break, image, equation. */
+export const insertMenu = (page) => headerMenu(page, 'Insert')
+
+/** EXA-160: paper settings live on the side panel's Paper tab (a question you click brings its
+ *  own tab forward). */
+export async function paperTab(page) {
+  await page.getByRole('tab', { name: 'Paper', exact: true }).click()
+}
+
+/**
+ * A question block's controls (EXA-161) show once it is selected: focus the block (the
+ * node view around `[data-testid=question-block]`), then use its pill or its ⋯ menu.
+ */
+export const questionHost = (block) =>
+  block.locator('xpath=ancestor-or-self::*[contains(concat(" ", normalize-space(@class), " "), " qblock ")][1]')
+
+export async function selectQuestion(block) {
+  const host = questionHost(block)
+  await host.focus()
+  await expect(host.locator('.qpill')).toBeVisible()
+  return host
+}
+
+/** A button in the selected question's pill ("Another like this", "Lock", …). */
+export async function questionPill(block, name) {
+  const host = await selectQuestion(block)
+  return host.locator('.qpill').getByRole('button', { name, exact: true })
+}
+
+/** Choose a row from the question's ⋯ menu. */
+export async function questionMenu(block, name) {
+  const host = await selectQuestion(block)
+  await host.getByRole('button', { name: /^More actions/ }).click()
+  await host.getByRole('menuitem', { name, exact: true }).click()
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/svelte'
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte'
 import App from './App.svelte'
 import { session, sessionLost } from './lib/session'
 
@@ -35,15 +35,17 @@ describe('App sign-in gate', () => {
     route({ status: 200, body: { id: 'u1', email: 'ann@example.com', name: 'Ann', dev: false } })
     render(App)
     expect(await screen.findByRole('heading', { name: 'Your papers' })).toBeInTheDocument()
+    await fireEvent.click(screen.getByRole('button', { name: 'Account: Ann' }))
     expect(screen.getByText('Ann')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Sign out' })).toBeInTheDocument()
   })
 
   it('the local development stub needs no sign-in and has nothing to sign out of', async () => {
     route({ status: 200, body: { id: 'local', email: null, name: 'Local development', dev: true } })
     render(App)
     expect(await screen.findByRole('heading', { name: 'Your papers' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: 'Account: Local development' }))
+    expect(screen.queryByRole('menuitem', { name: 'Sign out' })).toBeNull()
   })
 
   it('an expired session mid-use drops back to the login page', async () => {

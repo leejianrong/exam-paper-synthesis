@@ -10,6 +10,63 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Menus and keyboard shortcuts in the editor (EXA-163, UI redesign S5).** Under the paper's
+  title sits a menu row: **Paper** (Paper settings…, Cover page…, Regenerate N unlocked
+  questions…, Rename, Move to folder…, Make a copy, Delete paper…), **Insert** (Question…,
+  Section, Cover page, Blank or rough-work page, Page break, Image…, Equation), **View** (Paper,
+  Answer key, Preview pages, Show side panel) and **Help** (Keyboard shortcuts, What “verified”
+  means). It is a real menubar: ←/→ move between menus, also while one is open. Below 900 px it
+  folds into one "Menu" button. The toolbar keeps + Question and + Section; cover page, blank
+  page and page break left its ⋯, which now only holds lists, equation and image on a narrow
+  window. Editor-wide shortcuts (Cmd on a Mac, shown as ⌘ there): **Ctrl+K** a command palette
+  that finds any menu row or the selected question's actions by name, **Ctrl+Enter** add a
+  question, **Ctrl+Alt+K** go to the answer key and back, **Ctrl+P** preview the pages instead
+  of printing the screen, **Ctrl+\\** show or hide the side panel, **Ctrl+/** the shortcut sheet,
+  **Ctrl+M** an equation. Typing keys (Ctrl+B/I/U/Z/Y) and the browser's own (Ctrl+R/L/T/W)
+  are untouched, and the inserts never fire from a form field. Hiding the side panel gives the
+  page its full A4 width (between 900 and 1199 px it was narrower), and the choice is
+  remembered in this browser. Make a copy is done in the browser (a new paper, then this
+  paper's content saved into it), so the API is unchanged.
+- **The question bar and menu (EXA-161, UI redesign S3).** A question carries no buttons at
+  rest and no blank band under it any more. A locked question shows a small padlock badge by
+  its number ("locked" for screen readers, "Locked: kept when you regenerate" as its tooltip);
+  a placeholder keeps its dashed outline. Hovering shows a ⋮⋮ handle in the left gutter that
+  opens the question's menu. Selecting a question (a click, Tab, or the caret in its text)
+  shows a pill on its top edge: **Another like this**, Lock and ⋯ for a generated question;
+  marks, **+ Part**, Lock and ⋯ for your own; **Fill with a question** and ⋯ for a placeholder.
+  The ⋯ menu (also on a right-click, Shift+F10 or the ContextMenu key) runs: change it (another
+  like this, another topic, easier, harder, edit names, and the engine's own edits such as
+  change to decimals), keep it (lock, leave out of / include in the answer key), place it (move
+  up, move down, add question below), take it over (**Replace with my own question**, was
+  "Write my own"; **Edit as my own text…**, was "Convert to free-form", now asking first that
+  the engine stops checking it) and Delete. Rows that don't apply are left out. "Regenerate"
+  is now "Another like this" (the like-swap already draws a new seed of the same blueprint).
+  Shortcuts on a focused or selected question, never while typing: R another like this, L lock,
+  [ and ] easier and harder, Alt+↑/↓ move, Del delete with a "Question deleted · Undo" toast
+  instead of a confirmation. Questions are focusable groups named like "Question 6, 2 marks,
+  locked". In Add question the tabs read **Generate** and **Write my own**. The shortcut
+  handling lives in `web/src/lib/editor/shortcuts.ts` for the global shortcuts to come (S5).
+  A placeholder you have written in is yours: it shows no Lock, and it no longer counts as a
+  generated place, so a paper with nothing left to regenerate has no "Generated paper" group
+  (it showed "Locked 0 of 0" and a disabled "Regenerate 0 unlocked…").
+
+- **An editor header that fits (EXA-160, UI redesign S1).** The editor's top bar, which ran
+  off the screen below 1400 px and hid Preview and the PDFs, is now one sticky header of two
+  rows. Row one: back, the folder / title breadcrumb, the save state, the marks total in neutral
+  ink (red with an icon only when a section is off its target), Preview, one green **Export ▾**
+  menu (student paper, answer key, paper and key together, and the exports left today as its
+  footer) and an account avatar menu that replaces the account chip on every screen. Row two is
+  the formatting toolbar: + Question, + Section, undo/redo, a text style menu, B I U, lists,
+  equation (it now says why it is unavailable) and image; cover page, blank page and page break
+  sit in its ⋯ for now. Time, first question number, marks shown and Regenerate unlocked moved
+  to a right side panel with a Paper tab (marks per section, question count, layout, the answer
+  key options for now, the generated paper's lock count) and a Question tab (the inspector,
+  brought forward when you click a question). Regenerate unlocked asks first and names what it
+  replaces and keeps. No horizontal scroll at any width from 768 px; below 1200 px the total
+  moves to the panel and below 1024 px the toolbar's tail moves into ⋯. A reusable `Menu`
+  component (WAI-ARIA menu button: arrows, Home/End, type-ahead, Esc returns focus) serves the
+  header and toolbar and is ready for the question and app menus to come.
+
 - **The school key by default (EXA-159).** New, template and generated papers start with the
   answer key schools issue: a header block from the cover (school, level, subject, exam; an
   empty line left out), an answer grid for Booklet A, then ruled tables with the solver's short

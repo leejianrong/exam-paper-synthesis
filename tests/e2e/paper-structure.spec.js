@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { settled, newFromTemplate } from './helpers.js'
+import { settled, newFromTemplate, exportPdf, paperTab } from './helpers.js'
 import { API } from './ports.js'
 
 /**
@@ -25,7 +25,7 @@ test('start from the Paper 2 template, structure the paper, reload, preview and 
 
   // A question appended at the end lands in Section B; the summary is derived, not typed.
   await page.getByRole('button', { name: 'Add question' }).click()
-  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
+  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Write my own' }).click()
   const block = page.locator('.ffblock')
   await expect(block).toHaveCount(1)
   await page.keyboard.type('Ann has 12 sweets and gives away 5. How many are left?')
@@ -40,6 +40,7 @@ test('start from the Paper 2 template, structure the paper, reload, preview and 
   await expect(summaryB).toHaveText('Question 1 · 3 / 3 marks')
   await expect(summaryB).toHaveAttribute('data-state', 'ok')
   await sections.nth(0).getByLabel('Section title').fill('Part One')
+  await paperTab(page)
   await page.getByLabel('Paper time in minutes').fill('75')
 
   // The toolbar adds a section too.
@@ -67,7 +68,7 @@ test('start from the Paper 2 template, structure the paper, reload, preview and 
 
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Student PDF' }).click(),
+    exportPdf(page, 'Student paper (PDF)'),
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })
@@ -83,7 +84,7 @@ test('the marking margin follows the section mode and can be switched per sectio
   const section = page.locator('.section-block').last()
   await expect(section.getByLabel('Marking margin')).toBeChecked()
   await page.getByRole('button', { name: 'Add question' }).click()
-  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
+  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Write my own' }).click()
   await page.keyboard.type('Ann has 12 sweets and gives away 5. How many are left?')
   await page.locator('.ffblock').getByLabel('Marks').fill('2')
   await page.locator('.ffblock').getByLabel('Marks').press('Enter')
@@ -132,7 +133,7 @@ test('the marking margin follows the section mode and can be switched per sectio
   await expect(page.locator('.section-block').last().getByLabel('Marks shown')).toHaveValue('answer')
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Student PDF' }).click(),
+    exportPdf(page, 'Student paper (PDF)'),
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })

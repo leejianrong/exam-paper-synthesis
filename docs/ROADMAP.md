@@ -34,7 +34,12 @@ From the P7–P8 acceptance run: **Organise and create** (O1 settings, O2 folder
 [`planning/editor/ORGANIZE-SHAPING.md`](planning/editor/ORGANIZE-SHAPING.md).
 The editor and app UI redesign (EXA-159–170) is planned in
 [`planning/editor/UI-REDESIGN.md`](planning/editor/UI-REDESIGN.md) (approved 2026-11-19; done: S2,
-EXA-159, the school key by default with an account setting for the key style).
+EXA-159, the school key by default with an account setting for the key style; S1, EXA-160, an
+editor header that fits: two rows, one Export menu, an avatar menu, and Time / first question /
+marks shown / Regenerate unlocked in a Paper / Question side panel; S3, EXA-161, the question
+bar: nothing at rest, a pill when a question is selected, one ⋯ menu, block shortcuts and undo
+on delete; S5, EXA-163, the Paper / Insert / View / Help menus, a Ctrl+K command palette, a
+shortcut sheet and the editor-wide shortcuts, and a side panel you can hide).
 
 ---
 

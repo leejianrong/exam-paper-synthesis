@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { openClassic, newBlankPaper } from './helpers.js'
+import { openClassic, newBlankPaper, exportPdf } from './helpers.js'
 import fs from 'node:fs'
 import { CSP_ORIGIN } from './ports.js'
 
@@ -67,7 +67,7 @@ test('editor, KaTeX preview, PDF export and the classic tray work under the poli
   // PDF export (Chromium renders it server-side; the download must still arrive).
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Student PDF' }).click(),
+    exportPdf(page, 'Student paper (PDF)'),
   ])
   const bytes = fs.readFileSync(await download.path())
   expect(bytes.subarray(0, 4).toString('latin1')).toBe('%PDF')

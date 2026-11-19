@@ -1,27 +1,36 @@
 <script lang="ts">
-  // The chrome around a templated question inside the page: the question body plus a
-  // toolbar of one-click edits (driven by the engine's available_ops), "Edit names",
-  // move, add-below and delete. Every edit replaces the block's frozen snapshot with the
-  // child object the API returns (lineage intact).
+  // The chrome around a templated question inside the page: the question body, and (EXA-161)
+  // its controls, which show only when the block is selected: a pill with "Another like this",
+  // Lock and a ⋯ menu of everything else (QuestionBar). Every edit replaces the block's frozen
+  // snapshot with the child object the API returns (lineage intact).
   import type { Readable } from 'svelte/store'
   import { editQuestion, setCosmetic, type EditOp } from '../api'
   import type { Question } from '../types'
+  import { confirmAction } from '../confirm'
   import NamesPopover from './NamesPopover.svelte'
   import FragmentView from './FragmentView.svelte'
   import QuestionBody from './QuestionBody.svelte'
   import AnswerArea from './AnswerArea.svelte'
+  import QuestionBar from './QuestionBar.svelte'
+  import LockBadge from './LockBadge.svelte'
   import type { BlockLayout } from './layout'
   import type { SectionPlacement } from './doc'
   import type { SwapMode } from './docsApi'
   import type { PaperSlot } from './templatedQuestion'
+  import type { BlockPlace } from './blockPlace'
+  import { blockLabel, type QuestionAction, type QuestionFacts } from './questionMenu'
 
   export let store: Readable<Question>
   export let layout: Readable<BlockLayout>
   export let paperSlot: Readable<PaperSlot>
   /** Where this question's [n] print: its section's effective placement (EXA-152). */
   export let placement: Readable<SectionPlacement>
+  export let place: Readable<BlockPlace>
+  /** The node view's element (the focusable group the controls belong to). */
+  export let host: HTMLElement
   export let ctx: {
-    replace: (q: Question) => void
+    /** An edit's reply; `from` is the question the edit started from (dropped if it changed). */
+    replace: (q: Question, from: string) => void
     remove: () => void
     move: (dir: -1 | 1) => void
     addBelow: () => void
@@ -29,6 +38,7 @@
     setLayout: (patch: Partial<BlockLayout>) => void
     swap: (mode: SwapMode) => Promise<void>
     setLocked: (locked: boolean) => void
+    setInKey: (inKey: boolean) => void
   }
 
   $: q = $store
@@ -46,31 +56,31 @@
   // A generated multi-part question (P8c) is drawn the same way, so its stem and every
   // lettered part show; it keeps its engine edits (the API offers only whole-question ones).
   $: engineDrawn = fromBank || multipart
-  $: ops = q.available_ops ?? []
+  $: ops = (q.available_ops ?? []) as EditOp[]
   // P8d: a question the paper generator put here can be swapped for another, or locked.
   $: generated = $paperSlot.generated
   $: locked = $paperSlot.locked
-  const SWAPS: Array<[SwapMode, string, string]> = [
-    ['like', 'Another like this', 'Another question for this slot: same marks, same topic where possible'],
-    ['topic', 'Another topic', 'A question with the same marks from a topic this paper uses less'],
-    ['own', 'Write my own', 'Replace it with an empty question of the same marks for you to write'],
-  ]
-  const OP_LABELS: Array<[EditOp, string]> = [
-    ['regenerate', 'Regenerate'],
-    ['make-easier', 'Make easier'],
-    ['make-harder', 'Make harder'],
-    ['change-to-decimals', 'Change to decimals'],
-    ['toggle-diagram', ''],
-    ['toggle-bar-view', ''],
-  ]
   $: barView =
     part.diagram?.type === 'bar_model_before_after' ? (part.diagram.view_mode ?? 'grouped') : null
-  function opLabel(op: EditOp, fallback: string): string {
-    // toggle-diagram is only offered for bar models, which print in the answer key only (EXA-132)
-    if (op === 'toggle-diagram') return part.diagram ? 'Hide model from key' : 'Show model in key'
-    if (op === 'toggle-bar-view') return barView === 'sliced' ? 'Group segments' : 'Slice into units'
-    return fallback
-  }
+  $: totalMarks = q.question.parts.reduce((n, p) => n + (p.marks ?? 0), 0) || null
+
+  $: facts = {
+    kind: generated ? 'generated' : 'bank',
+    locked,
+    lockable: generated,
+    inKey: $paperSlot.inKey,
+    ops,
+    canEditNames: q.source_type !== 'sourced' && !!q.blueprint_code && !isChoice,
+    canAddPart: false,
+    canMoveUp: $place.canMoveUp,
+    canMoveDown: $place.canMoveDown,
+    opLabels: {
+      // toggle-diagram is only offered for bar models, which print in the answer key only (EXA-132)
+      'toggle-diagram': part.diagram ? 'Hide model from key' : 'Show model in key',
+      'toggle-bar-view': barView === 'sliced' ? 'Group segments' : 'Slice into units',
+    },
+  } satisfies QuestionFacts
+  $: host.setAttribute('aria-label', blockLabel($place.number, totalMarks, facts))
 
   let busy = false
   let error = ''
@@ -79,9 +89,10 @@
   async function run(fn: () => Promise<Question | void>) {
     busy = true
     error = ''
+    const from = q.id
     try {
       const next = await fn()
-      if (next) ctx.replace(next)
+      if (next) ctx.replace(next, from)
       editingNames = false
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
@@ -89,10 +100,55 @@
       busy = false
     }
   }
+
+  async function convert() {
+    const ok = await confirmAction({
+      title: 'Edit as your own text?',
+      body: "You can then change any of it, but it won't be checked by the engine any more.",
+      confirmLabel: 'Edit as my own text',
+    })
+    if (ok) await run(() => ctx.convert())
+  }
+
+  function act(action: QuestionAction) {
+    switch (action) {
+      case 'like':
+      case 'topic':
+      case 'own':
+        return run(() => ctx.swap(action))
+      case 'regenerate':
+        return run(() => editQuestion('regenerate', q))
+      case 'easier':
+        return run(() => editQuestion('make-easier', q))
+      case 'harder':
+        return run(() => editQuestion('make-harder', q))
+      case 'names':
+        editingNames = !editingNames
+        return
+      case 'lock':
+        return ctx.setLocked(!locked)
+      case 'key':
+        return ctx.setInKey(!$paperSlot.inKey)
+      case 'up':
+        return ctx.move(-1)
+      case 'down':
+        return ctx.move(1)
+      case 'addBelow':
+        return ctx.addBelow()
+      case 'convert':
+        return convert()
+      case 'delete':
+        return ctx.remove()
+      default:
+        if (action.startsWith('op:')) return run(() => editQuestion(action.slice(3) as EditOp, q))
+    }
+  }
 </script>
 
 <div class="block" data-testid="question-block">
-  <div class="num" aria-hidden="true"></div>
+  <div class="num">
+    {#if locked}<LockBadge />{/if}
+  </div>
   <div class="main">
     {#if engineDrawn}
       <FragmentView question={q} paper={{ placement: $placement, answerArea: false }} />
@@ -124,48 +180,8 @@
     {#if error}
       <p class="error" role="alert">{error}</p>
     {/if}
-
-    {#if generated}
-      <div class="toolbar paper" role="group" aria-label="paper tools">
-        {#each SWAPS as [mode, label, hint] (mode)}
-          <button
-            disabled={busy || locked}
-            title={locked ? 'Unlock it to swap it' : hint}
-            on:click={() => run(() => ctx.swap(mode))}>{label}</button
-          >
-        {/each}
-        <button
-          class="lock"
-          aria-pressed={locked}
-          title={locked ? 'Locked: kept when you regenerate the paper' : 'Keep this question when you regenerate the paper'}
-          on:click={() => ctx.setLocked(!locked)}>{locked ? 'Locked' : 'Lock'}</button
-        >
-      </div>
-    {/if}
-
-    <div class="toolbar" role="group" aria-label="question tools">
-      {#each OP_LABELS as [op, fallback] (op)}
-        {#if ops.includes(op)}
-          <button disabled={busy} on:click={() => run(() => editQuestion(op, q))}
-            >{opLabel(op, fallback)}</button
-          >
-        {/if}
-      {/each}
-      {#if q.source_type !== 'sourced' && q.blueprint_code && !isChoice}
-        <button disabled={busy} on:click={() => (editingNames = !editingNames)}>Edit names</button>
-      {/if}
-      <button
-        disabled={busy}
-        title="Turn this into an editable question — it will no longer be generated"
-        on:click={() => run(() => ctx.convert())}>Convert to free-form</button
-      >
-      <span class="spacer"></span>
-      <button title="Move up" aria-label="Move up" on:click={() => ctx.move(-1)}>↑</button>
-      <button title="Move down" aria-label="Move down" on:click={() => ctx.move(1)}>↓</button>
-      <button on:click={() => ctx.addBelow()}>+ Add below</button>
-      <button class="danger" on:click={() => ctx.remove()}>Delete</button>
-    </div>
   </div>
+  <QuestionBar {host} {facts} number={$place.number} selected={$place.selected} {busy} onAction={act} />
 </div>
 
 <style>
@@ -173,64 +189,18 @@
     display: grid;
     grid-template-columns: 2rem 1fr;
     gap: 0.25rem;
-    padding: 0.6rem 0.4rem;
-    border: 1px solid transparent;
-    border-radius: 8px;
   }
-  .block:hover,
-  .block:focus-within {
-    border-color: var(--line);
-    background: var(--wash);
+  .num {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
   .num::before {
     content: counter(q) '.';
     font-family: var(--mono);
     font-weight: 600;
     color: var(--ink-soft);
-  }
-  .toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-    margin-top: 0.4rem;
-    opacity: 0;
-    transition: opacity 0.12s;
-  }
-  .block:hover .toolbar,
-  .block:focus-within .toolbar {
-    opacity: 1;
-  }
-  .spacer {
-    flex: 1;
-  }
-  button {
-    font: inherit;
-    font-family: var(--sans);
-    font-size: 12px;
-    border: 1px solid var(--line);
-    background: var(--paper);
-    color: var(--ink);
-    border-radius: 6px;
-    padding: 0.2rem 0.55rem;
-    cursor: pointer;
-  }
-  button:hover:not(:disabled) {
-    background: var(--paper-sink);
-  }
-  button:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-  button.danger {
-    color: var(--mark);
-  }
-  button.lock[aria-pressed='true'] {
-    background: var(--paper-sink);
-    font-weight: 600;
-  }
-  /* a locked question shows it without hovering */
-  .toolbar.paper:has(.lock[aria-pressed='true']) {
-    opacity: 1;
   }
   .error {
     color: var(--mark);
