@@ -18,16 +18,32 @@ from pathlib import Path
 from typing import Protocol
 
 from exam_engine.document import KEY_STYLES
+from exam_engine.paper import LEVELS
 
 from .docstore import default_path
 
 # Every setting and its default. The Classic generator (the original Generate + tray page) is
 # hidden unless a teacher turns it on. ``answer_key_style`` (EXA-159) is the key a new paper
-# starts with: the school key, or worked solutions; a saved paper keeps its own.
-DEFAULTS: dict[str, bool | str] = {"classic_generator": False, "answer_key_style": "school"}
+# starts with: the school key, or worked solutions; a saved paper keeps its own. The other new
+# paper defaults (EXA-169): the cover's school name, the level (stated on the cover and offered
+# first in the New dialog; "" = none) and where marks print (the paper's marks_placement).
+DEFAULTS: dict[str, bool | str] = {
+    "classic_generator": False,
+    "answer_key_style": "school",
+    "school_name": "",
+    "default_level": "",
+    "marks_placement": "answer",
+}
 
 # A text setting takes only these values.
-CHOICES: dict[str, tuple[str, ...]] = {"answer_key_style": KEY_STYLES}
+CHOICES: dict[str, tuple[str, ...]] = {
+    "answer_key_style": KEY_STYLES,
+    "default_level": ("", *LEVELS),
+    "marks_placement": ("answer", "question", "both"),
+}
+
+# A free-text setting's limit: the cover field's own (``school`` in document.schema.json).
+MAX_LENGTH: dict[str, int] = {"school_name": 120}
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS settings (
@@ -52,19 +68,36 @@ def merged(stored: dict | None) -> dict:
 
 
 def _valid(key: str, value: object) -> bool:
-    return isinstance(value, type(DEFAULTS[key])) and value in CHOICES.get(key, (value,))
+    if not isinstance(value, type(DEFAULTS[key])):
+        return False
+    if isinstance(value, str) and key in MAX_LENGTH:
+        return len(value) <= MAX_LENGTH[key] and not _has_control(value)
+    return value in CHOICES.get(key, (value,))
+
+
+def _has_control(text: str) -> bool:
+    return any(ord(c) < 32 or ord(c) == 127 for c in text)
 
 
 def check_patch(patch: dict) -> dict:
-    """``patch`` restricted to known keys with values of the default's type, else raise."""
+    """``patch`` restricted to known keys with values of the default's type, else raise. Free
+    text comes back trimmed."""
+    out = {}
     for k, v in patch.items():
         if k not in DEFAULTS:
             raise UnknownSetting(f"unknown setting {k!r}")
         if not isinstance(v, type(DEFAULTS[k])):
             raise UnknownSetting(f"{k!r} must be a {type(DEFAULTS[k]).__name__}")
-        if not _valid(k, v):
-            raise UnknownSetting(f"{k!r} must be one of {', '.join(CHOICES[k])}")
-    return patch
+        if isinstance(v, str) and k in MAX_LENGTH:
+            v = v.strip()
+            if len(v) > MAX_LENGTH[k]:
+                raise UnknownSetting(f"{k!r} must be at most {MAX_LENGTH[k]} characters")
+            if _has_control(v):
+                raise UnknownSetting(f"{k!r} must be one line of text")
+        elif not _valid(k, v):
+            raise UnknownSetting(f"{k!r} must be one of {', '.join(map(repr, CHOICES[k]))}")
+        out[k] = v
+    return out
 
 
 class SettingsStore(Protocol):
@@ -92,7 +125,7 @@ class SqliteSettingsStore:
             return merged(self._stored(conn, owner_id))
 
     def update(self, owner_id: str, patch: dict) -> dict:
-        check_patch(patch)
+        patch = check_patch(patch)
         with closing(self._connect()) as conn, conn:
             data = merged(self._stored(conn, owner_id)) | patch
             conn.execute(

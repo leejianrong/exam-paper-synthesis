@@ -24,6 +24,9 @@
   export let folders: Folder[]
   export let templates: PaperTemplateInfo[]
   export let levels: string[]
+  /** The account's level for new papers (EXA-169), '' when none: offered first (focused and
+   *  marked "Your default"); the other level stays one click away. */
+  export let defaultLevel = ''
   /** The folder whose "+ New in folder" opened the wizard: the default home for what it makes. */
   export let contextFolder: Folder | null = null
   export let onClose: () => void
@@ -62,7 +65,7 @@
   let folderName = ''
   // Exam set: 'new' or an existing folder's id; the new folder's name; what to make.
   let setWhere: string = contextFolder?.id ?? 'new'
-  let setName = 'P6 exam set'
+  let setName = `${defaultLevel || 'P6'} exam set`
   let setFolderId: string | null = null
   let setLevel: string | null = null
   type Row = {
@@ -91,6 +94,8 @@
   $: partTemplates = PARTS.map((p) => templates.find((t) => t.code === PART_TEMPLATES[p.key])).filter(
     (t): t is PaperTemplateInfo => !!t,
   )
+  // The level card that takes focus: the teacher's default, else the last (P6) as before.
+  $: preferred = levels.includes(defaultLevel) ? defaultLevel : levels[levels.length - 1]
   $: singleLabel = templates.find((t) => t.code === singleCode)?.label ?? ''
   $: running = rows.some((r) => r.state === 'working' || r.state === 'waiting')
   $: failed = rows.filter((r) => r.state === 'failed')
@@ -408,9 +413,18 @@
         empty starters have the cover and sections only.
       </p>
       <div class="cards" role="group" aria-label="How to make the papers" data-options>
-        {#each levels as l, i (l)}
-          <button class="card compact" data-opt data-autofocus={i === levels.length - 1 ? '' : undefined} disabled={busy} on:click={() => makeSet(l)}>
-            <span class="ctitle">Generate at {l}</span>
+        {#each levels as l (l)}
+          <button
+            class="card compact"
+            data-opt
+            data-autofocus={l === preferred ? '' : undefined}
+            aria-labelledby={`nw-set-level-${l}`}
+            aria-describedby={l === defaultLevel ? `nw-set-default-${l}` : undefined}
+            disabled={busy}
+            on:click={() => makeSet(l)}
+          >
+            <span class="ctitle" id={`nw-set-level-${l}`}>Generate at {l}</span>
+            {#if l === defaultLevel}<span class="cdefault" id={`nw-set-default-${l}`}>Your default</span>{/if}
           </button>
         {/each}
         <button class="card compact" data-opt disabled={busy} on:click={() => makeSet(null)}>
@@ -478,15 +492,18 @@
         </select>
       </label>
       <div class="cards" role="group" aria-label="How to make it" data-options>
-        {#each levels as l, i (l)}
+        {#each levels as l (l)}
           <button
             class="card compact"
             data-opt
-            data-autofocus={i === levels.length - 1 ? '' : undefined}
+            data-autofocus={l === preferred ? '' : undefined}
+            aria-labelledby={`nw-single-level-${l}`}
+            aria-describedby={l === defaultLevel ? `nw-single-default-${l}` : undefined}
             disabled={busy}
             on:click={() => openNew(() => generatePaper(singleCode, l, singleFolder || null))}
           >
-            <span class="ctitle">Generate at {l}</span>
+            <span class="ctitle" id={`nw-single-level-${l}`}>Generate at {l}</span>
+            {#if l === defaultLevel}<span class="cdefault" id={`nw-single-default-${l}`}>Your default</span>{/if}
           </button>
         {/each}
         <button class="card compact" data-opt disabled={busy} on:click={() => openNew(() => createDocument(undefined, singleCode, singleFolder || null))}>
@@ -619,6 +636,16 @@
   .cdesc {
     font-size: 13px;
     color: var(--ink-faint);
+  }
+  /* EXA-169: the level set in Settings, a status chip at the card's end */
+  .cdefault {
+    margin-left: auto;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--verify-soft);
+    color: var(--verify-ink);
+    font-size: 12px;
+    font-weight: 600;
   }
 
   /* State layers (M3): the content colour over the surface at 8% hover, 12% focus / press. */

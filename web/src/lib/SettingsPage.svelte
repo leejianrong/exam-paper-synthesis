@@ -3,7 +3,16 @@
   import { onMount } from 'svelte'
   import ErrorNote from './ErrorNote.svelte'
   import { canRetry, errorText } from './errors'
-  import { loadSettings, settings, updateSettings, type AnswerKeyStyle } from './settings'
+  import MarksShown from './editor/MarksShown.svelte'
+  import { MARKS_SHOWN, type MarksPlacement } from './editor/layout'
+  import {
+    loadSettings,
+    settings,
+    updateSettings,
+    SCHOOL_NAME_MAX,
+    type AnswerKeyStyle,
+    type DefaultLevel,
+  } from './settings'
 
   let busy = false
   let error = ''
@@ -45,6 +54,43 @@
         ? 'New papers get the school key.'
         : 'New papers get worked solutions.',
     )
+
+  // EXA-169: the rest of what a new paper starts with. The API writes them into each paper it
+  // makes, so they reach papers made from now on only.
+  const LEVELS: { value: DefaultLevel; label: string }[] = [
+    { value: '', label: 'Not set' },
+    { value: 'P5', label: 'P5' },
+    { value: 'P6', label: 'P6' },
+  ]
+
+  // The school name as typed; saved when the field is left (or on Enter).
+  let school: string | null = null
+  $: if ($settings && school === null) school = $settings.school_name
+
+  async function saveSchool() {
+    if (!$settings || school === null) return
+    const name = school.trim()
+    if (name === $settings.school_name) {
+      school = name
+      return
+    }
+    await save(
+      { school_name: name },
+      name ? `New papers' covers will say ${name}.` : 'New papers have no school name.',
+    )
+    school = $settings?.school_name ?? name
+  }
+
+  const setLevel = (level: DefaultLevel) =>
+    save(
+      { default_level: level },
+      level ? `New papers are ${level}.` : 'New papers have no level set.',
+    )
+
+  function setPlacement(e: Event) {
+    const value = (e.currentTarget as HTMLSelectElement).value as MarksPlacement
+    void save({ marks_placement: value }, `Marks shown on new papers: ${MARKS_SHOWN[value]}.`)
+  }
 </script>
 
 <main>
@@ -54,31 +100,97 @@
   {#if $settings === null}
     <p class="muted">Loading your settings…</p>
   {:else}
-    <section class="row">
-      <div class="text">
-        <span id="set-key-style" class="name">Answer key style</span>
-        <p class="desc">
-          The answer key a new paper starts with. The school key gives the answers and short
-          working only, as schools print it. Worked solutions repeat each question with its full
-          solution and marking scheme. Papers you already have keep their own.
-        </p>
-      </div>
-      <div class="seg" role="radiogroup" aria-labelledby="set-key-style">
-        {#each KEY_STYLES as s (s.value)}
-          <label class:on={$settings.answer_key_style === s.value}>
-            <input
-              type="radio"
-              name="answer-key-style"
-              value={s.value}
-              checked={$settings.answer_key_style === s.value}
-              disabled={busy}
-              on:change={() => setKeyStyle(s.value)}
-            />
-            {s.label}
-          </label>
-        {/each}
-      </div>
-    </section>
+    <h2 id="set-new-papers">New papers</h2>
+    <p class="lede group-lede">
+      What a new paper starts with. You can still change any of it in the paper itself.
+    </p>
+    <div role="group" aria-labelledby="set-new-papers">
+      <section class="row">
+        <div class="text">
+          <label for="set-school" class="name">School name</label>
+          <p class="desc" id="set-school-desc">
+            Printed on the cover of papers you make from now on. Leave it empty to type it in each
+            paper.
+          </p>
+        </div>
+        <input
+          id="set-school"
+          class="text-input"
+          type="text"
+          maxlength={SCHOOL_NAME_MAX}
+          autocomplete="organization"
+          aria-describedby="set-school-desc"
+          bind:value={school}
+          on:change={saveSchool}
+        />
+      </section>
+      <section class="row">
+        <div class="text">
+          <span id="set-level" class="name">Level</span>
+          <p class="desc">
+            Stated on the cover of papers you make from now on, and the level the New dialog
+            offers first. You can still generate at the other level.
+          </p>
+        </div>
+        <div class="seg" role="radiogroup" aria-labelledby="set-level">
+          {#each LEVELS as l (l.value)}
+            <label class:on={$settings.default_level === l.value}>
+              <input
+                type="radio"
+                name="default-level"
+                value={l.value}
+                checked={$settings.default_level === l.value}
+                disabled={busy}
+                on:change={() => setLevel(l.value)}
+              />
+              {l.label}
+            </label>
+          {/each}
+        </div>
+      </section>
+      <section class="row">
+        <div class="text">
+          <label for="set-marks" class="name">Marks shown</label>
+          <p class="desc" id="set-marks-desc">
+            Where each question's marks print on papers you make from now on. Sections follow it
+            unless they set their own.
+          </p>
+        </div>
+        <MarksShown
+          id="set-marks"
+          describedby="set-marks-desc"
+          value={$settings.marks_placement}
+          disabled={busy}
+          on:change={setPlacement}
+        />
+      </section>
+      <section class="row">
+        <div class="text">
+          <span id="set-key-style" class="name">Answer key style</span>
+          <p class="desc">
+            The answer key a new paper starts with. The school key gives the answers and short
+            working only, as schools print it. Worked solutions repeat each question with its full
+            solution and marking scheme. Papers you already have keep their own.
+          </p>
+        </div>
+        <div class="seg" role="radiogroup" aria-labelledby="set-key-style">
+          {#each KEY_STYLES as s (s.value)}
+            <label class:on={$settings.answer_key_style === s.value}>
+              <input
+                type="radio"
+                name="answer-key-style"
+                value={s.value}
+                checked={$settings.answer_key_style === s.value}
+                disabled={busy}
+                on:change={() => setKeyStyle(s.value)}
+              />
+              {s.label}
+            </label>
+          {/each}
+        </div>
+      </section>
+    </div>
+    <h2>Classic generator</h2>
     <section class="row">
       <div class="text">
         <label for="set-classic" class="name">Show the Classic generator</label>
@@ -114,6 +226,32 @@
   h1 {
     font-family: var(--serif);
     margin: 0.6rem 0 0.2rem;
+  }
+  h2 {
+    font-size: 17px;
+    margin: 2rem 0 0.3rem;
+  }
+  .group-lede {
+    font-size: 14px;
+    margin-bottom: 0.9rem;
+  }
+  .text-input,
+  .row :global(select) {
+    flex: none;
+    width: 16rem;
+    max-width: 100%;
+    font: inherit;
+    font-size: 14px;
+    padding: 0.4rem 0.55rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .text-input:focus-visible,
+  .row :global(select:focus-visible) {
+    outline: 3px solid var(--verify);
+    outline-offset: 1px;
   }
   .lede,
   .muted {
@@ -232,7 +370,9 @@
     color: var(--ink-soft);
   }
   @media (max-width: 560px) {
-    .row:has(.seg) {
+    .row:has(.seg),
+    .row:has(.text-input),
+    .row:has(:global(select)) {
       flex-wrap: wrap;
     }
   }

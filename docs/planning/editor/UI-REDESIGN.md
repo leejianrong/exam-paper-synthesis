@@ -1,7 +1,7 @@
 # Editor and app UI redesign: research and proposal
 
 Cards: **EXA-159** (answer key clutter), **EXA-160** (editor top bars), **EXA-161** (per-question buttons), plus an app-wide pass the owner asked for.
-Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14), S7 (EXA-165, section 15), S6 (EXA-164, section 16) and S9 (EXA-167, section 17).
+Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14), S7 (EXA-165, section 15), S6 (EXA-164, section 16), S9 (EXA-167, section 17) and S11 (EXA-169, section 20).
 
 Research build: worktree off `origin/main` at `f54b92c`, API on :8100 (dev auth, throwaway stores), Vite on :5273. Papers generated with `POST /documents/generate` (P6, seed 11) and through the New dialog (an exam set in a folder).
 
@@ -751,4 +751,36 @@ moves nothing. The rule lives in the block selection guard,
   endpoint); using a bank question in a paper from the bank page (the picker does that); a
   skip link. The bank list is not virtualised: past a few hundred questions the client-side
   filter is still instant but only 20 cards draw at a time.
+
+---
+
+## 20. S11 as built (EXA-169)
+
+- **Settings keys.** `school_name` (text, empty by default, trimmed, at most 120 characters and
+  one line: the cover's own `school` limit), `default_level` (`""`, `P5`, `P6`; empty by
+  default) and `marks_placement` (`answer`, `question`, `both`; `answer` by default, what an
+  absent paper setting already meant). Checked by `settings.check_patch` (422 with the reason);
+  a stored value that is no longer allowed reads as the default. Same contract on SQLite and
+  Postgres.
+- **Settings page.** A **New papers** group (`role="group"`, headed "New papers"): School name
+  (saved when the field is left, or on Enter), Level (Not set / P5 / P6), Marks shown (the
+  shared `MarksShown.svelte`, so the labels are `layout.MARKS_SHOWN`'s; it gained `id` and
+  `disabled` props) and the existing Answer key style. Each field's description says it is for
+  papers made from now on. The Classic switch moves under its own "Classic generator" heading.
+- **Prefill, server-side.** `routes_documents._with_defaults` reads the account's settings once
+  and hands plain values to the engine: `docs.with_key_style` as before, then
+  `paper.with_paper_defaults(doc, school, marks_placement)`, which writes the school into an
+  empty cover `school` field and `settings.marks_placement` when it differs from what the paper
+  prints already (so the defaults change nothing in a new paper's JSON). The level goes in where
+  the paper is made: `paper.template_document(code, level)` states it on a starter's cover, and
+  `POST /documents/generate` takes `level` as optional now, using the request's, else the
+  account's, else P6. Covered: `POST /documents` (blank: marks and key only, as it has no cover;
+  starter template: all), `POST /documents/generate` (single paper, and each paper of an exam
+  set, which the New dialog makes as three such calls). The engine reads no settings.
+- **New dialog.** `NewWizard` takes `defaultLevel` (the list passes the settings store's): that
+  level's "Generate at" card takes focus and carries a "Your default" chip (its accessible
+  description), and a new exam set's folder is named "P5 exam set" after it. The dialog still
+  sends the level the teacher clicks, which beats the default.
+- **Not changed:** saved papers (nothing rewrites them); the blank paper still has no cover;
+  the editor's own controls.
 

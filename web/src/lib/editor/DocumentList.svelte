@@ -29,6 +29,7 @@
   import type { DocumentRecord, DocumentSummary } from './doc'
   import ErrorNote from '../ErrorNote.svelte'
   import { canRetry, createFailedText, errorText } from '../errors'
+  import { settings } from '../settings'
 
   const COLLAPSED_KEY = 'exam.papers.collapsed'
 
@@ -428,6 +429,7 @@
     {folders}
     {templates}
     {levels}
+    defaultLevel={$settings?.default_level ?? ''}
     contextFolder={wizardFolder}
     onClose={closeWizard}
     onFolderCreated={onWizardFolder}

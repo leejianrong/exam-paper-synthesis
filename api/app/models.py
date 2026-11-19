@@ -49,7 +49,7 @@ class GeneratePaperRequest(BaseModel):
     """P8a: fill a paper template's slots from the blueprints (one paper per call)."""
 
     template: str
-    level: Literal["P5", "P6"] = "P6"
+    level: Literal["P5", "P6"] | None = None  # None = the account's default level, else P6
     seed: int | None = Field(default=None, ge=1, lt=2**31)
     folder_id: str | None = None  # O2
     # EXA-153: one paper of an exam set: the topics of the set's papers made so far (the sum of

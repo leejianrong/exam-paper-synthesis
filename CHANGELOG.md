@@ -10,6 +10,15 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Defaults for new papers (EXA-169, UI redesign S11).** Settings has a **New papers** group:
+  the school name, the level (Not set, P5 or P6), **Marks shown** (the editor's own control and
+  labels) and the answer key style. Each paper made from then on starts with them: the school
+  name and level on the cover, the marks placement in the paper's settings, the key style as
+  before. The server writes them, so the blank paper, an empty starter, a generated paper and
+  every paper of an exam set all get them, from any client. The New dialog offers your level
+  first (focused and marked "Your default") and names a new exam set's folder after it; the
+  other level is still one click away, and a level asked for explicitly wins. Left empty,
+  nothing changes; papers you already have are never touched.
 - **One app header and a Question bank page (EXA-167, UI redesign S9).** Your papers, the
   question bank, Settings and the Classic generator now share one header: the product name,
   **Papers** and **Question bank** (and **Classic** while *Show the Classic generator* is on),

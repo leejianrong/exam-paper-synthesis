@@ -61,7 +61,7 @@ describe('App sign-in gate', () => {
       if (String(url).endsWith('/auth/me')) return reply(200, { id: 'u1', email: null, name: 'Ann', dev: false })
       if (String(url).endsWith('/documents')) return reply(200, { documents: [] })
       if (String(url).endsWith('/bank')) return reply(200, { items: [] })
-      if (String(url).endsWith('/settings')) return reply(200, { classic_generator: false, answer_key_style: 'school' })
+      if (String(url).endsWith('/settings')) return reply(200, { classic_generator: false, answer_key_style: 'school', school_name: '', default_level: '', marks_placement: 'answer' })
       return reply(404)
     })
     render(App)
