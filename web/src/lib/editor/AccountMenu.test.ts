@@ -49,6 +49,27 @@ describe('AccountMenu', () => {
     await vi.waitFor(() => expect(click).toHaveBeenCalled())
   })
 
+  it('ignores a second download while one is being prepared, and says it is working', async () => {
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    URL.createObjectURL = vi.fn(() => 'blob:x')
+    URL.revokeObjectURL = vi.fn()
+    let finish: (v: unknown) => void = () => {}
+    fetchMock.mockReturnValue(new Promise((r) => (finish = r)))
+    render(AccountMenu)
+    await openMenu()
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Download my data' }))
+    await openMenu()
+    const item = screen.getByRole('menuitem', { name: 'Preparing download…' })
+    expect(item).toHaveAttribute('aria-disabled', 'true')
+    await fireEvent.click(item)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    finish({ ok: true, status: 200, blob: async () => new Blob(['zip']) })
+    // the menu is still open: the item comes back once the zip is ready
+    await vi.waitFor(() =>
+      expect(screen.getByRole('menuitem', { name: 'Download my data' })).not.toHaveAttribute('aria-disabled'),
+    )
+  })
+
   it('deletes only after DELETE is typed, then drops the session', async () => {
     fetchMock.mockResolvedValue({ ok: true, status: 204 })
     render(AccountMenu)
@@ -85,6 +106,30 @@ describe('AccountMenu', () => {
     await fireEvent.click(screen.getByRole('menuitem', { name: /Delete my account/ }))
     await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Account: Ann Lim' })).toHaveFocus()
+  })
+
+  it('the delete dialog is modal: focus starts in the field, Tab stays inside, Esc backs out', async () => {
+    render(AccountMenu)
+    await openMenu()
+    await fireEvent.click(screen.getByRole('menuitem', { name: /Delete my account/ }))
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete your account?' })
+    const field = screen.getByLabelText(/to confirm/)
+    expect(field).toHaveFocus()
+    // the confirm button is disabled until DELETE is typed, so Tab goes field -> Cancel -> field
+    await fireEvent.keyDown(dialog, { key: 'Tab' })
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus()
+    await fireEvent.keyDown(dialog, { key: 'Tab' })
+    expect(field).toHaveFocus()
+    await fireEvent.input(field, { target: { value: 'DELETE' } })
+    await fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true })
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus()
+    await fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true })
+    expect(screen.getByRole('button', { name: 'Delete everything' })).toHaveFocus()
+    await fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Account: Ann Lim' })).toHaveFocus()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

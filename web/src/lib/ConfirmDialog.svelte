@@ -1,7 +1,9 @@
 <script lang="ts">
-  // An in-page confirmation for an action that replaces work (EXA-160): it names what will
-  // happen, the confirm button says the action, Esc or Cancel backs out. Focus starts on the
-  // confirm button and goes back where it was when the dialog closes.
+  // An in-page confirmation for an action that replaces or destroys work (EXA-160): it names
+  // what will happen, the confirm button says the action, Esc or Cancel backs out, Tab stays
+  // inside. Focus starts on the confirm button (or on the field when a word must be typed to
+  // confirm) and goes back where it was when the dialog closes: if that control is disabled or
+  // inert for now (the action it started is still running), as soon as it can take focus again.
   import { onDestroy, onMount } from 'svelte'
 
   let {
@@ -10,38 +12,71 @@
     confirmLabel,
     onConfirm,
     onCancel,
+    danger = false,
+    confirmWord = '',
+    busy = false,
+    error = '',
   }: {
     title: string
     body: string
     confirmLabel: string
     onConfirm: () => void
     onCancel: () => void
+    /** A destructive action: the confirm button is drawn as a warning. */
+    danger?: boolean
+    /** A word to type before the confirm button works (e.g. DELETE). */
+    confirmWord?: string
+    /** The action is running: nothing can be pressed and Esc does nothing. */
+    busy?: boolean
+    error?: string
   } = $props()
 
   let go: HTMLButtonElement | undefined = $state()
+  let field: HTMLInputElement | undefined = $state()
   let dialog: HTMLElement | undefined = $state()
+  let typed = $state('')
   const returnTo = document.activeElement as HTMLElement | null
 
-  onMount(() => go?.focus())
-  onDestroy(() => {
-    if (returnTo?.isConnected) returnTo.focus()
-  })
+  onMount(() => (confirmWord ? field : go)?.focus())
+  onDestroy(() => restoreFocus(returnTo))
+
+  const canFocus = (el: HTMLElement) =>
+    el.isConnected && !(el as HTMLButtonElement).disabled && !el.closest('[inert]')
+
+  /** Focus `el` now, or once it is enabled and no longer inert, unless focus has moved on. */
+  function restoreFocus(el: HTMLElement | null) {
+    if (!el?.isConnected) return
+    if (canFocus(el)) return el.focus()
+    const watch = new MutationObserver(() => {
+      const active = document.activeElement
+      if (!el.isConnected || (active && active !== document.body)) watch.disconnect()
+      else if (canFocus(el)) {
+        watch.disconnect()
+        el.focus()
+      }
+    })
+    watch.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['disabled', 'inert'] })
+  }
 
   function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       e.preventDefault()
-      onCancel()
+      if (!busy) onCancel()
     } else if (e.key === 'Tab' && dialog) {
-      // keep focus inside the two buttons
-      const buttons = Array.from(dialog.querySelectorAll('button'))
-      const i = buttons.indexOf(document.activeElement as HTMLButtonElement)
+      // keep focus inside the dialog's controls
+      const stops = Array.from(dialog.querySelectorAll<HTMLElement>('input, button')).filter(
+        (el) => !(el as HTMLButtonElement).disabled,
+      )
       e.preventDefault()
-      buttons[(i + (e.shiftKey ? -1 : 1) + buttons.length) % buttons.length]?.focus()
+      if (!stops.length) return
+      const i = stops.indexOf(document.activeElement as HTMLElement)
+      const next = i < 0 ? (e.shiftKey ? stops.length - 1 : 0) : i + (e.shiftKey ? -1 : 1)
+      stops[(next + stops.length) % stops.length]?.focus()
     }
   }
 </script>
 
-<div class="backdrop" role="presentation" onclick={(e) => e.target === e.currentTarget && onCancel()}>
+<div class="backdrop" role="presentation" onclick={(e) => e.target === e.currentTarget && !busy && onCancel()}>
   <div
     bind:this={dialog}
     class="dialog"
@@ -54,9 +89,21 @@
   >
     <h2 id="confirm-title">{title}</h2>
     <p id="confirm-body">{body}</p>
+    {#if confirmWord}
+      <label class="word">
+        <span>Type <strong>{confirmWord}</strong> to confirm</span>
+        <input bind:this={field} bind:value={typed} autocomplete="off" spellcheck="false" />
+      </label>
+    {/if}
+    {#if error}<p class="error" role="alert">{error}</p>{/if}
     <div class="row">
-      <button bind:this={go} class="primary" onclick={onConfirm}>{confirmLabel}</button>
-      <button onclick={onCancel}>Cancel</button>
+      <button
+        bind:this={go}
+        class={danger ? 'danger' : 'primary'}
+        disabled={busy || (!!confirmWord && typed !== confirmWord)}
+        onclick={onConfirm}>{confirmLabel}</button
+      >
+      <button disabled={busy} onclick={onCancel}>Cancel</button>
     </div>
   </div>
 </div>
@@ -114,5 +161,29 @@
   }
   .primary:hover {
     background: var(--verify-ink);
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .danger {
+    color: var(--mark);
+    border-color: var(--mark);
+  }
+  .word {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    margin: 0 0 var(--s4);
+  }
+  input {
+    font: inherit;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    padding: 0.3rem 0.5rem;
+  }
+  .error {
+    color: var(--mark);
+    font-size: 12.5px;
   }
 </style>

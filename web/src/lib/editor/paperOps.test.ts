@@ -70,10 +70,22 @@ describe('paper ops helpers (P8d)', () => {
         generated('gq1', 'x'),
         generated('gq2', 'y', { locked: true }),
         placeholder('gq3'),
+        // a placeholder the teacher has written in is theirs now: never refilled, locked or not
+        {
+          ...placeholder('gq4'),
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'My own question.' }] }],
+        },
+        {
+          ...placeholder('gq5'),
+          attrs: { ...placeholder('gq5').attrs, locked: true },
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Also mine.' }] }],
+        },
         { type: 'templatedQuestion', attrs: { block_id: 'bank', question: makeBankQuestion() } },
       ],
     }
     expect(regenerateCounts(doc)).toEqual({ unlocked: 2, locked: 1 })
+    // only filled placeholders and bank questions: nothing to regenerate
+    expect(regenerateCounts({ type: 'doc', content: doc.content.slice(3) })).toEqual({ unlocked: 0, locked: 0 })
   })
 
   it('says what happened in one line', () => {
@@ -182,7 +194,9 @@ describe('swap and lock in the editor (P8d)', () => {
     }))
     await open()
     await screen.findByText('Before.')
-    await fireEvent.click(screen.getByRole('button', { name: 'Regenerate 1 unlocked…' }))
+    const regen = screen.getByRole('button', { name: 'Regenerate 1 unlocked…' })
+    regen.focus()
+    await fireEvent.click(regen)
     // An in-page confirmation names what happens; nothing is sent until it is accepted.
     const dialog = screen.getByRole('alertdialog', { name: 'Regenerate unlocked questions?' })
     expect(dialog).toHaveTextContent('Replaces 1 unlocked question. 1 locked question stays.')
@@ -192,6 +206,8 @@ describe('swap and lock in the editor (P8d)', () => {
     expect(screen.getByText('Locked.')).toBeInTheDocument()
     expect(calls[0]).toEqual({ url: expect.stringMatching(/\/regenerate$/), body: { base_version: 4 } })
     expect(screen.getByText(/Regenerated 1 question; kept 1/)).toBeInTheDocument()
+    // focus waited out the operation (the button disabled, the page inert) and came back
+    await waitFor(() => expect(regen).toHaveFocus())
   })
 
   it('bank questions get no paper tools, and a paper of only those no "Regenerate unlocked"', async () => {

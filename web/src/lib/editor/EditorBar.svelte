@@ -3,7 +3,8 @@
   // Preview, the one primary action (Export ▾) and the account avatar. Paper settings live in the
   // side panel, never here. Room is left after the title for the Paper / Insert / View / Help
   // menus (S5). Narrow windows drop the folder and the resting marks total (the panel shows it);
-  // Preview and Export always stay on screen.
+  // Preview and Export always stay on screen. On a generated paper with placeholders still to
+  // write, a quiet link beside the total says how many and opens the side panel's Paper tab.
   import Icon from '../Icon.svelte'
   import Menu, { type MenuItem } from '../Menu.svelte'
   import AccountMenu from './AccountMenu.svelte'
@@ -22,6 +23,8 @@
     busy = '',
     hasQuestions,
     quota = null,
+    placeholdersLeft = 0,
+    onShowPlaceholders = () => {},
     onPreview,
     onExport,
     onRename,
@@ -37,6 +40,9 @@
     busy?: string
     hasQuestions: boolean
     quota?: Quota | null
+    /** Generated placeholders the teacher has not written yet. */
+    placeholdersLeft?: number
+    onShowPlaceholders?: () => void
     onPreview: () => void
     onExport: (mode: ExportMode) => void
     onRename: () => void
@@ -80,6 +86,15 @@
     {#if offTarget}<Icon name="alert" size={14} />{/if}<b>{marks}</b>{target === null ? '' : ` / ${target}`} marks
     {#if offTarget}<span class="sr">({offTarget})</span>{/if}
   </span>
+  {#if placeholdersLeft}
+    <button
+      class="towrite"
+      title="Generated placeholders still to write: see the Paper tab"
+      data-testid="header-placeholders"
+      onclick={onShowPlaceholders}
+      >{placeholdersLeft}<span class="wide">{placeholdersLeft === 1 ? ' placeholder' : ' placeholders'}</span> to write</button
+    >
+  {/if}
   <button class="btn" disabled={!!busy} onclick={onPreview}>
     <Icon name="eye" /><span class="btn-txt">Preview</span>
   </button>
@@ -169,6 +184,23 @@
   .total.off b {
     color: var(--mark);
   }
+  .towrite {
+    flex: none;
+    padding: 2px 4px;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: var(--mark);
+    font: inherit;
+    font-size: 13px;
+    white-space: nowrap;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+  .towrite:hover {
+    background: var(--wash);
+  }
   .icon-btn {
     display: inline-grid;
     place-items: center;
@@ -225,6 +257,14 @@
   @media (max-width: 1199px) {
     .total:not(.off) {
       display: none;
+    }
+    .wide {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
     }
   }
   @media (max-width: 899px) {

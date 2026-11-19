@@ -145,6 +145,15 @@
       'Questions you wrote yourself stay.'
     : ''
 
+  /** The header's "N placeholders to write": the Paper tab's Generated paper group. */
+  async function showPlaceholders() {
+    panelTab = 'paper'
+    await nextTick()
+    const group = document.getElementById('panel-generated')
+    group?.scrollIntoView?.({ block: 'nearest' })
+    group?.focus()
+  }
+
   function rename() {
     titleInput?.focus()
     titleInput?.select()
@@ -642,6 +651,8 @@
     {busy}
     {quota}
     hasQuestions={blocks.length > 0}
+    {placeholdersLeft}
+    onShowPlaceholders={showPlaceholders}
     onPreview={() => preview('full')}
     onExport={(mode) => download(mode)}
     onRename={rename}

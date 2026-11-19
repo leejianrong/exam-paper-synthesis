@@ -169,7 +169,7 @@
 
     {#if regen || placeholdersLeft}
       <div class="pgroup">
-        <h3>Generated paper</h3>
+        <h3 id="panel-generated" tabindex="-1">Generated paper</h3>
         {#if regen}
           <div class="stat">
             <span>Locked</span><span>{regen.locked} of {regen.locked + regen.unlocked}</span>
@@ -256,6 +256,9 @@
     font-size: 12.5px;
     font-weight: 600;
     color: var(--ink-soft);
+  }
+  h3:focus {
+    outline: none;
   }
   .stat {
     display: flex;
