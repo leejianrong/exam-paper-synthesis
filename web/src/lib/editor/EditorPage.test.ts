@@ -12,6 +12,12 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
+/** Open the header's Export ▾ menu (EXA-160) and return the item with this name. */
+async function exportItem(name: string) {
+  if (!screen.queryByRole('menu', { name: 'Export' })) await fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+  return screen.getByRole('menuitem', { name })
+}
+
 const record = (content: unknown[]) => ({
   id: 'd1',
   title: 'Ratio Review',
@@ -47,7 +53,7 @@ describe('EditorPage', () => {
     expect(screen.getByText('Section A')).toBeInTheDocument()
     expect(screen.getAllByTestId('question-block')).toHaveLength(2)
     expect(document.querySelectorAll('.entry')).toHaveLength(2)
-    expect(screen.getByText('6 marks', { selector: '.total' })).toBeInTheDocument()
+    expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*6 marks\s*$/)
     expect(screen.getByRole('status')).toHaveTextContent('Saved')
     expect(screen.getByRole('button', { name: 'Add question' })).toBeInTheDocument()
   })
@@ -62,8 +68,8 @@ describe('EditorPage', () => {
     fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => record([]) })
     render(EditorPage, { props: { id: 'd1' } })
     await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
-    expect(screen.getByRole('button', { name: 'Answer key PDF' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Student PDF' })).toBeEnabled()
+    expect(await exportItem('Answer key (PDF)')).toHaveAttribute('aria-disabled', 'true')
+    expect(await exportItem('Student paper (PDF)')).not.toHaveAttribute('aria-disabled')
   })
 
   it('the answer-key layout option saves "compact" and greys out the question option', async () => {
@@ -110,9 +116,9 @@ describe('EditorPage', () => {
       })
       expect(block).toHaveTextContent('Typed on the page.')
       expect(block.querySelector('.ff-area .marks')).toHaveTextContent('[4]')
-      expect(screen.getByText('7 marks', { selector: '.total' })).toBeInTheDocument()
+      expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*7 marks\s*$/)
       expect(document.querySelectorAll('.entry')).toHaveLength(2)
-      expect(screen.getByRole('button', { name: 'Answer key PDF' })).toBeEnabled()
+      expect(await exportItem('Answer key (PDF)')).not.toHaveAttribute('aria-disabled')
       expect(document.querySelector('.entry.freeform .ProseMirror')).toHaveTextContent('Written answer')
     })
 
@@ -121,11 +127,11 @@ describe('EditorPage', () => {
       const input = (await screen.findByLabelText('Marks')) as HTMLInputElement
       input.value = '5'
       await fireEvent.change(input)
-      await waitFor(() => expect(screen.getByText('5 marks', { selector: '.total' })).toBeInTheDocument())
+      await waitFor(() => expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*5 marks\s*$/))
       expect(document.querySelector('.ff-area .marks')).toHaveTextContent('[5]')
       input.value = ''
       await fireEvent.change(input)
-      await waitFor(() => expect(screen.getByText('0 marks', { selector: '.total' })).toBeInTheDocument())
+      await waitFor(() => expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*0 marks\s*$/))
       expect(document.querySelector('.ff-area .marks')).toBeNull()
     })
 
@@ -221,7 +227,7 @@ describe('EditorPage images and equations (W2b)', () => {
     await load([ff])
     await waitFor(() => expect(document.querySelector('.ffblock img.doc-image-img')).toBeTruthy())
     expect(document.querySelector('.ffblock .math-node')).toBeTruthy()
-    expect(screen.getByText('2 marks', { selector: '.total' })).toBeInTheDocument()
+    expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*2 marks\s*$/)
     // the key entry shows the same figure read-only
     expect(document.querySelector('.entry.freeform .qtext img')).toBeTruthy()
   })
@@ -265,7 +271,7 @@ describe('EditorPage convert to free-form (W2c)', () => {
     expect(document.querySelector('.ffblock .ff-area .marks')).toHaveTextContent('[3]')
     expect(document.querySelector('.ffblock img.doc-image-img')).toBeTruthy()
     expect(document.querySelector('.entry.freeform .ProseMirror')).toHaveTextContent('Answer: $40')
-    expect(screen.getByText('3 marks', { selector: '.total' })).toBeInTheDocument()
+    expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*3 marks\s*$/)
   })
 
   it('names the figures it had to drop', async () => {
@@ -306,8 +312,9 @@ describe('EditorPage inspector (EXA-93)', () => {
     const surface = document.querySelector('.surface') as HTMLElement
     expect(surface).not.toHaveTextContent(/engine-verified|From my bank|Unreviewed/)
 
-    const inspector = screen.getByRole('complementary', { name: 'Inspector' })
-    expect(inspector).toHaveTextContent('This paper')
+    const inspector = screen.getByRole('complementary', { name: 'Side panel' })
+    expect(screen.getByRole('tab', { name: 'Paper' })).toHaveAttribute('aria-selected', 'true')
+    expect(inspector).toHaveTextContent(/Questions\s*2/)
     await fireEvent.click(screen.getByTestId('question-block'))
     expect(inspector).toHaveTextContent('Question 1')
     expect(inspector).toHaveTextContent('Engine-verified')
@@ -329,7 +336,11 @@ describe('EditorPage export allowance (W3c)', () => {
   it('shows how many exports are left today', async () => {
     setup(() => ({ ok: true, status: 200, blob: async () => new Blob(['%PDF']) }))
     render(EditorPage, { props: { id: 'd1' } })
-    expect(await screen.findByText('4 exports left today')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
+    await waitFor(async () => {
+      await exportItem('Student paper (PDF)')
+      expect(screen.getByText('4 exports left today')).toBeInTheDocument()
+    })
   })
 
   it('a refused export (429) says when to try again instead of a raw API error', async () => {
@@ -340,7 +351,7 @@ describe('EditorPage export allowance (W3c)', () => {
     }))
     render(EditorPage, { props: { id: 'd1' } })
     await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
-    await fireEvent.click(screen.getByRole('button', { name: 'Student PDF' }))
+    await fireEvent.click(await exportItem('Student paper (PDF)'))
     expect(await screen.findByRole('alert')).toHaveTextContent('Try again in 42 seconds.')
     expect(screen.getByRole('alert')).not.toHaveTextContent('API 429')
   })
@@ -380,7 +391,7 @@ describe('EditorPage empty placeholders (EXA-137)', () => {
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }))
     render(EditorPage, { props: { id: 'd1' } })
     expect(await screen.findByTestId('placeholders-left')).toHaveTextContent('2 placeholders to write')
-    await fireEvent.click(screen.getByRole('button', { name: 'Student PDF' }))
+    await fireEvent.click(await exportItem('Student paper (PDF)'))
     const dialog = await screen.findByRole('alertdialog', { name: '2 questions are still empty' })
     expect(dialog).toHaveTextContent('Questions 2 and 3')
     expect(exportUrls).toEqual([expect.stringMatching(/\/documents\/d1\/export\/student$/)])
@@ -396,7 +407,7 @@ describe('EditorPage empty placeholders (EXA-137)', () => {
     setup()
     const { container } = render(EditorPage, { props: { id: 'd1' } })
     await screen.findByTestId('placeholders-left')
-    await fireEvent.click(screen.getByRole('button', { name: 'Full copy PDF' }))
+    await fireEvent.click(await exportItem('Paper and key together (PDF)'))
     const dialog = await screen.findByRole('alertdialog')
     await fireEvent.click(within(dialog).getByRole('button', { name: 'Fill them' }))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
@@ -428,7 +439,7 @@ describe('EditorPage empty placeholders (EXA-137)', () => {
     })
     const { container } = render(EditorPage, { props: { id: 'd1' } })
     await screen.findByTestId('placeholders-left')
-    await fireEvent.click(screen.getByRole('button', { name: 'Full copy PDF' }))
+    await fireEvent.click(await exportItem('Paper and key together (PDF)'))
     const dialog = await screen.findByRole('alertdialog')
     await fireEvent.click(within(dialog).getByRole('button', { name: 'Fill them' }))
     const sel = window.getSelection()
@@ -447,12 +458,11 @@ describe('toolbar (P1)', () => {
     return render(EditorPage, { props: { id: 'd1' } })
   }
 
-  it('uses labelled icon buttons for lists, page break, equation, image, undo and redo', async () => {
+  it('uses labelled icon buttons for lists, equation, image, undo and redo', async () => {
     renderEmpty()
     for (const name of [
       'Bulleted list',
       'Numbered list',
-      'Page break',
       'Equation',
       'Image',
       'Undo',
@@ -464,10 +474,39 @@ describe('toolbar (P1)', () => {
     }
   })
 
-  it('sits in a sticky strip below the top bar so it stays visible while scrolling', async () => {
+  it('is the second row of the sticky header, so it stays visible while scrolling', async () => {
     const { container } = renderEmpty()
     await screen.findByRole('toolbar', { name: 'Formatting' })
-    expect(container.querySelector('.toolstrip .tools')).not.toBeNull()
+    expect(container.querySelector('header.ehead .tools')).not.toBeNull()
+  })
+
+  it('keeps cover page, blank page and page break in the ⋯ menu', async () => {
+    renderEmpty()
+    await fireEvent.click(await screen.findByRole('button', { name: 'More tools' }))
+    const names = screen.getAllByRole('menuitem').map((m) => m.textContent?.trim())
+    expect(names).toEqual(['Cover page', 'Blank page', 'Page break'])
+  })
+
+  it('says why Equation is unavailable instead of greying it out silently', async () => {
+    renderEmpty()
+    const eq = await screen.findByRole('button', { name: 'Equation' })
+    await waitFor(() => expect(eq).toHaveAttribute('aria-disabled', 'true'))
+    expect(eq.title).toMatch(/click into a line of text first/)
+  })
+
+  it('moves lists, equation and image into the ⋯ menu on a narrow window', async () => {
+    const was = window.innerWidth
+    window.innerWidth = 900
+    try {
+      renderEmpty()
+      await screen.findByRole('toolbar', { name: 'Formatting' })
+      expect(screen.queryByRole('button', { name: 'Bulleted list' })).toBeNull()
+      await fireEvent.click(screen.getByRole('button', { name: 'More tools' }))
+      const names = screen.getAllByRole('menuitem').map((m) => m.textContent?.trim())
+      expect(names).toEqual(['Bulleted list', 'Numbered list', 'Equation', 'Image', 'Cover page', 'Blank page', 'Page break'])
+    } finally {
+      window.innerWidth = was
+    }
   })
 })
 
@@ -581,7 +620,7 @@ describe('multi-part free-form questions (P3)', () => {
     const inputs = screen.getAllByLabelText('Part marks') as HTMLInputElement[]
     inputs[0].value = '3'
     await fireEvent.change(inputs[0])
-    await waitFor(() => expect(screen.getByText('4 marks', { selector: '.total' })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*4 marks\s*$/))
   })
 
   it('labels follow position: deleting (a) makes (b) the new (a)', async () => {
@@ -608,7 +647,7 @@ describe('multi-part free-form questions (P3)', () => {
     renderFreeform()
     await waitFor(() => expect(document.querySelector('.ff-body')).not.toBeNull())
     expect(document.querySelectorAll('.ffpart')).toHaveLength(0)
-    expect(screen.getByText('2 marks', { selector: '.total' })).toBeInTheDocument()
+    expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*2 marks\s*$/)
   })
 })
 
@@ -656,7 +695,7 @@ describe('formatting toolbar focus (EXA-120)', () => {
     const page = document.querySelector('.page .ProseMirror') as HTMLElement
     const toolbar = screen.getByRole('toolbar', { name: 'Formatting' })
 
-    for (const name of ['Bold', 'Bulleted list', 'Page break', 'Undo']) {
+    for (const name of ['Bold', 'Bulleted list', 'Undo']) {
       page.focus()
       await press(within(toolbar).getByRole('button', { name }))
       // At once, not a frame later: a key typed now must not reach (and re-press) the button.
@@ -666,5 +705,21 @@ describe('formatting toolbar focus (EXA-120)', () => {
     const bold = within(toolbar).getByRole('button', { name: 'Bold' })
     bold.focus()
     expect(document.activeElement).toBe(bold)
+  })
+
+  it('an insert from the ⋯ menu puts the caret back in the paper', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => record([{ type: 'paragraph', content: [{ type: 'text', text: 'Some words' }] }]),
+    })
+    render(EditorPage, { props: { id: 'd1' } })
+    await waitFor(() => expect(document.querySelector('.page .ProseMirror')).not.toBeNull())
+    const page = document.querySelector('.page .ProseMirror') as HTMLElement
+    page.focus()
+    await fireEvent.click(screen.getByRole('button', { name: 'More tools' }))
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Page break' }))
+    expect(page.contains(document.activeElement)).toBe(true)
+    expect(document.querySelector('.page-break-marker')).not.toBeNull()
   })
 })

@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/sve
 import EditorPage from './EditorPage.svelte'
 import { cleanNode } from './doc'
 import { makeBankQuestion, makeQuestion } from './fixtures'
-import { hasGeneratedSlots, regenerateNotice, swapNotice } from './paperOps'
+import { hasGeneratedSlots, regenerateCounts, regenerateNotice, swapNotice } from './paperOps'
 
 const fetchMock = vi.fn()
 beforeEach(() => {
@@ -60,6 +60,19 @@ describe('paper ops helpers (P8d)', () => {
     expect(
       hasGeneratedSlots({ type: 'doc', content: [{ type: 'templatedQuestion', attrs: { slot: null } }] }),
     ).toBe(false)
+  })
+
+  it('counts what "Regenerate unlocked" would replace and keep', () => {
+    const doc = {
+      type: 'doc' as const,
+      content: [
+        generated('gq1', 'x'),
+        generated('gq2', 'y', { locked: true }),
+        placeholder('gq3'),
+        { type: 'templatedQuestion', attrs: { block_id: 'bank', question: makeBankQuestion() } },
+      ],
+    }
+    expect(regenerateCounts(doc)).toEqual({ unlocked: 2, locked: 1 })
   })
 
   it('says what happened in one line', () => {
@@ -158,9 +171,12 @@ describe('swap and lock in the editor (P8d)', () => {
     }))
     await open()
     await screen.findByText('Before.')
-    const regen = screen.getByRole('button', { name: 'Regenerate unlocked' })
-    expect(regen.title).toMatch(/Locked questions and your own writing are kept/)
-    await fireEvent.click(regen)
+    await fireEvent.click(screen.getByRole('button', { name: 'Regenerate 1 unlocked…' }))
+    // An in-page confirmation names what happens; nothing is sent until it is accepted.
+    const dialog = screen.getByRole('alertdialog', { name: 'Regenerate unlocked questions?' })
+    expect(dialog).toHaveTextContent('Replaces 1 unlocked question. 1 locked question stays.')
+    expect(calls).toHaveLength(0)
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Regenerate' }))
     expect(await screen.findByText('After.')).toBeInTheDocument()
     expect(screen.getByText('Locked.')).toBeInTheDocument()
     expect(calls[0]).toEqual({ url: expect.stringMatching(/\/regenerate$/), body: { base_version: 4 } })
@@ -173,7 +189,7 @@ describe('swap and lock in the editor (P8d)', () => {
     const block = await waitFor(() => screen.getByTestId('question-block'))
     expect(within(block).queryByRole('button', { name: 'Another like this' })).toBeNull()
     expect(within(block).queryByRole('button', { name: 'Lock' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Regenerate unlocked' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Regenerate .*unlocked/ })).toBeNull()
   })
 
   it('an edit made while a swap is out never puts the old question back, and is saved after it', async () => {
@@ -227,6 +243,17 @@ describe('swap and lock in the editor (P8d)', () => {
     return !!el && (el.inert === true || el.hasAttribute('inert'))
   }
 
+  it('cancelling the confirmation regenerates nothing', async () => {
+    const calls = serve([generated('gq1', 'Q.')], () => ({}))
+    await open()
+    await screen.findByText('Q.')
+    await fireEvent.click(screen.getByRole('button', { name: 'Regenerate 1 unlocked…' }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('No questions are locked.')
+    await fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' })
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(calls).toHaveLength(0)
+  })
+
   it('the page is inert while the server works', async () => {
     let answer: (v: unknown) => void = () => {}
     fetchMock.mockImplementation(async (url: string) =>
@@ -234,9 +261,10 @@ describe('swap and lock in the editor (P8d)', () => {
     )
     await open()
     await screen.findByText('Q.')
-    await fireEvent.click(screen.getByRole('button', { name: 'Regenerate unlocked' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Regenerate 1 unlocked…' }))
+    await fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Regenerate' }))
     await waitFor(() => expect(isInert('.desk')).toBe(true))
-    expect(isInert('.bar')).toBe(true)
+    expect(isInert('.ehead')).toBe(true)
     answer(ok({ ...record([generated('gq1', 'Q2.')], 5), report: { replaced: 1, kept: 0, placeholders: 0 } }))
     await screen.findByText('Q2.')
     expect(isInert('.desk')).toBe(false)

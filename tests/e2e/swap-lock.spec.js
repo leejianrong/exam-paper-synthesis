@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { generateSinglePaper } from './helpers.js'
+import { generateSinglePaper, API } from './helpers.js'
 
 /**
  * Browser acceptance for P8d: on a generated paper, swap questions (another topic, write my
@@ -51,11 +51,16 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
 
   // Regenerate: the locked question stays, the placeholder is filled, targets hold.
-  const api = async () => (await page.request.get(`http://localhost:8000/documents/${id}`)).json()
+  const api = async () => (await page.request.get(`${API}/documents/${id}`)).json()
   const lockedBlock = (doc) => doc.document.content.content.filter((n) => n.attrs && n.attrs.locked === true)
   const lockedBefore = lockedBlock(await api())
   expect(lockedBefore).toHaveLength(1)
-  await page.getByRole('button', { name: 'Regenerate unlocked' }).click()
+  // EXA-160: in the side panel, confirmed in a dialog that names what happens.
+  await page.getByRole('tab', { name: 'Paper', exact: true }).click()
+  await page.getByRole('button', { name: /^Regenerate 16 unlocked/ }).click()
+  const confirm = page.getByRole('alertdialog', { name: 'Regenerate unlocked questions?' })
+  await expect(confirm).toContainText('Replaces 16 unlocked questions. 1 locked question stays.')
+  await confirm.getByRole('button', { name: 'Regenerate', exact: true }).click()
   await expect(page.getByText(/Regenerated 1[67] questions; kept 1/)).toBeVisible()
   await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
   await expect.poll(() => textOf(blocks.nth(0))).toBe(lockedStem)

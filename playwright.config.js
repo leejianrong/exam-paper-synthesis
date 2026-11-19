@@ -3,11 +3,15 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-// Ports for the two dev servers Playwright boots for the e2e run.
-const API_PORT = 8000
-const WEB_PORT = 5173
+// Ports for the two dev servers Playwright boots for the e2e run. E2E_API_PORT / E2E_WEB_PORT /
+// E2E_CSP_PORT move them off the defaults (a second checkout, or a dev server already running on
+// the defaults); overridden ports always start fresh servers, never reuse one.
+const API_PORT = Number(process.env.E2E_API_PORT || 8000)
+const WEB_PORT = Number(process.env.E2E_WEB_PORT || 5173)
 // A production-shaped server for the CSP spec: the built SPA served by the API on ONE origin.
-const CSP_PORT = 8001
+const CSP_PORT = Number(process.env.E2E_CSP_PORT || 8001)
+const OVERRIDDEN = Boolean(process.env.E2E_API_PORT || process.env.E2E_WEB_PORT || process.env.E2E_CSP_PORT)
+const REUSE = !process.env.CI && !OVERRIDDEN
 const CSP_DIST = path.join(os.tmpdir(), 'exam-e2e-web-dist')
 
 // The document API (W1b) is tenant-scoped; the e2e run uses the dev identity stub and a
@@ -50,7 +54,7 @@ export default defineConfig({
       // FastAPI engine that serves POST /generate (ratio_medium questions).
       command: `uv run uvicorn app.main:app --app-dir api --port ${API_PORT}`,
       url: `http://localhost:${API_PORT}/health`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: REUSE,
       timeout: 120_000,
       stdout: 'pipe',
       stderr: 'pipe',
@@ -59,6 +63,7 @@ export default defineConfig({
       env: { ...process.env, EXAM_DEV_AUTH: '1', EXAM_DOCS_PATH: DOCS_DB, EXAM_BANK_PATH: BANK_DB, EXAM_ASSETS_PATH: ASSETS_DB,
         EXAM_AUTH_PATH: AUTH_DB,
         EXAM_USAGE_PATH: USAGE_DB,
+        EXAM_CORS_ORIGINS: `http://localhost:${WEB_PORT}`,
         // e2e exports freely (the allowance is covered by pytest and vitest)
         EXAM_EXPORT_LIMIT_PER_DAY: '0',
         EXAM_EXPORT_LIMIT_PER_MINUTE: '0',
@@ -71,7 +76,7 @@ export default defineConfig({
         `env VITE_API= npm --prefix web run build -- --outDir ${CSP_DIST} --emptyOutDir && ` +
         `uv run uvicorn app.main:app --app-dir api --port ${CSP_PORT}`,
       url: `http://localhost:${CSP_PORT}/health`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: REUSE,
       timeout: 240_000,
       stdout: 'pipe',
       stderr: 'pipe',
@@ -80,13 +85,14 @@ export default defineConfig({
         EXAM_EXPORT_LIMIT_PER_DAY: '0', EXAM_EXPORT_LIMIT_PER_MINUTE: '0' },
     },
     {
-      // Vite dev server for the Svelte SPA (reads VITE_API, defaults to :8000).
-      command: 'npm --prefix web run dev',
+      // Vite dev server for the Svelte SPA, pointed at the API above.
+      command: `npm --prefix web run dev -- --port ${WEB_PORT} --strictPort`,
       url: `http://localhost:${WEB_PORT}`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: REUSE,
       timeout: 120_000,
       stdout: 'pipe',
       stderr: 'pipe',
+      env: { ...process.env, VITE_API: `http://localhost:${API_PORT}` },
     },
   ],
 })

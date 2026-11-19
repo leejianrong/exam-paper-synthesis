@@ -20,7 +20,7 @@
   import MoveMenu from './MoveMenu.svelte'
   import NewWizard from './NewWizard.svelte'
   import type { DocumentSummary } from './doc'
-  import AccountChip from './AccountChip.svelte'
+  import AccountMenu from './AccountMenu.svelte'
   import { settings } from '../settings'
 
   let docs: DocumentSummary[] = []
@@ -167,7 +167,7 @@
       {#if $settings?.classic_generator}<a class="classic" href="#/classic">Classic generator</a>{/if}
       <a class="classic" href="#/settings">Settings</a>
     </nav>
-    <AccountChip />
+    <AccountMenu />
   </div>
   <div class="head">
     <h1>Your papers</h1>

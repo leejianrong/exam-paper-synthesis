@@ -24,6 +24,14 @@ export function hasGeneratedSlots(doc: DocJSON): boolean {
   return (doc.content ?? []).some(isGeneratedPosition)
 }
 
+/** What "Regenerate unlocked" would do (EXA-160's confirmation): the generated questions and
+ *  placeholders it refills, and the locked ones it keeps. Your own questions are never touched. */
+export function regenerateCounts(doc: DocJSON): { unlocked: number; locked: number } {
+  const slots = (doc.content ?? []).filter(isGeneratedPosition)
+  const locked = slots.filter((n) => n.attrs?.locked === true).length
+  return { unlocked: slots.length - locked, locked }
+}
+
 /** JSON with object keys sorted: the editor and the server order a node's attributes differently. */
 function canonical(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(canonical).join(',')}]`

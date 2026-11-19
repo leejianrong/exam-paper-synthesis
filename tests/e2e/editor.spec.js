@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { settled, newBlankPaper } from './helpers.js'
+import { settled, newBlankPaper, API, exportPdf } from './helpers.js'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -72,8 +72,8 @@ test('build a paper, edit questions, reload, preview and export', async ({ page 
   await expect(page.getByTestId('question-block').nth(1)).toContainText('Zainab')
 
   // True-print renderings: the student copy has no answers, the full copy has the key.
-  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
-  const full = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/full`)).text()
+  const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
+  const full = await (await page.request.get(`${API}/documents/${id}/preview/full`)).text()
   expect(student).not.toContain('Answer:')
   expect(student).toContain('Zainab')
   expect(full).toContain('Answer Key')
@@ -88,7 +88,7 @@ test('build a paper, edit questions, reload, preview and export', async ({ page 
   // PDF export downloads a real .pdf.
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Student PDF' }).click(),
+    exportPdf(page, 'Student paper (PDF)'),
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })
@@ -98,7 +98,7 @@ test('the documents list shows, opens and deletes a paper', async ({ page }) => 
   await newBlankPaper(page)
   await page.getByLabel('Paper title').fill('Throwaway')
   await settled(page)
-  await page.getByRole('link', { name: '← Papers' }).click()
+  await page.getByRole('link', { name: 'Back to papers' }).click()
   const row = page.locator('li.doc', { hasText: 'Throwaway' })
   await expect(row).toBeVisible()
   await row.getByRole('button', { name: 'Delete' }).click()
@@ -139,7 +139,7 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
   await expect(block.getByText('Unreviewed')).toHaveCount(0)
   await centre(block)
   await block.click({ position: { x: 12, y: 60 } })
-  const inspector = page.getByRole('complementary', { name: 'Inspector' })
+  const inspector = page.getByRole('complementary', { name: 'Side panel' })
   await expect(inspector).toContainText('From my bank')
   await expect(inspector).toContainText('not yet reviewed')
   await expect(block.getByRole('button', { name: 'Make harder' })).toHaveCount(0)
@@ -172,11 +172,11 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
   await page.reload()
   await expect(page.getByTestId('question-block')).toHaveCount(2)
   const student = await (
-    await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)
+    await page.request.get(`${API}/documents/${id}/preview/student`)
   ).text()
   expect(student).toContain('class="option"')
   expect(student).not.toContain('Answer:')
-  const full = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/full`)).text()
+  const full = await (await page.request.get(`${API}/documents/${id}/preview/full`)).text()
   expect(full).toContain('option-correct')
 })
 
@@ -212,8 +212,8 @@ test('write a free-form question, set marks, write its answer, reload, preview a
   await expect(page.locator('.ffblock .ff-area .marks')).toHaveText('[3]')
   await expect(page.locator('.entry.freeform .answer')).toContainText('Ann has 7 sweets left.')
 
-  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
-  const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
+  const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
+  const key = await (await page.request.get(`${API}/documents/${id}/preview/key`)).text()
   expect(student).toContain('How many are left?')
   expect(student).toContain('[3]')
   expect(student).not.toContain('Ann has 7 sweets left.')
@@ -221,7 +221,7 @@ test('write a free-form question, set marks, write its answer, reload, preview a
 
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Answer key PDF' }).click(),
+    exportPdf(page, 'Answer key (PDF)'),
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })
@@ -248,7 +248,7 @@ test('a multi-part free-form question: lettered parts with marks, answers, reloa
   const marks = block.getByLabel('Part marks')
   await marks.nth(0).fill('2')
   await marks.nth(0).press('Enter')
-  await expect(page.locator('.bar .total')).toHaveText('3 marks')
+  await expect(page.getByTestId('marks-total')).toHaveText('3 marks')
 
   // Each part has its own answer in the key region.
   const key = page.getByRole('region', { name: 'Answer key' })
@@ -260,10 +260,10 @@ test('a multi-part free-form question: lettered parts with marks, answers, reloa
   await settled(page)
   await page.reload()
   await expect(block.locator('.ffp-label')).toHaveText(['(a)', '(b)'])
-  await expect(page.locator('.bar .total')).toHaveText('3 marks')
+  await expect(page.getByTestId('marks-total')).toHaveText('3 marks')
 
-  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
-  const answerKey = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
+  const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
+  const answerKey = await (await page.request.get(`${API}/documents/${id}/preview/key`)).text()
   expect(student).toContain('(a)')
   expect(student).toContain('(b)')
   expect(student).toContain('Find its volume.')
@@ -274,7 +274,7 @@ test('a multi-part free-form question: lettered parts with marks, answers, reloa
 
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Student PDF' }).click(),
+    exportPdf(page, 'Student paper (PDF)'),
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })
@@ -321,18 +321,18 @@ test('a free-form question with a PNG figure and an equation survives reload and
   await expect(page.locator('.ffblock img.doc-image-img')).toBeVisible()
 
   // The printed copy has the figure inlined as a data URI and the formula typeset.
-  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
+  const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
   expect(student).toContain('data:image/png;base64,')
   expect(student).toContain('\\(\\frac{3}{4} \\times 8\\)')
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Student PDF' }).click(),
+    exportPdf(page, 'Student paper (PDF)'),
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })
 
 test('uploads are validated by content and are private to their owner', async ({ request }) => {
-  const api = 'http://localhost:8000'
+  const api = API
   const html = Buffer.from('<html><script>alert(1)</script></html>')
   const refused = await request.post(`${api}/assets`, { data: html, headers: { 'X-Filename': 'x.png', 'Content-Type': 'image/png' } })
   expect(refused.status()).toBe(422)
@@ -383,11 +383,11 @@ test('convert a generated question to free-form: text, answer and its figure as 
   await expect(ff.locator('.ff-body')).toContainText('(edited)')
 
   await settled(page)
-  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
+  const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
   expect(student).toContain('(edited)')
   // The bar model is the worked solution: never on the student paper, in the key (EXA-132).
   expect(student).not.toContain('data:image/png;base64,')
-  const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
+  const key = await (await page.request.get(`${API}/documents/${id}/preview/key`)).text()
   expect(key).toContain('Answer:')
   expect(key).toContain('data:image/png;base64,')
 
@@ -434,7 +434,7 @@ test('import canonical JSON into the bank from the editor, review-gated, per-ite
   await dialog.getByRole('button', { name: 'Back to bank' }).click()
   const item = dialog.getByTestId('bank-item').filter({ has: page.locator('.tag', { hasText: 'Unreviewed' }) })
   await expect(item.first()).toBeVisible()
-  const bank = await (await page.request.get('http://localhost:8000/bank')).json()
+  const bank = await (await page.request.get(`${API}/bank`)).json()
   const stored = bank.items.find((i) => i.id === good.id)
   expect(stored).toBeTruthy()
   expect(stored.reviewed).toBe(false)
@@ -486,7 +486,7 @@ test('a remark is private: kept through edits and reloads, never in a preview or
   await expect(page.getByLabel(/^Remarks/)).toHaveValue(SECRET)
 
   for (const mode of ['student', 'key', 'full']) {
-    const html = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/${mode}`)).text()
+    const html = await (await page.request.get(`${API}/documents/${id}/preview/${mode}`)).text()
     expect(html).not.toContain(SECRET)
   }
   await page.getByRole('button', { name: 'Preview' }).click()
@@ -497,10 +497,10 @@ test('a remark is private: kept through edits and reloads, never in a preview or
 test('reviewing a bank question is a deliberate act: confirm to mark, one click to withdraw', async ({ page }) => {
   const base = JSON.parse(fs.readFileSync('tests/fixtures/sourced/psle_2023_ratio.json', 'utf8'))
   const mine = { ...base, id: `sourced:e2e-review-${Date.now().toString(36)}` }
-  const imported = await page.request.post('http://localhost:8000/bank/import', { data: { objects: [mine] } })
+  const imported = await page.request.post(`${API}/bank/import`, { data: { objects: [mine] } })
   expect((await imported.json()).imported).toBe(1)
   const inBank = async () =>
-    (await (await page.request.get('http://localhost:8000/bank')).json()).items.find((i) => i.id === mine.id)
+    (await (await page.request.get(`${API}/bank`)).json()).items.find((i) => i.id === mine.id)
   expect((await inBank()).reviewed).toBe(false)
 
   await page.goto('/')
@@ -525,7 +525,7 @@ test('reviewing a bank question is a deliberate act: confirm to mark, one click 
   const block = page.getByTestId('question-block')
   await centre(block)
   await block.click({ position: { x: 12, y: 60 } })
-  const inspector = page.getByRole('complementary', { name: 'Inspector' })
+  const inspector = page.getByRole('complementary', { name: 'Side panel' })
   await expect(inspector).toContainText('reviewed by you')
   await inspector.getByRole('button', { name: 'Withdraw review' }).click()
   await expect(inspector).toContainText('not yet reviewed')
@@ -536,5 +536,5 @@ test('reviewing a bank question is a deliberate act: confirm to mark, one click 
   await page.reload()
   await centre(page.getByTestId('question-block'))
   await page.getByTestId('question-block').click({ position: { x: 12, y: 60 } })
-  await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText('not yet reviewed')
+  await expect(page.getByRole('complementary', { name: 'Side panel' })).toContainText('not yet reviewed')
 })

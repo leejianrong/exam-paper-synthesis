@@ -1,6 +1,10 @@
 <script lang="ts">
   import { BlockSelectionGuard, insertBlockSafely } from './blockSelection'
-  import ToolIcon from './ToolIcon.svelte'
+  import Icon from '../Icon.svelte'
+  import Menu, { type MenuItem } from '../Menu.svelte'
+  import ConfirmDialog from '../ConfirmDialog.svelte'
+  import EditorBar from './EditorBar.svelte'
+  import SidePanel, { type SectionRow } from './SidePanel.svelte'
   import { describePage, summarisePages, type PageSummary } from './pageSummary'
   import { paperSettings } from './paperSettings'
   import {
@@ -18,9 +22,7 @@
   import { NodeSelection, TextSelection } from '@tiptap/pm/state'
   import type { Question } from '../types'
   import AddQuestion from './AddQuestion.svelte'
-  import AccountChip from './AccountChip.svelte'
   import AnswerKey from './AnswerKey.svelte'
-  import Inspector from './Inspector.svelte'
   import { withReviewed } from './inspector'
   import { createAutosaver, type Autosaver } from './autosave'
   import {
@@ -36,6 +38,7 @@
     ApiError,
     exportDocument,
     getDocument,
+    listFolders,
     previewDocument,
     regeneratePaper,
     saveDocument,
@@ -56,6 +59,7 @@
     applyServerContent,
     goToQuestion,
     hasGeneratedSlots,
+    regenerateCounts,
     regenerateNotice,
     swapNotice,
   } from './paperOps'
@@ -89,6 +93,13 @@
   let pageSummary: PageSummary | null = null // the paginated preview's pages and tallies (P6d)
   let barH = 0 // the sticky top bar's height: the formatting toolbar sticks just below it
   let tick = 0 // bumps on every editor transaction so toolbar state re-reads
+  let folderName: string | null = null
+  let titleInput: HTMLInputElement
+  let panelTab: 'paper' | 'question' = 'paper'
+  let confirmRegen = false
+  let innerWidth = 1440
+  /** Below 1024 px the toolbar's tail (lists, equation, image) moves into its ⋯ menu. */
+  $: narrow = innerWidth < 1024
 
   $: blocks = numberedNodes(content)
   $: marks = totalMarks(content)
@@ -100,16 +111,42 @@
   $: start = numberFrom($paperSettings)
   $: outline.set(paperOutline(content, start))
   $: keyOpts = keyOptionsOf($paperSettings)
-  $: statusLabel = {
-    saved: 'Saved',
-    dirty: 'Unsaved changes',
-    saving: 'Saving…',
-    conflict: 'Conflict',
-    error: 'Save failed — will retry',
-  }[status]
+  $: regenInfo = canRegenerate ? regenerateCounts(content) : null
+
+  // The side panel's Marks group and the header total: each section against its target.
+  $: sectionRows = sectionRowsOf(content, start)
+  $: target =
+    sectionRows.length && sectionRows.every((r) => r.target !== null)
+      ? sectionRows.reduce((sum, r) => sum + (r.target ?? 0), 0)
+      : null
+  $: offTarget = sectionRows
+    .filter((r) => r.target !== null && r.marks !== r.target)
+    .map((r, i) => `${r.title || `Section ${i + 1}`}: ${r.marks} of ${r.target} marks`)
+    .join('; ')
+
+  function sectionRowsOf(doc: DocJSON, first: number): SectionRow[] {
+    const titles = (doc.content ?? [])
+      .filter((n) => n.type === 'section')
+      .map((n) => String(n.attrs?.title ?? '').trim())
+    return paperOutline(doc, first).map((o, i) => ({ title: titles[i] || `Section ${i + 1}`, marks: o.marks, target: o.target }))
+  }
+
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+  $: regenBody = regenInfo
+    ? `Replaces ${plural(regenInfo.unlocked, 'unlocked question')}. ` +
+      (regenInfo.locked
+        ? `${plural(regenInfo.locked, 'locked question')} ${regenInfo.locked === 1 ? 'stays' : 'stay'}. `
+        : 'No questions are locked. ') +
+      'Questions you wrote yourself stay.'
+    : ''
+
+  function rename() {
+    titleInput?.focus()
+    titleInput?.select()
+  }
 
   function setPlacement(e: Event) {
-    const marks_placement = (e.currentTarget as HTMLSelectElement).value as MarksPlacement
+    const marks_placement = (e.target as HTMLSelectElement).value as MarksPlacement
     paperSettings.update((s) => ({ ...s, marks_placement }))
     scheduleSave()
   }
@@ -129,7 +166,7 @@
     setBlockAttrs(blockId, ['templatedQuestion', 'freeformQuestion'], { in_key: included })
 
   function setTime(e: Event) {
-    const raw = (e.currentTarget as HTMLInputElement).value
+    const raw = (e.target as HTMLInputElement).value
     const n = raw === '' ? null : Math.max(1, Math.min(600, Math.round(+raw)))
     paperSettings.update((s) => ({ ...s, time_min: n }))
     scheduleSave()
@@ -137,7 +174,7 @@
 
   // EXA-134: Booklet B carries on from Booklet A, so its first question is 16, not 1.
   function setNumberFrom(e: Event) {
-    const raw = (e.currentTarget as HTMLInputElement).value
+    const raw = (e.target as HTMLInputElement).value
     const n = raw === '' ? null : Math.max(1, Math.min(999, Math.round(+raw)))
     paperSettings.update((s) => ({ ...s, number_from: n }))
     scheduleSave()
@@ -169,6 +206,12 @@
         ...(rec.document.settings ?? {}),
       })
       content = rec.document.content
+      if (rec.folder_id) {
+        const folder = rec.folder_id
+        void listFolders()
+          .then((fs) => (folderName = fs.find((f) => f.id === folder)?.name ?? null))
+          .catch(() => undefined)
+      }
       autosaver = createAutosaver({
         initialVersion: rec.version,
         save: (doc, base) => saveDocument(id, doc, base),
@@ -220,6 +263,7 @@
       })
       startWithTextCursor(editor)
       content = editor.getJSON() as DocJSON
+      tick += 1 // the toolbar reads the opening selection, before any transaction
     } catch (e) {
       loadError =
         e instanceof ApiError && e.status === 404
@@ -376,7 +420,62 @@
     }
   }
   $: act = readActive(tick)
-  $: headingActive = [act.h1, act.h2, act.h3]
+  $: styleName = act.h1 ? 'Heading 1' : act.h2 ? 'Heading 2' : act.h3 ? 'Heading 3' : 'Normal text'
+  const EQUATION_OFF = 'Equation: click into a line of text first, then insert it there'
+
+  /** Run an editor command from a menu and put the caret back in the paper at once. */
+  function inPaper(run: (e: Editor) => void) {
+    const e = editor
+    if (!e) return
+    run(e)
+    e.view.focus()
+  }
+
+  const styleItems: MenuItem[] = [
+    { label: 'Normal text', onSelect: () => inPaper((e) => e.chain().setParagraph().run()) },
+    ...([1, 2, 3] as const).map((level) => ({
+      label: `Heading ${level}`,
+      onSelect: () => inPaper((e) => e.chain().setHeading({ level }).run()),
+    })),
+  ]
+
+  // The toolbar's ⋯: page-level inserts for now (S5 moves them to the Insert menu), plus the
+  // toolbar's tail when the window is narrow.
+  $: moreItems = [
+    ...(narrow
+      ? ([
+          { label: 'Bulleted list', icon: 'bullets', onSelect: () => inPaper((e) => e.chain().toggleBulletList().run()) },
+          { label: 'Numbered list', icon: 'numbers', onSelect: () => inPaper((e) => e.chain().toggleOrderedList().run()) },
+          {
+            label: 'Equation',
+            icon: 'sigma',
+            disabled: !act.inText,
+            hint: act.inText ? undefined : EQUATION_OFF,
+            onSelect: addEquation,
+          },
+          { label: 'Image', icon: 'image', onSelect: () => fileInput.click() },
+        ] satisfies MenuItem[])
+      : []),
+    {
+      label: 'Cover page',
+      icon: 'cover',
+      separator: narrow,
+      disabled: coverPresent,
+      hint: coverPresent ? 'The paper already has a cover page' : 'Add a cover page at the start',
+      onSelect: () => inPaper((e) => e.chain().insertContentAt(0, coverNode()).run()),
+    },
+    {
+      label: 'Blank page',
+      icon: 'blankpage',
+      hint: 'Insert a blank or rough-work page',
+      onSelect: () => inPaper((e) => insertBlockSafely(e, blankPageNode())),
+    },
+    {
+      label: 'Page break',
+      icon: 'pagebreak',
+      onSelect: () => inPaper((e) => insertBlockSafely(e, { type: 'pageBreak' })),
+    },
+  ] satisfies MenuItem[]
 
   async function download(mode: ExportMode, allowPlaceholders = false) {
     busy = `export-${mode}`
@@ -498,107 +597,124 @@
   }
 </script>
 
-<svelte:window on:beforeunload={onBeforeUnload} />
+<svelte:window on:beforeunload={onBeforeUnload} bind:innerWidth />
 
-<div class="bar" bind:clientHeight={barH} inert={busy === 'paper'}>
-  <a class="back" href="#/">← Papers</a>
-  <span class="chip {status}" role="status" aria-live="polite">{statusLabel}</span>
-  <span class="total">{marks} marks</span>
-  <label class="placement">
-    Marks shown
-    <select
-      aria-label="Marks shown"
-      value={$paperSettings.marks_placement ?? DEFAULT_PLACEMENT}
-      on:change={setPlacement}
+<header class="ehead" bind:clientHeight={barH} inert={busy === 'paper'}>
+  <EditorBar
+    {title}
+    {folderName}
+    {status}
+    {marks}
+    {target}
+    {offTarget}
+    {busy}
+    {quota}
+    hasQuestions={blocks.length > 0}
+    onPreview={() => preview('full')}
+    onExport={(mode) => download(mode)}
+    onRename={rename}
+  />
+  <!-- Clicking a tool must not take focus from the page (like Word/Docs): the editor keeps its
+       caret, so keys typed right after a click go to the paper, not the button (a space would
+       "press" it again; TipTap's focus() only refocuses a frame later). Keyboard use is unaffected. -->
+  <div
+    class="tools"
+    role="toolbar"
+    aria-label="Formatting"
+    tabindex="-1"
+    on:mousedown|preventDefault>
+    <button class="btn quiet" title="Add a question" on:click={() => (pickerAt = null)}
+      ><Icon name="plus" />Question</button
     >
-      <option value="answer">beside the answer line</option>
-      <option value="question">beside the question</option>
-      <option value="both">both</option>
-    </select>
-  </label>
-  <label class="placement">
-    Time (min)
-    <input
-      class="time"
-      type="number"
-      min="1"
-      max="600"
-      aria-label="Paper time in minutes"
-      value={$paperSettings.time_min ?? ''}
-      on:input={setTime}
-    />
-  </label>
-  <label class="placement">
-    First Q
-    <input
-      class="time"
-      type="number"
-      min="1"
-      max="999"
-      placeholder="1"
-      aria-label="First question number"
-      value={$paperSettings.number_from ?? ''}
-      on:input={setNumberFrom}
-    />
-  </label>
-  <fieldset class="keyopts">
-    <legend>Answer key</legend>
-    <select
-      aria-label="Answer key layout"
-      title="Full: each question with its worked solution. Compact: an answer grid for multiple choice, then a table of working with Ans:, like a school key."
-      value={keyOpts.layout}
-      on:change={setKeyLayout}
-    >
-      <option value="full">Full</option>
-      <option value="compact">Compact</option>
-    </select>
-    <label>
-      <input
-        type="checkbox"
-        aria-label="Answer key repeats each question"
-        disabled={keyOpts.layout === 'compact'}
-        checked={keyOpts.show_question}
-        on:change={(e) => setKeyOption('show_question', e.currentTarget.checked)}
-      />
-      question
-    </label>
-    <label>
-      <input
-        type="checkbox"
-        aria-label="Answer key shows the M/A marking breakdown"
-        checked={keyOpts.show_scheme}
-        on:change={(e) => setKeyOption('show_scheme', e.currentTarget.checked)}
-      />
-      M/A marks
-    </label>
-  </fieldset>
-  <span class="spacer"></span>
-  {#if placeholdersLeft}
-    <span class="quota placeholders" title="Generated placeholders still to write" data-testid="placeholders-left"
-      >{placeholdersLeft} placeholder{placeholdersLeft === 1 ? '' : 's'} to write</span
-    >
-  {/if}
-  {#if quota && typeof quota.left_day === 'number'}
-    <span class="quota" title="PDF exports left in the last 24 hours">{quota.left_day} exports left today</span>
-  {/if}
-  {#if canRegenerate}
     <button
-      class="regen"
-      disabled={!!busy}
-      title="Refill every generated question and empty placeholder you haven't locked, including generated questions you added by hand. Locked questions and your own writing are kept."
-      on:click={regenerate}>Regenerate unlocked</button
+      class="btn quiet"
+      title="Insert a section"
+      on:click={() => editor && insertBlockSafely(editor, { type: 'section', attrs: { title: '' } })}
+      ><Icon name="plus" />Section</button
     >
-  {/if}
-  <AccountChip />
-  <div class="export" role="group" aria-label="Export">
-    <button disabled={!!busy} on:click={() => preview('full')}>Preview</button>
-    <button disabled={!!busy} on:click={() => download('student')}>Student PDF</button>
-    <button disabled={!!busy || blocks.length === 0} on:click={() => download('key')}
-      >Answer key PDF</button
+    <span class="sep"></span>
+    <button
+      class="icon-btn"
+      aria-label="Undo"
+      title="Undo (Ctrl+Z)"
+      on:click={() => editor?.chain().focus().undo().run()}><Icon name="undo" /></button
     >
-    <button disabled={!!busy} on:click={() => download('full')}>Full copy PDF</button>
+    <button
+      class="icon-btn"
+      aria-label="Redo"
+      title="Redo (Ctrl+Y)"
+      on:click={() => editor?.chain().focus().redo().run()}><Icon name="redo" /></button
+    >
+    <span class="sep"></span>
+    <Menu items={styleItems} label="Text style: {styleName}" menuLabel="Text style" triggerClass="styleselect">
+      {#snippet trigger()}<span class="style-name">{styleName}</span><Icon name="down" />{/snippet}
+    </Menu>
+    <span class="sep"></span>
+    <button
+      class="icon-btn"
+      aria-label="Bold"
+      title="Bold (Ctrl+B)"
+      aria-pressed={act.bold}
+      on:click={() => editor?.chain().focus().toggleBold().run()}><b>B</b></button
+    >
+    <button
+      class="icon-btn"
+      aria-label="Italic"
+      title="Italic (Ctrl+I)"
+      aria-pressed={act.italic}
+      on:click={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button
+    >
+    <button
+      class="icon-btn"
+      aria-label="Underline"
+      title="Underline (Ctrl+U)"
+      aria-pressed={act.underline}
+      on:click={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></button
+    >
+    {#if !narrow}
+      <span class="sep"></span>
+      <button
+        class="icon-btn"
+        aria-pressed={act.bullet}
+        aria-label="Bulleted list"
+        title="Bulleted list"
+        on:click={() => editor?.chain().focus().toggleBulletList().run()}><Icon name="bullets" /></button
+      >
+      <button
+        class="icon-btn"
+        aria-pressed={act.ordered}
+        aria-label="Numbered list"
+        title="Numbered list"
+        on:click={() => editor?.chain().focus().toggleOrderedList().run()}><Icon name="numbers" /></button
+      >
+      <span class="sep"></span>
+      <button
+        class="icon-btn"
+        aria-label="Equation"
+        title={act.inText ? 'Equation' : EQUATION_OFF}
+        aria-disabled={!act.inText}
+        on:click={() => act.inText && addEquation()}><Icon name="sigma" /></button
+      >
+      <button class="icon-btn" aria-label="Image" title="Insert image" on:click={() => fileInput.click()}
+        ><Icon name="image" /></button
+      >
+    {/if}
+    <input
+      bind:this={fileInput}
+      type="file"
+      accept={IMAGE_TYPES.join(',')}
+      multiple
+      hidden
+      aria-label="Choose image"
+      on:change={onPickImages}
+    />
+    <span class="tail">
+      <Menu items={moreItems} label="More tools" align="end" triggerClass="icon-btn" triggerTitle="More tools">
+        {#snippet trigger()}<Icon name="more" />{/snippet}
+      </Menu>
+    </span>
   </div>
-</div>
+</header>
 
 {#if status === 'conflict'}
   <p class="banner" role="alert">
@@ -632,121 +748,12 @@
   aria-busy={busy === 'paper'}
 >
 <div class="main">
-  <div class="toolstrip">
-  <!-- Clicking a tool must not take focus from the page (like Word/Docs): the editor keeps its
-       caret, so keys typed right after a click go to the paper, not the button (a space would
-       "press" it again; TipTap's focus() only refocuses a frame later). Keyboard use is unaffected. -->
-  <div
-    class="tools"
-    role="toolbar"
-    aria-label="Formatting"
-    tabindex="-1"
-    on:mousedown|preventDefault>
-    <button
-      aria-label="Bold"
-      title="Bold"
-      aria-pressed={act.bold}
-      on:click={() => editor?.chain().focus().toggleBold().run()}><b>B</b></button
-    >
-    <button
-      aria-label="Italic"
-      title="Italic"
-      aria-pressed={act.italic}
-      on:click={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button
-    >
-    <button
-      aria-label="Underline"
-      title="Underline"
-      aria-pressed={act.underline}
-      on:click={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></button
-    >
-    <span class="sep"></span>
-    {#each [1, 2, 3] as level (level)}
-      <button
-        aria-pressed={headingActive[level - 1]}
-        on:click={() => editor?.chain().focus().toggleHeading({ level: level as 1 | 2 | 3 }).run()}
-        >H{level}</button
-      >
-    {/each}
-    <span class="sep"></span>
-    <button
-      aria-pressed={act.bullet}
-      aria-label="Bulleted list"
-      title="Bulleted list"
-      on:click={() => editor?.chain().focus().toggleBulletList().run()}
-      ><ToolIcon name="bullet" /></button
-    >
-    <button
-      aria-pressed={act.ordered}
-      aria-label="Numbered list"
-      title="Numbered list"
-      on:click={() => editor?.chain().focus().toggleOrderedList().run()}
-      ><ToolIcon name="ordered" /></button
-    >
-    <button
-      aria-label="Section"
-      title="Insert a section"
-      on:click={() =>
-        editor && insertBlockSafely(editor, { type: 'section', attrs: { title: '' } })}
-      ><ToolIcon name="section" /></button
-    >
-    <button
-      aria-label="Cover page"
-      title={coverPresent ? 'The paper already has a cover page' : 'Add a cover page'}
-      disabled={coverPresent}
-      on:click={() => editor?.chain().insertContentAt(0, coverNode()).run()}
-      ><ToolIcon name="cover" /></button
-    >
-    <button
-      aria-label="Blank page"
-      title="Insert a blank or rough-work page"
-      on:click={() => editor && insertBlockSafely(editor, blankPageNode())}
-      ><ToolIcon name="blankpage" /></button
-    >
-    <button
-      aria-label="Page break"
-      title="Page break"
-      on:click={() => editor && insertBlockSafely(editor, { type: 'pageBreak' })}
-      ><ToolIcon name="pagebreak" /></button
-    >
-    <span class="sep"></span>
-    <button
-      aria-label="Equation"
-      title="Equation"
-      disabled={!act.inText}
-      on:click={addEquation}><ToolIcon name="equation" /></button
-    >
-    <button aria-label="Image" title="Insert image" on:click={() => fileInput.click()}
-      ><ToolIcon name="image" /></button
-    >
-    <input
-      bind:this={fileInput}
-      type="file"
-      accept={IMAGE_TYPES.join(',')}
-      multiple
-      hidden
-      aria-label="Choose image"
-      on:change={onPickImages}
-    />
-    <span class="sep"></span>
-    <button
-      aria-label="Undo"
-      title="Undo"
-      on:click={() => editor?.chain().focus().undo().run()}><ToolIcon name="undo" /></button
-    >
-    <button
-      aria-label="Redo"
-      title="Redo"
-      on:click={() => editor?.chain().focus().redo().run()}><ToolIcon name="redo" /></button
-    >
-  </div>
-  </div>
-
   <div class="page">
     <input
       class="title"
       aria-label="Paper title"
       placeholder="Untitled paper"
+      bind:this={titleInput}
       bind:value={title}
       on:input={scheduleSave}
     />
@@ -776,15 +783,72 @@
     on:error={(e) => (actionError = e.detail)}
   />
 </div>
-<Inspector
+<SidePanel
+  bind:tab={panelTab}
   {blocks}
   {marks}
   {selectedId}
   {start}
+  sections={sectionRows}
+  regen={regenInfo}
+  {placeholdersLeft}
+  busy={!!busy}
+  on:time={(e) => setTime(e.detail)}
+  on:numberfrom={(e) => setNumberFrom(e.detail)}
+  on:placement={(e) => setPlacement(e.detail)}
+  on:regenerate={() => (confirmRegen = true)}
   on:remark={(e) => setRemark(e.detail.blockId, e.detail.remark)}
   on:review={(e) => setReviewed(e.detail.blockId, e.detail.reviewed)}
-/>
+>
+  <!-- EXA-160: a temporary home for the key options until S4 moves them to the key view. -->
+  <svelte:fragment slot="key">
+  <fieldset class="keyopts">
+    <legend>Answer key</legend>
+    <select
+      aria-label="Answer key layout"
+      title="Full: each question with its worked solution. Compact: an answer grid for multiple choice, then a table of working with Ans:, like a school key."
+      value={keyOpts.layout}
+      on:change={setKeyLayout}
+    >
+      <option value="full">Full</option>
+      <option value="compact">Compact</option>
+    </select>
+    <label>
+      <input
+        type="checkbox"
+        aria-label="Answer key repeats each question"
+        disabled={keyOpts.layout === 'compact'}
+        checked={keyOpts.show_question}
+        on:change={(e) => setKeyOption('show_question', e.currentTarget.checked)}
+      />
+      question
+    </label>
+    <label>
+      <input
+        type="checkbox"
+        aria-label="Answer key shows the M/A marking breakdown"
+        checked={keyOpts.show_scheme}
+        on:change={(e) => setKeyOption('show_scheme', e.currentTarget.checked)}
+      />
+      M/A marks
+    </label>
+  </fieldset>
+  </svelte:fragment>
+</SidePanel>
 </div>
+
+{#if confirmRegen && regenInfo}
+  <ConfirmDialog
+    title="Regenerate unlocked questions?"
+    body={regenBody}
+    confirmLabel="Regenerate"
+    onConfirm={() => {
+      confirmRegen = false
+      void regenerate()
+    }}
+    onCancel={() => (confirmRegen = false)}
+  />
+{/if}
 
 <MathPopover />
 
@@ -831,96 +895,97 @@
 {/if}
 
 <style>
-  .bar {
+  /* EXA-160: one sticky header, two rows (EditorBar, then the formatting toolbar). */
+  .ehead {
     position: sticky;
     top: 0;
     z-index: 10;
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    padding: 0.5rem 1rem;
-    background: var(--paper-2);
+    background: var(--page);
     border-bottom: 1px solid var(--line);
     font-size: 13px;
   }
-  .placement {
-    display: inline-flex;
+  .tools {
+    display: flex;
     align-items: center;
-    gap: 0.35rem;
-    color: var(--ink-soft);
+    gap: 2px;
+    height: 44px;
+    margin-top: var(--s2);
+    padding: var(--s1) var(--s4) var(--s1) calc(var(--s4) - 4px);
+    border-top: 1px solid var(--line-soft);
   }
-  .keyopts {
+  .tools .btn {
     display: inline-flex;
     align-items: center;
-    gap: 0.6rem;
-    margin: 0;
+    gap: 6px;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .tools .icon-btn,
+  .tools :global(.icon-btn) {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
     padding: 0;
-    border: 0;
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    background: transparent;
     color: var(--ink-soft);
+    font-size: 14px;
+    cursor: pointer;
   }
-  .keyopts legend {
-    float: left;
-    padding: 0;
-    margin-right: 0.4rem;
-  }
-  .keyopts label {
+  .tools :global(.styleselect) {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
-  }
-  .placement .time {
-    width: 4.5rem;
+    gap: 6px;
+    height: 30px;
+    padding: 0 var(--s2);
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--ink-soft);
     font: inherit;
-    font-size: 12.5px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--paper);
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .tools .btn:hover,
+  .tools .icon-btn:hover,
+  .tools :global(.icon-btn:hover),
+  .tools :global(.styleselect:hover),
+  .tools :global([aria-expanded='true']) {
+    background: var(--wash);
     color: var(--ink);
   }
-  .placement select {
-    font: inherit;
-    font-size: 12.5px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--paper);
-    color: var(--ink);
-  }
-  .back {
-    color: var(--ink-soft);
-    text-decoration: none;
-  }
-  .chip {
-    font-family: var(--mono);
-    font-size: 11.5px;
-    padding: 0.1rem 0.5rem;
-    border-radius: 999px;
+  .tools .icon-btn[aria-pressed='true'] {
     background: var(--verify-soft);
     color: var(--verify-ink);
   }
-  .chip.dirty,
-  .chip.saving {
-    background: var(--paper-sink);
-    color: var(--ink-soft);
-  }
-  .chip.conflict,
-  .chip.error {
-    background: var(--mark-soft);
-    color: var(--mark);
-  }
-  .total {
-    font-family: var(--mono);
-    color: var(--mark);
-  }
-  .quota {
+  .tools .icon-btn[aria-disabled='true'] {
     color: var(--ink-faint);
-    font-size: 12.5px;
+    opacity: 0.5;
+    cursor: default;
   }
-  .spacer {
-    flex: 1;
+  .tools .icon-btn[aria-disabled='true']:hover {
+    background: transparent;
   }
-  .export {
-    display: flex;
-    gap: 0.35rem;
+  .sep {
+    flex: none;
+    width: 1px;
+    height: 20px;
+    margin: 0 var(--s2);
+    background: var(--line);
+  }
+  .tail {
+    margin-left: auto;
   }
   button {
     font: inherit;
@@ -935,10 +1000,6 @@
   button:disabled {
     opacity: 0.5;
     cursor: default;
-  }
-  button[aria-pressed='true'] {
-    background: var(--verify-soft);
-    border-color: var(--verify);
   }
   .banner {
     margin: 0;
@@ -961,58 +1022,53 @@
 
   .desk :global(.qblock),
   .desk :global(.ffblock) {
-    scroll-margin-top: calc(var(--bar-h, 0px) + 5rem); /* clear the sticky bars */
+    scroll-margin-top: calc(var(--bar-h, 0px) + 1rem); /* clear the sticky header */
   }
+  /* The page in the middle, the side panel to its right (EXA-160). Narrower: the page takes
+     what is left beside a fixed panel; below 900 px the panel stacks above the page. */
   .desk {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 210mm) minmax(260px, 1fr);
+    gap: var(--s6);
+    align-items: start;
     background: var(--desk);
-    padding: 1rem 1rem 4rem;
+    padding: var(--s6) var(--s4) 4rem;
     min-height: 100vh;
   }
   .main {
-    flex: 1 1 auto;
+    grid-column: 2;
     min-width: 0;
   }
-  @media (max-width: 1150px) {
+  .desk > :global(.panel) {
+    grid-column: 3;
+    justify-self: start;
+    width: 100%;
+    max-width: 300px;
+  }
+  @media (max-width: 1199px) {
     .desk {
-      flex-direction: column;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: var(--s4);
+    }
+    .main {
+      grid-column: 1;
+    }
+    .desk > :global(.panel) {
+      grid-column: 2;
+      max-width: none;
     }
   }
-  /* Stays in view while the paper scrolls: sticks just under the (also sticky) top bar. The
-     opaque strip hides the page sliding underneath. */
-  .toolstrip {
-    position: sticky;
-    top: var(--bar-h, 0px);
-    z-index: 9;
-    margin: -1rem -1rem 0.6rem;
-    padding: 0.5rem 1rem;
-    background: var(--desk);
-    border-bottom: 1px solid var(--line-soft);
-  }
-  .tools {
-    width: 210mm;
-    max-width: 100%;
-    margin: 0 auto;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-    align-items: center;
-  }
-  .tools button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 1.9rem;
-    height: 1.9rem;
-    padding: 0 0.4rem;
-  }
-  .sep {
-    width: 1px;
-    height: 1.2rem;
-    background: var(--line);
-    margin: 0 0.2rem;
+  @media (max-width: 899px) {
+    .desk {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .desk > :global(.panel) {
+      grid-column: 1;
+      grid-row: 1;
+    }
+    .main {
+      grid-row: 2;
+    }
   }
   .page {
     width: 210mm;
@@ -1280,9 +1336,6 @@
   .surface :global(.ffblock.placeholder-slot .ff-body > p:first-child) {
     min-height: 2.2em;
     margin: 0;
-  }
-  .placeholders {
-    color: var(--mark, #b42318);
   }
   .surface :global(.page-block) {
     margin: 1rem 0;

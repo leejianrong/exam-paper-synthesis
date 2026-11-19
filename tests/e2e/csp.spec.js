@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { openClassic, newBlankPaper } from './helpers.js'
+import { openClassic, newBlankPaper, CSP_ORIGIN, exportPdf } from './helpers.js'
 import fs from 'node:fs'
 
 /**
@@ -9,7 +9,7 @@ import fs from 'node:fs'
  * policy comes from the API: the Vite dev server (:5173) never sends it. Every `securitypolicy-
  * violation` in every frame (the preview iframe included) fails the test.
  */
-const ORIGIN = 'http://localhost:8001'
+const ORIGIN = CSP_ORIGIN
 
 async function collectViolations(page) {
   await page.addInitScript(() => {
@@ -66,7 +66,7 @@ test('editor, KaTeX preview, PDF export and the classic tray work under the poli
   // PDF export (Chromium renders it server-side; the download must still arrive).
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Student PDF' }).click(),
+    exportPdf(page, 'Student paper (PDF)'),
   ])
   const bytes = fs.readFileSync(await download.path())
   expect(bytes.subarray(0, 4).toString('latin1')).toBe('%PDF')

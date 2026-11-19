@@ -1,22 +1,39 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/svelte'
 import { get } from 'svelte/store'
-import AccountChip from './AccountChip.svelte'
+import AccountMenu from './AccountMenu.svelte'
 import { session } from '../session'
 
 const fetchMock = vi.fn()
 beforeEach(() => {
   fetchMock.mockReset()
   vi.stubGlobal('fetch', fetchMock)
-  session.set({ status: 'user', user: { id: 'u1', email: 'ann@example.com', name: 'Ann', dev: false } })
+  session.set({ status: 'user', user: { id: 'u1', email: 'ann@example.com', name: 'Ann Lim', dev: false } })
 })
 afterEach(() => vi.unstubAllGlobals())
 
-describe('AccountChip', () => {
-  it('is hidden for the development stub', () => {
+const openMenu = async () => {
+  await fireEvent.click(screen.getByRole('button', { name: 'Account: Ann Lim' }))
+  return screen.getByRole('menu')
+}
+
+describe('AccountMenu', () => {
+  it('is an avatar with initials that opens a menu naming who is signed in', async () => {
+    render(AccountMenu)
+    const avatar = screen.getByRole('button', { name: 'Account: Ann Lim' })
+    expect(avatar).toHaveTextContent('AL')
+    expect(avatar).toHaveAttribute('aria-haspopup', 'menu')
+    await openMenu()
+    expect(screen.getByText('ann@example.com')).toBeInTheDocument()
+    const names = screen.getAllByRole('menuitem').map((m) => m.textContent?.trim())
+    expect(names).toEqual(['Settings', 'Download my data', 'Sign out', 'Delete my account…'])
+  })
+
+  it('offers only Settings to the development stub', async () => {
     session.set({ status: 'user', user: { id: 'local', email: null, name: 'Local', dev: true } })
-    render(AccountChip)
-    expect(screen.queryByRole('button')).toBeNull()
+    render(AccountMenu)
+    await fireEvent.click(screen.getByRole('button', { name: 'Account: Local' }))
+    expect(screen.getAllByRole('menuitem').map((m) => m.textContent?.trim())).toEqual(['Settings'])
   })
 
   it('downloads the data zip from the API', async () => {
@@ -25,18 +42,19 @@ describe('AccountChip', () => {
     URL.createObjectURL = vi.fn(() => 'blob:x')
     URL.revokeObjectURL = vi.fn()
     fetchMock.mockResolvedValue({ ok: true, status: 200, blob: async () => new Blob(['zip']) })
-    render(AccountChip)
-    await fireEvent.click(screen.getByRole('button', { name: 'Ann' }))
-    await fireEvent.click(screen.getByRole('button', { name: 'Download my data' }))
+    render(AccountMenu)
+    await openMenu()
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Download my data' }))
     expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/account\/export$/), expect.anything())
-    expect(click).toHaveBeenCalled()
+    await vi.waitFor(() => expect(click).toHaveBeenCalled())
   })
 
   it('deletes only after DELETE is typed, then drops the session', async () => {
     fetchMock.mockResolvedValue({ ok: true, status: 204 })
-    render(AccountChip)
-    await fireEvent.click(screen.getByRole('button', { name: 'Ann' }))
-    await fireEvent.click(screen.getByRole('button', { name: /Delete my account/ }))
+    render(AccountMenu)
+    await openMenu()
+    await fireEvent.click(screen.getByRole('menuitem', { name: /Delete my account/ }))
+    expect(screen.getByRole('alertdialog', { name: 'Delete your account?' })).toBeInTheDocument()
     const confirm = screen.getByRole('button', { name: 'Delete everything' })
     expect(confirm).toBeDisabled()
     await fireEvent.input(screen.getByLabelText(/to confirm/), { target: { value: 'delete' } })
@@ -52,21 +70,21 @@ describe('AccountChip', () => {
 
   it('keeps the session and says so when deletion fails', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 500 })
-    render(AccountChip)
-    await fireEvent.click(screen.getByRole('button', { name: 'Ann' }))
-    await fireEvent.click(screen.getByRole('button', { name: /Delete my account/ }))
+    render(AccountMenu)
+    await openMenu()
+    await fireEvent.click(screen.getByRole('menuitem', { name: /Delete my account/ }))
     await fireEvent.input(screen.getByLabelText(/to confirm/), { target: { value: 'DELETE' } })
     await fireEvent.click(screen.getByRole('button', { name: 'Delete everything' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Nothing was changed')
     expect(get(session).status).toBe('user')
   })
 
-  it('cancelling the confirmation returns to the menu without calling the API', async () => {
-    render(AccountChip)
-    await fireEvent.click(screen.getByRole('button', { name: 'Ann' }))
-    await fireEvent.click(screen.getByRole('button', { name: /Delete my account/ }))
+  it('cancelling the confirmation closes it without calling the API', async () => {
+    render(AccountMenu)
+    await openMenu()
+    await fireEvent.click(screen.getByRole('menuitem', { name: /Delete my account/ }))
     await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(screen.getByRole('button', { name: 'Download my data' })).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

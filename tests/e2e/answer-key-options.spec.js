@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { settled, newBlankPaper } from './helpers.js'
+import { settled, newBlankPaper, API, paperTab } from './helpers.js'
 
 /**
  * Browser acceptance for P5 answer-key options: leave a question out of the key, hide the
@@ -39,6 +39,7 @@ test('leave questions out of the key, hide question text and the M/A breakdown',
 
   // Hide the question text: the key view drops it too.
   await expect(entries.nth(1)).toContainText('QTWO-TEXT')
+  await paperTab(page)
   await page.getByLabel('Answer key repeats each question').uncheck()
   await expect(entries.nth(1)).not.toContainText('QTWO-TEXT')
   await page.getByLabel('Answer key shows the M/A marking breakdown').uncheck()
@@ -50,13 +51,13 @@ test('leave questions out of the key, hide question text and the M/A breakdown',
   await expect(key.getByLabel('Include question 1 in the answer key')).not.toBeChecked()
   await expect(key.getByLabel('Include question 2 in the answer key')).toBeChecked()
 
-  const printed = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
+  const printed = await (await page.request.get(`${API}/documents/${id}/preview/key`)).text()
   const body = printed.split('</style>').pop()
   expect(body).toContain('ANSWER-TWO')
   expect(body).not.toContain('ANSWER-ONE')
   expect(body).not.toContain('QTWO-TEXT')
   expect(body.match(/counter-reset: q (\d+)/g)).toEqual(['counter-reset: q 1']) // numbered 2, not 1
-  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
+  const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
   expect(student).toContain('QONE-TEXT')
   expect(student).toContain('QTWO-TEXT')
 
@@ -64,7 +65,7 @@ test('leave questions out of the key, hide question text and the M/A breakdown',
   await page.getByLabel('Answer key repeats each question').check()
   await key.getByLabel('Include question 1 in the answer key').check()
   await settled(page)
-  const full = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
+  const full = await (await page.request.get(`${API}/documents/${id}/preview/key`)).text()
   expect(full).toContain('ANSWER-ONE')
   expect(full).toContain('QONE-TEXT')
 

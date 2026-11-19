@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test'
+import { API } from './helpers.js'
 
 /**
  * Browser acceptance for O1 (EXA-125): the Classic generator is hidden until a teacher turns it
  * on in Settings; the setting is saved on the account (it survives a reload).
  */
 test('the Classic generator is hidden until it is turned on in Settings', async ({ page }) => {
-  const off = await page.request.put('http://localhost:8000/settings', { data: { classic_generator: false } })
+  const off = await page.request.put(`${API}/settings`, { data: { classic_generator: false } })
   expect(off.ok()).toBeTruthy()
 
   await page.goto('/')
