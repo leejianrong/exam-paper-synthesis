@@ -33,7 +33,13 @@ def _numbers(html):
 
 
 def test_defaults_are_the_pre_p5_key():
-    assert key_options(_doc()) == {"show_question": True, "show_scheme": True, "layout": "full"}
+    assert key_options(_doc()) == {
+        "show_question": True,
+        "show_scheme": True,
+        "layout": "full",
+        "show_marks": False,
+        "one_mark_working": True,
+    }
     html = _key(_doc())
     assert "FREEFORM-ONE stem" in html and "PART-A text" in html
     assert 'class="marking-scheme"' in html

@@ -34,7 +34,7 @@ const TEMPLATES = {
 
 import DocumentList from './DocumentList.svelte'
 import { lastReport } from './paperReport'
-import { settings } from '../settings'
+import { DEFAULT_SETTINGS, settings } from '../settings'
 
 const summary = (id: string, title: string, folder_id: string | null = null) => ({
   id,
@@ -148,12 +148,12 @@ describe('DocumentList', () => {
 
   it('hides the Classic generator link unless the setting is on (O1); Settings is always there', async () => {
     listDocuments.mockResolvedValue([])
-    settings.set({ classic_generator: false })
+    settings.set({ ...DEFAULT_SETTINGS, classic_generator: false })
     const { unmount } = render(DocumentList)
     expect(await screen.findByRole('link', { name: 'Settings' })).toHaveAttribute('href', '#/settings')
     expect(screen.queryByRole('link', { name: 'Classic generator' })).toBeNull()
     unmount()
-    settings.set({ classic_generator: true })
+    settings.set({ ...DEFAULT_SETTINGS, classic_generator: true })
     render(DocumentList)
     expect(await screen.findByRole('link', { name: 'Classic generator' })).toHaveAttribute('href', '#/classic')
   })

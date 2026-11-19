@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { API } from './helpers.js'
+import { API } from './ports.js'
 
 /**
  * Browser acceptance for O2 (EXA-126): make a folder on "Your papers", move a paper into it from

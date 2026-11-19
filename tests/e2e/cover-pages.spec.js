@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
-import { settled, newBlankPaper, newFromTemplate, API, moreTools } from './helpers.js'
+import { settled, newBlankPaper, newFromTemplate, moreTools } from './helpers.js'
+import { API } from './ports.js'
 
 /**
  * Browser acceptance for P7: add a cover page and a blank page from the toolbar, fill the cover,

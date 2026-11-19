@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 
 from documents import freeform_block, gen_block, make_doc
-from exam_engine.document import number_from, paper_outline, validate_document
+from exam_engine.document import number_from, paper_outline, validate_document, with_key_style
 from exam_engine.paper import generate_paper, template_document
 from exam_engine.paper_swap import regenerate_unlocked, swap_question
 from exam_engine.render import render_document_html
@@ -81,7 +81,9 @@ def test_booklet_b_template_and_generated_paper_start_at_16():
     assert doc["settings"]["number_from"] == 16
     assert paper_outline(doc)[0]["first"] == 16
     html = render_document_html("B", doc, mode="key")
-    assert _key_numbers(html)[0] == 16
+    assert '<th scope="row">Q16</th>' in html  # the school key labels rows with the paper's numbers
+    worked = render_document_html("B", with_key_style(doc, "worked"), mode="key")
+    assert _key_numbers(worked)[0] == 16
     for code in ("p1_booklet_a", "p2"):
         assert "number_from" not in template_document(code)["settings"]
         assert "number_from" not in generate_paper(code, "P6", 3)[0]["settings"]

@@ -12,6 +12,7 @@
     keyOptionsOf,
     numberFrom,
     type KeyLayout,
+    type KeyToggle,
     type MarksPlacement,
   } from './layout'
   // The WYSIWYG page (W1c): an A4-width column of rich text and question blocks, a "+"
@@ -151,7 +152,7 @@
     scheduleSave()
   }
 
-  function setKeyOption(name: 'show_question' | 'show_scheme', value: boolean) {
+  function setKeyOption(name: KeyToggle, value: boolean) {
     paperSettings.update((s) => ({ ...s, key_options: { ...s.key_options, [name]: value } }))
     scheduleSave()
   }
@@ -805,33 +806,54 @@
   <fieldset class="keyopts">
     <legend>Answer key</legend>
     <select
-      aria-label="Answer key layout"
-      title="Full: each question with its worked solution. Compact: an answer grid for multiple choice, then a table of working with Ans:, like a school key."
+      aria-label="Answer key style"
+      title="School key: an answer grid for multiple choice, then a table of short working with Ans:, as schools print it. Worked solutions: each question with its full solution."
       value={keyOpts.layout}
       on:change={setKeyLayout}
     >
-      <option value="full">Full</option>
-      <option value="compact">Compact</option>
+      <option value="compact">School key</option>
+      <option value="full">Worked solutions</option>
     </select>
+    {#if keyOpts.layout === 'full'}
+      <label>
+        <input
+          type="checkbox"
+          aria-label="Answer key repeats each question"
+          checked={keyOpts.show_question}
+          on:change={(e) => setKeyOption('show_question', e.currentTarget.checked)}
+        />
+        question
+      </label>
+    {/if}
     <label>
       <input
         type="checkbox"
-        aria-label="Answer key repeats each question"
-        disabled={keyOpts.layout === 'compact'}
-        checked={keyOpts.show_question}
-        on:change={(e) => setKeyOption('show_question', e.currentTarget.checked)}
-      />
-      question
-    </label>
-    <label>
-      <input
-        type="checkbox"
-        aria-label="Answer key shows the M/A marking breakdown"
+        aria-label="Answer key shows the marking scheme (M1, A1)"
         checked={keyOpts.show_scheme}
         on:change={(e) => setKeyOption('show_scheme', e.currentTarget.checked)}
       />
-      M/A marks
+      M1/A1
     </label>
+    {#if keyOpts.layout === 'compact'}
+      <label>
+        <input
+          type="checkbox"
+          aria-label="Answer key shows each question's marks"
+          checked={keyOpts.show_marks}
+          on:change={(e) => setKeyOption('show_marks', e.currentTarget.checked)}
+        />
+        marks
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          aria-label="Answer key shows the working for 1-mark questions"
+          checked={keyOpts.one_mark_working}
+          on:change={(e) => setKeyOption('one_mark_working', e.currentTarget.checked)}
+        />
+        1-mark working
+      </label>
+    {/if}
   </fieldset>
   </svelte:fragment>
 </SidePanel>

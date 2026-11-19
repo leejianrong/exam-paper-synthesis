@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
-import { API } from './helpers.js'
+import { API } from './ports.js'
+import { newBlankPaper } from './helpers.js'
 
 /**
  * Browser acceptance for O1 (EXA-125): the Classic generator is hidden until a teacher turns it
@@ -28,4 +29,25 @@ test('the Classic generator is hidden until it is turned on in Settings', async 
   await page.getByRole('link', { name: '← Your papers' }).click()
   await page.getByRole('link', { name: 'Classic generator' }).click()
   await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeVisible()
+})
+
+test('the answer key style in Settings is the key new papers start with', async ({ page }) => {
+  // the e2e store is shared: start from the default and put it back after
+  expect((await page.request.put(`${API}/settings`, { data: { answer_key_style: 'school' } })).ok()).toBeTruthy()
+  try {
+    await page.goto('/#/settings')
+    const styles = page.getByRole('radiogroup', { name: 'Answer key style' })
+    await expect(styles.getByRole('radio', { name: 'School key' })).toBeChecked()
+    await styles.getByRole('radio', { name: 'Worked solutions' }).check()
+    await expect(page.getByRole('status')).toHaveText('New papers get worked solutions.')
+    await page.reload()
+    await expect(styles.getByRole('radio', { name: 'Worked solutions' })).toBeChecked()
+
+    await page.getByRole('link', { name: '← Your papers' }).click()
+    await newBlankPaper(page)
+    await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
+    await expect(page.getByLabel('Answer key style')).toHaveValue('full')
+  } finally {
+    await page.request.put(`${API}/settings`, { data: { answer_key_style: 'school' } })
+  }
 })

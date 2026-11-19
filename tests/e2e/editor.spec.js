@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test'
-import { settled, newBlankPaper, API, exportPdf } from './helpers.js'
+import { settled, newBlankPaper, exportPdf } from './helpers.js'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { API, E2E_SUFFIX } from './ports.js'
 
 /**
  * Browser acceptance for the W1 WYSIWYG editor: create a paper, add generated
@@ -77,7 +78,7 @@ test('build a paper, edit questions, reload, preview and export', async ({ page 
   expect(student).not.toContain('Answer:')
   expect(student).toContain('Zainab')
   expect(full).toContain('Answer Key')
-  expect(full).toContain('Answer:')
+  expect(full).toContain('class="key-ans"') // the school key's right-aligned Ans: (EXA-159)
 
   // In-editor preview opens the real print HTML.
   await page.getByRole('button', { name: 'Preview' }).click()
@@ -108,7 +109,7 @@ test('the documents list shows, opens and deletes a paper', async ({ page }) => 
 
 test('insert questions from my bank (MCQ and table) into a paper', async ({ page }) => {
   // Seed the bank the way a user does: the CLI, as the default `local` owner.
-  const bankDb = path.join(os.tmpdir(), 'exam-e2e-bank.sqlite3')
+  const bankDb = path.join(os.tmpdir(), `exam-e2e-bank${E2E_SUFFIX}.sqlite3`)
   for (const name of ['psle_2023_mcq', 'psle_2023_table']) {
     execFileSync(
       'uv',
@@ -177,7 +178,8 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
   expect(student).toContain('class="option"')
   expect(student).not.toContain('Answer:')
   const full = await (await page.request.get(`${API}/documents/${id}/preview/full`)).text()
-  expect(full).toContain('option-correct')
+  // the correct option, after Ans: or (a 1-mark question) on its own in the school key
+  expect(full).toMatch(/(<span class="ans-label">Ans:<\/span> |<td class="key-short">)\(\w+\)/)
 })
 
 test('write a free-form question, set marks, write its answer, reload, preview and export', async ({ page }) => {

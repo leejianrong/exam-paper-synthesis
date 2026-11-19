@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
-import { generateSinglePaper, API } from './helpers.js'
+import { generateSinglePaper } from './helpers.js'
+import { API } from './ports.js'
 
 /**
  * Browser acceptance for P8a: generate a whole paper in one click from the papers list, land in
@@ -87,5 +88,7 @@ test('generate a P6 Booklet A: multiple-choice questions with four options each'
   expect(student.match(/<ol class="options[ "]/g)).toHaveLength(15)
   expect(student).not.toContain('class="option option-correct"') // the right option never reaches the paper
   const key = await (await page.request.get(`${API}/documents/${id}/preview/key`)).text()
-  expect(key.match(/option option-correct/g)).toHaveLength(15)
+  // the school key: the option numbers in a grid, Q1–Q10 then Q11–Q15 (EXA-159)
+  expect(key.match(/<th scope="col">Q\d+<\/th>/g)).toHaveLength(15)
+  expect(key).not.toContain('option option-correct')
 })

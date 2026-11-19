@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
-import { settled, newFromTemplate, API, exportPdf, paperTab } from './helpers.js'
+import { settled, newFromTemplate, exportPdf, paperTab } from './helpers.js'
+import { API } from './ports.js'
 
 /**
  * Browser acceptance for P4 paper structure: start from the Paper 2 template, see its sections

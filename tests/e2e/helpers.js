@@ -1,9 +1,5 @@
 import { expect } from '@playwright/test'
-
-/** The API origin the e2e servers run on (playwright.config.js; E2E_API_PORT moves it). */
-export const API = `http://localhost:${process.env.E2E_API_PORT || 8000}`
-/** The CSP spec's one-origin production-shaped server. */
-export const CSP_ORIGIN = `http://localhost:${process.env.E2E_CSP_PORT || 8001}`
+import { API } from './ports.js'
 
 /**
  * Wait until the editor has saved what was just edited.
@@ -28,6 +24,8 @@ export async function openClassic(page, { api = API, origin = '' } = {}) {
   const res = await page.request.put(`${api}/settings`, { data: { classic_generator: true } })
   expect(res.ok()).toBeTruthy()
   await page.goto(`${origin}/#/classic`)
+  // A page already open read its settings at load; a hash change keeps them: load them again.
+  await page.reload()
 }
 
 /**

@@ -22,6 +22,7 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
+# 1.16.0 (EXA-159): + key_options.show_marks and key_options.one_mark_working (school key).
 # 1.15.0 (EXA-140): + coverPage.parent_signature and coverPage.even_pages.
 # 1.14.0 (EXA-142): + settings.key_options.layout (full / compact answer key).
 # 1.13.0 (EXA-139): + section.marks_placement (none/question/answer/both; null follows the mode).
@@ -36,7 +37,7 @@ from .schema import validate_object
 # 1.4.0 (P2): + settings.marks_placement, per-question space_mm / ans_unit.
 # 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math; 1.3.0 (W5): + question `remark`.
 # Older documents stay valid (every addition is optional).
-DOCUMENT_SCHEMA_VERSION = "1.15.0"
+DOCUMENT_SCHEMA_VERSION = "1.16.0"
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000
@@ -58,10 +59,11 @@ def _validator() -> Draft202012Validator:
     return Draft202012Validator(schema)
 
 
-def empty_document(title: str = "Untitled paper") -> dict:
+def empty_document(title: str = "Untitled paper", key_style: str = "school") -> dict:
     return {
         "schema_version": DOCUMENT_SCHEMA_VERSION,
         "title": title,
+        "settings": {"key_options": new_key_options(key_style)},
         "content": {"type": "doc", "content": []},
     }
 
@@ -136,15 +138,47 @@ def freeform_marks(node: dict) -> int:
     return node["attrs"].get("marks") or 0
 
 
+KEY_STYLES = ("school", "worked")
+
+
+def new_key_options(style: str = "school") -> dict:
+    """The key options a new paper starts with (EXA-159). ``school`` (the default) is the school
+    key: the compact layout with answers and short working only, no M1/A1, no marks, and the
+    answer alone for a 1-mark question. ``worked`` is the full layout (worked solutions)."""
+    if style == "worked":
+        return {"layout": "full", "show_question": True, "show_scheme": True}
+    if style != "school":
+        raise ValueError(f"unknown answer key style {style!r}")
+    return {
+        "layout": "compact",
+        "show_scheme": False,
+        "show_marks": False,
+        "one_mark_working": False,
+    }
+
+
+def with_key_style(doc: dict, style: str) -> dict:
+    """``doc`` with its key options set to a new paper's for ``style`` (other settings kept)."""
+    settings = {**(doc.get("settings") or {}), "key_options": new_key_options(style)}
+    return {**doc, "settings": settings}
+
+
 def key_options(doc: dict) -> dict:
     """The answer-key print options with defaults filled in (P5). ``layout`` (EXA-142) is
-    ``full`` (each question with its worked solution) or ``compact`` (a real school key: an
-    answer grid for multiple choice, a two-column working table with "Ans:" for the rest)."""
+    ``full`` (each question with its worked solution) or ``compact`` (the school key: an
+    answer grid for multiple choice, a two-column working table with "Ans:" for the rest).
+
+    An absent option keeps the behaviour the paper had before the option existed, so a saved
+    paper prints as it did: no key options at all is the full key with M/A lines. New papers
+    write theirs explicitly (``new_key_options``). ``show_marks`` and ``one_mark_working``
+    (EXA-159) apply to the compact layout only."""
     given = (doc.get("settings") or {}).get("key_options") or {}
     return {
         "show_question": given.get("show_question", True),
         "show_scheme": given.get("show_scheme", True),
         "layout": given.get("layout") or "full",
+        "show_marks": given.get("show_marks", False),
+        "one_mark_working": given.get("one_mark_working", True),
     }
 
 

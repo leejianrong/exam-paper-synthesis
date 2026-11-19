@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { openClassic, newBlankPaper, CSP_ORIGIN, exportPdf } from './helpers.js'
+import { openClassic, newBlankPaper, exportPdf } from './helpers.js'
 import fs from 'node:fs'
+import { CSP_ORIGIN } from './ports.js'
 
 /**
  * The Content-Security-Policy is real and nothing the app needs is blocked by it.

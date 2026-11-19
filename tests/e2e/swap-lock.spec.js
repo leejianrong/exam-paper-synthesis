@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
-import { generateSinglePaper, API } from './helpers.js'
+import { generateSinglePaper } from './helpers.js'
+import { API } from './ports.js'
 
 /**
  * Browser acceptance for P8d: on a generated paper, swap questions (another topic, write my

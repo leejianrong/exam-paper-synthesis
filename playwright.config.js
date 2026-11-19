@@ -2,33 +2,32 @@ import { defineConfig, devices } from '@playwright/test'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { API_PORT, CSP_PORT, E2E_SUFFIX, PORTS_OVERRIDDEN, WEB_PORT } from './tests/e2e/ports.js'
 
-// Ports for the two dev servers Playwright boots for the e2e run. E2E_API_PORT / E2E_WEB_PORT /
-// E2E_CSP_PORT move them off the defaults (a second checkout, or a dev server already running on
-// the defaults); overridden ports always start fresh servers, never reuse one.
-const API_PORT = Number(process.env.E2E_API_PORT || 8000)
-const WEB_PORT = Number(process.env.E2E_WEB_PORT || 5173)
-// A production-shaped server for the CSP spec: the built SPA served by the API on ONE origin.
-const CSP_PORT = Number(process.env.E2E_CSP_PORT || 8001)
-const OVERRIDDEN = Boolean(process.env.E2E_API_PORT || process.env.E2E_WEB_PORT || process.env.E2E_CSP_PORT)
-const REUSE = !process.env.CI && !OVERRIDDEN
-const CSP_DIST = path.join(os.tmpdir(), 'exam-e2e-web-dist')
+// Ports for the servers Playwright boots for the e2e run: the API, the Vite dev server, and a
+// production-shaped server for the CSP spec (the built SPA served by the API on ONE origin).
+// E2E_API_PORT / E2E_WEB_PORT / E2E_CSP_PORT move them off the usual dev ports, so an e2e run
+// can sit beside a developer's own servers (tests/e2e/ports.js gives the specs the same ports).
+// With a port moved, never reuse a server already listening: it would be someone else's.
+const REUSE = !process.env.CI && !PORTS_OVERRIDDEN
+const CSP_DIST = path.join(os.tmpdir(), `exam-e2e-web-dist${E2E_SUFFIX}`)
 
 // The document API (W1b) is tenant-scoped; the e2e run uses the dev identity stub and a
 // throwaway database (specs create their own papers and never assume an empty store).
-const DOCS_DB = path.join(os.tmpdir(), 'exam-e2e-documents.sqlite3')
+const DOCS_DB = path.join(os.tmpdir(), `exam-e2e-documents${E2E_SUFFIX}.sqlite3`)
 // The question bank the API reads (the CLI writes the same file, as the `local` owner).
-const BANK_DB = path.join(os.tmpdir(), 'exam-e2e-bank.sqlite3')
-const ASSETS_DB = path.join(os.tmpdir(), 'exam-e2e-assets.sqlite3')
-const AUTH_DB = path.join(os.tmpdir(), 'exam-e2e-accounts.sqlite3')
-const USAGE_DB = path.join(os.tmpdir(), 'exam-e2e-usage.sqlite3')
+const BANK_DB = path.join(os.tmpdir(), `exam-e2e-bank${E2E_SUFFIX}.sqlite3`)
+const ASSETS_DB = path.join(os.tmpdir(), `exam-e2e-assets${E2E_SUFFIX}.sqlite3`)
+const AUTH_DB = path.join(os.tmpdir(), `exam-e2e-accounts${E2E_SUFFIX}.sqlite3`)
+const USAGE_DB = path.join(os.tmpdir(), `exam-e2e-usage${E2E_SUFFIX}.sqlite3`)
 
 /**
  * Playwright config for the Generate-flow browser acceptance test (ADR-0008).
  *
  * `webServer` boots BOTH backends for the run: the FastAPI engine (:8000) and
  * the Vite dev server for the Svelte SPA (:5173). Locally we reuse an already
- * running server; in CI we always start fresh.
+ * running server on those ports; in CI, or when E2E_*_PORT moves a port, we always
+ * start fresh.
  */
 export default defineConfig({
   testDir: './tests/e2e',
@@ -62,8 +61,9 @@ export default defineConfig({
       // needs one started with these three variables (CI always starts fresh).
       env: { ...process.env, EXAM_DEV_AUTH: '1', EXAM_DOCS_PATH: DOCS_DB, EXAM_BANK_PATH: BANK_DB, EXAM_ASSETS_PATH: ASSETS_DB,
         EXAM_AUTH_PATH: AUTH_DB,
+        // the SPA's origin: CORS allows it and sign-in redirects back to it
+        EXAM_WEB_URL: `http://localhost:${WEB_PORT}`,
         EXAM_USAGE_PATH: USAGE_DB,
-        EXAM_CORS_ORIGINS: `http://localhost:${WEB_PORT}`,
         // e2e exports freely (the allowance is covered by pytest and vitest)
         EXAM_EXPORT_LIMIT_PER_DAY: '0',
         EXAM_EXPORT_LIMIT_PER_MINUTE: '0',
@@ -85,7 +85,7 @@ export default defineConfig({
         EXAM_EXPORT_LIMIT_PER_DAY: '0', EXAM_EXPORT_LIMIT_PER_MINUTE: '0' },
     },
     {
-      // Vite dev server for the Svelte SPA, pointed at the API above.
+      // Vite dev server for the Svelte SPA, pointed at the e2e API.
       command: `npm --prefix web run dev -- --port ${WEB_PORT} --strictPort`,
       url: `http://localhost:${WEB_PORT}`,
       reuseExistingServer: REUSE,
