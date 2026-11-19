@@ -10,13 +10,13 @@ import { closeMathEditor } from './mathEditor'
 // stubbed per URL.
 
 type Reply = { status?: number; body?: unknown }
-let routes: Array<[RegExp, string, (init: RequestInit) => Reply]> = []
+let routes: Array<[RegExp, string, (init: RequestInit) => Reply | Promise<Reply>]> = []
 const fetchMock = vi.fn(async (url: string, init: RequestInit = {}) => {
   const method = init.method ?? 'GET'
   const hit = routes.find(([re, m]) => re.test(url) && m === method)
-  const reply = hit ? hit[2](init) : { status: 404, body: { detail: 'not found' } }
+  const reply = hit ? await hit[2](init) : { status: 404, body: { detail: 'not found' } }
   const status = reply.status ?? 200
-  return { ok: status < 400, status, json: async () => reply.body, text: async () => '' }
+  return { ok: status < 400, status, json: async () => reply.body, text: async () => '', blob: async () => new Blob(['%PDF']) }
 })
 
 const record = (content: unknown[], over: object = {}) => ({
@@ -140,6 +140,19 @@ describe('the menu row (EXA-163)', () => {
     expect(document.activeElement).toBe(names[2])
   })
 
+  it('Home and End go to the first and last menu name', async () => {
+    serve()
+    await open()
+    const names = within(bar()).getAllByRole('menuitem')
+    names[1].focus()
+    await key({ key: 'End' }, names[1])
+    expect(document.activeElement).toBe(names[3])
+    expect(names[3]).toHaveAttribute('tabindex', '0')
+    await key({ key: 'Home' }, names[3])
+    expect(document.activeElement).toBe(names[0])
+    expect(names.map((n) => n.getAttribute('tabindex'))).toEqual(['0', '-1', '-1', '-1'])
+  })
+
   it('folds into one Menu button on a narrow window', async () => {
     const was = window.innerWidth
     window.innerWidth = 800
@@ -215,13 +228,64 @@ describe('paper actions', () => {
         return { body: record([], { id: 'd2', version: 2 }) }
       }],
     )
-    await open()
+    const page = await open()
+    page.focus()
+    // an edit the autosave has not sent yet goes into the copy too
+    await fireEvent.click(within(await openMenu('Insert')).getByRole('menuitem', { name: 'Page break' }))
+    expect(fetchMock.mock.calls.some(([u, i]) => /\/documents\/d1$/.test(u) && i?.method === 'PUT')).toBe(false)
     await fireEvent.click(within(await openMenu('Paper')).getByRole('menuitem', { name: 'Make a copy' }))
     await waitFor(() => expect(location.hash).toBe('#/docs/d2'))
     expect(created).toMatchObject({ title: 'Copy of Ratio Review', folder_id: 'f1' })
     expect(saved!.base_version).toBe(1)
     expect(saved!.document.title).toBe('Copy of Ratio Review')
-    expect(saved!.document.content.content[0].type).toBe('paragraph')
+    const types = saved!.document.content.content.map((n) => n.type)
+    expect(types).toContain('paragraph')
+    expect(types).toContain('pageBreak')
+  })
+
+  it('Make a copy takes the empty copy away again when its content could not be saved', async () => {
+    serve()
+    const deleted: string[] = []
+    routes.push(
+      [/\/documents$/, 'POST', () => ({ status: 201, body: record([], { id: 'd2', version: 1 }) })],
+      [/\/documents\/d2$/, 'PUT', () => ({ status: 500, body: { detail: 'Disk full' } })],
+      [/\/documents\/d2$/, 'DELETE', () => {
+        deleted.push('d2')
+        return { status: 204 }
+      }],
+    )
+    await open()
+    await fireEvent.click(within(await openMenu('Paper')).getByRole('menuitem', { name: 'Make a copy' }))
+    await waitFor(() => expect(deleted).toEqual(['d2']))
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(location.hash).toBe('#/docs/d1')
+  })
+
+  it('Move to folder… and Delete paper… wait while an export runs', async () => {
+    serve()
+    let finish: (r: Reply) => void = () => {}
+    routes.push(
+      [/\/documents\/d1\/export\/student$/, 'POST', () => new Promise<Reply>((r) => (finish = r))],
+      [/\/auth\/quota$/, 'GET', () => ({ body: { per_day: 30, left_day: 4 } })],
+    )
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }))
+    await open()
+    await fireEvent.click(screen.getByRole('button', { name: /Export/ }))
+    await fireEvent.click(await screen.findByRole('menuitem', { name: 'Student paper (PDF)' }))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => /\/export\/student$/.test(u))).toBe(true))
+    const paper = await openMenu('Paper')
+    for (const row of ['Move to folder…', 'Delete paper…']) {
+      const item = within(paper).getByRole('menuitem', { name: row })
+      expect(item).toHaveAttribute('aria-disabled', 'true')
+      await fireEvent.click(item)
+    }
+    expect(screen.queryByRole('dialog', { name: 'Move to folder' })).toBeNull()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    finish({ status: 200 })
+    await waitFor(async () => {
+      const again = screen.queryByRole('menu', { name: 'Paper' }) ?? (await openMenu('Paper'))
+      expect(within(again).getByRole('menuitem', { name: 'Delete paper…' })).not.toHaveAttribute('aria-disabled')
+    })
   })
 
   it('Move to folder… files the paper and the header shows the folder', async () => {
@@ -381,6 +445,24 @@ describe('the side panel toggle', () => {
 })
 
 describe('the command palette (Ctrl+K)', () => {
+  it('keeps Tab on controls you can see: the hidden × is not a stop', async () => {
+    serve()
+    const page = await open()
+    page.focus()
+    await key({ key: 'k', ctrlKey: true }, page)
+    const box = screen.getByRole('combobox', { name: 'Find a command' })
+    const dialog = box.closest('[role="dialog"]') as HTMLElement
+    for (const shiftKey of [false, true]) {
+      box.focus()
+      const ev = new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true })
+      box.dispatchEvent(ev)
+      // the only visible stop is the field itself: Tab wraps back to it
+      expect(ev.defaultPrevented).toBe(true)
+      expect(document.activeElement).toBe(box)
+    }
+    expect(within(dialog).queryByRole('button', { name: 'Close', hidden: true })).toBeNull()
+  })
+
   it('lists the menu rows with their shortcuts, filters as you type and runs on Enter', async () => {
     serve()
     const page = await open()
@@ -448,6 +530,19 @@ describe('the command palette (Ctrl+K)', () => {
     await key({ key: 'k', ctrlKey: true }, page)
     await fireEvent.input(screen.getByRole('combobox', { name: 'Find a command' }), { target: { value: 'harder' } })
     expect(within(screen.getByRole('listbox')).queryAllByRole('option')).toHaveLength(0)
+  })
+})
+
+describe('leaving the editor', () => {
+  it('takes its shortcuts with it: after unmount, Ctrl+K does nothing', async () => {
+    serve()
+    const { unmount } = render(EditorPage, { props: { id: 'd1' } })
+    await waitFor(() => expect(document.querySelector('.page .ProseMirror')).not.toBeNull())
+    unmount()
+    const ev = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true })
+    document.body.dispatchEvent(ev)
+    expect(ev.defaultPrevented).toBe(false)
+    expect(screen.queryByRole('combobox', { name: 'Find a command' })).toBeNull()
   })
 })
 

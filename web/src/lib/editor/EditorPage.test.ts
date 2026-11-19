@@ -503,6 +503,22 @@ describe('EditorPage empty placeholders (EXA-137)', () => {
     expect(screen.getByRole('heading', { name: 'Generated paper' })).toHaveFocus()
   })
 
+  it('the link shows a hidden side panel first', async () => {
+    localStorage.setItem('exam.editor.sidePanel', 'hidden')
+    try {
+      setup()
+      render(EditorPage, { props: { id: 'd1' } })
+      const link = await screen.findByTestId('header-placeholders')
+      expect(screen.queryByRole('complementary', { name: 'Side panel' })).toBeNull()
+      await fireEvent.click(link)
+      await waitFor(() => expect(screen.getByRole('heading', { name: 'Generated paper' })).toHaveFocus())
+      expect(screen.getByRole('complementary', { name: 'Side panel' })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Paper' })).toHaveAttribute('aria-selected', 'true')
+    } finally {
+      localStorage.clear()
+    }
+  })
+
   it('Fill them closes the warning and puts the caret in the first empty question', async () => {
     setup()
     const { container } = render(EditorPage, { props: { id: 'd1' } })

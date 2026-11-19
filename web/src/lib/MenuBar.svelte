@@ -10,7 +10,8 @@
 <script lang="ts">
   // The editor's Paper / Insert / View / Help row (EXA-163), the WAI-ARIA menubar pattern: one
   // Tab stop (the last menu used), ←/→ move between menus and, while one is open, open the next
-  // one instead; ↓, Enter or Space open; Esc closes and gives focus back to the menu's name.
+  // one instead; Home/End go to the first/last name; ↓, Enter or Space open; Esc closes and
+  // gives focus back to the menu's name.
   // Moving the pointer onto another name while a menu is open opens that one. Narrow windows
   // (`compact`) fold the row into a single "Menu" button with every row, menu by menu.
   import Menu from './Menu.svelte'
@@ -36,6 +37,14 @@
     }
   }
 
+  /** Home/End on a menu's name (an open menu handles its own Home/End). */
+  function onBarKey(e: KeyboardEvent) {
+    if ((e.key !== 'Home' && e.key !== 'End') || !(e.target as HTMLElement).classList?.contains('mb-trigger')) return
+    e.preventDefault()
+    active = e.key === 'Home' ? 0 : menus.length - 1
+    refs[active]?.focusTrigger()
+  }
+
   const folded = $derived<MenuItem[]>(
     menus.flatMap((m, g) => m.items.map((item, i) => ({ ...item, separator: i === 0 ? g > 0 : item.separator }))),
   )
@@ -46,7 +55,7 @@
     {#snippet trigger()}Menu{/snippet}
   </Menu>
 {:else}
-  <div class="menubar" role="menubar" aria-label="Paper menus">
+  <div class="menubar" role="menubar" aria-label="Paper menus" tabindex="-1" onkeydown={onBarKey}>
     {#each menus as m, i (m.label)}
       <Menu
         bind:this={refs[i]}

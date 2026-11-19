@@ -16,7 +16,7 @@
     title: string
     onClose: () => void
     children: Snippet
-    /** The title names the dialog for screen readers only (the palette). */
+    /** The title names the dialog for screen readers only, and there is no × (the palette). */
     hideTitle?: boolean
     width?: string
     /** Sit near the top of the window rather than in the middle (the palette). */
@@ -69,7 +69,9 @@
   >
     <div class="head" class:sr={hideTitle}>
       <h2 id="{uid}-title">{title}</h2>
-      <button class="x" type="button" aria-label="Close" onclick={onClose}>×</button>
+      <!-- a hidden head keeps no × (Esc and a click outside close it): an invisible button
+           would still be a Tab stop -->
+      {#if !hideTitle}<button class="x" type="button" aria-label="Close" onclick={onClose}>×</button>{/if}
     </div>
     {@render children()}
   </div>

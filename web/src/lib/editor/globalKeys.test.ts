@@ -31,6 +31,26 @@ describe('globalShortcut (EXA-163)', () => {
     expect(globalShortcut(ev({ key: 'P', ctrlKey: true, shiftKey: true }), false, false)).toBeNull()
   })
 
+  it('follows the layout, not the US key positions (German: Ctrl+- and Ctrl+# stay the browser\'s)', () => {
+    // German keys where US has "/" and "\\": zoom out and "#"
+    expect(globalShortcut(ev({ key: '-', code: 'Slash', ctrlKey: true }), false, false)).toBeNull()
+    expect(globalShortcut(ev({ key: '#', code: 'Backslash', ctrlKey: true }), false, false)).toBeNull()
+    expect(globalShortcut(ev({ key: '-', code: 'Slash', metaKey: true }), false, true)).toBeNull()
+    // "/" is Shift+7 there: Ctrl+Shift+7 still opens the sheet
+    expect(globalShortcut(ev({ key: '/', code: 'Digit7', ctrlKey: true, shiftKey: true }), false, false)).toBe('sheet')
+  })
+
+  it('never takes AltGr, which Windows reports as Ctrl+Alt', () => {
+    // AltGr+K types "ł" on a Polish-like layout
+    const altGr = { key: 'ł', code: 'KeyK', ctrlKey: true, altKey: true, modifierAltGraph: true } as KeyboardEventInit
+    expect(globalShortcut(ev(altGr), false, false)).toBeNull()
+    expect(globalShortcut(ev(altGr), true, false)).toBeNull()
+    // even if a browser leaves e.key as "k", AltGraph means typing
+    expect(globalShortcut(ev({ ...altGr, key: 'k' }), false, false)).toBeNull()
+    // the physical K is read only on a Mac: Ctrl+Alt+"ł" on a PC is not Ctrl+Alt+K
+    expect(globalShortcut(ev({ key: 'ł', code: 'KeyK', ctrlKey: true, altKey: true }), false, false)).toBeNull()
+  })
+
   it('never inserts from a form field, though the others still work there', () => {
     expect(globalShortcut(ev({ key: 'Enter', ctrlKey: true }), true, false)).toBeNull()
     expect(globalShortcut(ev({ key: 'm', ctrlKey: true }), true, false)).toBeNull()

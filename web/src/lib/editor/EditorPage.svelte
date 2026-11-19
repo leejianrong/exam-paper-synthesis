@@ -189,6 +189,7 @@
 
   /** The header's "N placeholders to write": the Paper tab's Generated paper group. */
   async function showPlaceholders() {
+    if (!panelShown) await setPanel(true)
     panelTab = 'paper'
     await nextTick()
     const group = document.getElementById('panel-generated')
@@ -258,6 +259,7 @@
   }
 
   async function moveTo(folder: string | null) {
+    if (busy) return // another operation (an export, say) owns busy until it ends
     moveError = ''
     busy = 'move'
     try {
@@ -280,13 +282,17 @@
     if (!ed || busy) return
     busy = 'copy'
     actionError = ''
+    let made: string | null = null
     try {
       await autosaver?.flush()
       const name = `Copy of ${title || 'Untitled paper'}`
       const rec = await createDocument(name, undefined, folderId)
+      made = rec.id
       await saveDocument(rec.id, buildDocument(name, ed.getJSON() as DocJSON, $paperSettings), rec.version)
       navigate(`/docs/${rec.id}`)
     } catch (e) {
+      // the copy exists but is empty: take it away again rather than leave a blank "Copy of …"
+      if (made) await deleteDocument(made).catch(() => {})
       actionError = e instanceof Error ? e.message : String(e)
     } finally {
       busy = ''
@@ -294,6 +300,7 @@
   }
 
   async function deletePaper() {
+    if (busy) return
     busy = 'delete'
     deleteError = ''
     try {
@@ -681,9 +688,16 @@
           onSelect: () => (confirmRegen = true),
         },
         { label: 'Rename', icon: 'pen', separator: true, onSelect: rename },
-        { label: 'Move to folder…', icon: 'folder', onSelect: () => void openMove() },
+        { label: 'Move to folder…', icon: 'folder', disabled: !idle, onSelect: () => void openMove() },
         { label: 'Make a copy', icon: 'copy', disabled: !idle, onSelect: () => void makeCopy() },
-        { label: 'Delete paper…', icon: 'trash', danger: true, separator: true, onSelect: () => (confirmDelete = true) },
+        {
+          label: 'Delete paper…',
+          icon: 'trash',
+          danger: true,
+          separator: true,
+          disabled: !idle,
+          onSelect: () => (confirmDelete = true),
+        },
       ],
     },
     {

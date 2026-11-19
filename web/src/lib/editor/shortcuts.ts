@@ -32,20 +32,26 @@ const INSERTS: GlobalCommand[] = ['addQuestion', 'equation']
 /** Which editor-wide command a key press asks for, or null. `fromField` is true when the key
  *  was pressed in an input, text area or select. */
 export function globalShortcut(e: KeyboardEvent, fromField = false, mac = isMac()): GlobalCommand | null {
-  if (e.isComposing || e.shiftKey) return null
+  if (e.isComposing) return null
+  // AltGr reports as Ctrl+Alt on Windows: AltGr+K types "ł" on some layouts, never a shortcut
+  if (e.getModifierState?.('AltGraph')) return null
   const mod = mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey
   if (!mod) return null
+  // Read e.key, the character the layout gives, so a chord follows the key's printed label
+  // (Ctrl+- on a German keyboard is zoom out, wherever "/" sits on a US one). Only on a Mac,
+  // where ⌥ changes e.key (⌥K is "˚"), is an ⌥ chord read by its physical key.
+  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key
   let cmd: GlobalCommand | null = null
   if (e.altKey) {
-    // Alt changes e.key on a Mac (⌥K is "˚"), so read the physical key
-    if (e.code === 'KeyK' || e.key.toLowerCase() === 'k') cmd = 'answerKey'
-  } else {
-    const key = e.key.length === 1 ? e.key.toLowerCase() : e.key
+    if (!e.shiftKey && (key === 'k' || (mac && e.code === 'KeyK'))) cmd = 'answerKey'
+  } else if (key === '/') {
+    // "/" is Shift+7 on many layouts, so Shift may come with it
+    cmd = 'sheet'
+  } else if (!e.shiftKey) {
     if (key === 'k') cmd = 'palette'
     else if (key === 'Enter') cmd = 'addQuestion'
     else if (key === 'p') cmd = 'preview'
-    else if (key === '\\' || e.code === 'Backslash') cmd = 'panel'
-    else if (key === '/' || e.code === 'Slash') cmd = 'sheet'
+    else if (key === '\\') cmd = 'panel'
     else if (key === 'm') cmd = 'equation'
   }
   if (cmd && fromField && INSERTS.includes(cmd)) return null
