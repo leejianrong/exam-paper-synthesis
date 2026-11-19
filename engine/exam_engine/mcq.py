@@ -87,7 +87,9 @@ def convertible(obj: dict) -> bool:
         return False
     answer = parts[0]["answer"]
     if answer.get("type") == "expression":
-        return pi_parts(answer) is not None
+        parts_ = pi_parts(answer)
+        # a constant-only expression has no π part to build the grid from
+        return parts_ is not None and parts_[0] > 0
     return answer.get("type") in CONVERTIBLE
 
 

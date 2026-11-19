@@ -155,3 +155,13 @@ def test_unfair_slips_never_print(monkeypatch):
         desc = m["question"]["parts"][0]["marking_scheme"][0]["description"]
         for bad in ("the answer itself", "no π part", "a negative number", "again"):
             assert bad not in desc, desc
+
+
+def test_a_constant_only_expression_is_not_offered_as_pi_multiple_choice():
+    """Review of #235: an expression with no π part has nothing to build the grid from, so it
+    is not convertible (it used to pass and then fail on an empty choice)."""
+    from exam_engine.mcq import convertible
+
+    obj = _a_pi_question()
+    obj["question"]["parts"][0]["answer"] = in_terms_of_pi(0, 5, "cm")
+    assert convertible(obj) is False
