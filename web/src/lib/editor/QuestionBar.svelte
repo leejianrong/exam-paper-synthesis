@@ -217,7 +217,8 @@
         />
       </label>
     {/if}
-    {#if hint}<span class="hint" role="status">Press Enter to write below</span>{/if}
+    <!-- mounted empty with the pill, so a screen reader hears the text when it appears -->
+    <span class="hint" class:shown={hint} role="status">{hint ? 'Press Enter to write below' : ''}</span>
     {#if summary}<span class="summary">{summary}</span>{/if}
     {#each pill as control (control)}
       {#if control === 'primary' && primary}
@@ -363,11 +364,11 @@
     font-weight: 400;
   }
   .summary,
-  .hint {
+  .hint.shown {
     padding: 0 8px 0 10px;
     color: var(--ink-soft);
   }
-  .hint {
+  .hint.shown {
     animation: hint-out 4s forwards;
   }
   @keyframes hint-out {
@@ -380,7 +381,7 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .hint {
+    .hint.shown {
       animation: none;
     }
   }

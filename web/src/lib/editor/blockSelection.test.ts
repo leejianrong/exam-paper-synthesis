@@ -8,6 +8,8 @@ import { BlockSelectionGuard, insertBlockSafely } from './blockSelection'
 import { BlockShortcuts, registerBlockKeys } from './shortcuts'
 import { BlankPage, CoverPage, blankPageNode, coverNode } from './pages'
 import { Section, sectionNode } from './sections'
+import { ImageUpload } from './media'
+import { Extension } from '@tiptap/core'
 
 let editor: Editor | null = null
 afterEach(() => {
@@ -423,5 +425,70 @@ describe('typing on a selected question never replaces it (EXA-171)', () => {
     const handled = e.view.someProp('handleTextInput', (f) => f(e.view, q, q + 1, ' ', () => e.state.tr))
     expect(handled).toBe(true)
     expect(types(e)).toEqual(['paragraph', 'templatedQuestion', 'paragraph', 'paragraph'])
+  })
+
+  it("Ctrl/Cmd+Enter never puts a hard break over a selected block; inside a question it is the question's", () => {
+    const modEnter = vi.fn(() => true)
+    const Spy = Extension.create({ name: 'modEnterSpy', addKeyboardShortcuts: () => ({ 'Mod-Enter': modEnter }) })
+    editor = new Editor({
+      extensions: [StarterKit, CoverPage, BlockSelectionGuard, BlockShortcuts, Templated, Freeform, FreeformPart, Spy],
+      content: {
+        type: 'doc',
+        content: [
+          coverNode(),
+          { type: 'templatedQuestion' },
+          { type: 'freeformQuestion', content: [{ type: 'freeformPart', content: [para('(a)')] }] },
+          para('Last'),
+        ],
+      },
+    })
+    const e = editor
+    const before = e.getJSON()
+    selectQuestion(e)
+    // the page's own handler (window, capture) adds the question; here it must change nothing
+    expect(press(e, 'Enter', { ctrlKey: true }).defaultPrevented).toBe(true)
+    expect(press(e, 'Enter', { metaKey: true }).defaultPrevented).toBe(true)
+    select(e, 0)
+    press(e, 'Enter', { ctrlKey: true })
+    expect(e.getJSON()).toEqual(before)
+    expect(modEnter).not.toHaveBeenCalled()
+    selectPart(e)
+    press(e, 'Enter', { ctrlKey: true })
+    expect(modEnter).toHaveBeenCalledTimes(1)
+  })
+
+  it('a pasted picture alone goes to the image upload, over a selected block or part', () => {
+    const upload = vi.fn(() => new Promise<never>(() => {}))
+    editor = new Editor({
+      extensions: [StarterKit, CoverPage, BlockSelectionGuard, BlockShortcuts, Templated, Freeform, FreeformPart, ImageUpload.configure({ upload })],
+      content: {
+        type: 'doc',
+        content: [
+          coverNode(),
+          { type: 'templatedQuestion' },
+          { type: 'freeformQuestion', content: [{ type: 'freeformPart', content: [para('(a)')] }] },
+          para('Last'),
+        ],
+      },
+    })
+    const e = editor
+    const before = e.getJSON()
+    const png = new File(['x'], 'figure.png', { type: 'image/png' })
+    const paste = (text: string) => {
+      const ev = { clipboardData: { files: [png], getData: (t: string) => (t === 'text/plain' ? text : '') }, preventDefault() {} }
+      return e.view.someProp('handlePaste', (f) => f(e.view, ev as unknown as ClipboardEvent, Slice.empty))
+    }
+    selectQuestion(e)
+    expect(paste('')).toBe(true)
+    expect(upload).toHaveBeenCalledTimes(1)
+    selectPart(e)
+    expect(paste('')).toBe(true)
+    expect(upload).toHaveBeenCalledTimes(2)
+    expect(e.getJSON()).toEqual(before) // the upload inserts the figure when it is done
+    // with text on the clipboard too (Word's preview), the text wins and goes after the block
+    selectQuestion(e)
+    expect(paste('Words')).toBe(true)
+    expect(upload).toHaveBeenCalledTimes(2)
+    expect(types(e).slice(0, 3)).toEqual(['coverPage', 'templatedQuestion', 'paragraph'])
   })
 })

@@ -14,8 +14,9 @@
 // - on any other selected top-level block (cover, section, blank page, image, page break) it
 //   starts a paragraph after the block, as Enter does;
 // - on any block selected below the top level (a part, an image in a question's body) nothing,
-//   and Shift+Enter or a paste there do nothing either (Enter is left to the editor), so a
-//   question is never split.
+//   and Shift+Enter or a pasted text there do nothing either (Enter is left to the editor), so
+//   a question is never split. A pasted picture alone is left to the image upload, which puts
+//   it next to the selection, never over it (media.ts).
 // The exception is an input method's composition (IME, a mobile keyboard that composes words,
 // such as Gboard): it cannot be cancelled, so once it starts it moves the caret into a paragraph
 // after the top-level block and the composed text lands there. Text selections are never touched.
@@ -31,6 +32,7 @@ import {
 } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import { isMac } from '../keys'
+import { imageFiles } from './assets'
 
 /** Fired (bubbling) on a selected question's DOM when a typed key was dropped on it, so its
  *  pill can say how to write below it. */
@@ -146,9 +148,12 @@ export const BlockSelectionGuard = Extension.create({
               return false // the input method goes on, in the new paragraph
             }
             if (event.key === 'Enter') {
-              // Alt+Enter on a selected section or cover opens its settings (EXA-164); Ctrl/Cmd
-              // chords are the editor's (Ctrl+Enter adds a question)
-              if (event.altKey || event.ctrlKey || event.metaKey) return false
+              // Alt+Enter on a selected section or cover opens its settings (EXA-164)
+              if (event.altKey) return false
+              // Ctrl/Cmd+Enter adds a question (the page's own key handler, which ran first);
+              // here it must not reach the hard break's Mod-Enter, which would replace the
+              // block. Inside a question it stays the question's own.
+              if (event.ctrlKey || event.metaKey) return sel.$from.depth === 0
               if (sel.$from.depth > 0) return event.shiftKey // a part: Shift+Enter does nothing
               view.dispatch(caretAfter(view.state, sel))
               return true
@@ -162,9 +167,12 @@ export const BlockSelectionGuard = Extension.create({
             typeOver(view, sel, text)
             return true
           },
-          handlePaste(view, _event, slice) {
+          handlePaste(view, event, slice) {
             const sel = selectedBlock(view.state)
             if (!sel) return false
+            // A pasted picture alone is the image upload's: it inserts a figure next to the
+            // selection (media.ts insertBlock), never over it.
+            if (imageFiles(event.clipboardData).length && !event.clipboardData?.getData('text/plain')) return false
             if (sel.$from.depth > 0) return true // below the top level: dropped
             const tr = caretAfter(view.state, sel)
             view.dispatch(tr.replaceSelection(slice).scrollIntoView())

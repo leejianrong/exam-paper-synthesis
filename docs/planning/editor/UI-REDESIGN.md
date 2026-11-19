@@ -466,8 +466,10 @@ way. The first such key in a selection shows "Press Enter to write below" in the
 fades after a few seconds. Enter or Shift+Enter starts a paragraph after any selected top-level
 block, questions included. On a selected cover, section, blank page or figure, which have no
 letter shortcuts, a typed key also starts a paragraph after the block (EXA-129). On a block
-selected inside a question (a part, a figure) typing, Shift+Enter and paste do nothing, and
-Enter does nothing on a part. The exception is composition: an IME or a mobile keyboard that
+selected inside a question (a part, a figure) typing, Shift+Enter and pasted text do nothing,
+and Enter does nothing on a part. A pasted picture alone goes to the image upload, which
+inserts it as a figure next to the selection, never over the block, and Ctrl/Cmd+Enter only
+adds a question. The exception is composition: an IME or a mobile keyboard that
 composes words (Gboard) cannot be stopped, so once it starts composing the caret moves into a
 new paragraph after the block and the text lands there, on a question too; a dead key alone
 moves nothing. The rule lives in the block selection guard,

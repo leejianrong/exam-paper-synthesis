@@ -125,7 +125,7 @@ describe('swap and lock in the editor (P8d)', () => {
     expect(calls).toEqual([{ url: expect.stringMatching(/\/documents\/d1\/swap$/), body: { block_id: 'gq1', mode: 'like', base_version: 4 } }])
     expect(screen.getByText(/Swapped in a 3-mark Ratio question/)).toBeInTheDocument()
     // the server saved it: nothing is pending
-    expect(screen.getByRole('status')).toHaveTextContent('Saved')
+    expect(document.querySelector('.saved[role="status"]')).toHaveTextContent('Saved')
   })
 
   it('a locked question cannot be swapped, and the lock is a toggle', async () => {
