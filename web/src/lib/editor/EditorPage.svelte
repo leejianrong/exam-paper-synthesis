@@ -48,7 +48,6 @@
     type DocumentRecord,
   } from './doc'
   import {
-    ApiError,
     copyDocument,
     deleteDocument,
     exportDocument,
@@ -93,6 +92,11 @@
     type GlobalCommand,
   } from './shortcuts'
 
+  import ErrorNote from '../ErrorNote.svelte'
+  import { canRetry, createFailedText, errorText } from '../errors'
+  import PaperUnavailable from './PaperUnavailable.svelte'
+  import EditorSkeleton from './EditorSkeleton.svelte'
+
   export let id: string
 
   let element: HTMLDivElement
@@ -101,13 +105,17 @@
   let unsubscribe: (() => void) | null = null
 
   let title = ''
-  let loadError = ''
+  let loadError: unknown = null // why the paper didn't open (EXA-165)
   let loading = true
   let content: DocJSON = { type: 'doc', content: [] }
   let status: 'saved' | 'dirty' | 'saving' | 'conflict' | 'error' = 'saved'
   let pickerAt: number | null | undefined = undefined // undefined = closed, null = end
   let busy = ''
   let actionError = ''
+  /** "Try again" for the failure in `actionError`, when the same request may work now. */
+  let actionRetry: (() => void) | null = null
+  /** Why the last save failed (the bar says "Not saved"; the strip says why and retries). */
+  let saveError: unknown = null
   let notice = ''
   /** EXA-161: a question was just deleted; the toast offers the editor's undo. */
   let deleted = false
@@ -152,6 +160,18 @@
   let keyView: KeyView | undefined
   /** "Edit answer…": the own question whose answer is open. */
   let answerFor: string | null = null
+
+  /** Show a failed action in plain words (EXA-165), with Try again when it may work now. */
+  function failed(e: unknown, action: string, retry?: () => void) {
+    showError(errorText(e, action), retry && canRetry(e) ? retry : null)
+  }
+
+  /** The one way to set (or clear, with '') the strip's error: its Try again goes with it, so
+   *  a retry never outlives the failure it was for. */
+  function showError(message: string, retry: (() => void) | null = null) {
+    actionError = message
+    actionRetry = retry
+  }
 
   function readPanelShown(): boolean {
     try {
@@ -291,7 +311,7 @@
     try {
       moveFolders = await listFolders()
     } catch (e) {
-      actionError = e instanceof Error ? e.message : String(e)
+      failed(e, "Couldn't list your folders", () => void openMove())
     }
   }
 
@@ -307,7 +327,7 @@
       moveFolders = null
       notice = name ? `Moved to ${name}.` : 'Moved out of its folder: the paper is unfiled.'
     } catch (e) {
-      moveError = e instanceof Error ? e.message : String(e)
+      moveError = errorText(e, "The paper wasn't moved")
     } finally {
       busy = ''
     }
@@ -318,14 +338,15 @@
     const ed = editor
     if (!ed || busy) return
     busy = 'copy'
-    actionError = ''
+    showError('')
     try {
       await autosaver?.flush()
       const document = buildDocument(title, ed.getJSON() as DocJSON, $paperSettings)
       const rec = await copyDocument(id, { document, folder_id: folderId })
       navigate(`/docs/${rec.id}`)
     } catch (e) {
-      actionError = e instanceof Error ? e.message : String(e)
+      // no Try again: the copy may have been made although the reply was lost
+      showError(createFailedText(e, "Couldn't make a copy"))
     } finally {
       busy = ''
     }
@@ -341,7 +362,7 @@
       confirmDelete = false
       navigate('/')
     } catch (e) {
-      deleteError = e instanceof Error ? e.message : String(e)
+      deleteError = errorText(e, "The paper wasn't deleted")
     } finally {
       busy = ''
     }
@@ -394,8 +415,8 @@
   /** The key view's key: the paper as saved, so pending edits are saved first. */
   async function loadKey(): Promise<string> {
     await autosaver?.flush()
-    if (status === 'conflict') throw new Error('this paper changed in another tab or window. Reload to get the latest version.')
-    if (status === 'error') throw new Error('your latest changes are not saved yet.')
+    if (status === 'conflict') throw new Error('This paper changed in another tab or window. Reload to get the latest version.')
+    if (status === 'error') throw new Error('Your latest changes are not saved yet.')
     return previewDocument(id, 'key')
   }
 
@@ -430,10 +451,28 @@
     autosaver.schedule(buildDocument(title, editor.getJSON() as DocJSON, $paperSettings))
   }
 
-  onMount(async () => {
+  onMount(() => {
     // capture: ahead of the editor's own keys (its Ctrl+Enter line break, say)
     window.addEventListener('keydown', onGlobalKey, true)
     void loadQuota().then((q) => (quota = q))
+    void openPaper()
+  })
+
+  /** Load the paper and start the editor; a failure shows a page of its own (EXA-165). */
+  async function openPaper() {
+    loading = true
+    loadError = null
+    // a retry after a load that failed part way starts clean: no second editor or autosaver
+    unsubscribe?.()
+    autosaver?.dispose()
+    editor?.destroy()
+    unsubscribe = null
+    autosaver = null
+    editor = null
+    // An editor whose constructor threw leaves its page behind. Svelte renders nothing inside
+    // this element (TipTap owns it), so clearing it can't confuse the runtime.
+    // eslint-disable-next-line svelte/no-dom-manipulating
+    element?.replaceChildren()
     try {
       const rec = await getDocument(id)
       title = rec.document.title
@@ -452,6 +491,7 @@
       autosaver = createAutosaver({
         initialVersion: rec.version,
         save: (doc, base) => saveDocument(id, doc, base),
+        onError: (e) => (saveError = e),
       })
       unsubscribe = autosaver.status.subscribe((s) => (status = s))
 
@@ -474,7 +514,7 @@
           MathNode,
           ImageUpload.configure({
             upload: (f: File) => uploadAsset(f, f.name),
-            onError: (m: string) => (actionError = m),
+            onError: (m: string) => showError(m),
           }),
           PageBreak,
           Section.configure({ onEdit: (pos: number) => void openBlockSettings(pos) }),
@@ -518,16 +558,11 @@
       content = editor.getJSON() as DocJSON
       tick += 1 // the toolbar reads the opening selection, before any transaction
     } catch (e) {
-      loadError =
-        e instanceof ApiError && e.status === 404
-          ? 'This paper was not found.'
-          : e instanceof Error
-            ? e.message
-            : String(e)
+      loadError = e
     } finally {
       loading = false
     }
-  })
+  }
 
   onDestroy(() => {
     window.removeEventListener('keydown', onGlobalKey, true)
@@ -659,10 +694,10 @@
     const files = Array.from(fileInput.files ?? [])
     fileInput.value = ''
     if (!editor) return
-    actionError = ''
+    showError('')
     await uploadAndInsert(editor, files, {
       upload: (f) => uploadAsset(f, f.name),
-      onError: (m) => (actionError = m),
+      onError: (m) => showError(m),
     })
   }
 
@@ -909,7 +944,7 @@
 
   async function download(mode: ExportMode, allowPlaceholders = false) {
     busy = `export-${mode}`
-    actionError = ''
+    showError('')
     unfilled = null
     try {
       await autosaver?.flush()
@@ -923,7 +958,7 @@
     } catch (e) {
       const empty = unfilledDetail(e)
       if (empty) unfilled = { mode, questions: empty.questions }
-      else actionError = e instanceof Error ? e.message : String(e)
+      else failed(e, "Couldn't export the PDF", () => void download(mode, allowPlaceholders))
     } finally {
       busy = ''
       void loadQuota().then((q) => (quota = q))
@@ -944,11 +979,13 @@
   async function paperOp<R>(
     run: (baseVersion: number) => Promise<DocumentRecord & { report: R }>,
     describe: (report: R) => string,
+    action: string,
+    retry: () => void,
   ) {
     const ed = editor
     if (!ed || !autosaver || busy) return
     busy = 'paper'
-    actionError = ''
+    showError('')
     opInFlight = true
     editedDuringOp = false
     ed.setEditable(false, false)
@@ -970,14 +1007,7 @@
       content = ed.getJSON() as DocJSON
       notice = describe(rec.report)
     } catch (e) {
-      actionError =
-        e instanceof ApiError && e.status === 409
-          ? 'This paper changed in another tab or window. Reload to get the latest version.'
-          : e instanceof ApiError && typeof e.detail === 'string'
-            ? e.detail
-            : e instanceof Error
-              ? e.message
-              : String(e)
+      failed(e, action, retry)
     } finally {
       opInFlight = false
       ed.setEditable(true, false)
@@ -987,7 +1017,12 @@
   }
 
   async function swapBlock(blockId: string, mode: SwapMode): Promise<void> {
-    await paperOp((base) => swapQuestion(id, blockId, mode, base), swapNotice)
+    await paperOp(
+      (base) => swapQuestion(id, blockId, mode, base),
+      swapNotice,
+      "The question wasn't swapped",
+      () => void swapBlock(blockId, mode),
+    )
     // The swapped block is selected; give the editor focus back (the menu that asked is gone),
     // so its pill shows and R swaps again (EXA-161).
     await nextTick()
@@ -995,7 +1030,12 @@
   }
 
   function regenerate(): Promise<void> {
-    return paperOp((base) => regeneratePaper(id, base), regenerateNotice)
+    return paperOp(
+      (base) => regeneratePaper(id, base),
+      regenerateNotice,
+      "The paper wasn't regenerated",
+      () => void regenerate(),
+    )
   }
 
   // The preview paginates itself after it loads (fonts, maths); read what it decided once it has.
@@ -1017,14 +1057,14 @@
 
   async function preview(mode: ExportMode) {
     busy = 'preview'
-    actionError = ''
+    showError('')
     pageSummary = null
     readToken++
     try {
       await autosaver?.flush()
       previewHtml = await previewDocument(id, mode)
     } catch (e) {
-      actionError = e instanceof Error ? e.message : String(e)
+      failed(e, "Couldn't open the preview", () => void preview(mode))
     } finally {
       busy = ''
     }
@@ -1033,7 +1073,7 @@
 
 <svelte:window on:beforeunload={onBeforeUnload} bind:innerWidth />
 
-<header class="ehead" bind:clientHeight={barH} inert={busy === 'paper'}>
+<header class="ehead" bind:clientHeight={barH} inert={busy === 'paper'} class:hidden={loading || !!loadError}>
   <EditorBar
     {title}
     {folderName}
@@ -1170,7 +1210,14 @@
     <button on:click={() => location.reload()}>Reload</button>
   </p>
 {/if}
-{#if actionError}<p class="banner err" role="alert">{actionError}</p>{/if}
+{#if status === 'error'}
+  <ErrorNote
+    strip
+    message={errorText(saveError, "Your latest changes aren't saved")}
+    onRetry={canRetry(saveError) ? () => void autosaver?.flush() : null}
+  />
+{/if}
+{#if actionError}<ErrorNote strip message={actionError} onRetry={actionRetry} />{/if}
 {#if generated}
   <p class="banner note" aria-live="polite" data-testid="generate-report">
     {generated} <button on:click={() => lastReport.set(null)}>Dismiss</button>
@@ -1189,9 +1236,9 @@
 {/if}
 
 {#if loading}
-  <p class="loading">Loading…</p>
+  <EditorSkeleton />
 {:else if loadError}
-  <p class="banner err" role="alert">{loadError} <a href="#/">Back to papers</a></p>
+  <PaperUnavailable error={loadError} onRetry={() => void openPaper()} />
 {/if}
 
 <div
@@ -1329,7 +1376,7 @@
     block={blocks[answerAt]}
     onAnswer={(answer) => answerFor && setAnswer(answerFor, answer)}
     onPartAnswer={(index, answer) => answerFor && setPartAnswer(answerFor, index, answer)}
-    onError={(m) => (actionError = m)}
+    onError={(m) => showError(m)}
     onClose={() => (answerFor = null)}
   />
 {/if}
@@ -1542,11 +1589,9 @@
   .toast button:hover {
     background: color-mix(in srgb, var(--on-accent) 15%, transparent);
   }
-  .loading {
-    text-align: center;
-    color: var(--ink-faint);
-  }
-  .hidden {
+  .hidden,
+  .desk.hidden {
+    /* .desk sets its own display further down: this must win over it */
     display: none;
   }
 

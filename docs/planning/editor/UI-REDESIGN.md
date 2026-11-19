@@ -1,7 +1,7 @@
 # Editor and app UI redesign: research and proposal
 
 Cards: **EXA-159** (answer key clutter), **EXA-160** (editor top bars), **EXA-161** (per-question buttons), plus an app-wide pass the owner asked for.
-Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14) and S6 (EXA-164, section 16).
+Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14), S7 (EXA-165, section 15), S6 (EXA-164, section 16) and S9 (EXA-167, section 17).
 
 Research build: worktree off `origin/main` at `f54b92c`, API on :8100 (dev auth, throwaway stores), Vite on :5273. Papers generated with `POST /documents/generate` (P6, seed 11) and through the New dialog (an exam set in a folder).
 
@@ -571,7 +571,72 @@ moves nothing. The rule lives in the block selection guard,
   markup inside an iframe; only the own-answer click is wired there. The exam-set key (S10) is
   still to come.
 
+---
 
+## 15. S7 as built (EXA-165)
+
+- **One wording.** `web/src/lib/errors.ts`: every failed request is an `ApiError` (status,
+  the server's `detail`, a 429's `Retry-After`) whose message is already plain language, so
+  each `catch` that showed `e.message` shows words without being touched. `fail(res)` replaced
+  the four copies of "throw `API ${status}: ${detail}`" (api.ts, docsApi.ts, assets.ts, the
+  bank import) and `docsApi`'s own `ApiError`. `http.reach` (and `apiFetch` on top of it) turns
+  a request that never reached the server into `ApiError(0)`. The status and detail go to the
+  console (`console.warn`), never on screen. Only a JSON `detail` counts as the server's words:
+  a body that isn't JSON (a proxy's error page) leaves the detail empty, so a status text such
+  as "Payload Too Large" never shows, and FastAPI's own "Not Found" / "Method Not Allowed" are
+  treated as no detail.
+- **The words.** 0: "Can't reach the server. Check your internet connection." 401: "You're
+  signed out…". 403: "You don't have access to this." 404: named where the server's detail
+  says what is missing ("This paper doesn't exist or was deleted."). 409: "This paper changed
+  in another tab or window. Reload…". 413 / 400 / 422: the server's short reason as a sentence
+  ("Image is larger than 2 MB."), but never a validation dump ("invalid question: …", a list
+  of schema errors), which becomes "The server couldn't accept this, so nothing was changed."
+  429: "Too many requests. Try again in N seconds/minutes/hours." from Retry-After. 503: "The
+  server is busy." Other 5xx: "Something went wrong on our side. Try again in a moment." A
+  detail the server wrote as a sentence for people (the export allowance, a swap that isn't
+  possible, empty placeholders) is shown as it is.
+- **What didn't happen, then why.** `errorText(e, action)` puts the action first: "Couldn't
+  load your papers.", "The question wasn't swapped.", "The setting wasn't saved.", "The image
+  wasn't added.", "Couldn't export the PDF.", "Couldn't open the preview.", "Couldn't list your
+  folders.", "Couldn't make a copy.", "Couldn't generate questions.", "Couldn't load your
+  question bank.", "The paper wasn't moved / deleted / renamed.", "The folder wasn't renamed /
+  deleted / made", "The review mark wasn't changed.", "The answer key didn't load / update."
+- **Try again** (`ErrorNote.svelte`, the answer key view's alert-and-retry pattern made shared:
+  alert icon, text, a secondary button) shows only when `canRetry`: unreachable, 408, 5xx, or
+  a 429 whose Retry-After is absent or at most 60 s (the daily export allowance says "in 3
+  hours": a button would only fail again). A 404, 409 or 422 won't change by asking again.
+  Where: the papers list (in place of the list), the paper templates, opening a paper, saving,
+  exports, the preview, swap, regenerate, listing folders, generating questions, the question
+  bank, a setting. Every write of the editor's error strip goes through one setter
+  (`showError`) that sets its retry too, so an image error never inherits an export's Try
+  again.
+- **Creates are not retried.** Make a copy (editor and list) and the New dialog's single paper
+  offer no Try again: after a lost reply (unreachable, 5xx) the paper may exist, so the text
+  ends "Check Your papers before trying again." (`createFailedText`). The exam-set rows' own
+  "Try Booklet B again" (EXA-153) is unchanged.
+- **Saving.** The chip said "Save failed — will retry", but nothing retried until the next
+  edit. It now says **Not saved**; the strip under the header gives the reason (the autosaver's
+  new `onError`) and Try again, offered only when `canRetry` (a 413 or 422 would fail the same
+  way), saves the kept change (`autosave.flush`). The next edit tries again either way.
+- **Opening a paper.** `PaperUnavailable.svelte` replaces the whole editor (header and desk
+  hidden; the old banner sat over a live, empty editor showing "Saved", because `.desk`'s own
+  `display` beat `.hidden`). 404: "This paper doesn't exist or was deleted", only Back to Your
+  papers. Another account's paper is a 404 from the server too (documents are owner-scoped);
+  the 403 page ("You don't have access to this paper") is a defensive fallback only.
+  Unreachable: "Can't reach the server" with Try again first. Other failures: "This paper
+  couldn't be opened" with the reason, and Try again when it can help; a fault in the page
+  itself (not an `ApiError`) gets a generic sentence, never the script's message, and Try
+  again. Try again runs the load again in place (`openPaper`), which first disposes anything a
+  part-way failure left (subscription, autosaver, editor, the half-built page), so a retry
+  never runs two editors. The heading takes focus. No save runs from a page that didn't open.
+- **Skeletons.** Grey bars (`.skel` in `app.css`, a slow sheen; still under
+  `prefers-reduced-motion`): four paper rows in the list box, and for the editor its header
+  and an A4 page (`EditorSkeleton.svelte`, which hides the real header too, so nothing claims
+  "Saved" before the paper is in). Each is a `role="status"` with hidden text ("Loading your
+  papers…", "Opening the paper…"), without `aria-busy` (a busy live region holds back its own
+  announcement).
+- **Not changed:** the sign-in page's own messages (S12), the Classic page beyond the shared
+  wording, and the add-question picker's "Loading your bank…" line (a dialog, not a first load).
 
 ---
 
@@ -627,3 +692,63 @@ moves nothing. The rule lives in the block selection guard,
 - **Not changed:** a generated paper with no text in it still opens with the cover node-selected
   (there is nowhere for `startWithTextCursor` to put a caret; this predates S6). The panel shows
   the Paper tab until you click something, and typing still goes after the cover (EXA-129).
+
+---
+
+## 17. S9 as built (EXA-167)
+
+- **One app header.** `AppHeader.svelte`, rendered by `App.svelte` above every route but the
+  editor (the list, `#/bank`, Settings, Classic and the Classic-off page). Left to right: the
+  product mark and name "Exam papers" (the mockup's; the name hides below 600 px), a
+  `<nav aria-label="Main">` with Papers, Question bank and, only while *Show the Classic
+  generator* is on, Classic, then the `AccountMenu` avatar (Settings, and outside the dev stub
+  Download my data, Sign out, Delete my account). The tab for the current route has
+  `aria-current="page"` (green underline); Settings is not a tab, so nothing is current there.
+  52 px high, one row, no horizontal scroll at 390 px. The tabs scroll sideways inside the
+  header (`overflow-x: auto`) when they don't fit, so the page never does (checked at 320 px
+  with the Classic tab on).
+- **Removed as superseded:** the list's masthead (the `exam-paper-synthesis` wordmark, its
+  "Settings" and "Classic generator" links and its own `AccountMenu`), Settings' "← Your
+  papers" link, the Classic-off page's "Back to your papers", and the Classic page's glyph and
+  wordmark. Settings' note now points at the Classic tab.
+- **The editor** keeps its own header (EditorBar) with the ← "Back to papers" link and the same
+  `AccountMenu`; it returns to Papers (section 7.1's "back to the folder" is not built: the
+  list shows every folder, open unless the teacher collapsed it).
+- **Question bank page** (`BankPage.svelte`, `#/bank`). `GET /bank` once; filtering is in the
+  browser (`bank.ts`: `filterOptions`, `filterBank`, `isFiltered`), so no API change. Filters:
+  a search (every word must appear in the question text, topic or id, ignoring case and
+  accents, the papers list's `titleMatches`), Topic, Level, Difficulty, Source (Imported /
+  Generated) and Review (Reviewed / Not reviewed; "not reviewed" is an imported question only,
+  since a generated one is proven by the engine). The options are the values the bank holds. A
+  count ("3 of 12 questions") and Clear filters sit under them. Each question is a card: topic ·
+  level · difficulty, a status chip (Reviewed in green, Unreviewed neutral with an amber dot,
+  per 7.2 not red; Generated for generated ones), the source's origin and year, the question
+  drawn by the engine (`FragmentView`), and for imported questions the existing
+  `ReviewControl` (confirmation tick before Mark as reviewed, one click to withdraw). A review
+  says "Marked as reviewed." / "Review withdrawn." in the status line; when it takes the question
+  out of the filtered list, focus goes to the next card (the previous one at the end, the count
+  line when none is left). Cards draw
+  20 at a time ("Show more (N left)", which moves focus to the first new card), since each is a
+  server render.
+- **Import.** The one primary button, **Import questions from a file**, opens `BankImport` in a
+  `Dialog` of that name: files or pasted JSON, *Replace existing questions with the same id*,
+  per-item results (Imported / Replaced / Already in your bank / Not imported with the reasons).
+  A finished import reloads the list behind the dialog. "N questions imported." is said in a
+  status line inside the dialog (outside an `aria-modal` dialog a screen reader may not read it)
+  and again on the page once it closes, adding "N are hidden by your filters" when the filters
+  hide what arrived. "Back to bank" closes. Loads carry a ticket: an older answer to
+  overlapping reloads is dropped. Its lead line is plain now ("Choose question files (.json), or paste
+  what's in one…") in the picker too.
+- **States.** Loading: three skeleton cards (`.skel`) in a `role="status"` with hidden "Loading
+  your question bank…". Error: `ErrorNote` "Couldn't load your question bank. …" with Try again
+  when `canRetry`. Empty: a dashed panel, "Your bank is empty.", and what importing gives you;
+  the filters are hidden. No match: "No questions match these filters." A failed reload after
+  an import keeps the list and says so in the status line.
+- **The picker's "From my bank" tab** is unchanged (its own topic and Reviewed-only filters,
+  Import…, Use this).
+- **Not in S9:** restyling the Classic page itself (its black Generate button and uppercase
+  labels, issue 10's "different visual language"); deleting a question from the bank (no
+  endpoint); using a bank question in a paper from the bank page (the picker does that); a
+  skip link. The bank list is not virtualised: past a few hundred questions the client-side
+  filter is still instant but only 20 cards draw at a time.
+

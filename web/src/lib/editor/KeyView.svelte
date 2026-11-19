@@ -14,7 +14,8 @@
   // key options in a strip above it. It refreshes a moment after each edit; the old key stays on
   // screen until the new one has loaded, so the page keeps its scroll position.
   import { onDestroy, tick, untrack } from 'svelte'
-  import Icon from '../Icon.svelte'
+  import ErrorNote from '../ErrorNote.svelte'
+  import { errorText } from '../errors'
   import type { KeyLayout, KeyOptions, KeyToggle } from './layout'
   import { findKeyRow, keyRowNumber } from './keyRows'
 
@@ -77,7 +78,7 @@
   let frames = $state<Frame[]>([])
   let height = $state(0)
   let loading = $state(false)
-  let error = $state('')
+  let error: unknown = $state(null)
   let seq = 0
   let token = 0
   let shown: unknown = undefined // the revision the key on screen (or loading) was made from
@@ -109,7 +110,7 @@
     const mine = ++token
     shown = r
     loading = true
-    error = ''
+    error = null
     // the paper this key is for: load() saves exactly this before it asks
     const asked = { numbers: [...numbers], own: own.map((q) => ({ ...q })) }
     try {
@@ -119,7 +120,7 @@
     } catch (e) {
       if (mine !== token) return
       pendingScroll = null
-      error = e instanceof Error ? e.message : String(e)
+      error = e
     } finally {
       if (mine === token) loading = false
     }
@@ -276,11 +277,7 @@
   {/if}
 
   {#if error}
-    <p class="err" role="alert">
-      <Icon name="alert" size={14} />
-      <span>The answer key didn't {visible ? 'update' : 'load'}: {error}</span>
-      <button class="retry" onclick={retry}>Try again</button>
-    </p>
+    <ErrorNote message={errorText(error, `The answer key didn't ${visible ? 'update' : 'load'}`)} onRetry={retry} />
   {/if}
 
   {#if empty}
@@ -440,29 +437,6 @@
   }
   .chip.out button:hover {
     text-decoration: underline;
-  }
-  .err {
-    display: flex;
-    align-items: center;
-    gap: var(--s2);
-    margin: 0 0 var(--s3);
-    padding: var(--s2) var(--s3);
-    border-radius: var(--r-md);
-    background: var(--mark-soft);
-    color: var(--mark);
-    font-size: 13px;
-  }
-  .retry {
-    margin-left: auto;
-    height: 28px;
-    padding: 0 var(--s3);
-    border: 1px solid var(--line);
-    border-radius: var(--r-sm);
-    background: var(--page);
-    color: var(--ink);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
   }
   /* The sheet: an A4 page with the print margins, the printed key inside at the print width. */
   .sheet {

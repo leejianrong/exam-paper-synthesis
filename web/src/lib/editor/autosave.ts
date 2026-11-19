@@ -2,7 +2,7 @@
 // conflict the user resolves by reloading — never silently merged.
 
 import { writable, type Readable } from 'svelte/store'
-import { ApiError } from './docsApi'
+import { ApiError } from '../errors'
 import type { PaperDocument } from './doc'
 
 export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'conflict' | 'error'
@@ -25,6 +25,8 @@ export interface AutosaveOptions {
   save: (doc: PaperDocument, baseVersion: number) => Promise<{ version: number }>
   initialVersion: number
   delayMs?: number
+  /** Why a save failed (status 'error'); a 409 is the 'conflict' status instead. */
+  onError?: (e: unknown) => void
 }
 
 export function createAutosaver(opts: AutosaveOptions): Autosaver {
@@ -64,6 +66,7 @@ export function createAutosaver(opts: AutosaveOptions): Autosaver {
           status.set('conflict')
         } else {
           pending = pending ?? doc // keep the unsaved change for a retry
+          opts.onError?.(e)
           status.set('error')
           return
         }

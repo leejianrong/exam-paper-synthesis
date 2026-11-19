@@ -1,5 +1,6 @@
 <script lang="ts">
   // #/classic while the setting is off (O1): say so, and offer the switch.
+  import { errorText } from './errors'
   import { updateSettings } from './settings'
 
   let error = ''
@@ -7,7 +8,7 @@
     try {
       await updateSettings({ classic_generator: true })
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e)
+      error = errorText(e, "The Classic generator wasn't turned on")
     }
   }
 </script>
@@ -17,7 +18,6 @@
   <p>It's hidden by default. Turn it on here or in <a href="#/settings">Settings</a>.</p>
   <p class="actions">
     <button on:click={turnOn}>Turn on the Classic generator</button>
-    <a href="#/">Back to your papers</a>
   </p>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 </main>

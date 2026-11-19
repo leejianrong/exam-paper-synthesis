@@ -1,4 +1,6 @@
 <script lang="ts">
+  import AppHeader from './lib/AppHeader.svelte'
+  import BankPage from './lib/BankPage.svelte'
   import ClassicOff from './lib/ClassicOff.svelte'
   import ClassicPage from './ClassicPage.svelte'
   import DocumentList from './lib/editor/DocumentList.svelte'
@@ -23,18 +25,24 @@
   {#key $route.id}
     <EditorPage id={$route.id} />
   {/key}
-{:else if $route.name === 'settings'}
-  <SettingsPage />
-{:else if $route.name === 'classic'}
-  {#if $settings === null}
-    <p class="boot">Loading…</p>
-  {:else if $settings.classic_generator}
-    <ClassicPage />
-  {:else}
-    <ClassicOff />
-  {/if}
 {:else}
-  <DocumentList />
+  <!-- every screen but the editor shares one header (EXA-167) -->
+  <AppHeader />
+  {#if $route.name === 'settings'}
+    <SettingsPage />
+  {:else if $route.name === 'bank'}
+    <BankPage />
+  {:else if $route.name === 'classic'}
+    {#if $settings === null}
+      <p class="boot">Loading…</p>
+    {:else if $settings.classic_generator}
+      <ClassicPage />
+    {:else}
+      <ClassicOff />
+    {/if}
+  {:else}
+    <DocumentList />
+  {/if}
 {/if}
 
 <style>

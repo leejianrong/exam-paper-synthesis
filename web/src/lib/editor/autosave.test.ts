@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { get } from 'svelte/store'
 import { createAutosaver } from './autosave'
-import { ApiError } from './docsApi'
+import { ApiError } from '../errors'
 import type { PaperDocument } from './doc'
 
 const doc = (title: string): PaperDocument => ({

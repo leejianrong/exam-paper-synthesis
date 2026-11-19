@@ -11,8 +11,9 @@ test('the Classic generator is hidden until it is turned on in Settings', async 
   expect(off.ok()).toBeTruthy()
 
   await page.goto('/')
-  await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Classic generator' })).toHaveCount(0)
+  const nav = page.getByRole('navigation', { name: 'Main' })
+  await expect(nav.getByRole('link', { name: 'Papers' })).toBeVisible()
+  await expect(nav.getByRole('link', { name: 'Classic' })).toHaveCount(0)
 
   // Going straight to #/classic while it is off says so.
   await page.goto('/#/classic')
@@ -26,8 +27,8 @@ test('the Classic generator is hidden until it is turned on in Settings', async 
   await page.reload()
   await expect(page.getByRole('switch', { name: 'Show the Classic generator' })).toBeChecked()
 
-  await page.getByRole('link', { name: '← Your papers' }).click()
-  await page.getByRole('link', { name: 'Classic generator' }).click()
+  // The Classic generator is a tab of the app header now, on every screen
+  await nav.getByRole('link', { name: 'Classic' }).click()
   await expect(page.getByRole('button', { name: 'Generate', exact: true })).toBeVisible()
 })
 
@@ -43,7 +44,7 @@ test('the answer key style in Settings is the key new papers start with', async 
     await page.reload()
     await expect(styles.getByRole('radio', { name: 'Worked solutions' })).toBeChecked()
 
-    await page.getByRole('link', { name: '← Your papers' }).click()
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Papers' }).click()
     await newBlankPaper(page)
     await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
     await page.getByRole('group', { name: 'View' }).getByRole('button', { name: 'Answer key' }).click()

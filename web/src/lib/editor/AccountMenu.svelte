@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorText } from '../errors'
   // The account avatar (EXA-160; was AccountChip): who you are, Settings, your data, sign out.
   // The local development stub has nothing to sign out of or export, so it gets Settings only.
   // Deleting the account confirms in a dialog that needs the word DELETE typed.
@@ -60,8 +61,8 @@
       a.download = 'exam-paper-data.zip'
       a.click()
       URL.revokeObjectURL(url)
-    } catch {
-      error = 'Could not export your data. Try again.'
+    } catch (e) {
+      error = errorText(e, "Couldn't download your data")
     } finally {
       downloading = false
     }
@@ -72,8 +73,8 @@
     error = ''
     try {
       await deleteAccount()
-    } catch {
-      error = 'Could not delete your account. Nothing was changed.'
+    } catch (e) {
+      error = errorText(e, "Your account wasn't deleted")
       busy = false
     }
   }

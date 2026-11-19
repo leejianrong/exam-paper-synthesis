@@ -1,3 +1,4 @@
+import { fail } from './errors'
 import { apiFetch } from './http'
 import type { SectionPlacement } from './editor/doc'
 import type { Question } from './types'
@@ -30,10 +31,7 @@ export async function generate(blueprintCode: string, count = 1): Promise<Questi
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ blueprint_code: blueprintCode, count }),
   })
-  if (!res.ok) {
-    const detail = await res.text()
-    throw new Error(`API ${res.status}: ${detail}`)
-  }
+  if (!res.ok) return fail(res)
   const data = (await res.json()) as GenerateResponse
   return data.questions
 }
@@ -52,10 +50,7 @@ export async function editQuestion(
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ question, seed }),
   })
-  if (!res.ok) {
-    const detail = await res.text()
-    throw new Error(`API ${res.status}: ${detail}`)
-  }
+  if (!res.ok) return fail(res)
   const data = (await res.json()) as EditResponse
   return data.question
 }
@@ -75,10 +70,7 @@ export async function previewWorksheet(title: string, questions: Question[]): Pr
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ title, questions }),
   })
-  if (!res.ok) {
-    const detail = await res.text()
-    throw new Error(`API ${res.status}: ${detail}`)
-  }
+  if (!res.ok) return fail(res)
   return res.text()
 }
 
@@ -96,10 +88,7 @@ export async function exportPdf(
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ title, questions }),
   })
-  if (!res.ok) {
-    const detail = await res.text()
-    throw new Error(`API ${res.status}: ${detail}`)
-  }
+  if (!res.ok) return fail(res)
   return res.blob()
 }
 
@@ -117,10 +106,7 @@ export interface EditableSlot {
 /** The cosmetic slots of a blueprint, for building the "Edit names" form. */
 export async function getEditableSlots(blueprintCode: string): Promise<EditableSlot[]> {
   const res = await apiFetch(`${BASE}/blueprints/${blueprintCode}/params`)
-  if (!res.ok) {
-    const detail = await res.text()
-    throw new Error(`API ${res.status}: ${detail}`)
-  }
+  if (!res.ok) return fail(res)
   const data = (await res.json()) as { slots: EditableSlot[] }
   return data.slots
 }
@@ -138,10 +124,7 @@ export async function setCosmetic(
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ question, changes }),
   })
-  if (!res.ok) {
-    const detail = await res.text()
-    throw new Error(`API ${res.status}: ${detail}`)
-  }
+  if (!res.ok) return fail(res)
   const data = (await res.json()) as EditResponse
   return data.question
 }
@@ -160,10 +143,7 @@ export interface BankItem {
 /** The owner's bank questions (import: `importBank` here, or `mathgen bank import`). */
 export async function listBank(): Promise<BankItem[]> {
   const res = await apiFetch(`${BASE}/bank`)
-  if (!res.ok) {
-    const detail = await res.text()
-    throw new Error(`API ${res.status}: ${detail}`)
-  }
+  if (!res.ok) return fail(res)
   return ((await res.json()) as { items: BankItem[] }).items
 }
 
@@ -179,10 +159,7 @@ export async function setBankReviewed(id: string, reviewed: boolean): Promise<bo
     body: JSON.stringify({ reviewed }),
   })
   if (res.status === 404) return false
-  if (!res.ok) {
-    const detail = await res.text()
-    throw new Error(`API ${res.status}: ${detail}`)
-  }
+  if (!res.ok) return fail(res)
   return true
 }
 
@@ -212,16 +189,7 @@ export async function importBank(objects: unknown[], replace = false): Promise<I
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ objects, replace }),
   })
-  if (!res.ok) {
-    let detail = res.statusText
-    try {
-      const body = (await res.json()) as { detail?: unknown }
-      if (typeof body.detail === 'string') detail = body.detail
-    } catch {
-      /* keep statusText */
-    }
-    throw new Error(`Import failed: ${detail}`)
-  }
+  if (!res.ok) return fail(res)
   return (await res.json()) as ImportResponse
 }
 
@@ -240,10 +208,7 @@ export async function convertToFreeform(question: Question): Promise<FreeformCon
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ question }),
   })
-  if (!res.ok) {
-    const detail = await res.text()
-    throw new Error(`API ${res.status}: ${detail}`)
-  }
+  if (!res.ok) return fail(res)
   return (await res.json()) as FreeformConversion
 }
 
@@ -269,10 +234,7 @@ export async function renderQuestionHtml(
         : { question, mode, number },
     ),
   })
-  if (!res.ok) {
-    const detail = await res.text()
-    throw new Error(`API ${res.status}: ${detail}`)
-  }
+  if (!res.ok) return fail(res)
   return ((await res.json()) as { html: string }).html
 }
 
@@ -285,7 +247,8 @@ export async function fetchFragmentAssets(): Promise<{
     apiFetch(`${BASE}/render/question.css`),
     apiFetch(`${BASE}/render/katex.js`),
   ])
-  if (!css.ok || !js.ok) throw new Error(`API ${css.ok ? js.status : css.status}: render assets`)
+  if (!css.ok) return fail(css)
+  if (!js.ok) return fail(js)
   return { css: await css.text(), js: await js.text() }
 }
 
@@ -296,9 +259,6 @@ export async function renderDiagramSvg(diagram: unknown): Promise<string> {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ diagram }),
   })
-  if (!res.ok) {
-    const detail = await res.text()
-    throw new Error(`API ${res.status}: ${detail}`)
-  }
+  if (!res.ok) return fail(res)
   return ((await res.json()) as { svg: string }).svg
 }

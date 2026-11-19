@@ -1,3 +1,4 @@
+import { ApiError } from './errors'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { get } from 'svelte/store'
 import { render, screen, fireEvent } from '@testing-library/svelte'
@@ -179,13 +180,14 @@ describe('WorksheetTray', () => {
     })
 
     it('surfaces an error message when an export fails', async () => {
-      vi.mocked(exportPdf).mockRejectedValueOnce(new Error('API 422: no questions to export'))
+      vi.mocked(exportPdf).mockRejectedValueOnce(new ApiError(422, 'no questions to export'))
       worksheet.add(q('a', 'First question', 2))
       render(WorksheetTray)
 
       await fireEvent.click(worksheetBtn())
 
-      expect(await screen.findByRole('alert')).toHaveTextContent('API 422: no questions to export')
+      expect(await screen.findByRole('alert')).toHaveTextContent('No questions to export.')
+      expect(screen.getByRole('alert')).not.toHaveTextContent('422')
     })
   })
 })

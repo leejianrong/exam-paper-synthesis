@@ -1,4 +1,6 @@
 <script lang="ts">
+  import ErrorNote from '../ErrorNote.svelte'
+  import { canRetry, errorText } from '../errors'
   // The "+" picker: choose how to add a question. Generate (templated), From my bank, or
   // Write my own (an empty free-form block, inserted straight away; EXA-161 names).
   import { createEventDispatcher } from 'svelte'
@@ -21,16 +23,19 @@
   let candidates: Question[] = []
   let loading = false
   let error = ''
+  let errorRetry: (() => void) | null = null
 
   const titleCase = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 
   async function onGenerate() {
     loading = true
     error = ''
+    errorRetry = null
     try {
       candidates = await generate(blueprintCode(prefix, difficulty), 3)
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e)
+      error = errorText(e, "Couldn't generate questions")
+      errorRetry = canRetry(e) ? () => void onGenerate() : null
     } finally {
       loading = false
     }
@@ -41,6 +46,7 @@
   let bankLoaded = false
   let bankLoading = false
   let bankError = ''
+  let bankRetry: (() => void) | null = null
   let bankTopic = ''
   let reviewedOnly = false
   let importing = false
@@ -53,7 +59,8 @@
       bankItems = await listBank()
       bankLoaded = true
     } catch (e) {
-      bankError = e instanceof Error ? e.message : String(e)
+      bankError = errorText(e, "Couldn't load your question bank")
+      bankRetry = canRetry(e) ? () => void showBank() : null
     }
   }
 
@@ -66,7 +73,8 @@
       bankItems = await listBank()
       bankLoaded = true
     } catch (e) {
-      bankError = e instanceof Error ? e.message : String(e)
+      bankError = errorText(e, "Couldn't load your question bank")
+      bankRetry = canRetry(e) ? () => void showBank() : null
     } finally {
       bankLoading = false
     }
@@ -141,7 +149,7 @@
       </button>
     </div>
 
-    {#if error}<p class="error" role="alert">{error}</p>{/if}
+    {#if error}<ErrorNote message={error} onRetry={errorRetry} />{/if}
 
     <div class="candidates">
       {#each candidates as q (q.id)}
@@ -174,7 +182,7 @@
         <button class="import-btn" on:click={() => (importing = true)}>Import…</button>
       </div>
 
-      {#if bankError}<p class="error" role="alert">{bankError}</p>{/if}
+      {#if bankError}<ErrorNote message={bankError} onRetry={bankRetry} />{/if}
       {#if bankLoading}<p class="hint">Loading your bank…</p>{/if}
 
       <div class="candidates">
@@ -365,8 +373,5 @@
     background: var(--wash);
     padding: 0.05rem 0.3rem;
     border-radius: 4px;
-  }
-  .error {
-    color: var(--mark);
   }
 </style>

@@ -1,33 +1,13 @@
 // Client for the tenant-scoped /documents API (W1b). Identity is the server's concern
 // (dev stub today, session cookie in W3), so nothing identity-related is sent here.
 
+import { ApiError, fail } from '../errors'
 import { apiFetch } from '../http'
 import type { DocumentRecord, DocumentSummary, PaperDocument } from './doc'
 
 const BASE: string = import.meta.env.VITE_API ?? 'http://localhost:8000'
 
 export type ExportMode = 'student' | 'key' | 'full'
-
-export class ApiError extends Error {
-  status: number
-  detail: unknown
-  constructor(status: number, detail: unknown) {
-    super(`API ${status}: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`)
-    this.status = status
-    this.detail = detail
-  }
-}
-
-async function fail(res: Response): Promise<never> {
-  let detail: unknown
-  try {
-    const body = (await res.json()) as { detail?: unknown }
-    detail = body.detail ?? body
-  } catch {
-    detail = res.statusText
-  }
-  throw new ApiError(res.status, detail)
-}
 
 const json = { 'content-type': 'application/json' }
 
@@ -103,11 +83,6 @@ export function unfilledDetail(e: unknown): UnfilledPlaceholders | null {
 export async function exportDocument(id: string, mode: ExportMode, allowPlaceholders = false): Promise<Blob> {
   const query = allowPlaceholders ? '?allow_placeholders=true' : ''
   const res = await apiFetch(`${BASE}/documents/${id}/export/${mode}${query}`, { method: 'POST' })
-  if (res.status === 429) {
-    // The account's export allowance: the server's message already says when to retry.
-    const body = (await res.json().catch(() => ({}))) as { detail?: unknown }
-    throw new Error(typeof body.detail === 'string' ? body.detail : 'Export limit reached. Try again later.')
-  }
   if (!res.ok) return fail(res)
   return res.blob()
 }

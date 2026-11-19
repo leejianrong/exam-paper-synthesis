@@ -96,7 +96,7 @@ describe('AccountMenu', () => {
     await fireEvent.click(screen.getByRole('menuitem', { name: /Delete my account/ }))
     await fireEvent.input(screen.getByLabelText(/to confirm/), { target: { value: 'DELETE' } })
     await fireEvent.click(screen.getByRole('button', { name: 'Delete everything' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Nothing was changed')
+    expect(await screen.findByRole('alert')).toHaveTextContent("Your account wasn't deleted")
     expect(get(session).status).toBe('user')
   })
 

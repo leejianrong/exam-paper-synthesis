@@ -44,7 +44,7 @@ describe('SettingsPage (O1)', () => {
     fetchMock.mockImplementation(() => reply({ detail: 'nope' }, 500))
     render(SettingsPage)
     await fireEvent.click(screen.getByRole('switch', { name: 'Show the Classic generator' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't save the setting (500).")
+    expect(await screen.findByRole('alert')).toHaveTextContent("The setting wasn't saved. Something went wrong on our side.")
     expect(get(settings)).toEqual({ classic_generator: false, answer_key_style: 'school' })
   })
 })

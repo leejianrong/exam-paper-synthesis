@@ -43,6 +43,8 @@
     info: ['M14 8A6 6 0 1 1 2 8a6 6 0 0 1 12 0z', 'M8 7.5v3.5', 'M8 5h.01'],
     // the papers list (EXA-166)
     search: ['M11.5 7a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0z', 'm10.5 10.5 3 3'],
+    // the question bank (EXA-167)
+    upload: ['M8 10.5v-8', 'M4.5 6 8 2.5 11.5 6', 'M3 13.5h10'],
     open: ['M9.5 2.5h4v4', 'M13.5 2.5 8 8', 'M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3'],
   }
   /** Drawn filled (dots), not stroked. */

@@ -2,8 +2,16 @@
 // `/auth/me` and shows a login page when the answer is "nobody".
 
 import { writable } from 'svelte/store'
+import { fail, offline } from './errors'
 
 const BASE: string = import.meta.env.VITE_API ?? 'http://localhost:8000'
+
+/** `fetch` with the cookie; an unreachable server is an `ApiError(0)` (as `http.reach`, which
+ *  can't be imported here: http.ts imports this module). */
+const send = (url: string, init: RequestInit = {}): Promise<Response> =>
+  fetch(url, { ...init, credentials: 'include' }).catch((e: unknown) => {
+    throw offline(e)
+  })
 
 export interface SessionUser {
   id: string
@@ -47,8 +55,8 @@ export interface ProviderInfo {
 }
 
 export async function loadProviders(): Promise<{ providers: ProviderInfo[]; dev: boolean }> {
-  const res = await fetch(`${BASE}/auth/providers`, { credentials: 'include' })
-  if (!res.ok) throw new Error(`API ${res.status}`)
+  const res = await send(`${BASE}/auth/providers`)
+  if (!res.ok) return fail(res)
   return (await res.json()) as { providers: ProviderInfo[]; dev: boolean }
 }
 
@@ -73,19 +81,18 @@ export async function loadQuota(): Promise<Quota | null> {
 
 /** The caller's data as a zip (W5 privacy promise). Throws on a non-2xx answer. */
 export async function exportAccountData(): Promise<Blob> {
-  const res = await fetch(`${BASE}/account/export`, { credentials: 'include' })
-  if (!res.ok) throw new Error(`API ${res.status}`)
+  const res = await send(`${BASE}/account/export`)
+  if (!res.ok) return fail(res)
   return res.blob()
 }
 
 /** Erase the account and everything in it; the caller must have asked the user to confirm. */
 export async function deleteAccount(): Promise<void> {
-  const res = await fetch(`${BASE}/account`, {
+  const res = await send(`${BASE}/account`, {
     method: 'DELETE',
-    credentials: 'include',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ confirm: 'DELETE' }),
   })
-  if (!res.ok) throw new Error(`API ${res.status}`)
+  if (!res.ok) return fail(res)
   session.set({ status: 'anon' })
 }

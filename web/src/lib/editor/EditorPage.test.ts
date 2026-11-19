@@ -132,10 +132,153 @@ describe('EditorPage', () => {
     await waitFor(() => expect(screen.queryByText(/Question deleted/)).toBeNull())
   })
 
-  it('says so when the paper does not exist', async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found', json: async () => ({ detail: 'document not found' }) })
-    render(EditorPage, { props: { id: 'nope' } })
-    expect(await screen.findByText(/This paper was not found/)).toBeInTheDocument()
+  describe('load and save states (EXA-165)', () => {
+    const refuse = (status: number, detail = 'boom') => ({ ok: false, status, statusText: '', json: async () => ({ detail }) })
+    const ok = (content: unknown[] = []) => ({ ok: true, status: 200, json: async () => record(content) })
+    /** fetch answers the paper's GET with `first()`, then (after a retry) with the paper. */
+    const loadWith = (first: () => unknown) => {
+      let gets = 0
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+        if (String(url).endsWith('/auth/quota')) return { ok: false, status: 404, json: async () => ({}) }
+        if (/\/documents\/[^/]+$/.test(String(url)) && !init?.method) return gets++ === 0 ? first() : ok()
+        return ok()
+      })
+    }
+
+    const puts = () => fetchMock.mock.calls.filter(([, init]) => init?.method === 'PUT').length
+
+    /** A paper that didn't open must never be saved over: not when the page shows, and not
+     *  once the autosave debounce would have run (an empty editor saving would wipe it). */
+    async function noSaveFromAFailedLoad() {
+      expect(puts()).toBe(0)
+      // the debounce's timer is set by the edit, so the clock is faked first
+      vi.useFakeTimers()
+      // try to edit whatever might be there: an editor mounted behind the page would save this
+      const title = document.querySelector<HTMLInputElement>('input[aria-label="Paper title"]')
+      if (title) await fireEvent.input(title, { target: { value: 'Edited behind the error page' } })
+      const surface = document.querySelector<HTMLElement>('.surface .ProseMirror') ?? document.querySelector<HTMLElement>('.surface')
+      if (surface) {
+        await fireEvent.keyDown(surface, { key: 'a' })
+        await fireEvent.input(surface)
+      }
+      try {
+        await vi.advanceTimersByTimeAsync(5000)
+      } finally {
+        vi.useRealTimers()
+      }
+      expect(puts()).toBe(0)
+    }
+
+    it('shows a skeleton, not a live editor, while the paper loads', async () => {
+      let answer: (v: unknown) => void = () => {}
+      fetchMock.mockImplementation((url: string) =>
+        String(url).endsWith('/auth/quota') ? Promise.resolve(ok()) : new Promise((r) => (answer = r)),
+      )
+      render(EditorPage, { props: { id: 'd1' } })
+      expect(screen.getByTestId('editor-skeleton')).toHaveTextContent('Opening the paper…')
+      expect(document.querySelector('.ehead')).toHaveClass('hidden')
+      answer(ok())
+      await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
+      expect(screen.queryByTestId('editor-skeleton')).toBeNull()
+      expect(document.querySelector('.ehead')).not.toHaveClass('hidden')
+    })
+
+    it('an unknown paper is a page of its own with the way back, not an empty "Saved" editor', async () => {
+      loadWith(() => refuse(404, 'document not found'))
+      render(EditorPage, { props: { id: 'nope' } })
+      const page = await screen.findByTestId('paper-unavailable')
+      expect(within(page).getByRole('heading')).toHaveTextContent("This paper doesn't exist or was deleted")
+      expect(within(page).getByRole('link', { name: /Back to Your papers/ })).toHaveAttribute('href', '#/')
+      expect(within(page).queryByRole('button', { name: 'Try again' })).toBeNull()
+      expect(document.querySelector('.ehead')).toHaveClass('hidden')
+      expect(document.querySelector('.desk')).toHaveClass('hidden')
+      expect(page).not.toHaveTextContent('404')
+    })
+
+    it('a paper of another account says so (403)', async () => {
+      loadWith(() => refuse(403, 'forbidden'))
+      render(EditorPage, { props: { id: 'd1' } })
+      expect(await screen.findByRole('heading', { name: "You don't have access to this paper" })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+    })
+
+    it('a server failure offers Try again, which opens the paper', async () => {
+      loadWith(() => refuse(500))
+      render(EditorPage, { props: { id: 'd1' } })
+      const page = await screen.findByTestId('paper-unavailable')
+      expect(within(page).getByRole('heading')).toHaveTextContent("This paper couldn't be opened")
+      expect(page).toHaveTextContent('Something went wrong on our side.')
+      expect(page).not.toHaveTextContent('boom')
+      await noSaveFromAFailedLoad()
+      await fireEvent.click(within(page).getByRole('button', { name: 'Try again' }))
+      await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
+      expect(screen.queryByTestId('paper-unavailable')).toBeNull()
+    })
+
+    it("no connection says the server can't be reached, and Try again works once it can", async () => {
+      loadWith(() => Promise.reject(new TypeError('Failed to fetch')))
+      render(EditorPage, { props: { id: 'd1' } })
+      expect(await screen.findByRole('heading', { name: "Can't reach the server" })).toBeInTheDocument()
+      expect(screen.getByTestId('paper-unavailable')).not.toHaveTextContent('Failed to fetch')
+      await noSaveFromAFailedLoad()
+      await fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+      await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
+    })
+
+    it('a failed save says so in words and Try again saves it', async () => {
+      let puts = 0
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT') {
+          puts += 1
+          return puts === 1 ? refuse(503, 'database unavailable') : { ok: true, status: 200, json: async () => ({ ...record([]), version: 5 }) }
+        }
+        return ok()
+      })
+      render(EditorPage, { props: { id: 'd1' } })
+      const titleBox = await screen.findByLabelText('Paper title')
+      await waitFor(() => expect(titleBox).toHaveValue('Ratio Review'))
+      await fireEvent.input(titleBox, { target: { value: 'Renamed' } })
+      const alert = await screen.findByRole('alert', {}, { timeout: 3000 })
+      expect(alert).toHaveTextContent("Your latest changes aren't saved. The server is busy.")
+      expect(screen.getByText('Not saved')).toBeInTheDocument()
+      await fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+      await waitFor(() => expect(puts).toBe(2))
+      await waitFor(() => expect(screen.queryByText('Not saved')).toBeNull())
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    it('a save the server refused (not a passing fault) offers no Try again', async () => {
+      fetchMock.mockImplementation(async (_url: string, init?: RequestInit) =>
+        init?.method === 'PUT' ? refuse(413, 'document is too large') : ok(),
+      )
+      render(EditorPage, { props: { id: 'd1' } })
+      const titleBox = await screen.findByLabelText('Paper title')
+      await waitFor(() => expect(titleBox).toHaveValue('Ratio Review'))
+      await fireEvent.input(titleBox, { target: { value: 'Renamed' } })
+      const alert = await screen.findByRole('alert', {}, { timeout: 3000 })
+      expect(alert).toHaveTextContent("Your latest changes aren't saved. Document is too large.")
+      expect(within(alert).queryByRole('button', { name: 'Try again' })).toBeNull()
+    })
+
+    it('a fault in the page itself is a plain sentence, never the raw script error', async () => {
+      // a reply without a document: reading its title throws a TypeError
+      loadWith(() => ({ ok: true, status: 200, json: async () => ({ id: 'd1', version: 1 }) }))
+      render(EditorPage, { props: { id: 'd1' } })
+      const page = await screen.findByTestId('paper-unavailable')
+      expect(within(page).getByRole('heading')).toHaveTextContent("This paper couldn't be opened")
+      expect(page).toHaveTextContent('Something unexpected went wrong while opening it.')
+      expect(page).not.toHaveTextContent(/undefined|TypeError|reading/)
+    })
+
+    it('a retry after a load that failed part way starts one editor, not a second', async () => {
+      // the first reply builds the autosaver, then the editor fails on content it can't read
+      loadWith(() => ok([{ type: 'templatedQuestion', attrs: { block_id: 'x', question: null } }]))
+      render(EditorPage, { props: { id: 'd1' } })
+      const page = await screen.findByTestId('paper-unavailable')
+      await fireEvent.click(within(page).getByRole('button', { name: 'Try again' }))
+      await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
+      expect(document.querySelectorAll('.surface .ProseMirror')).toHaveLength(1)
+    })
   })
 
   it('disables the answer-key export until there is a question', async () => {
@@ -327,7 +470,7 @@ describe('EditorPage images and equations (W2b)', () => {
     }))
     const input = screen.getByLabelText('Choose image') as HTMLInputElement
     await fireEvent.change(input, { target: { files: [new File(['x'], 'a.gif', { type: 'image/gif' })] } })
-    expect(await screen.findByRole('alert')).toHaveTextContent('only PNG and JPEG images are accepted')
+    expect(await screen.findByRole('alert')).toHaveTextContent("The image wasn't added. Only PNG and JPEG images are accepted.")
     expect(document.querySelector('.surface img.doc-image-img')).toBeNull()
   })
 
@@ -415,7 +558,7 @@ describe('EditorPage convert to free-form (W2c)', () => {
   it('leaves the block alone and says why when the conversion fails', async () => {
     await load(() => ({ ok: false, status: 500, text: async () => 'boom' }))
     await convert()
-    expect(await screen.findByRole('alert')).toHaveTextContent('API 500')
+    expect(await screen.findByRole('alert')).toHaveTextContent("The question wasn't changed. Something went wrong on our side.")
     expect(screen.getByTestId('question-block')).toBeInTheDocument()
     expect(document.querySelector('.ffblock')).toBeNull()
   })
@@ -486,6 +629,37 @@ describe('EditorPage export allowance (W3c)', () => {
     await fireEvent.click(await exportItem('Student paper (PDF)'))
     expect(await screen.findByRole('alert')).toHaveTextContent('Try again in 42 seconds.')
     expect(screen.getByRole('alert')).not.toHaveTextContent('API 429')
+    // the allowance is the reason: Try again is offered, and runs the export again
+    const exports = () => fetchMock.mock.calls.filter(([u]) => String(u).includes('/export/')).length
+    expect(exports()).toBe(1)
+    await fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(exports()).toBe(2))
+  })
+})
+
+describe('EditorPage action errors (EXA-165)', () => {
+  it("an image error after a failed export doesn't keep the export's Try again", async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (String(url).includes('/export/')) return { ok: false, status: 503, json: async () => ({ detail: 'export is busy' }) }
+      if (String(url).endsWith('/assets') && init?.method === 'POST') {
+        return { ok: false, status: 413, json: async () => ({ detail: 'image is larger than 2 MB' }) }
+      }
+      return { ok: true, status: 200, json: async () => record([]), text: async () => '' }
+    })
+    render(EditorPage, { props: { id: 'd1' } })
+    await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
+    await fireEvent.click(await exportItem('Student paper (PDF)'))
+    const first = await screen.findByRole('alert')
+    expect(first).toHaveTextContent("Couldn't export the PDF. The server is busy.")
+    expect(within(first).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+
+    // pasted into the page (the ImageUpload extension), with nothing else clearing the strip first
+    const pm = document.querySelector('.surface .ProseMirror') as HTMLElement
+    const file = new File(['png'], 'big.png', { type: 'image/png' })
+    await fireEvent.paste(pm, { clipboardData: { files: [file], items: [], types: ['Files'], getData: () => '' } })
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("The image wasn't added."))
+    expect(within(screen.getByRole('alert')).queryByRole('button', { name: 'Try again' })).toBeNull()
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/export/'))).toHaveLength(1)
   })
 })
 

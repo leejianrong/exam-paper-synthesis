@@ -2,6 +2,7 @@
 // follow the teacher across devices. `null` until loaded; defaults apply when unreachable.
 
 import { writable } from 'svelte/store'
+import { fail } from './errors'
 import { apiFetch } from './http'
 import { session } from './session'
 
@@ -53,7 +54,7 @@ export async function updateSettings(patch: Partial<Settings>): Promise<Settings
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(patch),
   })
-  if (!res.ok) throw new Error(`Couldn't save the setting (${res.status}).`)
+  if (!res.ok) return fail(res)
   const next = (await res.json()) as Settings
   settings.set(next)
   return next

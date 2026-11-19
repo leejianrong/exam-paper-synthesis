@@ -37,8 +37,8 @@ const TEMPLATES = {
 }
 
 import DocumentList from './DocumentList.svelte'
+import { ApiError } from '../errors'
 import { lastReport } from './paperReport'
-import { DEFAULT_SETTINGS, settings } from '../settings'
 
 const summary = (id: string, title: string, folder_id: string | null = null) => ({
   id,
@@ -132,10 +132,35 @@ describe('DocumentList', () => {
     expect(createDocument).toHaveBeenCalledWith(undefined, undefined, null)
   })
 
-  it('shows API errors', async () => {
-    listDocuments.mockRejectedValue(new Error('API 401: authentication required'))
+  it('shows a skeleton while the papers load, then the list', async () => {
+    let answer: (v: unknown) => void = () => {}
+    listDocuments.mockReturnValue(new Promise((r) => (answer = r)))
     render(DocumentList)
-    expect(await screen.findByRole('alert')).toHaveTextContent('authentication required')
+    const skeleton = screen.getByTestId('list-skeleton')
+    expect(skeleton).toHaveAttribute('role', 'status')
+    expect(skeleton).not.toHaveAttribute('aria-busy') // a busy live region would hold back its own text
+    expect(skeleton).toHaveTextContent('Loading your papers…')
+    answer([summary('d1', 'Ratio Review')])
+    expect(await screen.findByRole('link', { name: /Ratio Review/ })).toBeInTheDocument()
+    expect(screen.queryByTestId('list-skeleton')).toBeNull()
+  })
+
+  it("a list that didn't load says why in words, with Try again (EXA-165)", async () => {
+    listDocuments.mockRejectedValueOnce(new ApiError(500, 'boom')).mockResolvedValue([summary('d1', 'Ratio Review')])
+    render(DocumentList)
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("Couldn't load your papers. Something went wrong on our side.")
+    expect(alert).not.toHaveTextContent('500')
+    expect(screen.queryByText(/No papers yet/)).toBeNull()
+    await fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('link', { name: /Ratio Review/ })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it("offline says the server can't be reached", async () => {
+    listDocuments.mockRejectedValue(new ApiError(0, 'TypeError: Failed to fetch'))
+    render(DocumentList)
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load your papers. Can't reach the server.")
   })
 
   it('makes an exam set into a new folder and shows the folder, without exam-set ticks', async () => {
@@ -158,18 +183,6 @@ describe('DocumentList', () => {
     expect(screen.queryByRole('list', { name: /Exam set in/ })).toBeNull()
     expect(section('P6 exam set')).not.toHaveTextContent('Booklet A')
     expect(screen.getByRole('status')).toHaveTextContent('Folder “P6 exam set” created.')
-  })
-
-  it('hides the Classic generator link unless the setting is on (O1); Settings is always there', async () => {
-    listDocuments.mockResolvedValue([])
-    settings.set({ ...DEFAULT_SETTINGS, classic_generator: false })
-    const { unmount } = render(DocumentList)
-    expect(await screen.findByRole('link', { name: 'Settings' })).toHaveAttribute('href', '#/settings')
-    expect(screen.queryByRole('link', { name: 'Classic generator' })).toBeNull()
-    unmount()
-    settings.set({ ...DEFAULT_SETTINGS, classic_generator: true })
-    render(DocumentList)
-    expect(await screen.findByRole('link', { name: 'Classic generator' })).toHaveAttribute('href', '#/classic')
   })
 
   it('shows a loading state until the papers arrive', async () => {
@@ -242,12 +255,15 @@ describe('DocumentList: a paper’s ⋯ menu (EXA-166)', () => {
 
   it('a failed delete keeps the dialog open with the error', async () => {
     listDocuments.mockResolvedValue([summary('d1', 'Ratio Review')])
-    deleteDocument.mockRejectedValue(new Error('API 500: boom'))
+    deleteDocument.mockRejectedValue(new ApiError(500, 'boom'))
     render(DocumentList)
     await choose('Ratio Review', 'Delete…')
     const dialog = await screen.findByRole('alertdialog')
     await fireEvent.click(within(dialog).getByRole('button', { name: 'Delete paper' }))
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('boom')
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      "The paper wasn't deleted. Something went wrong on our side.",
+    )
+    expect(within(dialog).getByRole('alert')).not.toHaveTextContent('boom')
     expect(screen.getByRole('link', { name: /Ratio Review/ })).toBeInTheDocument()
   })
 
@@ -269,7 +285,7 @@ describe('DocumentList: a paper’s ⋯ menu (EXA-166)', () => {
 
   it('Escape backs out of a rename; a failed rename keeps the field and shows why', async () => {
     listDocuments.mockResolvedValue([summary('d1', 'Ratio Review')])
-    renameDocument.mockRejectedValue(new Error('API 409: document changed elsewhere'))
+    renameDocument.mockRejectedValue(new ApiError(409, { message: 'document changed elsewhere', current_version: 5 }))
     render(DocumentList)
     await choose('Ratio Review', 'Rename')
     let input = await screen.findByRole('textbox', { name: 'Paper title' })
@@ -281,8 +297,19 @@ describe('DocumentList: a paper’s ⋯ menu (EXA-166)', () => {
     input = await screen.findByRole('textbox', { name: 'Paper title' })
     await fireEvent.input(input, { target: { value: 'New name' } })
     await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('changed elsewhere')
+    expect(await screen.findByRole('alert')).toHaveTextContent("The paper wasn't renamed. This paper changed in another tab or window.")
     expect(screen.getByRole('textbox', { name: 'Paper title' })).toBeInTheDocument()
+  })
+
+  it('a copy whose reply was lost offers no Try again and says to check the list (EXA-165)', async () => {
+    listDocuments.mockResolvedValue([summary('d1', 'Ratio Review')])
+    copyDocument.mockRejectedValue(new ApiError(0, 'TypeError: Failed to fetch'))
+    render(DocumentList)
+    await choose('Ratio Review', 'Make a copy')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("Couldn't make a copy. Can't reach the server. Check your internet connection. Check Your papers before trying again.")
+    expect(within(alert).queryByRole('button', { name: 'Try again' })).toBeNull()
+    expect(copyDocument).toHaveBeenCalledTimes(1)
   })
 
   it('Make a copy adds “Copy of …” under the paper, in the same folder', async () => {
@@ -349,8 +376,8 @@ describe('DocumentList: a paper’s ⋯ menu (EXA-166)', () => {
     await fireEvent.keyDown(dialog, { key: 'Escape' })
     await fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
     expect(screen.getByRole('dialog', { name: 'Move to folder' })).toBeInTheDocument()
-    fail(new Error('API 500: boom'))
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('boom')
+    fail(new ApiError(500, 'boom'))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent("The paper wasn't moved. Something went wrong on our side.")
     // once it has failed the dialog closes again
     await fireEvent.keyDown(dialog, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -584,13 +611,13 @@ describe('DocumentList folders (O2, EXA-166)', () => {
   it('keeps the rename field open and shows the error when the rename fails', async () => {
     listFolders.mockResolvedValue([folder('f1', 'Prelims')])
     listDocuments.mockResolvedValue([])
-    renameFolder.mockRejectedValue(new Error('API 422: name must be 1-80 characters'))
+    renameFolder.mockRejectedValue(new ApiError(422, 'name must be 1-80 characters'))
     render(DocumentList)
     await fireEvent.click(await screen.findByRole('button', { name: 'Actions for folder “Prelims”' }))
     await fireEvent.click(await screen.findByRole('menuitem', { name: 'Rename folder' }))
     await fireEvent.input(screen.getByRole('textbox', { name: 'Folder name' }), { target: { value: 'X' } })
     await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('1-80 characters')
+    expect(await screen.findByRole('alert')).toHaveTextContent("The folder wasn't renamed. Name must be 1-80 characters.")
     expect(screen.getByRole('textbox', { name: 'Folder name' })).toBeInTheDocument()
   })
 
