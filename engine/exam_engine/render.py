@@ -1416,6 +1416,10 @@ def _templated_key_work(obj: dict, key: KeyOptions) -> str:
             piece.append(f'<p class="key-step">{lead}{_mathify(step["text"])}</p>')
         answer = part["answer"]
         if answer["type"] == "construction":
+            marks = _key_marks(part.get("marks"), key)
+            if (label and not part.get("solution_steps")) or marks:
+                # no step carried the part label: the "Ans:" line names the part (and its marks)
+                piece.append(_key_ans("", label if not part.get("solution_steps") else "", marks))
             svg = diagram.render_svg(answer["diagram"], given=part.get("diagram") or q_diagram)
             piece.append(f'<figure class="diagram answer-diagram">{svg}</figure>')
         else:

@@ -178,7 +178,7 @@ Options, kept short and placed **in the key view itself** (see 4.3), not in the 
 
 Later slice: **Exam-set key.** From a folder that holds a complete exam set (the list already detects a complete set), export one key covering Booklet A, Booklet B and Paper 2 with booklet headings, the way schools issue it.
 
-Schema impact: `settings.key_options.layout` already exists (`full` | `compact`). The default flips to `compact` for new and generated papers. Papers that already have a saved setting keep it. `show_scheme` defaults to false for new papers. A new optional `show_marks` and `one_mark_working` would need schema 1.12+. No change to verification.
+Schema impact: `settings.key_options.layout` already exists (`full` | `compact`). The default flips to `compact` for new and generated papers. Papers that already have a saved setting keep it. `show_scheme` defaults to false for new papers. A new optional `show_marks` and `one_mark_working` came in document schema 1.16.0. No change to verification.
 
 ---
 

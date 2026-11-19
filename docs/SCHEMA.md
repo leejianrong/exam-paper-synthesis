@@ -281,7 +281,10 @@ steps and the answer, never the question, the marks or the M/A/B lines unless th
 turns them on (`show_marks`, `show_scheme`), and a 1-mark question's answer alone unless
 `one_mark_working` is on. An MCQ's marking-scheme line keeps its distractor reasons
 ("Wrong options: …") for the worked solutions (`layout: full`) only. A saved paper without
-these fields prints as before: no `key_options` is the worked solutions with M/A lines.
+these fields keeps its options: no `key_options` is the worked solutions with M/A lines,
+exactly as before. A paper saved with the compact key before 1.16.0 keeps its M/A lines and
+1-mark working but prints in the new school layout (header from the cover, padded grid, one
+row per multi-part question, no section titles).
 
 ---
 

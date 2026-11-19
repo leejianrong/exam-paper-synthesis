@@ -159,7 +159,12 @@
 
   function setKeyLayout(e: Event) {
     const layout = (e.currentTarget as HTMLSelectElement).value as KeyLayout
-    paperSettings.update((s) => ({ ...s, key_options: { ...s.key_options, layout } }))
+    // each style starts from its own defaults: the school key bare, worked solutions with M/A lines
+    const defaults =
+      layout === 'compact'
+        ? { show_scheme: false, show_marks: false, one_mark_working: false }
+        : { show_scheme: true, show_question: true }
+    paperSettings.update((s) => ({ ...s, key_options: { ...s.key_options, ...defaults, layout } }))
     scheduleSave()
   }
 
