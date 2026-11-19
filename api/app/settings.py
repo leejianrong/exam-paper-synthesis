@@ -17,11 +17,17 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
 
+from exam_engine.document import KEY_STYLES
+
 from .docstore import default_path
 
 # Every setting and its default. The Classic generator (the original Generate + tray page) is
-# hidden unless a teacher turns it on.
-DEFAULTS: dict[str, bool] = {"classic_generator": False}
+# hidden unless a teacher turns it on. ``answer_key_style`` (EXA-159) is the key a new paper
+# starts with: the school key, or worked solutions; a saved paper keeps its own.
+DEFAULTS: dict[str, bool | str] = {"classic_generator": False, "answer_key_style": "school"}
+
+# A text setting takes only these values.
+CHOICES: dict[str, tuple[str, ...]] = {"answer_key_style": KEY_STYLES}
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS settings (
@@ -40,9 +46,13 @@ def merged(stored: dict | None) -> dict:
     """The defaults overlaid with the stored known keys (unknown stored keys are dropped)."""
     out = dict(DEFAULTS)
     for k, v in (stored or {}).items():
-        if k in DEFAULTS and isinstance(v, type(DEFAULTS[k])):
+        if k in DEFAULTS and _valid(k, v):
             out[k] = v
     return out
+
+
+def _valid(key: str, value: object) -> bool:
+    return isinstance(value, type(DEFAULTS[key])) and value in CHOICES.get(key, (value,))
 
 
 def check_patch(patch: dict) -> dict:
@@ -52,6 +62,8 @@ def check_patch(patch: dict) -> dict:
             raise UnknownSetting(f"unknown setting {k!r}")
         if not isinstance(v, type(DEFAULTS[k])):
             raise UnknownSetting(f"{k!r} must be a {type(DEFAULTS[k]).__name__}")
+        if not _valid(k, v):
+            raise UnknownSetting(f"{k!r} must be one of {', '.join(CHOICES[k])}")
     return patch
 
 

@@ -66,7 +66,7 @@ describe('EditorPage', () => {
     expect(screen.getByRole('button', { name: 'Student PDF' })).toBeEnabled()
   })
 
-  it('the answer-key layout option saves "compact" and greys out the question option', async () => {
+  it('the answer-key style switches between the school key and worked solutions', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
       fetchMock.mockResolvedValue({
@@ -76,16 +76,26 @@ describe('EditorPage', () => {
       })
       render(EditorPage, { props: { id: 'd1' } })
       await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
-      const layout = screen.getByLabelText('Answer key layout') as HTMLSelectElement
-      expect(layout.value).toBe('full')
+      // a paper saved without key options keeps its worked solutions
+      const style = screen.getByLabelText('Answer key style') as HTMLSelectElement
+      expect(style.value).toBe('full')
+      expect(style.selectedOptions[0].textContent).toBe('Worked solutions')
       expect(screen.getByLabelText('Answer key repeats each question')).toBeEnabled()
-      layout.value = 'compact'
-      await fireEvent.change(layout)
-      await waitFor(() => expect(screen.getByLabelText('Answer key repeats each question')).toBeDisabled())
+      expect(screen.queryByLabelText("Answer key shows each question's marks")).toBeNull()
+      style.value = 'compact'
+      await fireEvent.change(style)
+      // the school key never repeats the question; its own options appear
+      await waitFor(() => expect(screen.queryByLabelText('Answer key repeats each question')).toBeNull())
+      expect(screen.getByLabelText("Answer key shows each question's marks")).not.toBeChecked()
+      expect(screen.getByLabelText('Answer key shows the working for 1-mark questions')).toBeChecked()
+      await fireEvent.click(screen.getByLabelText("Answer key shows each question's marks"))
       await vi.advanceTimersByTimeAsync(1500)
-      const put = fetchMock.mock.calls.find((c) => c[1]?.method === 'PUT')
-      expect(put).toBeTruthy()
-      expect(JSON.parse(put![1].body).document.settings.key_options).toEqual({ layout: 'compact' })
+      const puts = fetchMock.mock.calls.filter((c) => c[1]?.method === 'PUT')
+      expect(puts.length).toBeGreaterThan(0)
+      expect(JSON.parse(puts.at(-1)![1].body).document.settings.key_options).toEqual({
+        layout: 'compact',
+        show_marks: true,
+      })
     } finally {
       vi.useRealTimers()
     }

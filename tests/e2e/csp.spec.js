@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { openClassic, newBlankPaper } from './helpers.js'
 import fs from 'node:fs'
+import { CSP_ORIGIN } from './ports.js'
 
 /**
  * The Content-Security-Policy is real and nothing the app needs is blocked by it.
@@ -9,7 +10,7 @@ import fs from 'node:fs'
  * policy comes from the API: the Vite dev server (:5173) never sends it. Every `securitypolicy-
  * violation` in every frame (the preview iframe included) fails the test.
  */
-const ORIGIN = 'http://localhost:8001'
+const ORIGIN = CSP_ORIGIN
 
 async function collectViolations(page) {
   await page.addInitScript(() => {

@@ -392,6 +392,8 @@ class KeyOptions(NamedTuple):
     show_question: bool = True
     show_scheme: bool = True
     layout: str = "full"
+    show_marks: bool = False  # compact only (EXA-159)
+    one_mark_working: bool = True  # compact only (EXA-159)
 
 
 def _key_options(doc: dict) -> KeyOptions:
@@ -1289,9 +1291,12 @@ _QUESTION_KINDS = ("freeformQuestion", "templatedQuestion")
 
 
 # ---------------------------------------------------------------------------
-# Compact answer key (EXA-142): how real school keys look. A header block from the cover, an
-# answer grid for each multiple-choice section, and a two-column table (question label, then
-# the working with a right-aligned "Ans:") for the rest. No question text; M1/A1 optional.
+# The school key (EXA-142, made the default in EXA-159): how real school keys look. A header
+# block from the cover, an answer grid for each multiple-choice section, and ruled tables for
+# the rest: 1-mark questions two to a row with the answer alone, the others one to a row with
+# the solver's short working and a right-aligned "Ans:", a structured question's parts on their
+# own lines. Never the question text, the marks (unless asked) or M1/A1 lines (unless asked),
+# never an MCQ's distractor reasons. The key flows on from page to page; a row never splits.
 # ---------------------------------------------------------------------------
 
 _KEY_META = (("School", "school"), ("Level", "level"), ("Subject", "subject"), ("Exam", "exam"))
@@ -1300,7 +1305,7 @@ _GRID_COLUMNS = 10
 
 def _key_meta(doc: dict) -> str:
     """ "School : … / Level : … / Subject : … / Exam : …" from the cover, as real keys head
-    their first page. Nothing without a cover (the title says which paper it is)."""
+    their first page. A line whose cover field is empty is left out."""
     attrs = (cover_page(doc) or {}).get("attrs") or {}
     rows = [
         f"<div><dt>{name}</dt><dd>{_esc(value)}</dd></div>"
@@ -1308,6 +1313,12 @@ def _key_meta(doc: dict) -> str:
         if (value := (attrs.get(key) or "").strip())
     ]
     return f'<dl class="key-meta">{"".join(rows)}</dl>' if rows else ""
+
+
+def _key_paper_name(doc: dict, title: str) -> str:
+    """The paper the key answers: the cover's paper line ("Paper 1 (Booklet B)"), else the title."""
+    attrs = (cover_page(doc) or {}).get("attrs") or {}
+    return (attrs.get("paper") or "").strip() or title
 
 
 def _key_groups(doc: dict) -> list[tuple[dict | None, list[tuple[int, dict]]]]:
@@ -1345,26 +1356,39 @@ def _grid_answer(node: dict, assets: AssetResolver | None) -> str:
 
 
 def _render_key_grid(numbered: list[tuple[int, dict]], assets: AssetResolver | None) -> str:
-    """Question numbers in a row, the option number under each, ten to a row."""
+    """Question numbers in a row, the option number under each, ten to a row; the last row is
+    completed with empty cells, as school keys print it."""
     out = []
     for i in range(0, len(numbered), _GRID_COLUMNS):
         row = numbered[i : i + _GRID_COLUMNS]
-        heads = "".join(f'<th scope="col">Q{n}</th>' for n, _ in row)
+        pad = _GRID_COLUMNS - len(row)
+        heads = "".join(f'<th scope="col">Q{n}</th>' for n, _ in row) + "<th></th>" * pad
         cells = "".join(f"<td>{_grid_answer(node, assets)}</td>" for _, node in row)
-        # a short last row keeps the columns as wide as a full row's
-        width = len(row) * 100 // _GRID_COLUMNS
-        style = f' style="width:{width}%"' if width < 100 else ""
-        out.append(f'<table class="key-grid"{style}><tr>{heads}</tr><tr>{cells}</tr></table>')
+        cells += "<td></td>" * pad
+        out.append(f'<table class="key-grid"><tr>{heads}</tr><tr>{cells}</tr></table>')
     return "".join(out)
 
 
-def _key_ans(answer_html: str) -> str:
-    return f'<p class="key-ans"><span class="ans-label">Ans:</span> {answer_html}</p>'
+def _key_marks(marks: int | None, key: KeyOptions) -> str:
+    return f' <span class="key-marks">[{marks}]</span>' if key.show_marks and marks else ""
+
+
+def _key_ans(answer_html: str, label: str = "", marks: str = "") -> str:
+    lab = f'<span class="ans-part">({_esc(label)})</span> ' if label else ""
+    return f'<p class="key-ans"><span class="ans-label">Ans:</span> {lab}{answer_html}{marks}</p>'
+
+
+def _scheme_text(part: dict, mark: dict) -> str:
+    """One M/A/B line; an MCQ's distractor reasons are for the teacher, never the school key."""
+    text = mark["description"]
+    if (part.get("answer") or {}).get("type") == "choice":
+        text = text.split(" Wrong options:")[0]
+    return _esc(text)
 
 
 def _key_scheme(part: dict) -> str:
     rows = "".join(
-        f'<li><span class="key-mark">{m["type"]}{m["mark"]}</span> {_esc(m["description"])}</li>'
+        f'<li><span class="key-mark">{m["type"]}{m["mark"]}</span> {_scheme_text(part, m)}</li>'
         for m in part.get("marking_scheme", [])
     )
     return f'<ul class="key-scheme">{rows}</ul>' if rows else ""
@@ -1374,65 +1398,141 @@ def _key_row(label: str, work: str) -> str:
     return f'<tr><th scope="row">{_esc(label)}</th><td class="key-work">{work}</td></tr>'
 
 
-def _templated_key_rows(number: int, obj: dict, show_scheme: bool) -> list[str]:
+def _templated_key_work(obj: dict, key: KeyOptions) -> str:
+    """A generated question's working: per part the solver's steps (at most four lines), then
+    "Ans:"; a structured question's parts each start a line with their label."""
     parts = obj["question"]["parts"]
     q_diagram = obj["question"].get("diagram")
-    rows = []
-    for i, part in enumerate(parts):
-        work = []
-        if i == 0:  # a worked model (bar model) is part of the working
-            for spec in (q_diagram, *(p.get("diagram") for p in parts)):
-                if diagram.hides_worked_model(obj, spec):
-                    work.append(f'<figure class="diagram">{diagram.render_svg(spec)}</figure>')
-        work.extend(
-            f'<p class="key-step">{_mathify(step["text"])}</p>'
-            for step in part.get("solution_steps", [])
-        )
+    multipart = len(parts) > 1
+    work = []
+    for spec in (q_diagram, *(p.get("diagram") for p in parts)):
+        if diagram.hides_worked_model(obj, spec):  # a worked model (bar model) is working
+            work.append(f'<figure class="diagram">{diagram.render_svg(spec)}</figure>')
+    for part in parts:
+        label = part["label"] if multipart else ""
+        piece = []
+        for i, step in enumerate(part.get("solution_steps", [])):
+            lead = f'<span class="ans-part">({_esc(label)})</span> ' if label and i == 0 else ""
+            piece.append(f'<p class="key-step">{lead}{_mathify(step["text"])}</p>')
         answer = part["answer"]
         if answer["type"] == "construction":
             svg = diagram.render_svg(answer["diagram"], given=part.get("diagram") or q_diagram)
-            work.append(f'<figure class="diagram answer-diagram">{svg}</figure>')
+            piece.append(f'<figure class="diagram answer-diagram">{svg}</figure>')
         else:
-            work.append(_key_ans(_fmt_answer(answer)))
-        if show_scheme:
-            work.append(_key_scheme(part))
-        label = f"Q{number}({part['label']})" if len(parts) > 1 else f"Q{number}"
-        rows.append(_key_row(label, "".join(work)))
-    return rows
+            piece.append(_key_ans(_fmt_answer(answer), label, _key_marks(part.get("marks"), key)))
+        if key.show_scheme:
+            piece.append(_key_scheme(part))
+        work.append(f'<div class="key-piece">{"".join(piece)}</div>')
+    return "".join(work)
 
 
-def _freeform_key_rows(number: int, node: dict, assets: AssetResolver | None) -> list[str]:
+def _freeform_key_work(node: dict, key: KeyOptions, assets: AssetResolver | None) -> str:
+    """A teacher's written answer(s): one paragraph goes after "Ans:", more print as written."""
     parts = [c for c in node["content"] if c.get("type") == "freeformPart"]
-    pieces = [(f"Q{number}({chr(ord('a') + i)})", p["attrs"]) for i, p in enumerate(parts)]
-    rows = []
-    for label, attrs in pieces or [(f"Q{number}", node["attrs"])]:
+    pieces = [(chr(ord("a") + i), p["attrs"]) for i, p in enumerate(parts)]
+    work = []
+    for label, attrs in pieces or [("", node["attrs"])]:
         written = (attrs.get("answer") or {}).get("content", [])
+        marks = _key_marks(attrs.get("marks"), key)
         if not has_content(written):
-            work = '<p class="no-answer">No answer written yet</p>'
+            lab = f"({label}) " if label else ""
+            work.append(f'<p class="no-answer">{lab}No answer written yet</p>')
         elif len(written) == 1 and written[0]["type"] == "paragraph":
-            work = _key_ans(_inline_answer(written, assets))
+            work.append(_key_ans(_inline_answer(written, assets), label, marks))
         else:
-            work = _inline_answer(written, assets)
-        rows.append(_key_row(label, work))
-    return rows
+            lead = (
+                f'<p class="key-step"><span class="ans-part">({label})</span></p>' if label else ""
+            )
+            work.append(f"{lead}{_inline_answer(written, assets)}{marks}")
+    return "".join(f'<div class="key-piece">{w}</div>' for w in work)
 
 
-def _render_compact_key(doc: dict, assets: AssetResolver | None, show_scheme: bool) -> str:
-    out = [_key_meta(doc)]
+def _answer_only(node: dict, key: KeyOptions) -> str | None:
+    """A 1-mark question's answer alone, for the two-to-a-row table; None when it needs a row
+    of its own (working asked for, parts, a drawn answer, a written answer longer than a line)."""
+    if key.one_mark_working or block_marks(node) != 1:
+        return None
+    if node["type"] == "templatedQuestion":
+        obj = node["attrs"]["question"]
+        parts = obj["question"]["parts"]
+        if len(parts) > 1 or parts[0]["answer"]["type"] == "construction":
+            return None
+        if any(
+            diagram.hides_worked_model(obj, spec)
+            for spec in (obj["question"].get("diagram"), parts[0].get("diagram"))
+        ):
+            return None
+        scheme = _key_scheme(parts[0]) if key.show_scheme else ""
+        return _fmt_answer(parts[0]["answer"]) + _key_marks(1, key) + scheme
+    if any(c.get("type") == "freeformPart" for c in node.get("content", [])):
+        return None
+    written = (node["attrs"].get("answer") or {}).get("content", [])
+    if not has_content(written):
+        return '<span class="no-answer">No answer written yet</span>' + _key_marks(1, key)
+    if len(written) != 1 or written[0]["type"] != "paragraph":
+        return None
+    return _render_inline(written[0].get("content", [])) + _key_marks(1, key)
+
+
+def _key_tables(
+    numbered: list[tuple[int, dict]], key: KeyOptions, assets: AssetResolver | None
+) -> str:
+    """A section's ruled tables, in question order: runs of 1-mark answers two to a row, the
+    other questions one to a row."""
+    out: list[str] = []
+    pairs: list[tuple[str, str]] = []
+    rows: list[str] = []
+
+    def flush() -> None:
+        if pairs:
+            body = "".join(
+                "<tr>"
+                + "".join(
+                    f'<th scope="row">{_esc(lab)}</th><td class="key-short">{ans}</td>'
+                    for lab, ans in pairs[i : i + 2]
+                )
+                + ("<th></th><td></td>" if len(pairs[i : i + 2]) == 1 else "")
+                + "</tr>"
+                for i in range(0, len(pairs), 2)
+            )
+            out.append(f'<table class="key-table key-pairs"><tbody>{body}</tbody></table>')
+            pairs.clear()
+        if rows:
+            out.append(f'<table class="key-table"><tbody>{"".join(rows)}</tbody></table>')
+            rows.clear()
+
+    for number, node in numbered:
+        short = _answer_only(node, key)
+        if short is not None:
+            if rows:
+                flush()
+            pairs.append((f"Q{number}", short))
+            continue
+        if pairs:
+            flush()
+        work = (
+            _freeform_key_work(node, key, assets)
+            if node["type"] == "freeformQuestion"
+            else _templated_key_work(node["attrs"]["question"], key)
+        )
+        rows.append(_key_row(f"Q{number}", work))
+    flush()
+    return "".join(out)
+
+
+def _render_compact_key(
+    doc: dict, assets: AssetResolver | None, key: KeyOptions, *, title: str, marks: int
+) -> str:
+    total = f'<p class="key-total">Total: {marks} marks</p>' if key.show_marks else ""
+    out = [_key_meta(doc), f'<h2 class="key-paper">{_esc(_key_paper_name(doc, title))}</h2>', total]
     for info, numbered in _key_groups(doc):
-        title = (info or {}).get("title", "").strip()
-        if title:
-            out.append(f'<h3 class="key-part">{_esc(title)}</h3>')
+        name = (info or {}).get("title", "").strip()
+        if name and not _GENERIC_TITLE.match(name):  # "Section A" does not print (EXA-139)
+            out.append(f'<h3 class="key-part">{_esc(name)}</h3>')
         if info is not None and info["mode"] == "mcq":
             out.append(_render_key_grid(numbered, assets))
-            continue
-        rows: list[str] = []
-        for number, node in numbered:
-            if node["type"] == "freeformQuestion":
-                rows.extend(_freeform_key_rows(number, node, assets))
-            else:
-                rows.extend(_templated_key_rows(number, node["attrs"]["question"], show_scheme))
-        out.append(f'<table class="key-table"><tbody>{"".join(rows)}</tbody></table>')
+        else:
+            out.append(_key_tables(numbered, key, assets))
     return f'<div class="compact-key">{"".join(out)}</div>'
 
 
@@ -1465,7 +1565,7 @@ def render_document_html(
     key_body = (
         ""
         if mode == "student"
-        else _render_compact_key(doc, assets, key_opts.show_scheme)
+        else _render_compact_key(doc, assets, key_opts, title=title, marks=marks)
         if key_opts.layout == "compact"
         else _render_numbered_blocks(
             key_blocks,
@@ -1477,6 +1577,11 @@ def render_document_html(
         )
     )
 
+    if mode == "key" and key_opts.layout == "compact":
+        # the school key heads itself (cover lines, then the paper's name): no title bar
+        return _document(
+            root_class="sheet answer-key", title=title, header_html="", body_html=key_body
+        )
     if mode == "key":
         header = (
             '<header class="sheet-header">'
