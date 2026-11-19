@@ -106,7 +106,18 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
           host: dom,
           ctx: {
             // An edit's reply: it may arrive after the block was moved or deleted.
-            replace: (q: Question) => setAttrs({ question: q }, true),
+            // A swap or "Regenerate unlocked" keeps the block_id, so also check the block still
+            // holds the question the edit started from (EXA-161 re-review).
+            replace: (q: Question, from: string) =>
+              withBlock(({ pos, node: live }) => {
+                if ((live.attrs.question as Question | null)?.id !== from) {
+                  options.onNotice('That question changed before the edit arrived, so the edit was dropped.')
+                  return
+                }
+                editor.view.dispatch(
+                  editor.state.tr.setNodeMarkup(pos, undefined, { ...live.attrs, question: q }),
+                )
+              }, true),
             setLayout: (patch: Partial<BlockLayout>) => setAttrs(patch),
             remove: () =>
               withBlock(({ pos, node: live }) => {
@@ -133,8 +144,13 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
             addBelow: () => withBlock(({ pos, node: live }) => options.onAddBelow(pos + live.nodeSize)),
             // Tier 3 (ADR-0021): the block becomes teacher-owned text, one undo step.
             convert: async () => {
+              const from = store_value().id
               const out = await convertToFreeform(store_value())
               withBlock(({ pos, node: live }) => {
+                if ((live.attrs.question as Question | null)?.id !== from) {
+                  options.onNotice('That question changed before the edit arrived, so the edit was dropped.')
+                  return
+                }
                 const block = freeformNode()
                 const json = {
                   ...block,

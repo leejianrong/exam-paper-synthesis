@@ -29,7 +29,8 @@
   /** The node view's element (the focusable group the controls belong to). */
   export let host: HTMLElement
   export let ctx: {
-    replace: (q: Question) => void
+    /** An edit's reply; `from` is the question the edit started from (dropped if it changed). */
+    replace: (q: Question, from: string) => void
     remove: () => void
     move: (dir: -1 | 1) => void
     addBelow: () => void
@@ -88,9 +89,10 @@
   async function run(fn: () => Promise<Question | void>) {
     busy = true
     error = ''
+    const from = q.id
     try {
       const next = await fn()
-      if (next) ctx.replace(next)
+      if (next) ctx.replace(next, from)
       editingNames = false
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
