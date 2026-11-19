@@ -281,6 +281,19 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **Typing on a selected question never replaces it (EXA-171).** With a question selected as a
+  block (by the arrow keys, or after a swap), a key that is not one of its shortcuts could take
+  the question's place. Now a typed letter, digit or space on a selected question, or on a
+  part of one, does nothing: on a question single keys are commands (R, L, [, ]), so the
+  other letters do nothing too rather than turning half a word into text. On a selected
+  cover, section, blank page or figure a typed key still starts a paragraph after the block,
+  and Enter still does so on any of them, questions included. This holds however the text
+  arrives: a key press (handled on keydown, before any input rule), a mobile keyboard's or
+  dictation's `beforeinput`, or an input method, whose composition cannot be cancelled and so
+  starts in a new paragraph after the block. A paste over a selected question still lands
+  after it; over a part, or anything else selected inside a question, it is dropped. Text
+  selections, the block shortcuts, Alt+Enter on a section or cover and Del are unchanged.
+
 - **Web dependencies (Dependabot #207, re-applied on main).** Minor and patch bumps: TipTap
   3.34, Svelte 5.58, eslint-plugin-svelte, svelte-eslint-parser, globals, tslib, @tsconfig/svelte and raised floors
   for the dev tools the minimatch fix already moved. No version goes down; `npm audit` is clean.

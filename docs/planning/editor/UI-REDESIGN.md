@@ -459,6 +459,15 @@ Step 2 sources: the popular-editor patterns in section 2 come from product knowl
 Ctrl+Enter and Ctrl+M never fire from a form field (the title, a marks box, a dialog). With a
 dialog open no global shortcut runs, though Ctrl+P is still kept from printing the screen.
 
+**Other keys on a selected block (EXA-171).** On a selected question (or a part of one) a key
+that is not a shortcut types nothing: since R, L, [ and ] are commands there, the other
+letters, digits and space do nothing either, so typing a word never half-types it with the
+question locked on the way. Enter starts a paragraph after the question, which is how to write
+below it. On a selected cover, section, blank page or figure, which have no letter shortcuts, a
+typed key starts a paragraph after the block (EXA-129). An input method cannot be cancelled,
+so its composition starts in a new paragraph after the block. The rule lives in the block
+selection guard, `web/src/lib/editor/blockSelection.ts`.
+
 
 ---
 
