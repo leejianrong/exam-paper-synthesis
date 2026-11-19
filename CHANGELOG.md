@@ -19,6 +19,14 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   first (focused and marked "Your default") and names a new exam set's folder after it; the
   other level is still one click away, and a level asked for explicitly wins. Left empty,
   nothing changes; papers you already have are never touched.
+- **Sign-in page and one product name (EXA-170, UI redesign S12).** The sign-in page shows the
+  product name, **Exam papers**, and what it is for ("Singapore P5–P6 maths papers with answer
+  keys you can trust"), then one button per configured provider in that provider's wording and
+  with its mark: "Sign in with Google", "Sign in with Microsoft", "Sign in with GitHub". A failed
+  or cancelled sign-in is explained in plain words, and a server that can't be reached offers
+  Try again. With the local development stub on, a dashed "Development only" panel offers
+  "Continue without signing in". The browser tab, the landing page and a new favicon use the
+  same name as the app header instead of "Exam Paper Synthesis".
 - **One app header and a Question bank page (EXA-167, UI redesign S9).** Your papers, the
   question bank, Settings and the Classic generator now share one header: the product name,
   **Papers** and **Question bank** (and **Classic** while *Show the Classic generator* is on),

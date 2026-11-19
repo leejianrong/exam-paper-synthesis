@@ -134,3 +134,18 @@ export function errorText(e: unknown, action?: string): string {
   }
   return action ? `${action}. ${why}` : why
 }
+
+// Why a sign-in came back to the login page: the API's `#/login?error=<code>` (routes_auth._fail).
+const SIGN_IN: Record<string, string> = {
+  denied: 'Sign-in was cancelled. Choose an account to sign in with.',
+  state: 'That sign-in took too long or was started in another tab. Sign in again.',
+  provider: "The sign-in service didn't accept the request. Try again in a moment.",
+  rate_limited: 'Too many sign-in attempts. Try again in a few minutes.',
+  not_configured: "That way of signing in isn't available on this server.",
+}
+
+/** The words for a failed sign-in, by the API's error code ('' = nothing failed). */
+export function signInErrorText(code: string): string {
+  if (!code) return ''
+  return Object.hasOwn(SIGN_IN, code) ? SIGN_IN[code] : "Sign-in didn't work. Try again."
+}
