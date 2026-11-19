@@ -2,20 +2,23 @@
 // replaced by what comes next (EXA-129): the toolbar's Section / Blank page / Page break went
 // over it, and so did the first keystroke or a paste, so one click on the cover and a typed
 // letter wiped the cover. Toolbar inserts go after the selected block's top-level block;
-// Enter or a paste with a top-level block selected start after it. Backspace / Delete still
-// delete a selected block on purpose.
+// Enter, Shift+Enter or a paste with a top-level block selected start after it. Backspace /
+// Delete still delete a selected block on purpose.
 //
-// What a typed character does (EXA-171), whichever way it arrives (a key, a mobile keyboard's
+// What a typed character does (EXA-171), whichever way it arrives (a key, a keyboard's
 // beforeinput, ProseMirror's own text input):
 // - on a selected question (a generated or free-form question, or a part of one) nothing: there
 //   single keys are commands (R, L, [, ]; shortcuts.ts), so the other letters do nothing too,
-//   rather than half a word turning into text with the question locked on the way;
+//   rather than half a word turning into text with the question locked on the way. The
+//   question's pill says once "Press Enter to write below" (TYPED_ON_QUESTION);
 // - on any other selected top-level block (cover, section, blank page, image, page break) it
 //   starts a paragraph after the block, as Enter does;
-// - on any other block selected inside a question (an image in its body) nothing, and a paste
-//   there is dropped too, so a question is never split.
-// An input method (IME composition, a dead key) cannot be cancelled, so it moves the caret into
-// a paragraph after the top-level block before it starts. Text selections are never touched.
+// - on any block selected below the top level (a part, an image in a question's body) nothing,
+//   and Shift+Enter or a paste there do nothing either (Enter is left to the editor), so a
+//   question is never split.
+// The exception is an input method's composition (IME, a mobile keyboard that composes words,
+// such as Gboard): it cannot be cancelled, so once it starts it moves the caret into a paragraph
+// after the top-level block and the composed text lands there. Text selections are never touched.
 
 import { Extension, type Editor, type JSONContent } from '@tiptap/core'
 import {
@@ -28,6 +31,10 @@ import {
 } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import { isMac } from '../keys'
+
+/** Fired (bubbling) on a selected question's DOM when a typed key was dropped on it, so its
+ *  pill can say how to write below it. */
+export const TYPED_ON_QUESTION = 'exam:typed-on-question'
 
 /** The selected block, at any depth (a question, or a part or figure inside one). */
 function selectedBlock(state: EditorState): NodeSelection | null {
@@ -62,15 +69,19 @@ function caretAfter(state: EditorState, sel: NodeSelection): Transaction {
 /** Blocks on which a typed character does nothing: a question's single keys are its shortcuts. */
 const QUESTION_TYPES = ['templatedQuestion', 'freeformQuestion', 'freeformPart']
 
-/** Text typed with a block selected: dropped on a question or inside one, else it starts a
- *  paragraph after the block. */
+/** Text typed with a block selected: dropped on a question or on any block below the top
+ *  level, else it starts a paragraph after the block. */
 function typeOver(view: EditorView, sel: NodeSelection, text: string): void {
-  if (sel.$from.depth > 0 || QUESTION_TYPES.includes(sel.node.type.name)) return
+  if (sel.$from.depth > 0) return
+  if (QUESTION_TYPES.includes(sel.node.type.name)) {
+    view.nodeDOM(sel.from)?.dispatchEvent(new CustomEvent(TYPED_ON_QUESTION, { bubbles: true }))
+    return
+  }
   view.dispatch(caretAfter(view.state, sel).insertText(text).scrollIntoView())
 }
 
-/** An input method is about to compose with a block selected. Composition cannot be cancelled,
- *  so move the caret into a paragraph after the top-level block first. */
+/** An input method is composing (or about to) with a block selected. Composition cannot be
+ *  cancelled, so move the caret into a paragraph after the top-level block. */
 function leaveBlock(view: EditorView): void {
   const at = afterSelectedBlock(view.state)
   if (at !== null) view.dispatch(caretAt(view.state, at).scrollIntoView())
@@ -86,9 +97,17 @@ function typedChar(e: KeyboardEvent, mac = isMac()): string | null {
   return [...e.key].length === 1 ? e.key : null
 }
 
-/** A key that starts or continues an input method's composition, or a dead key's accent. */
+/** A key pressed while an input method composes, or opening one ('Process'). A dead key is not
+ *  one: it may compose nothing, so for it the caret moves only once composition starts. */
 function composes(e: KeyboardEvent): boolean {
-  return e.isComposing || e.key === 'Process' || e.key === 'Dead'
+  return e.isComposing || e.key === 'Process'
+}
+
+/** ProseMirror on iOS lets Enter through and replays it as a synthetic Enter key ~200 ms later
+ *  (its `lastIOSEnter`); true while such a replay is pending. */
+function iosEnterPending(view: EditorView): boolean {
+  const last = (view as unknown as { input?: { lastIOSEnter?: number } }).input?.lastIOSEnter ?? 0
+  return last > Date.now() - 225
 }
 
 /** Insert a block: after a selected block (never over it, never inside a question), else as
@@ -105,6 +124,9 @@ export function insertBlockSafely(editor: Editor, content: JSONContent): void {
 
 export const BlockSelectionGuard = Extension.create({
   name: 'blockSelectionGuard',
+  // Ahead of StarterKit's keys and input rules wherever it is listed (Shift+Enter's hard break
+  // replaces a selected block), behind the block shortcuts (1000), which take R, L, [ and ] first.
+  priority: 500,
   addProseMirrorPlugins() {
     return [
       new Plugin({
@@ -124,14 +146,16 @@ export const BlockSelectionGuard = Extension.create({
               return false // the input method goes on, in the new paragraph
             }
             if (event.key === 'Enter') {
-              // Alt+Enter on a selected section or cover opens its settings (EXA-164)
-              if (event.shiftKey || event.altKey || sel.$from.depth > 0) return false
+              // Alt+Enter on a selected section or cover opens its settings (EXA-164); Ctrl/Cmd
+              // chords are the editor's (Ctrl+Enter adds a question)
+              if (event.altKey || event.ctrlKey || event.metaKey) return false
+              if (sel.$from.depth > 0) return event.shiftKey // a part: Shift+Enter does nothing
               view.dispatch(caretAfter(view.state, sel))
               return true
             }
-            // Keys from a control inside a block are that control's. The block shortcuts
-            // (R, L, [, ]) ran before this, so a key that gets here types. Handled here rather
-            // than on keypress, so no input rule sees it first.
+            // Keys from a control inside a block (a select in a question) are that control's.
+            // The block shortcuts ran before this, so a key that gets here types. Handled here
+            // rather than on keypress, so no input rule sees it first.
             if (event.target !== view.dom) return false
             const text = typedChar(event)
             if (text === null) return false
@@ -141,13 +165,14 @@ export const BlockSelectionGuard = Extension.create({
           handlePaste(view, _event, slice) {
             const sel = selectedBlock(view.state)
             if (!sel) return false
-            if (sel.$from.depth > 0) return true // inside a question: never split it
+            if (sel.$from.depth > 0) return true // below the top level: dropped
             const tr = caretAfter(view.state, sel)
             view.dispatch(tr.replaceSelection(slice).scrollIntoView())
             return true
           },
           handleDOMEvents: {
-            compositionstart(view) {
+            compositionstart(view, event) {
+              if (event.target !== view.dom) return false
               if (selectedBlock(view.state)) leaveBlock(view)
               return false
             },
@@ -166,9 +191,12 @@ export const BlockSelectionGuard = Extension.create({
                 const text = event.data ?? event.dataTransfer?.getData('text/plain') ?? ''
                 if (text) typeOver(view, sel, text)
               } else if (event.inputType === 'insertParagraph' || event.inputType === 'insertLineBreak') {
-                if (sel.$from.depth === 0) view.dispatch(caretAfter(view.state, sel))
+                // On iOS ProseMirror replays this Enter as a key shortly, which reaches the
+                // Enter branch above with the block still selected; acting now too would add a
+                // second paragraph.
+                if (sel.$from.depth === 0 && !iosEnterPending(view)) view.dispatch(caretAfter(view.state, sel))
               }
-              // anything else (a paste or drop the editor left alone, a yank) is dropped
+              // anything else (a paste the editor left alone, a yank) is dropped
               return true
             },
           },

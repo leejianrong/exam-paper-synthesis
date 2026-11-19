@@ -8,6 +8,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/svelte'
 import { TemplatedQuestion, moveBlock, questionNode } from './templatedQuestion'
 import { FreeformQuestion, QuestionDocument } from './freeformQuestion'
 import { BlockShortcuts, isBlockKeyTarget } from './shortcuts'
+import { BlockSelectionGuard } from './blockSelection'
 import { makeQuestion } from './fixtures'
 import { ImageBlock, MathNode } from './media'
 import { chooseFromMenu, menuLabels, openMenu, selectBlock } from './blockTesting'
@@ -34,7 +35,7 @@ const own = (id: string, text: string) => ({
   content: [para(text)],
 })
 
-function make(content: object[]) {
+function make(content: object[], { guard = false } = {}) {
   const onSwap = vi.fn(async () => {})
   const onDeleted = vi.fn()
   const onNotice = vi.fn()
@@ -47,6 +48,7 @@ function make(content: object[]) {
       StarterKit.configure({ document: false, trailingNode: false }),
       CoverPage,
       BlockShortcuts,
+      ...(guard ? [BlockSelectionGuard] : []),
       TemplatedQuestion.configure({ onSwap, onDeleted, onNotice }),
       FreeformQuestion.configure({ onSwap, onDeleted }),
     ],
@@ -244,6 +246,42 @@ describe('block shortcuts', () => {
     marks.focus()
     await fireEvent.keyDown(marks, { key: 'Delete' })
     expect(ids(e)).toEqual(['o1', 'p1'])
+  })
+})
+
+describe('a key typed on a selected question (EXA-171)', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('types nothing, and the pill says once per selection how to write below it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const { editor: e } = make([gq('a', 'First.'), gq('b', 'Second.')], { guard: true })
+    await tick()
+    const before = e.getJSON()
+    const host = qblock('First.')
+    const hint = () => within(host).queryByRole('status')
+    e.commands.setNodeSelection(0)
+    e.view.focus()
+    await waitFor(() => expect(host.querySelector('.qpill')).not.toBeNull())
+    expect(hint()).toBeNull()
+    await fireEvent.keyDown(e.view.dom, { key: 'a' })
+    await waitFor(() => expect(hint()).toHaveTextContent('Press Enter to write below'))
+    expect(e.getJSON()).toEqual(before)
+    // it goes after a few seconds, and does not come back for this selection
+    vi.advanceTimersByTime(4000)
+    await waitFor(() => expect(hint()).toBeNull())
+    await fireEvent.keyDown(e.view.dom, { key: 's' })
+    await tick()
+    expect(hint()).toBeNull()
+    // a new selection may show it again; a block shortcut never does
+    e.commands.setNodeSelection(e.state.doc.child(0).nodeSize)
+    await tick()
+    e.commands.setNodeSelection(0)
+    await fireEvent.keyDown(e.view.dom, { key: 'l' })
+    await waitFor(() => expect(attrsOf(e, 'a').locked).toBe(true))
+    expect(hint()).toBeNull()
+    await fireEvent.keyDown(e.view.dom, { key: '7' })
+    await waitFor(() => expect(hint()).toHaveTextContent('Press Enter to write below'))
+    expect((e.getJSON().content ?? []).map((n) => n.type)).toEqual(['templatedQuestion', 'templatedQuestion'])
   })
 })
 

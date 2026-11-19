@@ -7,6 +7,7 @@ import { Node } from '@tiptap/core'
 import { BlockSelectionGuard, insertBlockSafely } from './blockSelection'
 import { BlockShortcuts, registerBlockKeys } from './shortcuts'
 import { BlankPage, CoverPage, blankPageNode, coverNode } from './pages'
+import { Section, sectionNode } from './sections'
 
 let editor: Editor | null = null
 afterEach(() => {
@@ -107,7 +108,7 @@ describe('a block selected inside a question is left to the editor (no split que
 // EXA-171: stand-ins named like the real question blocks (a generated question is an atom; a
 // free-form question holds lettered parts).
 const Templated = Node.create({ name: 'templatedQuestion', group: 'block', atom: true, parseHTML: () => [{ tag: 'div[data-tq]' }], renderHTML: () => ['div', { 'data-tq': '' }] })
-const Freeform = Node.create({ name: 'freeformQuestion', group: 'block', content: 'freeformPart+', parseHTML: () => [{ tag: 'div[data-fq]' }], renderHTML: () => ['div', { 'data-fq': '' }, 0] })
+const Freeform = Node.create({ name: 'freeformQuestion', group: 'block', content: 'freeformPart+', parseHTML: () => [{ tag: 'div[data-fq]' }], renderHTML: () => ['div', { 'data-fq': '' }, ['select', { 'aria-label': 'Working space' }, ['option', 'None'], ['option', 'Lines']], ['div', 0]] })
 const FreeformPart = Node.create({ name: 'freeformPart', content: 'paragraph+', parseHTML: () => [{ tag: 'div[data-fp]' }], renderHTML: () => ['div', { 'data-fp': '' }, 0] })
 
 describe('typing on a selected question never replaces it (EXA-171)', () => {
@@ -291,5 +292,136 @@ describe('typing on a selected question never replaces it (EXA-171)', () => {
     selectQuestion(e)
     press(e, 'Delete')
     expect(types(e)).not.toContain('templatedQuestion')
+  })
+
+  it('Shift+Enter on a selected top-level block starts a paragraph after it, as Enter does', () => {
+    const e = makeQ()
+    selectQuestion(e)
+    expect(press(e, 'Enter', { shiftKey: true }).defaultPrevented).toBe(true)
+    expect(types(e)).toEqual(['coverPage', 'templatedQuestion', 'paragraph', 'freeformQuestion', 'paragraph'])
+    expect(e.state.selection.$from.parent.type.name).toBe('paragraph')
+    select(e, 0)
+    expect(press(e, 'Enter', { shiftKey: true }).defaultPrevented).toBe(true)
+    expect(types(e)).toEqual(['coverPage', 'paragraph', 'templatedQuestion', 'paragraph', 'freeformQuestion', 'paragraph'])
+    expect((e.getJSON().content ?? [])[0]).toMatchObject({ type: 'coverPage', attrs: { school: 'Pandan' } })
+  })
+
+  it('Shift+Enter on a selected section or blank page, too; on a selected part nothing', () => {
+    editor = new Editor({
+      extensions: [StarterKit, Section, BlankPage, BlockSelectionGuard, BlockShortcuts, Freeform, FreeformPart],
+      content: {
+        type: 'doc',
+        content: [
+          sectionNode('Section A'),
+          blankPageNode(),
+          { type: 'freeformQuestion', content: [{ type: 'freeformPart', content: [para('(a)')] }] },
+        ],
+      },
+    })
+    const e = editor
+    select(e, 0)
+    press(e, 'Enter', { shiftKey: true })
+    // (StarterKit keeps a trailing paragraph)
+    expect(types(e)).toEqual(['section', 'paragraph', 'blankPage', 'freeformQuestion', 'paragraph'])
+    select(e, posOf(e, 2))
+    press(e, 'Enter', { shiftKey: true })
+    expect(types(e)).toEqual(['section', 'paragraph', 'blankPage', 'paragraph', 'freeformQuestion', 'paragraph'])
+    const before = e.getJSON()
+    select(e, posOf(e, 4) + 1)
+    expect(press(e, 'Enter', { shiftKey: true }).defaultPrevented).toBe(true)
+    expect(e.getJSON()).toEqual(before)
+  })
+
+  it('on iOS the Enter that ProseMirror replays adds one paragraph, not two', () => {
+    const e = makeQ()
+    selectQuestion(e)
+    // ProseMirror on iOS lets the Enter key through and records it, then replays it ~200 ms
+    // later when the DOM did not change (prosemirror-view's lastIOSEnter)
+    ;(e.view as unknown as { input: { lastIOSEnter: number } }).input.lastIOSEnter = Date.now()
+    expect(input(e, 'insertParagraph', null).defaultPrevented).toBe(true)
+    expect(types(e)).toEqual(['coverPage', 'templatedQuestion', 'freeformQuestion', 'paragraph'])
+    const replay = Object.assign(document.createEvent('Event'), { keyCode: 13, key: 'Enter' }) as KeyboardEvent
+    expect(e.view.someProp('handleKeyDown', (f) => f(e.view, replay))).toBe(true)
+    expect(types(e)).toEqual(['coverPage', 'templatedQuestion', 'paragraph', 'freeformQuestion', 'paragraph'])
+  })
+
+  it('a dead key moves nothing; only a composition that starts does', () => {
+    const e = makeQ()
+    const before = e.getJSON()
+    selectQuestion(e)
+    expect(press(e, 'Dead', { altKey: true }).defaultPrevented).toBe(false)
+    expect(e.getJSON()).toEqual(before)
+    stillSelected(e, posOf(e, 1))
+  })
+
+  it("a key, input or composition from a control inside a question (its select) is the control's", () => {
+    const e = makeQ()
+    const before = e.getJSON()
+    select(e, posOf(e, 2)) // the free-form question
+    const field = e.view.dom.querySelector('select') as HTMLSelectElement
+    const ev = new KeyboardEvent('keydown', { key: 'l', bubbles: true, cancelable: true })
+    field.dispatchEvent(ev)
+    expect(ev.defaultPrevented).toBe(false) // type-ahead picks "Lines"
+    stillSelected(e, posOf(e, 2))
+    const inp = new InputEvent('beforeinput', { inputType: 'insertText', data: 'x', bubbles: true, cancelable: true })
+    field.dispatchEvent(inp)
+    expect(inp.defaultPrevented).toBe(false)
+    stillSelected(e, posOf(e, 2))
+    // A composition in the control: the guard's handler alone (ProseMirror's own would re-read
+    // this stand-in's DOM, which a real node view keeps it from)
+    const composition = new CompositionEvent('compositionstart')
+    Object.defineProperty(composition, 'target', { value: field })
+    const handled = e.view.someProp('handleDOMEvents', (h) => h.compositionstart?.(e.view, composition))
+    expect(handled).toBeFalsy()
+    stillSelected(e, posOf(e, 2))
+    expect(e.getJSON()).toEqual(before)
+  })
+
+  it('AltGr types its character (after a selected cover); Ctrl+Alt without AltGr does not', () => {
+    const e = makeQ()
+    select(e, 0)
+    expect(press(e, 'q', { ctrlKey: true, altKey: true }).defaultPrevented).toBe(false)
+    expect(types(e)).toEqual(['coverPage', 'templatedQuestion', 'freeformQuestion', 'paragraph'])
+    expect(press(e, '€', { ctrlKey: true, altKey: true, modifierAltGraph: true } as KeyboardEventInit).defaultPrevented).toBe(true)
+    expect((e.getJSON().content ?? [])[1]).toMatchObject({ type: 'paragraph', content: [{ type: 'text', text: '€' }] })
+  })
+
+  it('Alt with a key types on a Mac (⌥8 is "•"), never elsewhere', () => {
+    const platform = vi.spyOn(navigator, 'platform', 'get')
+    try {
+      const e = makeQ()
+      platform.mockReturnValue('Linux x86_64')
+      select(e, 0)
+      expect(press(e, 'a', { altKey: true }).defaultPrevented).toBe(false)
+      expect(types(e)).toEqual(['coverPage', 'templatedQuestion', 'freeformQuestion', 'paragraph'])
+      platform.mockReturnValue('MacIntel')
+      expect(press(e, '•', { altKey: true }).defaultPrevented).toBe(true)
+      expect((e.getJSON().content ?? [])[1]).toMatchObject({ type: 'paragraph', content: [{ type: 'text', text: '•' }] })
+    } finally {
+      platform.mockRestore()
+    }
+  })
+
+  it('a drop is left to the editor: it lands where it is dropped', () => {
+    const e = makeQ()
+    selectQuestion(e)
+    expect(input(e, 'insertFromDrop', null).defaultPrevented).toBe(false)
+  })
+
+  it('wherever the guard is listed, it runs before the hard break (Shift+Enter) and input rules', () => {
+    editor = new Editor({
+      extensions: [BlockSelectionGuard, StarterKit, CoverPage, Templated],
+      content: { type: 'doc', content: [para('-'), { type: 'templatedQuestion' }, para('Last')] },
+    })
+    const e = editor
+    const q = e.state.doc.child(0).nodeSize
+    select(e, q)
+    press(e, 'Enter', { shiftKey: true })
+    expect(types(e)).toEqual(['paragraph', 'templatedQuestion', 'paragraph', 'paragraph'])
+    select(e, q)
+    // the bullet-list rule ("- " at the start) would see the "-" before the question
+    const handled = e.view.someProp('handleTextInput', (f) => f(e.view, q, q + 1, ' ', () => e.state.tr))
+    expect(handled).toBe(true)
+    expect(types(e)).toEqual(['paragraph', 'templatedQuestion', 'paragraph', 'paragraph'])
   })
 })

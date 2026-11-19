@@ -281,18 +281,30 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
-- **Typing on a selected question never replaces it (EXA-171).** With a question selected as a
+- **A key on a selected block never replaces it (EXA-171).** With a question selected as a
   block (by the arrow keys, or after a swap), a key that is not one of its shortcuts could take
-  the question's place. Now a typed letter, digit or space on a selected question, or on a
-  part of one, does nothing: on a question single keys are commands (R, L, [, ]), so the
-  other letters do nothing too rather than turning half a word into text. On a selected
-  cover, section, blank page or figure a typed key still starts a paragraph after the block,
-  and Enter still does so on any of them, questions included. This holds however the text
-  arrives: a key press (handled on keydown, before any input rule), a mobile keyboard's or
-  dictation's `beforeinput`, or an input method, whose composition cannot be cancelled and so
-  starts in a new paragraph after the block. A paste over a selected question still lands
-  after it; over a part, or anything else selected inside a question, it is dropped. Text
-  selections, the block shortcuts, Alt+Enter on a section or cover and Del are unchanged.
+  the question's place, and Shift+Enter put a line break in place of any selected block. Now:
+  - A typed letter, digit or space on a selected question does nothing: there single keys are
+    commands (R, L, [, ]), so the other letters do nothing too rather than turning half a word
+    into text. The question's pill says once per selection "Press Enter to write below", then
+    fades.
+  - On a selected cover, section, blank page or figure a typed key starts a paragraph after
+    the block, as before.
+  - Enter and Shift+Enter on any selected top-level block, questions included, start a
+    paragraph after it. On a block selected below the top level (a part of a question, a
+    figure in its text) typing, Shift+Enter and paste do nothing; Enter there is unchanged
+    (nothing happens on a part).
+  - This holds however the text arrives: a key press (handled on keydown, ahead of the
+    editor's input rules and hard break), or `beforeinput` from dictation or a keyboard that
+    does not compose (on iOS the text is dropped on a question; Enter is left to ProseMirror's
+    own replay, so it adds one paragraph, not two).
+  - The exception is composition. An input method (IME) or a mobile keyboard that composes
+    words (Android's Gboard) cannot be stopped, so once composition starts the caret moves
+    into a new paragraph after the block and the composed text lands there, also on a
+    question. A dead key alone moves nothing; only the composition it starts does.
+  - Unchanged: text selections, keys in a control inside a block (a select's type-ahead), the
+    block shortcuts, Alt+Enter on a section or cover, Ctrl+Enter, Del, a drop, and a paste on
+    a selected top-level block (it lands after the block).
 
 - **Web dependencies (Dependabot #207, re-applied on main).** Minor and patch bumps: TipTap
   3.34, Svelte 5.58, eslint-plugin-svelte, svelte-eslint-parser, globals, tslib, @tsconfig/svelte and raised floors

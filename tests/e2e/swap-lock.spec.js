@@ -96,7 +96,7 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   expect(lockedAfter[0].attrs.question.question).toEqual(lockedBefore[0].attrs.question.question)
 })
 
-test('typing on a selected question does nothing; Enter starts a paragraph after it (EXA-171)', async ({ page }) => {
+test('typing on a selected question does nothing; Shift+Enter starts a paragraph after it (EXA-171)', async ({ page }) => {
   await page.goto('/')
   await generateSinglePaper(page, 'Paper 2', 'P6')
   const blocks = page.getByTestId('question-block')
@@ -114,7 +114,10 @@ test('typing on a selected question does nothing; Enter starts a paragraph after
   expect(await third.locator('.qbody').textContent()).toBe(stem)
   await expect(page.locator('.ProseMirror-selectednode')).toHaveCount(1)
   await expect(paras).toHaveCount(0)
-  await page.keyboard.press('Enter')
+  // the pill says how to write below it
+  await expect(questionHost(third).getByRole('status')).toHaveText('Press Enter to write below')
+  // Shift+Enter is no hard break over the question: like Enter, a paragraph after it
+  await page.keyboard.press('Shift+Enter')
   await page.keyboard.type('After it')
   await expect(paras).toHaveText(['After it'])
   expect(await blocks.count()).toBe(17)
