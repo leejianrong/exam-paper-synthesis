@@ -416,6 +416,19 @@ describe('EditorPage empty placeholders (EXA-137)', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it('the header says how many placeholders are left; the link opens the Paper tab', async () => {
+    setup()
+    render(EditorPage, { props: { id: 'd1' } })
+    const link = await screen.findByTestId('header-placeholders')
+    expect(link).toHaveTextContent('2 placeholders to write')
+    await fireEvent.click(screen.getByRole('tab', { name: /Question/ }))
+    expect(screen.getByTestId('placeholders-left')).not.toBeVisible()
+    await fireEvent.click(link)
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'Paper' })).toHaveAttribute('aria-selected', 'true'))
+    expect(screen.getByTestId('placeholders-left')).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Generated paper' })).toHaveFocus()
+  })
+
   it('Fill them closes the warning and puts the caret in the first empty question', async () => {
     setup()
     const { container } = render(EditorPage, { props: { id: 'd1' } })

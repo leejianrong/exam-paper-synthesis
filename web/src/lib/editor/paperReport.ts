@@ -49,10 +49,14 @@ export function hasContent(nodes: DocNode[] | undefined): boolean {
   )
 }
 
-/** Placeholders the teacher hasn't written yet: nothing in the stem or any part (engine mirror). */
+/** A placeholder the teacher hasn't written yet: nothing in the stem or any part (a mirror of
+ *  the engine's `document.is_unfilled_placeholder`). */
+export function isUnfilledPlaceholder(n: DocNode): boolean {
+  const slot = n.attrs?.slot as { placeholder?: boolean } | null | undefined
+  return n.type === 'freeformQuestion' && !!slot?.placeholder && !hasContent(n.content)
+}
+
+/** How many placeholders the teacher still has to write. */
 export function unfilledPlaceholders(doc: DocJSON): number {
-  return (doc.content ?? []).filter((n) => {
-    const slot = n.attrs?.slot as { placeholder?: boolean } | null | undefined
-    return n.type === 'freeformQuestion' && !!slot?.placeholder && !hasContent(n.content)
-  }).length
+  return (doc.content ?? []).filter(isUnfilledPlaceholder).length
 }

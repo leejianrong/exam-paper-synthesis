@@ -2,10 +2,10 @@ import { test, expect } from '@playwright/test'
 import { generateSinglePaper } from './helpers.js'
 
 /**
- * EXA-160: the editor header fits the laptops teachers use. At 1366 (a common school laptop) and
- * 1024 the page never scrolls sideways, and Preview and Export stay on screen.
+ * EXA-160: the editor header fits the laptops teachers use. At 1366 (a common school laptop), 1024
+ * and 768 (a tablet) the page never scrolls sideways, and Preview and Export stay on screen.
  */
-for (const width of [1366, 1024]) {
+for (const width of [1366, 1024, 768]) {
   test(`the editor header fits at ${width} px with Preview and Export on screen`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 })
     await page.goto('/')

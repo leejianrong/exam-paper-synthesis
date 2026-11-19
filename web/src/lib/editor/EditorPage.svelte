@@ -17,7 +17,7 @@
   } from './layout'
   // The WYSIWYG page (W1c): an A4-width column of rich text and question blocks, a "+"
   // to add questions, the answer key below, autosave, and the export/preview menu.
-  import { onDestroy, onMount } from 'svelte'
+  import { onDestroy, onMount, tick as nextTick } from 'svelte'
   import { Editor } from '@tiptap/core'
   import StarterKit from '@tiptap/starter-kit'
   import { NodeSelection, TextSelection } from '@tiptap/pm/state'
@@ -140,6 +140,15 @@
         : 'No questions are locked. ') +
       'Questions you wrote yourself stay.'
     : ''
+
+  /** The header's "N placeholders to write": the Paper tab's Generated paper group. */
+  async function showPlaceholders() {
+    panelTab = 'paper'
+    await nextTick()
+    const group = document.getElementById('panel-generated')
+    group?.scrollIntoView?.({ block: 'nearest' })
+    group?.focus()
+  }
 
   function rename() {
     titleInput?.focus()
@@ -616,6 +625,8 @@
     {busy}
     {quota}
     hasQuestions={blocks.length > 0}
+    {placeholdersLeft}
+    onShowPlaceholders={showPlaceholders}
     onPreview={() => preview('full')}
     onExport={(mode) => download(mode)}
     onRename={rename}
