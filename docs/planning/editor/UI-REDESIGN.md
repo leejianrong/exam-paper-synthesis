@@ -459,3 +459,39 @@ Step 2 sources: the popular-editor patterns in section 2 come from product knowl
 Ctrl+Enter and Ctrl+M never fire from a form field (the title, a marks box, a dialog). With a
 dialog open no global shortcut runs, though Ctrl+P is still kept from printing the screen.
 
+
+---
+
+## 13. S8 as built (EXA-166)
+
+- A paper row is `PaperRow.svelte`: the title links to the editor, the line under it reads
+  "12 marks · edited 5 min ago", and a ⋯ `Menu` holds Open, Rename, Move to folder…, Make a copy
+  and Delete… (danger, last, after a rule). The ⋯ shows on hover or focus where there is a
+  pointer (`@media (hover: hover)`), always on touch. Shift+F10, the Menu key or a right-click
+  on the row opens it. Move to folder… is off, with a reason, while there are no folders.
+- Rename and Make a copy have no endpoint of their own: rename reads the paper and saves it with
+  the new title (a version bump, as an editor rename is); a copy is a create plus a save, and a
+  copy whose save fails is deleted again (`docsApi.renameDocument`, `copyDocument`). The copy
+  is listed under its original; the list stays where it is (the editor's Make a copy opens it).
+- Delete paper and Delete folder use `ConfirmDialog`; Move uses the editor's `MoveDialog`, so the
+  old inline "Confirm delete" and `MoveMenu.svelte` are gone. After a delete focus goes to the
+  "Your papers" heading; after a move, to the paper's ⋯ in its new folder.
+- A folder's header is a disclosure button (chevron, folder icon, name) with the paper count
+  and a ⋯ menu: New paper in folder…, Rename folder, Delete folder…. The collapsed folders are
+  kept in `localStorage` (`exam.papers.collapsed`, a list of folder ids), read and written in
+  try/catch; without storage a collapse lasts for the visit. A folder the wizard just filled,
+  or a paper was just moved into, opens.
+- Search (`folders.titleMatches`): every word typed must appear in the title, ignoring case and
+  accents. While searching, folders without a match are hidden, the rest show their matches and
+  their names are plain headings (no collapse), and Escape in the box clears it. The box is
+  hidden while there are no papers; under 600 px it takes its own line.
+- Dates (`dates.ts`): `fullDate` "19 Nov 2026, 9:05 am" (en-SG, the viewer's time zone) and
+  `editedWhen`: "just now", "N min ago" under an hour, "today, 9:05 am", "yesterday, 4:40 pm",
+  then the full date. The full date is the `<time>` tooltip. The list's clock ticks each minute.
+- The exam-set chips are removed (owner decision), with `FolderGroup.parts`, `paperPart` and
+  `partOf`; the server still derives `paper_part` (the list no longer shows it).
+- The New dialog's cards are Exam set (focused), Single paper, Blank paper, New folder. Back from
+  a step returns focus to the card that was picked.
+- Not in S8: the shared app header (brand, Papers / Question bank, S9), a "Generated / Mixed"
+  kind badge and a question count on rows (the list summary has neither), and the folder's
+  "Set key" button (S10).

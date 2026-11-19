@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/svelte'
 
 const listDocuments = vi.fn()
@@ -11,6 +11,8 @@ const createFolder = vi.fn()
 const renameFolder = vi.fn()
 const deleteFolder = vi.fn()
 const moveDocument = vi.fn()
+const renameDocument = vi.fn()
+const copyDocument = vi.fn()
 vi.mock('./docsApi', () => ({
   listFolders: (...a: unknown[]) => listFolders(...a),
   createFolder: (...a: unknown[]) => createFolder(...a),
@@ -22,6 +24,8 @@ vi.mock('./docsApi', () => ({
   deleteDocument: (...a: unknown[]) => deleteDocument(...a),
   listPaperTemplates: (...a: unknown[]) => listPaperTemplates(...a),
   generatePaper: (...a: unknown[]) => generatePaper(...a),
+  renameDocument: (...a: unknown[]) => renameDocument(...a),
+  copyDocument: (...a: unknown[]) => copyDocument(...a),
 }))
 
 const TEMPLATES = {
@@ -46,35 +50,71 @@ const summary = (id: string, title: string, folder_id: string | null = null) => 
   updated_at: '2026-10-08T01:00:00Z',
 })
 
+const folder = (id: string, name: string) => ({
+  id,
+  name,
+  created_at: '2026-11-01T00:00:00Z',
+  updated_at: '2026-11-01T00:00:00Z',
+})
+
+const section = (name: string) => screen.getByRole('region', { name })
+const actions = (title: string) => screen.getByRole('button', { name: `Actions for “${title}”` })
+
+/** Open a paper's ⋯ menu by keyboard and choose an item. */
+async function choose(title: string, item: string) {
+  const trigger = await screen.findByRole('button', { name: `Actions for “${title}”` })
+  await fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+  const menu = await screen.findByRole('menu', { name: title })
+  await fireEvent.click(within(menu).getByRole('menuitem', { name: item }))
+}
+
 beforeEach(() => {
-  listDocuments.mockReset()
-  createDocument.mockReset()
-  deleteDocument.mockReset()
-  generatePaper.mockReset()
-  listPaperTemplates.mockReset()
+  for (const m of [
+    listDocuments,
+    createDocument,
+    deleteDocument,
+    generatePaper,
+    listPaperTemplates,
+    listFolders,
+    createFolder,
+    renameFolder,
+    deleteFolder,
+    moveDocument,
+    renameDocument,
+    copyDocument,
+  ])
+    m.mockReset()
   listPaperTemplates.mockResolvedValue(TEMPLATES)
-  for (const m of [listFolders, createFolder, renameFolder, deleteFolder, moveDocument]) m.mockReset()
   listFolders.mockResolvedValue([])
   lastReport.set(null)
   location.hash = ''
+  localStorage.clear()
 })
 
+afterEach(() => vi.restoreAllMocks())
+
 describe('DocumentList', () => {
-  it('lists papers with marks and links to the editor', async () => {
+  it('lists papers with marks and an en-SG edit time, linking to the editor', async () => {
     listDocuments.mockResolvedValue([summary('d1', 'Ratio Review')])
     render(DocumentList)
     const link = await screen.findByRole('link', { name: /Ratio Review/ })
     expect(link).toHaveAttribute('href', '#/docs/d1')
-    expect(link).toHaveTextContent('12 marks')
+    expect(link).toHaveTextContent('12 marks · edited')
+    const time = link.querySelector('time')!
+    expect(time).toHaveAttribute('datetime', '2026-10-08T01:00:00Z')
+    // an old edit shows the date, the en-SG way (day month year, lower-case am/pm)
+    expect(time.textContent).toMatch(/^8 Oct 2026, \d{1,2}:\d{2} [ap]m$/)
+    expect(time.getAttribute('title')).toBe(time.textContent)
   })
 
-  it('shows the empty state', async () => {
+  it('shows the empty state, naming the exam set', async () => {
     listDocuments.mockResolvedValue([])
     render(DocumentList)
-    expect(await screen.findByText(/No papers yet/)).toBeInTheDocument()
+    expect(await screen.findByText(/No papers yet/)).toHaveTextContent('an exam set makes Booklet A, Booklet B and Paper 2')
+    expect(screen.queryByRole('searchbox')).toBeNull()
   })
 
-  it('+ New opens the wizard; a blank paper opens in the editor; Escape gives focus back', async () => {
+  it('+ New opens the wizard on Exam set; a blank paper opens in the editor; Escape gives focus back', async () => {
     listDocuments.mockResolvedValue([])
     createDocument.mockResolvedValue({ ...summary('new1', 'Untitled paper'), document: {} })
     render(DocumentList)
@@ -82,6 +122,7 @@ describe('DocumentList', () => {
     trigger.focus()
     await fireEvent.click(trigger)
     const dialog = await screen.findByRole('dialog', { name: 'New' })
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Exam set' })).toHaveFocus())
     await fireEvent.keyDown(dialog, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     await waitFor(() => expect(trigger).toHaveFocus())
@@ -91,30 +132,17 @@ describe('DocumentList', () => {
     expect(createDocument).toHaveBeenCalledWith(undefined, undefined, null)
   })
 
-  it('deletes only after a second confirming click', async () => {
-    listDocuments.mockResolvedValue([summary('d1', 'Ratio Review')])
-    deleteDocument.mockResolvedValue(undefined)
-    render(DocumentList)
-    await fireEvent.click(await screen.findByRole('button', { name: 'Delete' }))
-    expect(deleteDocument).not.toHaveBeenCalled()
-    await fireEvent.click(screen.getByRole('button', { name: 'Confirm delete' }))
-    await waitFor(() => expect(deleteDocument).toHaveBeenCalledWith('d1'))
-    await waitFor(() => expect(screen.queryByText('Ratio Review')).not.toBeInTheDocument())
-  })
-
   it('shows API errors', async () => {
     listDocuments.mockRejectedValue(new Error('API 401: authentication required'))
     render(DocumentList)
     expect(await screen.findByRole('alert')).toHaveTextContent('authentication required')
   })
 
-  it('makes an exam set into a new folder, adds the papers and shows the folder (O3)', async () => {
+  it('makes an exam set into a new folder and shows the folder, without exam-set ticks', async () => {
     listDocuments.mockResolvedValue([])
     createFolder.mockResolvedValue(folder('fs', 'P6 exam set'))
-    const parts = { p1_booklet_a: 'booklet_a', p1_booklet_b: 'booklet_b', p2: 'paper_2' } as const
-    createDocument.mockImplementation(async (_t: unknown, code: keyof typeof parts, fid: string) => ({
-      ...summary(`d-${code}`, 'Renamed', fid),
-      paper_part: parts[code],
+    createDocument.mockImplementation(async (_t: unknown, code: string, fid: string) => ({
+      ...summary(`d-${code}`, `Paper ${code}`, fid),
       document: {},
     }))
     render(DocumentList)
@@ -123,27 +151,13 @@ describe('DocumentList', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     await fireEvent.click(await screen.findByRole('button', { name: 'Empty starters' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    const chips = await screen.findByRole('list', { name: 'Exam set in “P6 exam set”' })
-    // Titled "Renamed": the chips come from the server's paper_part, not the title.
-    expect(within(chips).getAllByRole('listitem').map((li) => li.classList.contains('on'))).toEqual([true, true, true])
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'P6 exam set' })).toHaveFocus())
+    const toggle = await screen.findByRole('button', { name: 'P6 exam set', expanded: true })
+    await waitFor(() => expect(toggle).toHaveFocus())
+    expect(within(section('P6 exam set')).getAllByRole('link')).toHaveLength(3)
+    // EXA-166 (owner decision): no Booklet A / Booklet B / Paper 2 ticks on the folder.
+    expect(screen.queryByRole('list', { name: /Exam set in/ })).toBeNull()
+    expect(section('P6 exam set')).not.toHaveTextContent('Booklet A')
     expect(screen.getByRole('status')).toHaveTextContent('Folder “P6 exam set” created.')
-  })
-
-  it('a folder’s “+ New in folder” files what the wizard makes there', async () => {
-    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
-    listDocuments.mockResolvedValue([])
-    createDocument.mockResolvedValue({ ...summary('t1', 'Paper 2', 'f1'), document: {} })
-    render(DocumentList)
-    const here = await screen.findByRole('button', { name: '+ New in folder “Prelims 2026”' })
-    await fireEvent.click(here)
-    const dialog = await screen.findByRole('dialog', { name: 'New' })
-    expect(dialog).toHaveTextContent('Papers go in Prelims 2026.')
-    await fireEvent.click(within(dialog).getByRole('button', { name: 'Single paper' }))
-    await fireEvent.click(await screen.findByRole('button', { name: 'Paper 2' }))
-    await fireEvent.click(await screen.findByRole('button', { name: 'Start it empty' }))
-    await waitFor(() => expect(location.hash).toBe('#/docs/t1'))
-    expect(createDocument).toHaveBeenCalledWith(undefined, 'p2', 'f1')
   })
 
   it('hides the Classic generator link unless the setting is on (O1); Settings is always there', async () => {
@@ -157,18 +171,214 @@ describe('DocumentList', () => {
     render(DocumentList)
     expect(await screen.findByRole('link', { name: 'Classic generator' })).toHaveAttribute('href', '#/classic')
   })
+
+  it('shows a loading state until the papers arrive', async () => {
+    let resolve: (v: unknown) => void = () => {}
+    listDocuments.mockReturnValue(new Promise((r) => (resolve = r)))
+    render(DocumentList)
+    expect(screen.getByText('Loading your papers…')).toBeInTheDocument()
+    resolve([summary('d1', 'Ratio Review')])
+    expect(await screen.findByRole('link', { name: /Ratio Review/ })).toBeInTheDocument()
+    expect(screen.queryByText('Loading your papers…')).toBeNull()
+  })
 })
 
-const folder = (id: string, name: string) => ({
-  id,
-  name,
-  created_at: '2026-11-01T00:00:00Z',
-  updated_at: '2026-11-01T00:00:00Z',
+describe('DocumentList: a paper’s ⋯ menu (EXA-166)', () => {
+  it('replaces the loose row buttons; it opens by keyboard with the five actions, Delete last', async () => {
+    listDocuments.mockResolvedValue([summary('d1', 'Ratio Review')])
+    render(DocumentList)
+    const trigger = await screen.findByRole('button', { name: 'Actions for “Ratio Review”' })
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Move/ })).toBeNull()
+    expect(trigger).toHaveAttribute('aria-haspopup', 'menu')
+    await fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    const menu = await screen.findByRole('menu', { name: 'Ratio Review' })
+    const rows = within(menu).getAllByRole('menuitem')
+    expect(rows.map((r) => r.textContent?.trim())).toEqual(['Open', 'Rename', 'Move to folder…', 'Make a copy', 'Delete…'])
+    await waitFor(() => expect(rows[0]).toHaveFocus())
+    // no folder to move to yet: Move says why it is off
+    expect(rows[2]).toHaveAttribute('aria-disabled', 'true')
+    expect(rows[2]).toHaveAttribute('title', 'Make a folder first, with + New.')
+    expect(rows[4]).toHaveClass('danger')
+    await fireEvent.keyDown(menu, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(trigger).toHaveFocus()
+  })
+
+  it('Shift+F10 on the paper’s link opens its menu', async () => {
+    listDocuments.mockResolvedValue([summary('d1', 'Ratio Review')])
+    render(DocumentList)
+    const link = await screen.findByRole('link', { name: /Ratio Review/ })
+    await fireEvent.keyDown(link, { key: 'F10', shiftKey: true })
+    expect(await screen.findByRole('menu', { name: 'Ratio Review' })).toBeInTheDocument()
+  })
+
+  it('Open goes to the editor', async () => {
+    listDocuments.mockResolvedValue([summary('d1', 'Ratio Review')])
+    render(DocumentList)
+    await choose('Ratio Review', 'Open')
+    expect(location.hash).toBe('#/docs/d1')
+  })
+
+  it('Delete asks in a dialog; Cancel keeps the paper, Delete paper deletes it', async () => {
+    listDocuments.mockResolvedValue([summary('d1', 'Ratio Review'), summary('d2', 'Fractions drill')])
+    deleteDocument.mockResolvedValue(undefined)
+    render(DocumentList)
+    await choose('Ratio Review', 'Delete…')
+    let dialog = await screen.findByRole('alertdialog', { name: 'Delete “Ratio Review”?' })
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(deleteDocument).not.toHaveBeenCalled()
+    await waitFor(() => expect(actions('Ratio Review')).toHaveFocus())
+    await choose('Ratio Review', 'Delete…')
+    dialog = await screen.findByRole('alertdialog', { name: 'Delete “Ratio Review”?' })
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Delete paper' }))
+    await waitFor(() => expect(deleteDocument).toHaveBeenCalledWith('d1'))
+    await waitFor(() => expect(screen.queryByRole('link', { name: /Ratio Review/ })).toBeNull())
+    expect(screen.getByRole('link', { name: /Fractions drill/ })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Deleted “Ratio Review”.')
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Your papers' })).toHaveFocus())
+  })
+
+  it('a failed delete keeps the dialog open with the error', async () => {
+    listDocuments.mockResolvedValue([summary('d1', 'Ratio Review')])
+    deleteDocument.mockRejectedValue(new Error('API 500: boom'))
+    render(DocumentList)
+    await choose('Ratio Review', 'Delete…')
+    const dialog = await screen.findByRole('alertdialog')
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Delete paper' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('boom')
+    expect(screen.getByRole('link', { name: /Ratio Review/ })).toBeInTheDocument()
+  })
+
+  it('Rename edits the title in place; Enter saves and focus goes back to the ⋯ button', async () => {
+    listDocuments.mockResolvedValue([summary('d1', 'Ratio Review')])
+    renameDocument.mockResolvedValue({ ...summary('d1', 'Ratio review (Term 3)'), version: 4, document: {} })
+    render(DocumentList)
+    await choose('Ratio Review', 'Rename')
+    const input = await screen.findByRole('textbox', { name: 'Paper title' })
+    expect(input).toHaveValue('Ratio Review')
+    await waitFor(() => expect(input).toHaveFocus())
+    await fireEvent.input(input, { target: { value: '  Ratio review (Term 3) ' } })
+    await fireEvent.submit(input.closest('form')!)
+    await waitFor(() => expect(renameDocument).toHaveBeenCalledWith('d1', 'Ratio review (Term 3)'))
+    expect(await screen.findByRole('link', { name: /Ratio review \(Term 3\)/ })).toBeInTheDocument()
+    await waitFor(() => expect(actions('Ratio review (Term 3)')).toHaveFocus())
+    expect(screen.getByRole('status')).toHaveTextContent('Renamed to “Ratio review (Term 3)”.')
+  })
+
+  it('Escape backs out of a rename; a failed rename keeps the field and shows why', async () => {
+    listDocuments.mockResolvedValue([summary('d1', 'Ratio Review')])
+    renameDocument.mockRejectedValue(new Error('API 409: document changed elsewhere'))
+    render(DocumentList)
+    await choose('Ratio Review', 'Rename')
+    let input = await screen.findByRole('textbox', { name: 'Paper title' })
+    await fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.queryByRole('textbox', { name: 'Paper title' })).toBeNull()
+    await waitFor(() => expect(actions('Ratio Review')).toHaveFocus())
+    expect(renameDocument).not.toHaveBeenCalled()
+    await choose('Ratio Review', 'Rename')
+    input = await screen.findByRole('textbox', { name: 'Paper title' })
+    await fireEvent.input(input, { target: { value: 'New name' } })
+    await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('changed elsewhere')
+    expect(screen.getByRole('textbox', { name: 'Paper title' })).toBeInTheDocument()
+  })
+
+  it('Make a copy adds “Copy of …” under the paper, in the same folder', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
+    listDocuments.mockResolvedValue([summary('d1', 'P6 Paper 2', 'f1'), summary('d2', 'Ratio quiz', 'f1')])
+    copyDocument.mockResolvedValue({ ...summary('c1', 'Copy of P6 Paper 2', 'f1'), version: 2, document: {} })
+    render(DocumentList)
+    await choose('P6 Paper 2', 'Make a copy')
+    await waitFor(() => expect(copyDocument).toHaveBeenCalledWith('d1'))
+    const links = await within(section('Prelims 2026')).findAllByRole('link')
+    await waitFor(() =>
+      expect(within(section('Prelims 2026')).getAllByRole('link').map((l) => l.querySelector('.t')?.textContent)).toEqual([
+        'P6 Paper 2',
+        'Copy of P6 Paper 2',
+        'Ratio quiz',
+      ]),
+    )
+    expect(links.length).toBeGreaterThan(0)
+    expect(screen.getByRole('status')).toHaveTextContent('Made “Copy of P6 Paper 2”.')
+  })
+
+  it('Move to folder… picks a folder in a dialog and files the paper there', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026'), folder('f2', 'Term 1')])
+    listDocuments.mockResolvedValue([summary('d1', 'P6 Paper 1 Booklet B')])
+    moveDocument.mockResolvedValue(summary('d1', 'P6 Paper 1 Booklet B', 'f2'))
+    render(DocumentList)
+    await choose('P6 Paper 1 Booklet B', 'Move to folder…')
+    const dialog = await screen.findByRole('dialog', { name: 'Move to folder' })
+    expect(within(dialog).getByRole('radio', { name: 'Unfiled' })).toBeChecked()
+    await fireEvent.click(within(dialog).getByRole('radio', { name: 'Term 1' }))
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Move' }))
+    await waitFor(() => expect(moveDocument).toHaveBeenCalledWith('d1', 'f2'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(within(section('Term 1')).getByRole('link', { name: /P6 Paper 1 Booklet B/ })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Moved “P6 Paper 1 Booklet B” to “Term 1”.')
+    await waitFor(() => expect(actions('P6 Paper 1 Booklet B')).toHaveFocus())
+  })
+
+  it('moves a paper back to Unfiled', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
+    listDocuments.mockResolvedValue([summary('d1', 'Ratio quiz', 'f1')])
+    moveDocument.mockResolvedValue(summary('d1', 'Ratio quiz', null))
+    render(DocumentList)
+    await choose('Ratio quiz', 'Move to folder…')
+    const dialog = await screen.findByRole('dialog', { name: 'Move to folder' })
+    await fireEvent.click(within(dialog).getByRole('radio', { name: 'Unfiled' }))
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Move' }))
+    await waitFor(() => expect(moveDocument).toHaveBeenCalledWith('d1', null))
+    await waitFor(() =>
+      expect(within(section('Unfiled')).getByRole('link', { name: /Ratio quiz/ })).toBeInTheDocument(),
+    )
+  })
 })
 
-const section = (name: string) => screen.getByRole('region', { name })
+describe('DocumentList: search (EXA-166)', () => {
+  it('filters papers by title, hides folders without a match, and Escape clears it', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026'), folder('f2', 'Term 1')])
+    listDocuments.mockResolvedValue([
+      summary('d1', 'P6 Paper 1 Booklet A', 'f1'),
+      summary('d2', 'P6 Paper 2', 'f1'),
+      summary('d3', 'Ratio quiz', 'f2'),
+      summary('d4', 'Booklet A drill'),
+    ])
+    render(DocumentList)
+    const box = await screen.findByRole('searchbox', { name: 'Search papers' })
+    await fireEvent.input(box, { target: { value: 'booklet a' } })
+    expect(screen.getAllByRole('link', { name: /Booklet A/ })).toHaveLength(2)
+    expect(screen.queryByRole('link', { name: /P6 Paper 2/ })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Term 1' })).toBeNull()
+    // while searching a folder shows its matches and its name is not a collapse button
+    expect(screen.queryByRole('button', { name: 'Prelims 2026' })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Prelims 2026' })).toBeInTheDocument()
+    expect(within(section('Unfiled')).getByRole('link', { name: /Booklet A drill/ })).toBeInTheDocument()
 
-describe('DocumentList folders (O2)', () => {
+    await fireEvent.input(box, { target: { value: 'fractions' } })
+    expect(screen.getByText('No papers match “fractions”.')).toBeInTheDocument()
+    expect(screen.queryAllByRole('link', { name: /Paper|quiz|drill/ })).toHaveLength(0)
+
+    await fireEvent.keyDown(box, { key: 'Escape' })
+    expect(box).toHaveValue('')
+    expect(screen.getAllByRole('link', { name: /Paper|quiz|drill/ })).toHaveLength(4)
+  })
+
+  it('shows a collapsed folder’s matches while searching', async () => {
+    localStorage.setItem('exam.papers.collapsed', JSON.stringify(['f1']))
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
+    listDocuments.mockResolvedValue([summary('d1', 'P6 Paper 2', 'f1')])
+    render(DocumentList)
+    await screen.findByRole('button', { name: 'Prelims 2026', expanded: false })
+    expect(screen.queryByRole('link', { name: /P6 Paper 2/ })).toBeNull()
+    await fireEvent.input(screen.getByRole('searchbox'), { target: { value: 'paper' } })
+    expect(screen.getByRole('link', { name: /P6 Paper 2/ })).toBeInTheDocument()
+  })
+})
+
+describe('DocumentList folders (O2, EXA-166)', () => {
   it('groups papers by folder in the API order, then Unfiled', async () => {
     listFolders.mockResolvedValue([folder('f2', 'Term 1'), folder('f1', 'Prelims 2026')])
     listDocuments.mockResolvedValue([
@@ -179,7 +389,7 @@ describe('DocumentList folders (O2)', () => {
     ])
     render(DocumentList)
     await screen.findByRole('heading', { name: 'Term 1' })
-    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent?.trim())
     expect(headings).toEqual(['Term 1', 'Prelims 2026', 'Unfiled'])
     expect(within(section('Prelims 2026')).getByRole('link', { name: /P6 Paper 2/ })).toBeInTheDocument()
     expect(within(section('Term 1')).getByRole('link', { name: /Ratio quiz/ })).toBeInTheDocument()
@@ -189,31 +399,70 @@ describe('DocumentList folders (O2)', () => {
     expect(unfiled.getByRole('link', { name: /Old copy/ })).toBeInTheDocument()
   })
 
-  it('fills an exam-set chip when the folder holds a paper of that part', async () => {
+  it('collapses a folder and remembers it for the next visit', async () => {
     listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
-    listDocuments.mockResolvedValue([
-      summary('d1', 'P6 Paper 1 Booklet A', 'f1'),
-      summary('d2', 'P6 Paper 2', 'f1'),
-    ])
+    listDocuments.mockResolvedValue([summary('d1', 'P6 Paper 2', 'f1')])
+    const { unmount } = render(DocumentList)
+    const toggle = await screen.findByRole('button', { name: 'Prelims 2026', expanded: true })
+    expect(toggle).toHaveAttribute('aria-controls', 'folder-body-f1')
+    await fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('link', { name: /P6 Paper 2/ })).toBeNull()
+    expect(section('Prelims 2026')).toHaveTextContent('1 paper')
+    expect(JSON.parse(localStorage.getItem('exam.papers.collapsed')!)).toEqual(['f1'])
+    unmount()
     render(DocumentList)
-    const chips = await screen.findByRole('list', { name: 'Exam set in “Prelims 2026”' })
-    const items = within(chips).getAllByRole('listitem')
-    expect(items.map((li) => li.dataset.part)).toEqual(['booklet_a', 'booklet_b', 'paper_2'])
-    expect(items.map((li) => li.classList.contains('on'))).toEqual([true, false, true])
-    expect(items[0]).toHaveTextContent('Booklet A: in this folder')
-    expect(items[1]).toHaveTextContent('Booklet B: not in this folder yet')
+    const again = await screen.findByRole('button', { name: 'Prelims 2026' })
+    expect(again).toHaveAttribute('aria-expanded', 'false')
+    await fireEvent.click(again)
+    expect(screen.getByRole('link', { name: /P6 Paper 2/ })).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('exam.papers.collapsed')!)).toEqual([])
   })
 
-  it('says when a folder is empty, and there is no Move menu without folders', async () => {
-    listDocuments.mockResolvedValue([summary('d1', 'Ratio Review')])
-    const { unmount } = render(DocumentList)
-    await screen.findByRole('link', { name: /Ratio Review/ })
-    expect(screen.queryByRole('button', { name: /Move/ })).toBeNull()
-    expect(screen.queryByRole('heading', { name: 'Unfiled' })).toBeNull()
-    unmount()
-    listFolders.mockResolvedValue([folder('f1', 'Term 1')])
+  it('still collapses, for the visit, when the browser keeps no storage', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('SecurityError')
+    })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('SecurityError')
+    })
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
+    listDocuments.mockResolvedValue([summary('d1', 'P6 Paper 2', 'f1')])
     render(DocumentList)
-    expect(await screen.findByText(/No papers in this folder yet/)).toBeInTheDocument()
+    const toggle = await screen.findByRole('button', { name: 'Prelims 2026', expanded: true })
+    await fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('link', { name: /P6 Paper 2/ })).toBeNull()
+  })
+
+  it('says when a folder is empty', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Term 1')])
+    listDocuments.mockResolvedValue([])
+    render(DocumentList)
+    expect(await screen.findByText(/No papers here yet/)).toBeInTheDocument()
+  })
+
+  it('a folder’s ⋯ menu: New paper in folder… files what the wizard makes there', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
+    listDocuments.mockResolvedValue([])
+    createDocument.mockResolvedValue({ ...summary('t1', 'Paper 2', 'f1'), document: {} })
+    render(DocumentList)
+    const trigger = await screen.findByRole('button', { name: 'Actions for folder “Prelims 2026”' })
+    await fireEvent.click(trigger)
+    const menu = await screen.findByRole('menu', { name: 'Prelims 2026' })
+    expect(within(menu).getAllByRole('menuitem').map((r) => r.textContent?.trim())).toEqual([
+      'New paper in folder…',
+      'Rename folder',
+      'Delete folder…',
+    ])
+    await fireEvent.click(within(menu).getByRole('menuitem', { name: 'New paper in folder…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New' })
+    expect(dialog).toHaveTextContent('Papers go in Prelims 2026.')
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Single paper' }))
+    await fireEvent.click(await screen.findByRole('button', { name: 'Paper 2' }))
+    await fireEvent.click(await screen.findByRole('button', { name: 'Start it empty' }))
+    await waitFor(() => expect(location.hash).toBe('#/docs/t1'))
+    expect(createDocument).toHaveBeenCalledWith(undefined, 'p2', 'f1')
   })
 
   it('creates a folder from the wizard and focuses it in the list', async () => {
@@ -230,69 +479,25 @@ describe('DocumentList folders (O2)', () => {
     expect(await screen.findByRole('heading', { name: 'Prelims 2026' })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByRole('status')).toHaveTextContent('Folder “Prelims 2026” created.')
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Prelims 2026' })).toHaveFocus())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Prelims 2026' })).toHaveFocus())
   })
 
-  it('moves a paper into a folder from its Move menu, by keyboard', async () => {
-    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026'), folder('f2', 'Term 1')])
-    listDocuments.mockResolvedValue([summary('d1', 'P6 Paper 1 Booklet B')])
-    moveDocument.mockResolvedValue(summary('d1', 'P6 Paper 1 Booklet B', 'f2'))
-    render(DocumentList)
-    const trigger = await screen.findByRole('button', { name: 'Move “P6 Paper 1 Booklet B” to a folder' })
-    expect(trigger).toHaveAttribute('aria-expanded', 'false')
-    await fireEvent.keyDown(trigger, { key: 'ArrowDown' })
-    const menu = await screen.findByRole('menu', { name: 'Move to' })
-    const items = within(menu).getAllByRole('menuitemradio')
-    expect(items.map((i) => i.textContent?.replace('✓', '').trim())).toEqual(['Prelims 2026', 'Term 1', 'Unfiled'])
-    // Opens on the current place (Unfiled); the arrows wrap round to the folders.
-    await waitFor(() => expect(items[2]).toHaveFocus())
-    expect(items[2]).toHaveAttribute('aria-checked', 'true')
-    await fireEvent.keyDown(menu, { key: 'ArrowDown' })
-    expect(items[0]).toHaveFocus()
-    await fireEvent.keyDown(menu, { key: 'ArrowDown' })
-    expect(items[1]).toHaveFocus()
-    await fireEvent.click(items[1])
-    await waitFor(() => expect(moveDocument).toHaveBeenCalledWith('d1', 'f2'))
-    const chips = await screen.findByRole('list', { name: 'Exam set in “Term 1”' })
-    await waitFor(() => expect(within(chips).getByText(/Booklet B/).closest('li')).toHaveClass('on'))
-    expect(within(section('Term 1')).getByRole('link', { name: /P6 Paper 1 Booklet B/ })).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('Moved “P6 Paper 1 Booklet B” to “Term 1”.')
-    expect(screen.queryByRole('menu')).toBeNull()
-  })
-
-  it('moves a paper back to Unfiled; Escape closes the menu without moving', async () => {
-    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
-    listDocuments.mockResolvedValue([summary('d1', 'Ratio quiz', 'f1')])
-    moveDocument.mockResolvedValue(summary('d1', 'Ratio quiz', null))
-    render(DocumentList)
-    const trigger = await screen.findByRole('button', { name: 'Move “Ratio quiz” to a folder' })
-    await fireEvent.click(trigger)
-    const menu = await screen.findByRole('menu')
-    await fireEvent.keyDown(menu, { key: 'Escape' })
-    expect(screen.queryByRole('menu')).toBeNull()
-    expect(trigger).toHaveFocus()
-    expect(moveDocument).not.toHaveBeenCalled()
-    await fireEvent.click(trigger)
-    await fireEvent.click(await screen.findByRole('menuitemradio', { name: /Unfiled/ }))
-    await waitFor(() => expect(moveDocument).toHaveBeenCalledWith('d1', null))
-    await waitFor(() =>
-      expect(within(section('Unfiled')).getByRole('link', { name: /Ratio quiz/ })).toBeInTheDocument(),
-    )
-  })
-
-  it('renames a folder inline', async () => {
+  it('renames a folder inline from its menu', async () => {
     listFolders.mockResolvedValue([folder('f1', 'Prelims')])
     listDocuments.mockResolvedValue([])
     renameFolder.mockResolvedValue(folder('f1', 'Prelims 2026'))
     render(DocumentList)
-    await fireEvent.click(await screen.findByRole('button', { name: 'Rename folder “Prelims”' }))
+    await fireEvent.click(await screen.findByRole('button', { name: 'Actions for folder “Prelims”' }))
+    await fireEvent.click(await screen.findByRole('menuitem', { name: 'Rename folder' }))
     const input = screen.getByRole('textbox', { name: 'Folder name' })
     expect(input).toHaveValue('Prelims')
     await fireEvent.input(input, { target: { value: 'Prelims 2026' } })
     await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(renameFolder).toHaveBeenCalledWith('f1', 'Prelims 2026'))
     expect(await screen.findByRole('heading', { name: 'Prelims 2026' })).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Rename folder “Prelims 2026”' })).toHaveFocus())
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Actions for folder “Prelims 2026”' })).toHaveFocus(),
+    )
   })
 
   it('keeps the rename field open and shows the error when the rename fails', async () => {
@@ -300,7 +505,8 @@ describe('DocumentList folders (O2)', () => {
     listDocuments.mockResolvedValue([])
     renameFolder.mockRejectedValue(new Error('API 422: name must be 1-80 characters'))
     render(DocumentList)
-    await fireEvent.click(await screen.findByRole('button', { name: 'Rename folder “Prelims”' }))
+    await fireEvent.click(await screen.findByRole('button', { name: 'Actions for folder “Prelims”' }))
+    await fireEvent.click(await screen.findByRole('menuitem', { name: 'Rename folder' }))
     await fireEvent.input(screen.getByRole('textbox', { name: 'Folder name' }), { target: { value: 'X' } })
     await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('1-80 characters')
@@ -315,15 +521,18 @@ describe('DocumentList folders (O2)', () => {
     ])
     deleteFolder.mockResolvedValue(undefined)
     render(DocumentList)
-    await fireEvent.click(await screen.findByRole('button', { name: 'Delete folder “Prelims 2026”' }))
+    const openDelete = async () => {
+      await fireEvent.click(await screen.findByRole('button', { name: 'Actions for folder “Prelims 2026”' }))
+      await fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete folder…' }))
+      return screen.findByRole('alertdialog', { name: 'Delete the folder “Prelims 2026”?' })
+    }
+    let dialog = await openDelete()
+    expect(dialog).toHaveTextContent('Its 2 papers will move to Unfiled. No paper is deleted.')
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('alertdialog')).toBeNull()
     expect(deleteFolder).not.toHaveBeenCalled()
-    const confirm = screen.getByRole('group', { name: 'Delete folder “Prelims 2026”?' })
-    expect(confirm).toHaveTextContent('Its 2 papers will move to Unfiled. No paper is deleted.')
-    // Cancel keeps it.
-    await fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }))
-    expect(screen.queryByRole('group', { name: /Delete folder/ })).toBeNull()
-    await fireEvent.click(screen.getByRole('button', { name: 'Delete folder “Prelims 2026”' }))
-    await fireEvent.click(screen.getByRole('button', { name: 'Delete folder' }))
+    dialog = await openDelete()
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Delete folder' }))
     await waitFor(() => expect(deleteFolder).toHaveBeenCalledWith('f1'))
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Prelims 2026' })).toBeNull())
     // No folders left: the papers are listed (unfiled), none deleted.
@@ -331,15 +540,5 @@ describe('DocumentList folders (O2)', () => {
     expect(screen.getByRole('link', { name: /P6 Paper 1 Booklet A/ })).toBeInTheDocument()
     expect(deleteDocument).not.toHaveBeenCalled()
     expect(screen.getByRole('status')).toHaveTextContent('Folder “Prelims 2026” deleted. Its papers are in Unfiled.')
-  })
-
-  it('shows a loading state until the papers arrive', async () => {
-    let resolve: (v: unknown) => void = () => {}
-    listDocuments.mockReturnValue(new Promise((r) => (resolve = r)))
-    render(DocumentList)
-    expect(screen.getByText('Loading your papers…')).toBeInTheDocument()
-    resolve([summary('d1', 'Ratio Review')])
-    expect(await screen.findByRole('link', { name: /Ratio Review/ })).toBeInTheDocument()
-    expect(screen.queryByText('Loading your papers…')).toBeNull()
   })
 })

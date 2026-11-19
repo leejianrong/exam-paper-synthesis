@@ -1,9 +1,9 @@
-// O2: the paper list grouped by folder, and which exam-set parts a folder holds.
+// O2: the paper list grouped by folder; the exam-set parts the + New wizard makes.
 
 import type { DocumentSummary } from './doc'
 import type { Folder } from './docsApi'
 
-/** The three papers of an exam set, in the order the chips show them. */
+/** The three papers of an exam set, in exam order. */
 export const PARTS = [
   { key: 'booklet_a', label: 'Booklet A' },
   { key: 'booklet_b', label: 'Booklet B' },
@@ -27,30 +27,9 @@ export const PART_TEMPLATES: Record<PaperPart, string> = {
  */
 export const SET_FILL_ORDER: PaperPart[] = ['paper_2', 'booklet_b', 'booklet_a']
 
-/**
- * Which exam-set part a paper is, read from its title: the fallback when a summary has no
- * server-derived `paper_part` (see `partOf`). The templates and the generator title papers
- * "Paper 1 Booklet A" / "P6 Paper 1 Booklet B" / "P5 Paper 2".
- */
-export function paperPart(title: string): PaperPart | null {
-  if (/\bbooklet\s*a\b/i.test(title)) return 'booklet_a'
-  if (/\bbooklet\s*b\b/i.test(title)) return 'booklet_b'
-  if (/\bpaper\s*(2|two|ii)\b/i.test(title)) return 'paper_2'
-  return null
-}
-
-/**
- * A paper's part: the server's `paper_part` (O3, read from the cover page, so a rename keeps it),
- * else the title. `null` from the server means none (it already tried the title).
- */
-export function partOf(d: DocumentSummary): PaperPart | null {
-  return d.paper_part === undefined ? paperPart(d.title) : d.paper_part
-}
-
 export interface FolderGroup {
   folder: Folder
   docs: DocumentSummary[]
-  parts: Set<PaperPart>
 }
 
 /**
@@ -61,18 +40,26 @@ export function groupByFolder(
   folders: Folder[],
   docs: DocumentSummary[],
 ): { groups: FolderGroup[]; unfiled: DocumentSummary[] } {
-  const groups = folders.map((folder) => ({ folder, docs: [] as DocumentSummary[], parts: new Set<PaperPart>() }))
+  const groups = folders.map((folder) => ({ folder, docs: [] as DocumentSummary[] }))
   const byId = new Map(groups.map((g) => [g.folder.id, g]))
   const unfiled: DocumentSummary[] = []
   for (const d of docs) {
     const g = d.folder_id ? byId.get(d.folder_id) : undefined
-    if (!g) {
-      unfiled.push(d)
-      continue
-    }
-    g.docs.push(d)
-    const part = partOf(d)
-    if (part) g.parts.add(part)
+    if (g) g.docs.push(d)
+    else unfiled.push(d)
   }
   return { groups, unfiled }
+}
+
+/**
+ * EXA-166: does a paper's title match the search box? Every word typed must appear somewhere in
+ * the title, ignoring case and accents; an empty search matches everything.
+ */
+export function titleMatches(title: string, query: string): boolean {
+  const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+  const t = fold(title || 'Untitled paper')
+  return fold(query)
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((w) => t.includes(w))
 }

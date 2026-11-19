@@ -1,43 +1,63 @@
 <script lang="ts">
-  // O2: one folder on "Your papers" — its name, the exam-set chips, rename and delete (inline,
-  // delete asks first and says the papers stay), and its papers (the default slot).
-  import { tick } from 'svelte'
-  import { PARTS, type FolderGroup } from './folders'
+  // O2, reworked for EXA-166: one folder on "Your papers". Its name is a disclosure button that
+  // collapses the folder (the list remembers which); a ⋯ menu holds New paper in folder, Rename
+  // (inline: Enter saves, Escape backs out) and Delete (the list confirms it). While the list is
+  // searched the name is plain text and the folder stays open.
+  import { tick, type Snippet } from 'svelte'
+  import Icon from '../Icon.svelte'
+  import Menu, { type MenuItem } from '../Menu.svelte'
+  import type { FolderGroup } from './folders'
 
-  export let group: FolderGroup
-  export let onRename: (name: string) => Promise<boolean>
-  export let onDelete: () => Promise<void>
-  /** O3: open the + New wizard with this folder as the home for what it makes. */
-  export let onNew: (e: Event) => void
+  let {
+    group,
+    collapsed,
+    collapsible = true,
+    onToggle,
+    onRename,
+    onDelete,
+    onNew,
+    children,
+  }: {
+    group: FolderGroup
+    collapsed: boolean
+    /** False while searching: the folder shows its matches and cannot be collapsed. */
+    collapsible?: boolean
+    onToggle: () => void
+    onRename: (name: string) => Promise<boolean>
+    onDelete: () => void
+    /** O3: open the + New wizard with this folder as the home for what it makes. */
+    onNew: () => void
+    children: Snippet
+  } = $props()
 
-  let renaming = false
-  let name = ''
-  let confirming = false
-  let busy = false
-  let nameInput: HTMLInputElement
-  let renameButton: HTMLButtonElement
-  let deleteButton: HTMLButtonElement
-  let cancelDelete: HTMLButtonElement
+  let renaming = $state(false)
+  let name = $state('')
+  let busy = $state(false)
+  let nameInput: HTMLInputElement | undefined = $state()
+  let menu: { focusTrigger: () => void } | undefined = $state()
 
-  $: f = group.folder
-  $: count = group.docs.length
-  $: headingId = `folder-${f.id}`
+  const f = $derived(group.folder)
+  const count = $derived(group.docs.length)
+  const headingId = $derived(`folder-${f.id}`)
+  const bodyId = $derived(`folder-body-${f.id}`)
+  const papers = (n: number): string => `${n} ${n === 1 ? 'paper' : 'papers'}`
 
   async function startRename() {
-    confirming = false
     name = f.name
     renaming = true
     await tick()
+    nameInput?.focus()
     nameInput?.select()
   }
 
   async function endRename() {
     renaming = false
     await tick()
-    renameButton?.focus()
+    menu?.focusTrigger()
   }
 
-  async function saveRename() {
+  async function saveRename(e: SubmitEvent) {
+    e.preventDefault()
     const trimmed = name.trim()
     if (!trimmed || busy) return
     if (trimmed === f.name) return endRename()
@@ -47,245 +67,226 @@
     if (ok) await endRename()
   }
 
-  async function askDelete() {
-    renaming = false
-    confirming = true
-    await tick()
-    cancelDelete?.focus()
-  }
-
-  async function endDelete() {
-    confirming = false
-    await tick()
-    deleteButton?.focus()
-  }
-
-  async function confirmDelete() {
-    busy = true
-    await onDelete()
-    busy = false
-  }
-
-  const papers = (n: number): string => `${n} ${n === 1 ? 'paper' : 'papers'}`
+  const items: MenuItem[] = $derived([
+    { label: 'New paper in folder…', icon: 'plus', onSelect: onNew },
+    { label: 'Rename folder', icon: 'pen', onSelect: () => void startRename() },
+    { label: 'Delete folder…', icon: 'trash', danger: true, separator: true, onSelect: onDelete },
+  ])
+  const open = $derived(!collapsible || !collapsed)
 </script>
 
 <section class="folder" aria-labelledby={headingId}>
   <div class="fhead">
-    <svg class="ficon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.6l2 2h8.4A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" />
-    </svg>
     {#if renaming}
-      <form class="rename" aria-label={`Rename folder “${f.name}”`} on:submit|preventDefault={saveRename}>
+      <Icon name="folder" />
+      <form class="rename" aria-label={`Rename folder “${f.name}”`} onsubmit={saveRename}>
         <input
           bind:this={nameInput}
           bind:value={name}
           aria-label="Folder name"
           maxlength="80"
           required
-          on:keydown={(e) => e.key === 'Escape' && endRename()}
+          onkeydown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault()
+              void endRename()
+            }
+          }}
         />
-        <button class="act primary" type="submit" disabled={busy || !name.trim()}>Save</button>
-        <button class="act" type="button" on:click={endRename}>Cancel</button>
+        <button class="btn primary" type="submit" disabled={busy || !name.trim()}>Save</button>
+        <button class="btn" type="button" disabled={busy} onclick={endRename}>Cancel</button>
       </form>
       <h2 id={headingId} class="sr">{f.name}</h2>
     {:else}
-      <h2 id={headingId} tabindex="-1">{f.name}</h2>
+      <h2 id={headingId} tabindex="-1">
+        {#if collapsible}
+          <button
+            type="button"
+            class="toggle"
+            aria-expanded={!collapsed}
+            aria-controls={bodyId}
+            title={collapsed ? 'Show the papers' : 'Hide the papers'}
+            onclick={onToggle}
+          >
+            <span class="chev" class:shut={collapsed}><Icon name="down" /></span><Icon name="folder" /><span
+              class="name">{f.name}</span
+            >
+          </button>
+        {:else}
+          <span class="toggle static"><Icon name="folder" /><span class="name">{f.name}</span></span>
+        {/if}
+      </h2>
       <span class="count">{papers(count)}</span>
-      <div class="actions">
-        <button class="act" aria-haspopup="dialog" aria-label={`+ New in folder “${f.name}”`} on:click={onNew}>
-          + New in folder
-        </button>
-        <button class="act" bind:this={renameButton} aria-label={`Rename folder “${f.name}”`} on:click={startRename}>
-          Rename
-        </button>
-        <button class="act danger" bind:this={deleteButton} aria-label={`Delete folder “${f.name}”`} on:click={askDelete}>
-          Delete
-        </button>
-      </div>
     {/if}
+    <span class="end">
+      <Menu bind:this={menu} {items} label={`Actions for folder “${f.name}”`} menuLabel={f.name} align="end" triggerClass="more">
+        {#snippet trigger()}<Icon name="more" />{/snippet}
+      </Menu>
+    </span>
   </div>
 
-  <ul class="chips" aria-label={`Exam set in “${f.name}”`}>
-    {#each PARTS as p (p.key)}
-      {@const on = group.parts.has(p.key)}
-      <li class="chip" class:on data-part={p.key}>
-        {#if on}
-          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 11-11-1.4-1.4z" /></svg>
-        {/if}
-        {p.label}<span class="sr">{on ? ': in this folder' : ': not in this folder yet'}</span>
-      </li>
-    {/each}
-  </ul>
-
-  {#if confirming}
-    <div class="confirm" role="group" aria-label={`Delete folder “${f.name}”?`}>
-      <p>
-        Delete the folder <b>{f.name}</b>?
-        {#if count > 0}Its {papers(count)} will move to Unfiled.{/if} No paper is deleted.
-      </p>
-      <button class="act danger-fill" disabled={busy} on:click={confirmDelete}>Delete folder</button>
-      <button class="act" bind:this={cancelDelete} on:click={endDelete}>Cancel</button>
+  {#if open}
+    <div id={bodyId} class="body">
+      {#if count === 0}
+        <p class="empty">No papers here yet. Make one from this folder’s ⋯ menu, or move a paper in.</p>
+      {:else}
+        {@render children()}
+      {/if}
     </div>
-  {/if}
-
-  {#if count === 0}
-    <p class="empty">No papers in this folder yet. Use <b>+ New in folder</b>, or <b>Move</b> on a paper to file it here.</p>
-  {:else}
-    <slot />
   {/if}
 </section>
 
 <style>
   .folder {
+    background: var(--page);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    background: var(--wash);
-    padding: 0.8rem 0.9rem 0.9rem;
+    border-radius: var(--r-md);
   }
   .fhead {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
-    min-height: 32px;
-  }
-  .ficon {
-    flex: none;
-    fill: var(--ink-faint);
+    gap: var(--s2);
+    min-height: 48px;
+    padding: var(--s2) var(--s2) var(--s2) var(--s2);
+    color: var(--ink-faint);
   }
   h2 {
-    font-family: var(--serif);
-    font-size: 1.05rem;
-    font-weight: 600;
     margin: 0;
-    overflow-wrap: anywhere;
-  }
-  .count {
-    font-size: 12px;
-    color: var(--ink-faint);
-    white-space: nowrap;
-  }
-  .actions {
-    margin-left: auto;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 0.4rem;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    scroll-margin-top: var(--s6);
   }
   h2:focus {
     outline: none;
   }
-  h2 {
-    scroll-margin-top: 1.5rem;
-  }
-  h2:focus-visible {
-    outline: 2px solid var(--verify);
-    outline-offset: 2px;
-  }
-  .rename {
-    flex: 1;
-    display: flex;
-    gap: 0.4rem;
+  .toggle {
+    display: inline-flex;
     align-items: center;
-  }
-  .rename input {
-    flex: 1;
-    min-width: 0;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 var(--s2);
+    border: 0;
+    border-radius: var(--r-sm);
+    background: none;
     font: inherit;
-    font-size: 14px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--page);
-    color: var(--ink);
-    padding: 0.3rem 0.5rem;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
   }
-  .act {
-    font: inherit;
-    font-size: 12px;
-    border: 1px solid var(--line);
-    background: var(--page);
-    border-radius: 6px;
-    padding: 0.25rem 0.6rem;
+  .toggle.static {
+    cursor: default;
+    padding-left: 30px;
+  }
+  .toggle :global(.icon) {
+    flex: none;
+    color: var(--ink-faint);
+  }
+  button.toggle:hover {
+    background: var(--wash);
+  }
+  .toggle:focus-visible {
+    outline: 2px solid var(--verify);
+    outline-offset: 1px;
+  }
+  .name {
+    overflow-wrap: anywhere;
+  }
+  .chev {
+    display: inline-flex;
+    transition: transform 0.12s ease;
+  }
+  .chev.shut {
+    transform: rotate(-90deg);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .chev {
+      transition: none;
+    }
+  }
+  .count {
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+  .end {
+    margin-left: auto;
+    display: inline-flex;
+  }
+  .fhead :global(.more) {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    background: none;
     color: var(--ink-soft);
     cursor: pointer;
   }
-  .act.primary {
-    border-color: var(--verify);
-    background: var(--verify);
-    color: #fff;
+  .fhead :global(.more:hover),
+  .fhead :global(.more[aria-expanded='true']) {
+    background: var(--wash);
+    color: var(--ink);
   }
-  .act.danger {
-    color: var(--mark);
+  .fhead :global(.more:focus-visible) {
+    outline: 2px solid var(--verify);
+    outline-offset: 1px;
   }
-  .act.danger-fill {
-    border-color: var(--mark);
-    background: var(--mark);
-    color: #fff;
+  .body {
+    border-top: 1px solid var(--line-soft);
   }
-  .act:disabled {
-    opacity: 0.6;
-    cursor: default;
+  .rename {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2);
+    align-items: center;
   }
-  .act:focus-visible,
-  .rename input:focus-visible {
+  .rename input {
+    flex: 1 1 10rem;
+    min-width: 0;
+    height: 32px;
+    box-sizing: border-box;
+    font: inherit;
+    font-size: 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--page);
+    color: var(--ink);
+    padding: 0 var(--s2);
+  }
+  .rename input:focus-visible,
+  .btn:focus-visible {
     outline: 2px solid var(--verify);
     outline-offset: 2px;
   }
-
-  /* M3 filter chips on our tokens: 32px tall, 8px corners, an outline when off; filled with the
-     secondary-container analogue (verify-soft) and a leading check when the folder has that part.
-     They report state, so there is no press layer. */
-  .chips {
-    list-style: none;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    padding: 0;
-    margin: 0.55rem 0 0.7rem;
-  }
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    height: 32px;
-    box-sizing: border-box;
-    padding: 0 0.85rem;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: var(--page);
-    color: var(--ink-faint);
+  .btn {
+    font: inherit;
     font-size: 13px;
     font-weight: 600;
-  }
-  .chip.on {
-    border-color: transparent;
-    background: var(--verify-soft);
-    color: var(--verify-ink);
-    padding-left: 0.5rem;
-  }
-  .chip svg {
-    fill: currentColor;
-  }
-
-  .confirm {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem 0.5rem;
-    border: 1px solid var(--mark);
-    background: var(--mark-soft);
-    border-radius: 8px;
-    padding: 0.55rem 0.7rem;
-    margin-bottom: 0.7rem;
-  }
-  .confirm p {
-    flex: 1 1 18rem;
-    margin: 0;
-    font-size: 13px;
+    height: 32px;
+    padding: 0 var(--s3);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--page);
     color: var(--ink);
+    cursor: pointer;
+  }
+  .btn.primary {
+    background: var(--verify);
+    border-color: var(--verify);
+    color: var(--on-accent);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
   .empty {
     margin: 0;
+    padding: var(--s3) var(--s4);
     font-size: 13px;
     color: var(--ink-soft);
   }

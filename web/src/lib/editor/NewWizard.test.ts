@@ -68,11 +68,11 @@ beforeEach(() => {
 })
 
 describe('NewWizard: the first step', () => {
-  it('offers the four choices in order, as named, described cards', async () => {
+  it('offers the four choices in order, exam set first and focused (EXA-166)', async () => {
     open()
     const group = screen.getByRole('group', { name: 'What to make' })
     const cards = within(group).getAllByRole('button')
-    const names = ['New folder', 'Exam set', 'Single paper', 'Blank paper']
+    const names = ['Exam set', 'Single paper', 'Blank paper', 'New folder']
     names.forEach((n, i) => expect(cards[i]).toBe(screen.getByRole('button', { name: n })))
     expect(screen.getByRole('button', { name: 'Exam set' })).toHaveAccessibleDescription(
       'Paper 1 Booklet A, Booklet B and Paper 2 in one folder.',
@@ -94,6 +94,7 @@ describe('NewWizard: the first step', () => {
     await fireEvent.keyDown(cards[0], { key: 'End' })
     expect(cards[3]).toHaveFocus()
     await fireEvent.keyDown(cards[3], { key: 'ArrowLeft' })
+    await fireEvent.keyDown(cards[2], { key: 'ArrowLeft' })
     // A native button turns Enter into a click.
     await fireEvent.click(document.activeElement as HTMLElement)
     expect(within(dialog).getByRole('heading')).toHaveTextContent('Single paper')

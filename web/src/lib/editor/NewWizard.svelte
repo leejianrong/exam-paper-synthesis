@@ -1,6 +1,6 @@
 <script lang="ts">
-  // O3: the "+ New" dialog. Four choices as option cards (new folder, exam set, single paper,
-  // blank paper), then a step or two each. (A separate Template choice made the same papers as
+  // O3: the "+ New" dialog. Four choices as option cards (exam set first and focused, EXA-166;
+  // single paper, blank paper, new folder), then a step or two each. (A separate Template choice made the same papers as
   // Single paper → Start it empty, so it was dropped.) A single paper opens in the editor; an exam
   // set makes its three papers one after the other into one folder (each told the topics of those
   // already made, Paper 2 first, EXA-153, so the set spreads its topics), says which failed (and keeps
@@ -35,10 +35,10 @@
   type Choice = 'folder' | 'set' | 'single' | 'blank'
 
   const CHOICES: { key: Choice; title: string; desc: string }[] = [
-    { key: 'folder', title: 'New folder', desc: 'An empty folder to keep papers together.' },
     { key: 'set', title: 'Exam set', desc: 'Paper 1 Booklet A, Booklet B and Paper 2 in one folder.' },
     { key: 'single', title: 'Single paper', desc: 'One Booklet A, Booklet B or Paper 2: generated, or empty with its cover and sections.' },
     { key: 'blank', title: 'Blank paper', desc: 'An empty paper to write from scratch.' },
+    { key: 'folder', title: 'New folder', desc: 'An empty folder to keep papers together.' },
   ]
   const TITLES: Record<Step, string> = {
     choose: 'New',
@@ -176,7 +176,11 @@
     opts[j].focus()
   }
 
+  // the card last picked: Back returns focus to it
+  let picked: Choice = 'set'
+
   async function choose(c: Choice) {
+    picked = c
     if (c === 'folder') return go('folder')
     if (c === 'set') return go('set-folder')
     if (c === 'single') return go('single')
@@ -327,11 +331,11 @@
     {#if step === 'choose'}
       {#if contextFolder}<p class="lead">Papers go in <b>{contextFolder.name}</b>.</p>{/if}
       <div class="cards" role="group" aria-label="What to make" data-options>
-        {#each CHOICES as c, i (c.key)}
+        {#each CHOICES as c (c.key)}
           <button
             class="card"
             data-opt
-            data-autofocus={i === 0 ? '' : undefined}
+            data-autofocus={c.key === picked ? '' : undefined}
             aria-labelledby={`nw-l-${c.key}`}
             aria-describedby={`nw-d-${c.key}`}
             disabled={busy}

@@ -100,11 +100,16 @@ test('the documents list shows, opens and deletes a paper', async ({ page }) => 
   await page.getByLabel('Paper title').fill('Throwaway')
   await settled(page)
   await page.getByRole('link', { name: 'Back to papers' }).click()
-  const row = page.locator('li.doc', { hasText: 'Throwaway' })
+  const row = page.locator('li.row', { hasText: 'Throwaway' })
   await expect(row).toBeVisible()
-  await row.getByRole('button', { name: 'Delete' }).click()
-  await row.getByRole('button', { name: 'Confirm delete' }).click()
-  await expect(page.locator('li.doc', { hasText: 'Throwaway' })).toHaveCount(0)
+  // EXA-166: Delete is in the row's ⋯ menu, reached by keyboard, and asks in a dialog.
+  await row.getByRole('link', { name: /Throwaway/ }).focus()
+  await page.keyboard.press('Tab')
+  await expect(row.getByRole('button', { name: 'Actions for “Throwaway”' })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await page.getByRole('menu', { name: 'Throwaway' }).getByRole('menuitem', { name: 'Delete…' }).click()
+  await page.getByRole('alertdialog', { name: 'Delete “Throwaway”?' }).getByRole('button', { name: 'Delete paper' }).click()
+  await expect(page.locator('li.row', { hasText: 'Throwaway' })).toHaveCount(0)
 })
 
 test('insert questions from my bank (MCQ and table) into a paper', async ({ page }) => {
