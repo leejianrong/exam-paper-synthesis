@@ -7,6 +7,15 @@ import type { SectionPlacement } from "./doc";
 export type MarksPlacement = "question" | "answer" | "both";
 export const DEFAULT_PLACEMENT: MarksPlacement = "answer";
 
+/** "Marks shown": one vocabulary for the paper setting and each section's (EXA-164). A paper
+ * has no `none`; a section can keep its marks to the header sentence. */
+export const MARKS_SHOWN: Record<SectionPlacement, string> = {
+  none: "In the section header",
+  question: "Beside each question",
+  answer: "After the Ans: line",
+  both: "Both",
+};
+
 /** The paper-wide placement: the setting when it is a known one, else `answer` (engine
  * `paper_placement`). */
 export function paperPlacement(settings: { marks_placement?: unknown } | undefined): MarksPlacement {

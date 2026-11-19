@@ -1,7 +1,7 @@
 # Editor and app UI redesign: research and proposal
 
 Cards: **EXA-159** (answer key clutter), **EXA-160** (editor top bars), **EXA-161** (per-question buttons), plus an app-wide pass the owner asked for.
-Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13) and S4 (EXA-162, section 14).
+Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14) and S6 (EXA-164, section 16).
 
 Research build: worktree off `origin/main` at `f54b92c`, API on :8100 (dev auth, throwaway stores), Vite on :5273. Papers generated with `POST /documents/generate` (P6, seed 11) and through the New dialog (an exam set in a folder).
 
@@ -555,3 +555,59 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
   markup inside an iframe; only the own-answer click is wired there. The exam-set key (S10) is
   still to come.
 
+
+
+---
+
+## 16. S6 as built (EXA-164)
+
+- **On the page.** A section is a compact header (`sections.ts` node view): its title ("Untitled
+  section" in faint ink when it has none), the derived "Questions 16–30 · 40 / 40 marks" (in
+  `--mark` when off target, as before), short cues in faint ink (the mode, "marking margin" when
+  it will print one) and its instructions. The header is an editing aid, not a print preview: a
+  generic title ("Section A", "Booklet 2", "Part B", the engine's `_GENERIC_TITLE`, EXA-139) is
+  not printed, so it shows faint with the cue "title not printed" (`titlePrints`), and the
+  printed marks sentence is not reproduced. The cover is a compact card
+  (`pages.ts`): a "Cover page" caption, then school, exam, and "level · subject · paper" centred,
+  or "Add the school and exam" when empty. Neither has form fields; the inline forms and their
+  CSS are deleted. The blank page keeps its small inline form (not in this slice).
+- **Selecting.** A click on the header or card selects the block (a ProseMirror node selection),
+  as do the arrow keys. The side panel's second tab follows the selection: the question
+  inspector, or the selected section's settings (tab named by its title, else "Section N") or the
+  cover's ("Cover page"); selecting a different one brings that tab forward, as a question did.
+  Only a new selection does: the page counts the author's selections (`settingsPick`, bumped
+  when the selection is not just the previous one mapped through the change), so a section
+  inserted, removed or undone above the selected one moves its place without pulling the panel
+  off the Paper tab.
+  `blockSettings.ts` reads the selection (`selectedSettingsBlock`) and writes a change
+  (`settingsTransaction`), which keeps the block selected so the panel stays on it while you
+  type. The section is found again by its place among the sections, since sections carry no id
+  and the document schema did not change.
+- **Edit and Alt+Enter.** Each header and card has a quiet **Edit** button (shown on hover, focus
+  or when selected, always on touch). It, Alt+Enter on the selected block, and Paper > Cover
+  page… select the block, show the side panel if it was hidden (the S5 toggle, remembered as
+  before) and focus its first field. Escape in the settings goes back to the page with the block
+  still selected. Plain selection while the panel is hidden does not open it; the visible Edit
+  button is the offer. The block-selection guard (EXA-129) now leaves Alt+Enter alone, so it no
+  longer types a new line after the block. Alt+Enter is listed in the shortcut sheet.
+- **Fields.** Section: Title, Instructions, Mode, Marks target, Marks shown, Marking margin, with
+  the range and marks on top. Cover: School, Exam, Level, Subject, Paper, Date, Instructions, For
+  examiner's use table, Parent's signature line, Pad to an even number of pages, and the note on
+  what comes from the paper. Same limits and the same attrs as the old forms.
+- **One "Marks shown".** `MarksShown.svelte` is the control for both the paper and a section, with
+  the labels in `layout.MARKS_SHOWN`: After the Ans: line, Beside each question, Both, and for a
+  section In the section header plus its default: "Same as the paper", or "Multiple choice
+  default" / "Short answer default" for the modes the engine keeps in the header. The section's
+  long "Default: …" option text no longer fits a 300 px panel, so the line under the control says
+  what the choice comes to ("Follows the paper: after the Ans: line."). The paper's control says
+  that sections follow it unless they set their own, and that multiple-choice and short-answer
+  sections show marks in the section header (the engine's `section_placement`).
+- **During a swap or regenerate** the section and cover settings are a disabled `<fieldset>`,
+  and the page ignores any change that still arrives (`opInFlight`): `applyServerContent` would
+  otherwise drop it.
+
+- **Narrow widths.** Below 900 px the panel stacks above the page as before; Edit scrolls to and
+  focuses the field there. No horizontal scroll at 820 px.
+- **Not changed:** a generated paper with no text in it still opens with the cover node-selected
+  (there is nowhere for `startWithTextCursor` to put a caret; this predates S6). The panel shows
+  the Paper tab until you click something, and typing still goes after the cover (EXA-129).

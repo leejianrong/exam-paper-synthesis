@@ -186,12 +186,23 @@ describe('the menu row (EXA-163)', () => {
     expect(document.querySelector('.section-block')).not.toBeNull()
   })
 
-  it('Paper > Cover page… adds a cover and puts the caret in its first field', async () => {
+  it('Paper > Cover page… adds a cover and puts the caret in its first field, in the side panel', async () => {
     serve()
     await open()
     await fireEvent.click(within(await openMenu('Paper')).getByRole('menuitem', { name: 'Cover page…' }))
     await waitFor(() => expect(document.querySelector('.cover-block')).not.toBeNull())
-    await waitFor(() => expect(document.activeElement?.closest('.cover-block')).not.toBeNull())
+    const panel = screen.getByRole('tabpanel', { name: 'Cover page' })
+    await waitFor(() => expect(document.activeElement).toBe(within(panel).getByLabelText('School')))
+  })
+
+  it('Paper > Cover page… shows the side panel when it was hidden', async () => {
+    localStorage.setItem('exam.editor.sidePanel', 'hidden')
+    serve([{ type: 'coverPage', attrs: { school: 'Pandan Primary' } }, { type: 'paragraph' }])
+    await open()
+    expect(screen.queryByRole('complementary', { name: 'Side panel' })).toBeNull()
+    await fireEvent.click(within(await openMenu('Paper')).getByRole('menuitem', { name: 'Cover page…' }))
+    await waitFor(() => expect(document.activeElement).toHaveValue('Pandan Primary'))
+    expect(screen.getByRole('tab', { name: 'Cover page' })).toHaveAttribute('aria-selected', 'true')
   })
 })
 
