@@ -493,8 +493,18 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
   question's row in the printed key opens its answer too.
 - **Header.** The Paper | Answer key switch sits before the marks total (an icon pair below
   1200 px). Below 600 px it hides so the title keeps its room; Menu > View still switches. In the
-  key view the toolbar keeps only + Question, + Section, undo and redo. Keys pressed inside the
-  printed key reach the editor's shortcuts (Ctrl+Alt+K back, Ctrl+P, Ctrl+K).
+  key view the toolbar keeps only + Question, + Section, undo and redo. Anything that puts
+  something into the paper (+ Question, + Section, the Insert menu, Paper > Cover page…,
+  Ctrl+Enter, Ctrl+M) switches to the paper first, so nothing lands unseen in the hidden page.
+  Keys pressed inside the printed key reach the editor's shortcuts (Ctrl+Alt+K back, Ctrl+P,
+  Ctrl+K), and a press inside it closes an open menu as a press anywhere else does.
+- **Stale keys.** Each key on screen remembers the question numbers and own questions it was
+  asked for, so a click or a scroll on it maps to the right question even while a newer key is
+  due. A scroll asked for while a refresh is due or loading waits for the new key (and is
+  dropped if that load fails or the view is left). A key that finishes loading after a newer
+  one never replaces it.
+- **Uploads.** Edit answer… waits for an image still uploading ("Image still uploading…")
+  before Done or Esc closes it, so the image isn't lost.
 - **Not built:** per-row hover actions inside the printed key (a ⋯ on each row). Rows are print
   markup inside an iframe; only the own-answer click is wired there. The exam-set key (S10) is
   still to come.

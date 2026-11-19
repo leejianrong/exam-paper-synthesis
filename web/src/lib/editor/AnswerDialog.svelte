@@ -26,10 +26,21 @@
 
   const parts = $derived(freeformParts(block))
   const stem = $derived((block.content ?? []).filter((c) => c.type !== 'freeformPart'))
+  // Images uploading in each answer editor: Done and Esc wait for them, or the image is lost.
+  let uploading = $state<Record<number, number>>({})
+  let held = $state(false)
+  const busy = $derived(Object.values(uploading).some((n) => n > 0))
+  $effect(() => {
+    if (held && !busy) onClose()
+  })
+  function close() {
+    if (busy) held = true
+    else onClose()
+  }
   const answerOf = (n: DocNode) => (n.attrs?.answer as DocJSON | undefined) ?? { type: 'doc', content: [] }
 </script>
 
-<Dialog title="Answer to question {number}" width="40rem" {onClose}>
+<Dialog title="Answer to question {number}" width="40rem" onClose={close}>
   <div class="qtext" use:typesetMath={blocksToHtml(stem)}>
     <!-- eslint-disable-next-line svelte/no-at-html-tags -- escaped by blocksToHtml -->
     {@html blocksToHtml(stem)}
@@ -48,6 +59,7 @@
           autofocus={i === 0}
           on:error={(e) => onError(e.detail)}
           on:change={(e) => onPartAnswer(i, e.detail.answer)}
+          on:uploading={(e) => (uploading = { ...uploading, [i]: e.detail })}
         />
       </div>
     {/each}
@@ -58,11 +70,13 @@
       autofocus
       on:error={(e) => onError(e.detail)}
       on:change={(e) => onAnswer(e.detail.answer)}
+      on:uploading={(e) => (uploading = { ...uploading, [-1]: e.detail })}
     />
   {/if}
   <p class="note">One line prints after Ans: in the school key. Write more lines for working, and they print as you write them.</p>
   <div class="actions">
-    <button class="done" type="button" onclick={onClose}>Done</button>
+    {#if busy}<span class="wait" role="status">Image still uploading…{held ? ' It closes when the image is in.' : ''}</span>{/if}
+    <button class="done" type="button" onclick={close}>Done</button>
   </div>
 </Dialog>
 
@@ -95,8 +109,14 @@
   }
   .actions {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
+    gap: var(--s3);
     margin-top: var(--s3);
+  }
+  .wait {
+    font-size: 12.5px;
+    color: var(--ink-soft);
   }
   .done {
     height: 32px;

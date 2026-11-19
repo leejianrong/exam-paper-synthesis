@@ -227,6 +227,7 @@
   /** Paper > Cover page…: go to the cover's first field, adding a cover first if there is none. */
   async function openCover() {
     if (!editor) return
+    await toPaper()
     if (!coverPresent) editor.chain().insertContentAt(0, coverNode()).run()
     await nextTick()
     const field = element.querySelector<HTMLElement>('.cover-block input, .cover-block select')
@@ -667,13 +668,27 @@
   $: styleName = act.h1 ? 'Heading 1' : act.h2 ? 'Heading 2' : act.h3 ? 'Heading 3' : 'Normal text'
   const EQUATION_OFF = 'Equation: click into a line of text first, then insert it there'
 
+  /** Anything that puts something into the paper shows the paper first (EXA-162): from the key
+   *  view it would otherwise land, unseen, in the hidden page. On the paper it runs at once. */
+  function onPaper(run: () => void) {
+    if (view === 'paper') run()
+    else void showView('paper').then(run)
+  }
+  const toPaper = () => new Promise<void>((done) => onPaper(done))
+
   /** Run an editor command from a menu and put the caret back in the paper at once. */
   function inPaper(run: (e: Editor) => void) {
-    const e = editor
-    if (!e) return
-    run(e)
-    e.view.focus()
+    onPaper(() => {
+      const e = editor
+      if (!e) return
+      run(e)
+      e.view.focus()
+    })
   }
+
+  /** + Question, Insert > Question…, Ctrl+Enter: the picker, over the paper. */
+  const addQuestion = () => onPaper(() => (pickerAt = null))
+  const pickImage = () => onPaper(() => fileInput.click())
 
   const styleItems: MenuItem[] = [
     { label: 'Normal text', onSelect: () => inPaper((e) => e.chain().setParagraph().run()) },
@@ -696,7 +711,7 @@
       hint: act.inText ? undefined : EQUATION_OFF,
       onSelect: addEquation,
     },
-    { label: 'Image', icon: 'image', onSelect: () => fileInput.click() },
+    { label: 'Image', icon: 'image', onSelect: () => pickImage() },
   ] satisfies MenuItem[]
 
   // EXA-163: the Paper / Insert / View / Help menus under the title (UI-REDESIGN 4.2).
@@ -735,7 +750,7 @@
     {
       label: 'Insert',
       items: [
-        { label: 'Question…', icon: 'plus', shortcut: GLOBAL_KEYS.addQuestion, onSelect: () => (pickerAt = null) },
+        { label: 'Question…', icon: 'plus', shortcut: GLOBAL_KEYS.addQuestion, onSelect: () => addQuestion() },
         {
           label: 'Section',
           icon: 'section',
@@ -758,14 +773,14 @@
           icon: 'pagebreak',
           onSelect: () => inPaper((e) => insertBlockSafely(e, { type: 'pageBreak' })),
         },
-        { label: 'Image…', icon: 'image', separator: true, onSelect: () => fileInput.click() },
+        { label: 'Image…', icon: 'image', separator: true, onSelect: () => pickImage() },
         {
           label: 'Equation',
           icon: 'sigma',
           shortcut: GLOBAL_KEYS.equation,
           disabled: !act.inText,
           hint: act.inText ? undefined : EQUATION_OFF,
-          onSelect: addEquation,
+          onSelect: () => onPaper(addEquation),
         },
       ],
     },
@@ -854,13 +869,13 @@
 
   function runGlobal(cmd: GlobalCommand) {
     if (cmd === 'palette') openPalette()
-    else if (cmd === 'addQuestion') pickerAt = null
+    else if (cmd === 'addQuestion') addQuestion()
     else if (cmd === 'answerKey') toggleView()
     else if (cmd === 'preview') {
       if (!busy) void preview('full')
     } else if (cmd === 'panel') void setPanel(!panelShown)
     else if (cmd === 'sheet') sheetOpen = true
-    else if (cmd === 'equation' && act.inText) addEquation()
+    else if (cmd === 'equation') onPaper(() => act.inText && addEquation())
   }
 
   async function download(mode: ExportMode, allowPlaceholders = false) {
@@ -1023,12 +1038,12 @@
       class="btn quiet"
       title="Add a question ({keyLabel(GLOBAL_KEYS.addQuestion)})"
       aria-keyshortcuts={ariaKeys(GLOBAL_KEYS.addQuestion)}
-      on:click={() => (pickerAt = null)}><Icon name="plus" />Question</button
+      on:click={() => addQuestion()}><Icon name="plus" />Question</button
     >
     <button
       class="btn quiet"
       title="Insert a section"
-      on:click={() => editor && insertBlockSafely(editor, { type: 'section', attrs: { title: '' } })}
+      on:click={() => inPaper((e) => insertBlockSafely(e, { type: 'section', attrs: { title: '' } }))}
       ><Icon name="plus" />Section</button
     >
     <span class="sep"></span>

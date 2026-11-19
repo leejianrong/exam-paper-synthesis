@@ -19,7 +19,20 @@
   /** Put the caret in it once it opens (the Edit answer dialog). */
   export let autofocus = false
 
-  const dispatch = createEventDispatcher<{ change: { answer: DocJSON }; error: string }>()
+  const dispatch = createEventDispatcher<{ change: { answer: DocJSON }; error: string; uploading: number }>()
+
+  // Images still on their way up (picked, pasted or dropped): the image goes into the answer only
+  // once its upload lands, so the dialog around it waits for them before it closes.
+  let uploads = 0
+  async function upload(f: File) {
+    dispatch('uploading', ++uploads)
+    try {
+      return await uploadAsset(f, f.name)
+    } finally {
+      // after the caller has put the image in (it resumes once this returns)
+      setTimeout(() => dispatch('uploading', --uploads))
+    }
+  }
 
   // An answer holds paragraphs, lists and images (no headings, no free-form blocks).
   const AnswerDocument = Node.create({ name: 'doc', topNode: true, content: '(block | media)+' })
@@ -55,7 +68,7 @@
         ImageBlock,
         MathNode,
         ImageUpload.configure({
-          upload: (f: File) => uploadAsset(f, f.name),
+          upload,
           onError: (m: string) => dispatch('error', m),
         }),
         StarterKit.configure({
@@ -105,7 +118,7 @@
     if (fileInput) fileInput.value = ''
     if (editor)
       await uploadAndInsert(editor, files, {
-        upload: (f) => uploadAsset(f, f.name),
+        upload,
         onError: (m) => dispatch('error', m),
       })
   }

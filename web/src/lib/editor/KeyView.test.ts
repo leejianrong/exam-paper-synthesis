@@ -125,6 +125,128 @@ describe('the answer key view (EXA-162)', () => {
   })
 })
 
+/** A deferred load(): each call waits until the test settles it. */
+function deferredLoads() {
+  const pending: Array<{ resolve: (html: string) => void; reject: (e: Error) => void }> = []
+  const load = vi.fn(() => new Promise<string>((resolve, reject) => pending.push({ resolve, reject })))
+  return { load, pending }
+}
+
+/** jsdom draws no srcdoc: put the printed key's markup into the frame on screen by hand. */
+function draw(html: string) {
+  const frame = document.querySelector<HTMLIFrameElement>('iframe.ready')!
+  frame.contentDocument!.body.innerHTML = html
+  return frame.contentDocument!
+}
+const WORKED_KEY = '<ol class="questions"><li class="question">first</li><li class="question">second</li></ol>'
+
+describe('the answer key view keeps up with the paper (review of #242)', () => {
+  it('a slower, older response that lands after a newer one never replaces it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const { load, pending } = deferredLoads()
+    const { view } = setup({ load })
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1))
+    pending[0].resolve('<p>KEY 1</p>')
+    await waitFor(() => expect(frames()).toHaveLength(1))
+    await view.rerender({ revision: 2 })
+    await vi.advanceTimersByTimeAsync(KEY_REFRESH_MS + 10)
+    await view.rerender({ revision: 3 })
+    await vi.advanceTimersByTimeAsync(KEY_REFRESH_MS + 10)
+    expect(load).toHaveBeenCalledTimes(3)
+    pending[2].resolve('<p>KEY 3</p>')
+    await waitFor(() => expect(frames().map((f) => f.getAttribute('srcdoc'))).toEqual(['<p>KEY 3</p>']))
+    pending[1].resolve('<p>KEY 2</p>')
+    await vi.advanceTimersByTimeAsync(50)
+    expect(frames().map((f) => f.getAttribute('srcdoc'))).toEqual(['<p>KEY 3</p>'])
+  })
+
+  it('a failed update keeps the old key on screen and says it did not update', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const { load, pending } = deferredLoads()
+    const { view } = setup({ load })
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1))
+    pending[0].resolve('<p>KEY 1</p>')
+    await waitFor(() => expect(document.querySelector('iframe.ready')).not.toBeNull())
+    await view.rerender({ revision: 2 })
+    await vi.advanceTimersByTimeAsync(KEY_REFRESH_MS + 10)
+    // the old key stays while the new one is asked for
+    expect(screen.getByText('Updating…')).toBeInTheDocument()
+    pending[1].reject(new Error('API 500: boom'))
+    expect(await screen.findByRole('alert')).toHaveTextContent("The answer key didn't update")
+    expect(frames().map((f) => f.getAttribute('srcdoc'))).toEqual(['<p>KEY 1</p>'])
+    expect(screen.queryByText('Updating…')).toBeNull()
+  })
+
+  it('after a failed first load, edits wait for the pause instead of asking on every keystroke', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const { load, pending } = deferredLoads()
+    const { view } = setup({ load })
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1))
+    pending[0].reject(new Error('offline'))
+    await screen.findByRole('alert')
+    await view.rerender({ revision: 2 })
+    await view.rerender({ revision: 3 })
+    await vi.advanceTimersByTimeAsync(KEY_REFRESH_MS - 100)
+    expect(load).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(200)
+    expect(load).toHaveBeenCalledTimes(2)
+  })
+
+  it('waits while the paper is being rewritten (paused), then loads', async () => {
+    const { load, view } = setup({ paused: true })
+    await new Promise((r) => setTimeout(r, 50))
+    expect(load).not.toHaveBeenCalled()
+    await view.rerender({ paused: false })
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1))
+  })
+
+  it('a click reads the numbers the key on screen was made with, not the paper as it is now', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    // worked solutions for questions 1 and 3 (2 was left out); 3 is the teacher's own
+    const { view, answer } = setup({
+      options: keyOptionsOf(undefined),
+      numbers: [1, 3],
+      own: [{ n: 3, blockId: 'b3', written: true }],
+    })
+    await waitFor(() => expect(document.querySelector('iframe.ready')).not.toBeNull())
+    const d = draw(WORKED_KEY)
+    // question 2 is included again: until the new key is in, the second solution is still 3's
+    await view.rerender({
+      revision: 2,
+      numbers: [1, 2, 3],
+      own: [
+        { n: 2, blockId: 'b2', written: true },
+        { n: 3, blockId: 'b3', written: true },
+      ],
+    })
+    await fireEvent.click(d.querySelectorAll('li')[1])
+    expect(answer).toHaveBeenCalledWith('b3')
+    expect(answer).not.toHaveBeenCalledWith('b2')
+  })
+
+  it('a scroll waits for the new key while one is due, and goes straight to the row when the key is current', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const scrollTo = vi.fn()
+    vi.stubGlobal('scrollTo', scrollTo)
+    try {
+      const { view } = setup({ options: keyOptionsOf(undefined), numbers: [1, 3] })
+      await waitFor(() => expect(document.querySelector('iframe.ready')).not.toBeNull())
+      await waitFor(() => expect(screen.queryByText('Updating…')).toBeNull())
+      draw(WORKED_KEY)
+      const kv = view.component as unknown as { scrollToQuestion: (n: number, m?: number) => boolean }
+      expect(kv.scrollToQuestion(3)).toBe(true)
+      expect(scrollTo).toHaveBeenCalledTimes(1)
+      // an edit is waiting to be drawn: the key on screen may number things differently
+      await view.rerender({ revision: 2, numbers: [1, 2, 3] })
+      // (on the old key, the second solution would be taken for question 2)
+      expect(kv.scrollToQuestion(2)).toBe(false)
+      expect(scrollTo).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})
+
 describe('reading the printed key (keyRows)', () => {
   const doc = (html: string) => new DOMParser().parseFromString(html, 'text/html')
   const SCHOOL_KEY = doc(

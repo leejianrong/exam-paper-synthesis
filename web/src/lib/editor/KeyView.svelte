@@ -68,6 +68,10 @@
     id: number
     html: string
     ready: boolean
+    /** What the paper's numbers and own questions were when this key was asked for: a click or
+     *  a scroll on this key reads these, never the paper as it is now (it may have moved on). */
+    numbers: number[]
+    own: Array<KeyQuestion & { written: boolean }>
   }
   // The key on screen, and the next one while it loads (hidden until it has drawn).
   let frames = $state<Frame[]>([])
@@ -89,9 +93,10 @@
     const delay = untrack(() => {
       const opened = on && !wasActive
       wasActive = on
+      if (!on) pendingScroll = null // a scroll asked for on the way in no longer applies
       if (!on || r === shown) return null
       // straight away when the view opens; a moment after the last edit while it is open
-      return opened || !frames.length ? 0 : KEY_REFRESH_MS
+      return opened ? 0 : KEY_REFRESH_MS
     })
     if (delay === null) return
     const t = setTimeout(() => void refresh(r), delay)
@@ -105,12 +110,15 @@
     shown = r
     loading = true
     error = ''
+    // the paper this key is for: load() saves exactly this before it asks
+    const asked = { numbers: [...numbers], own: own.map((q) => ({ ...q })) }
     try {
       const html = await load()
       if (mine !== token) return
-      frames = [...frames.filter((f) => f.ready).slice(-1), { id: ++seq, html, ready: false }]
+      frames = [...frames.filter((f) => f.ready).slice(-1), { id: ++seq, html, ready: false, ...asked }]
     } catch (e) {
       if (mine !== token) return
+      pendingScroll = null
       error = e instanceof Error ? e.message : String(e)
     } finally {
       if (mine === token) loading = false
@@ -126,6 +134,8 @@
   }
 
   function onLoad(f: Frame, e: Event) {
+    // a key replaced before it finished loading must not take the screen from a newer one
+    if (!frames.some((x) => x.id === f.id)) return
     const frame = e.currentTarget as HTMLIFrameElement
     measure(frame)
     frames = frames.filter((x) => x.id >= f.id).map((x) => (x.id === f.id ? { ...x, ready: true } : x))
@@ -139,14 +149,16 @@
       observer.observe(d.documentElement)
     }
     d.addEventListener('keydown', (ev) => onKey(ev), true)
+    // a press in the key closes the page's open menus, as a press anywhere else on the page does
+    d.addEventListener('pointerdown', () => frame.dispatchEvent(new Event('pointerdown', { bubbles: true })))
     d.addEventListener('click', (ev) => {
-      const n = keyRowNumber(ev.target as Element, numbers)
-      const mine = own.find((q) => q.n === n)
+      const n = keyRowNumber(ev.target as Element, f.numbers)
+      const mine = f.own.find((q) => q.n === n)
       if (mine) onEditAnswer(mine.blockId)
     })
     // a teacher's own answers are written here: their rows open the answer on a click
-    for (const q of own) {
-      const row = findKeyRow(d, q.n, numbers)
+    for (const q of f.own) {
+      const row = findKeyRow(d, q.n, f.numbers)
       if (!row) continue
       const table = row.closest('table')
       // a worked solution, a grid column head, a label and its answer, or a whole table row
@@ -165,21 +177,28 @@
       const { n, margin } = pendingScroll
       pendingScroll = null
       // once the page has grown to the new key's height
-      void tick().then(() => scrollToQuestion(n, margin, frame))
+      void tick().then(() => scrollTo(frame, f, n, margin))
     }
   }
 
   let frameHost: HTMLElement | undefined = $state()
 
   /** Bring question `n`'s row to the top of the window, under a header `margin` px tall. True
-   *  when the key on screen has it; otherwise it is done once the next key has loaded. */
-  export function scrollToQuestion(n: number, margin = 0, loaded?: HTMLIFrameElement): boolean {
-    const frame = loaded ?? frameHost?.querySelector<HTMLIFrameElement>('iframe.ready')
-    const row = frame?.contentDocument ? findKeyRow(frame.contentDocument, n, numbers) : null
-    if (!frame || !row) {
-      pendingScroll = frame && visible ? null : { n, margin }
+   *  when the key on screen is up to date and has it. While a newer key is due or loading, the
+   *  key on screen may number things differently: the scroll waits for the new key. */
+  export function scrollToQuestion(n: number, margin = 0): boolean {
+    pendingScroll = null
+    const frame = frameHost?.querySelector<HTMLIFrameElement>('iframe.ready')
+    if (!frame || !visible || loading || revision !== shown) {
+      pendingScroll = { n, margin }
       return false
     }
+    return scrollTo(frame, visible, n, margin)
+  }
+
+  function scrollTo(frame: HTMLIFrameElement, f: Frame, n: number, margin: number): boolean {
+    const row = frame.contentDocument ? findKeyRow(frame.contentDocument, n, f.numbers) : null
+    if (!row) return false
     const top = frame.getBoundingClientRect().top + row.getBoundingClientRect().top + window.scrollY
     window.scrollTo?.({ top: Math.max(0, top - margin - 16) })
     return true
