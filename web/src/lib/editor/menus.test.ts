@@ -426,7 +426,7 @@ describe('the command palette (Ctrl+K)', () => {
 
   it("lists the selected question's actions by name and runs them", async () => {
     serve([questionNode(makeQuestion({ id: 'a' }, 'Share the sweets.'))])
-    routes.push([/\/edit\/make-harder$/, 'POST', () => ({ body: makeQuestion({ id: 'h', blueprint_code: 'ratio_hard' }, 'A harder one.') })])
+    routes.push([/\/edit\/make-harder$/, 'POST', () => ({ body: { question: makeQuestion({ id: 'h', blueprint_code: 'ratio_hard' }, 'A harder one.') } })])
     await open()
     const block = (await screen.findByText('Share the sweets.')).closest('.qblock') as HTMLElement
     await fireEvent.click(block)
@@ -439,6 +439,7 @@ describe('the command palette (Ctrl+K)', () => {
     expect(opts[0]).toHaveTextContent('Make harder Question 1 ]')
     await key({ key: 'Enter' }, box)
     await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => /\/edit\/make-harder$/.test(u))).toBe(true))
+    expect(await screen.findByText('A harder one.')).toBeInTheDocument()
   })
 
   it('hides the question actions when no question is selected', async () => {
