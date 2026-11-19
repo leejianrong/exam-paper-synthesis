@@ -3,7 +3,14 @@
   import Icon from '../Icon.svelte'
   import Menu, { type MenuItem } from '../Menu.svelte'
   import ConfirmDialog from '../ConfirmDialog.svelte'
+  import Dialog from '../Dialog.svelte'
+  import MenuBar, { type BarMenu } from '../MenuBar.svelte'
+  import { ariaKeys, keyLabel } from '../keys'
+  import { navigate } from '../router'
   import EditorBar from './EditorBar.svelte'
+  import CommandPalette from './CommandPalette.svelte'
+  import MoveDialog from './MoveDialog.svelte'
+  import ShortcutSheet from './ShortcutSheet.svelte'
   import SidePanel, { type SectionRow } from './SidePanel.svelte'
   import { describePage, summarisePages, type PageSummary } from './pageSummary'
   import { paperSettings } from './paperSettings'
@@ -37,15 +44,19 @@
   } from './doc'
   import {
     ApiError,
+    createDocument,
+    deleteDocument,
     exportDocument,
     getDocument,
     listFolders,
+    moveDocument,
     previewDocument,
     regeneratePaper,
     saveDocument,
     swapQuestion,
     unfilledDetail,
     type ExportMode,
+    type Folder,
     type SwapMode,
   } from './docsApi'
   import { FreeformQuestion, QuestionDocument, insertFreeform } from './freeformQuestion'
@@ -68,7 +79,14 @@
   import { Section, outline } from './sections'
   import { loadQuota, type Quota } from '../session'
   import { TemplatedQuestion, questionNode } from './templatedQuestion'
-  import { BlockShortcuts } from './shortcuts'
+  import {
+    BlockShortcuts,
+    GLOBAL_KEYS,
+    commandsForBlock,
+    globalShortcut,
+    type Command,
+    type GlobalCommand,
+  } from './shortcuts'
 
   export let id: string
 
@@ -99,12 +117,36 @@
   let barH = 0 // the sticky top bar's height: the formatting toolbar sticks just below it
   let tick = 0 // bumps on every editor transaction so toolbar state re-reads
   let folderName: string | null = null
+  let folderId: string | null = null
   let titleInput: HTMLInputElement
   let panelTab: 'paper' | 'question' = 'paper'
   let confirmRegen = false
   let innerWidth = 1440
   /** Below 1024 px the toolbar's tail (lists, equation, image) moves into its ⋯ menu. */
   $: narrow = innerWidth < 1024
+  /** Below 900 px the menu row folds into one "Menu" button. */
+  $: compactMenus = innerWidth < 900
+
+  // EXA-163: the menus' dialogs and the side panel's visibility (remembered per viewer).
+  const PANEL_KEY = 'exam.editor.sidePanel'
+  let panelShown = readPanelShown()
+  let paletteOpen = false
+  let paletteCommands: Command[] = []
+  let sheetOpen = false
+  let verifiedOpen = false
+  let moveFolders: Folder[] | null = null
+  let moveError = ''
+  let confirmDelete = false
+  let deleteError = ''
+  let keyEl: HTMLElement
+
+  function readPanelShown(): boolean {
+    try {
+      return localStorage.getItem(PANEL_KEY) !== 'hidden'
+    } catch {
+      return true
+    }
+  }
 
   $: blocks = numberedNodes(content)
   $: marks = totalMarks(content)
@@ -147,11 +189,130 @@
 
   /** The header's "N placeholders to write": the Paper tab's Generated paper group. */
   async function showPlaceholders() {
+    if (!panelShown) await setPanel(true)
     panelTab = 'paper'
     await nextTick()
     const group = document.getElementById('panel-generated')
     group?.scrollIntoView?.({ block: 'nearest' })
     group?.focus()
+  }
+
+  async function setPanel(shown: boolean) {
+    const hadFocus = !shown && !!document.activeElement?.closest('.panel')
+    panelShown = shown
+    try {
+      localStorage.setItem(PANEL_KEY, shown ? 'shown' : 'hidden')
+    } catch {
+      // private window or blocked storage: the choice lasts for this visit
+    }
+    if (hadFocus) {
+      await nextTick()
+      editor?.view.focus()
+    }
+  }
+
+  /** Paper > Paper settings…: the side panel's Paper tab, shown if it was hidden. */
+  async function openPaperSettings() {
+    if (!panelShown) await setPanel(true)
+    panelTab = 'paper'
+    await nextTick()
+    document.getElementById('tab-paper')?.focus()
+  }
+
+  /** Paper > Cover page…: go to the cover's first field, adding a cover first if there is none. */
+  async function openCover() {
+    if (!editor) return
+    if (!coverPresent) editor.chain().insertContentAt(0, coverNode()).run()
+    await nextTick()
+    const field = element.querySelector<HTMLElement>('.cover-block input, .cover-block select')
+    field?.scrollIntoView?.({ block: 'center' })
+    field?.focus()
+  }
+
+  /** View > Paper / Answer key. The key sits under the paper for now (S4 makes it a view). */
+  let view: 'paper' | 'key' = 'paper'
+  function showView(to: 'paper' | 'key') {
+    view = to
+    if (to === 'key') {
+      keyEl?.scrollIntoView?.({ block: 'start' })
+      keyEl?.focus({ preventScroll: true })
+    } else {
+      editor?.view.focus()
+      window.scrollTo?.({ top: 0 })
+    }
+  }
+
+  /** Ctrl+Alt+K: to the key, or back to the paper when the key is already on screen. */
+  function toggleView() {
+    // at the key: focus is in it, or it was the last view asked for and is still on screen
+    const onScreen = !!keyEl && keyEl.getBoundingClientRect().top < window.innerHeight
+    showView(keyEl?.contains(document.activeElement) || (view === 'key' && onScreen) ? 'paper' : 'key')
+  }
+
+  async function openMove() {
+    moveError = ''
+    try {
+      moveFolders = await listFolders()
+    } catch (e) {
+      actionError = e instanceof Error ? e.message : String(e)
+    }
+  }
+
+  async function moveTo(folder: string | null) {
+    if (busy) return // another operation (an export, say) owns busy until it ends
+    moveError = ''
+    busy = 'move'
+    try {
+      await moveDocument(id, folder)
+      const name = moveFolders?.find((f) => f.id === folder)?.name ?? null
+      folderId = folder
+      folderName = name
+      moveFolders = null
+      notice = name ? `Moved to ${name}.` : 'Moved out of its folder: the paper is unfiled.'
+    } catch (e) {
+      moveError = e instanceof Error ? e.message : String(e)
+    } finally {
+      busy = ''
+    }
+  }
+
+  /** Paper > Make a copy: a new paper with this one's content and settings, opened at once. */
+  async function makeCopy() {
+    const ed = editor
+    if (!ed || busy) return
+    busy = 'copy'
+    actionError = ''
+    let made: string | null = null
+    try {
+      await autosaver?.flush()
+      const name = `Copy of ${title || 'Untitled paper'}`
+      const rec = await createDocument(name, undefined, folderId)
+      made = rec.id
+      await saveDocument(rec.id, buildDocument(name, ed.getJSON() as DocJSON, $paperSettings), rec.version)
+      navigate(`/docs/${rec.id}`)
+    } catch (e) {
+      // the copy exists but is empty: take it away again rather than leave a blank "Copy of …"
+      if (made) await deleteDocument(made).catch(() => {})
+      actionError = e instanceof Error ? e.message : String(e)
+    } finally {
+      busy = ''
+    }
+  }
+
+  async function deletePaper() {
+    if (busy) return
+    busy = 'delete'
+    deleteError = ''
+    try {
+      await deleteDocument(id)
+      autosaver?.dispose() // nothing left to save to
+      confirmDelete = false
+      navigate('/')
+    } catch (e) {
+      deleteError = e instanceof Error ? e.message : String(e)
+    } finally {
+      busy = ''
+    }
   }
 
   function rename() {
@@ -216,6 +377,8 @@
   }
 
   onMount(async () => {
+    // capture: ahead of the editor's own keys (its Ctrl+Enter line break, say)
+    window.addEventListener('keydown', onGlobalKey, true)
     void loadQuota().then((q) => (quota = q))
     try {
       const rec = await getDocument(id)
@@ -225,6 +388,7 @@
         ...(rec.document.settings ?? {}),
       })
       content = rec.document.content
+      folderId = rec.folder_id ?? null
       if (rec.folder_id) {
         const folder = rec.folder_id
         void listFolders()
@@ -304,6 +468,7 @@
   })
 
   onDestroy(() => {
+    window.removeEventListener('keydown', onGlobalKey, true)
     clearTimeout(deletedTimer)
     void autosaver?.flush()
     unsubscribe?.()
@@ -486,43 +651,179 @@
     })),
   ]
 
-  // The toolbar's ⋯: page-level inserts for now (S5 moves them to the Insert menu), plus the
-  // toolbar's tail when the window is narrow.
+  // The toolbar's ⋯ holds its tail (lists, equation, image) on a narrow window only; the
+  // page-level inserts live in the Insert menu (EXA-163).
   $: moreItems = [
-    ...(narrow
-      ? ([
-          { label: 'Bulleted list', icon: 'bullets', onSelect: () => inPaper((e) => e.chain().toggleBulletList().run()) },
-          { label: 'Numbered list', icon: 'numbers', onSelect: () => inPaper((e) => e.chain().toggleOrderedList().run()) },
-          {
-            label: 'Equation',
-            icon: 'sigma',
-            disabled: !act.inText,
-            hint: act.inText ? undefined : EQUATION_OFF,
-            onSelect: addEquation,
-          },
-          { label: 'Image', icon: 'image', onSelect: () => fileInput.click() },
-        ] satisfies MenuItem[])
-      : []),
+    { label: 'Bulleted list', icon: 'bullets', onSelect: () => inPaper((e) => e.chain().toggleBulletList().run()) },
+    { label: 'Numbered list', icon: 'numbers', onSelect: () => inPaper((e) => e.chain().toggleOrderedList().run()) },
     {
-      label: 'Cover page',
-      icon: 'cover',
-      separator: narrow,
-      disabled: coverPresent,
-      hint: coverPresent ? 'The paper already has a cover page' : 'Add a cover page at the start',
-      onSelect: () => inPaper((e) => e.chain().insertContentAt(0, coverNode()).run()),
+      label: 'Equation',
+      icon: 'sigma',
+      shortcut: GLOBAL_KEYS.equation,
+      disabled: !act.inText,
+      hint: act.inText ? undefined : EQUATION_OFF,
+      onSelect: addEquation,
     },
-    {
-      label: 'Blank page',
-      icon: 'blankpage',
-      hint: 'Insert a blank or rough-work page',
-      onSelect: () => inPaper((e) => insertBlockSafely(e, blankPageNode())),
-    },
-    {
-      label: 'Page break',
-      icon: 'pagebreak',
-      onSelect: () => inPaper((e) => insertBlockSafely(e, { type: 'pageBreak' })),
-    },
+    { label: 'Image', icon: 'image', onSelect: () => fileInput.click() },
   ] satisfies MenuItem[]
+
+  // EXA-163: the Paper / Insert / View / Help menus under the title (UI-REDESIGN 4.2).
+  $: idle = !busy
+  $: barMenus = [
+    {
+      label: 'Paper',
+      items: [
+        { label: 'Paper settings…', icon: 'settings', onSelect: openPaperSettings },
+        {
+          label: 'Cover page…',
+          icon: 'cover',
+          hint: coverPresent ? 'Go to the cover page' : 'Add a cover page at the start and fill it in',
+          onSelect: () => void openCover(),
+        },
+        {
+          label: regenInfo ? `Regenerate ${plural(regenInfo.unlocked, 'unlocked question')}…` : 'Regenerate unlocked questions…',
+          icon: 'swap',
+          disabled: !regenInfo || !idle,
+          hint: regenInfo ? 'New questions in every unlocked place; locked ones stay' : 'Only a generated paper can be regenerated',
+          onSelect: () => (confirmRegen = true),
+        },
+        { label: 'Rename', icon: 'pen', separator: true, onSelect: rename },
+        { label: 'Move to folder…', icon: 'folder', disabled: !idle, onSelect: () => void openMove() },
+        { label: 'Make a copy', icon: 'copy', disabled: !idle, onSelect: () => void makeCopy() },
+        {
+          label: 'Delete paper…',
+          icon: 'trash',
+          danger: true,
+          separator: true,
+          disabled: !idle,
+          onSelect: () => (confirmDelete = true),
+        },
+      ],
+    },
+    {
+      label: 'Insert',
+      items: [
+        { label: 'Question…', icon: 'plus', shortcut: GLOBAL_KEYS.addQuestion, onSelect: () => (pickerAt = null) },
+        {
+          label: 'Section',
+          icon: 'section',
+          onSelect: () => inPaper((e) => insertBlockSafely(e, { type: 'section', attrs: { title: '' } })),
+        },
+        {
+          label: 'Cover page',
+          icon: 'cover',
+          disabled: coverPresent,
+          hint: coverPresent ? 'The paper already has a cover page' : 'Add a cover page at the start',
+          onSelect: () => inPaper((e) => e.chain().insertContentAt(0, coverNode()).run()),
+        },
+        {
+          label: 'Blank or rough-work page',
+          icon: 'blankpage',
+          onSelect: () => inPaper((e) => insertBlockSafely(e, blankPageNode())),
+        },
+        {
+          label: 'Page break',
+          icon: 'pagebreak',
+          onSelect: () => inPaper((e) => insertBlockSafely(e, { type: 'pageBreak' })),
+        },
+        { label: 'Image…', icon: 'image', separator: true, onSelect: () => fileInput.click() },
+        {
+          label: 'Equation',
+          icon: 'sigma',
+          shortcut: GLOBAL_KEYS.equation,
+          disabled: !act.inText,
+          hint: act.inText ? undefined : EQUATION_OFF,
+          onSelect: addEquation,
+        },
+      ],
+    },
+    {
+      label: 'View',
+      items: [
+        { label: 'Paper', icon: 'blankpage', onSelect: () => showView('paper') },
+        { label: 'Answer key', icon: 'key', shortcut: GLOBAL_KEYS.answerKey, onSelect: () => showView('key') },
+        {
+          label: 'Preview pages',
+          icon: 'eye',
+          shortcut: GLOBAL_KEYS.preview,
+          separator: true,
+          disabled: !idle,
+          onSelect: () => void preview('full'),
+        },
+        {
+          label: 'Show side panel',
+          shortcut: GLOBAL_KEYS.panel,
+          checked: panelShown,
+          onSelect: () => void setPanel(!panelShown),
+        },
+      ],
+    },
+    {
+      label: 'Help',
+      items: [
+        { label: 'Keyboard shortcuts', icon: 'keyboard', shortcut: GLOBAL_KEYS.sheet, onSelect: () => (sheetOpen = true) },
+        { label: 'What “verified” means', icon: 'info', onSelect: () => (verifiedOpen = true) },
+      ],
+    },
+  ] satisfies BarMenu[]
+
+  /** Everything the palette can run now: the selected question's rows, then every menu row
+   *  and the exports. Rows that don't apply (disabled) are left out. */
+  function collectCommands(): Command[] {
+    const block = selectedId ? element?.querySelector(`[data-block-id="${CSS.escape(selectedId)}"]`) : null
+    const rows: Command[] = commandsForBlock(block)
+    for (const m of barMenus) {
+      for (const item of m.items as MenuItem[]) {
+        if (item.disabled) continue
+        const label = item.checked ? item.label.replace(/^Show/, 'Hide') : item.label
+        rows.push({ label, group: m.label, shortcut: item.shortcut, run: item.onSelect })
+      }
+    }
+    if (!busy) {
+      rows.push(
+        { label: 'Export student paper (PDF)', group: 'Export', run: () => void download('student') },
+        ...(blocks.length ? [{ label: 'Export answer key (PDF)', group: 'Export', run: () => void download('key') }] : []),
+        { label: 'Export paper and key together (PDF)', group: 'Export', run: () => void download('full') },
+      )
+    }
+    return rows
+  }
+
+  function openPalette() {
+    paletteCommands = collectCommands()
+    paletteOpen = true
+  }
+
+  async function runCommand(c: Command) {
+    paletteOpen = false
+    await nextTick() // the palette is gone and focus is back where it was
+    c.run()
+  }
+
+  /** The editor-wide shortcuts (shortcuts.ts GLOBAL_KEYS). Inside the editor Ctrl+P previews the
+   *  paper instead of printing this screen. */
+  function onGlobalKey(e: KeyboardEvent) {
+    if (loading || loadError || !editor) return
+    const t = e.target as HTMLElement | null
+    const cmd = globalShortcut(e, !!t?.matches?.('input, textarea, select'))
+    if (!cmd) return
+    e.preventDefault()
+    // an open dialog (the picker, a confirmation, the palette itself) keeps the keyboard
+    if (document.querySelector('[aria-modal="true"]') || busy === 'paper') return
+    e.stopPropagation()
+    runGlobal(cmd)
+  }
+
+  function runGlobal(cmd: GlobalCommand) {
+    if (cmd === 'palette') openPalette()
+    else if (cmd === 'addQuestion') pickerAt = null
+    else if (cmd === 'answerKey') toggleView()
+    else if (cmd === 'preview') {
+      if (!busy) void preview('full')
+    } else if (cmd === 'panel') void setPanel(!panelShown)
+    else if (cmd === 'sheet') sheetOpen = true
+    else if (cmd === 'equation' && act.inText) addEquation()
+  }
 
   async function download(mode: ExportMode, allowPlaceholders = false) {
     busy = `export-${mode}`
@@ -666,7 +967,9 @@
     onPreview={() => preview('full')}
     onExport={(mode) => download(mode)}
     onRename={rename}
-  />
+  >
+    {#snippet menus()}<MenuBar menus={barMenus} compact={compactMenus} />{/snippet}
+  </EditorBar>
   <!-- Clicking a tool must not take focus from the page (like Word/Docs): the editor keeps its
        caret, so keys typed right after a click go to the paper, not the button (a space would
        "press" it again; TipTap's focus() only refocuses a frame later). Keyboard use is unaffected. -->
@@ -676,8 +979,11 @@
     aria-label="Formatting"
     tabindex="-1"
     on:mousedown|preventDefault>
-    <button class="btn quiet" title="Add a question" on:click={() => (pickerAt = null)}
-      ><Icon name="plus" />Question</button
+    <button
+      class="btn quiet"
+      title="Add a question ({keyLabel(GLOBAL_KEYS.addQuestion)})"
+      aria-keyshortcuts={ariaKeys(GLOBAL_KEYS.addQuestion)}
+      on:click={() => (pickerAt = null)}><Icon name="plus" />Question</button
     >
     <button
       class="btn quiet"
@@ -744,7 +1050,8 @@
       <button
         class="icon-btn"
         aria-label="Equation"
-        title={act.inText ? 'Equation' : EQUATION_OFF}
+        title={act.inText ? `Equation (${keyLabel(GLOBAL_KEYS.equation)})` : EQUATION_OFF}
+        aria-keyshortcuts={ariaKeys(GLOBAL_KEYS.equation)}
         aria-disabled={!act.inText}
         on:click={() => act.inText && addEquation()}><Icon name="sigma" /></button
       >
@@ -761,11 +1068,13 @@
       aria-label="Choose image"
       on:change={onPickImages}
     />
-    <span class="tail">
-      <Menu items={moreItems} label="More tools" align="end" triggerClass="icon-btn" triggerTitle="More tools">
-        {#snippet trigger()}<Icon name="more" />{/snippet}
-      </Menu>
-    </span>
+    {#if narrow}
+      <span class="tail">
+        <Menu items={moreItems} label="More tools" align="end" triggerClass="icon-btn" triggerTitle="More tools">
+          {#snippet trigger()}<Icon name="more" />{/snippet}
+        </Menu>
+      </span>
+    {/if}
   </div>
 </header>
 
@@ -801,6 +1110,7 @@
 
 <div
   class="desk"
+  class:nopanel={!panelShown}
   class:hidden={loading || !!loadError}
   style="--bar-h:{barH}px"
   inert={busy === 'paper'}
@@ -832,6 +1142,7 @@
     </button>
   </div>
 
+  <div class="keywrap" bind:this={keyEl} tabindex="-1">
   <AnswerKey
     {blocks}
     {start}
@@ -841,7 +1152,9 @@
     on:partanswer={(e) => setPartAnswer(e.detail.blockId, e.detail.index, e.detail.answer)}
     on:error={(e) => (actionError = e.detail)}
   />
+  </div>
 </div>
+{#if panelShown}
 <SidePanel
   bind:tab={panelTab}
   {blocks}
@@ -915,6 +1228,7 @@
   </fieldset>
   </svelte:fragment>
 </SidePanel>
+{/if}
 </div>
 
 {#if confirmRegen && regenInfo}
@@ -928,6 +1242,57 @@
     }}
     onCancel={() => (confirmRegen = false)}
   />
+{/if}
+
+{#if confirmDelete}
+  <ConfirmDialog
+    title="Delete this paper?"
+    body={`“${title || 'Untitled paper'}” and its answer key are deleted for good. This can't be undone.`}
+    confirmLabel="Delete paper"
+    danger
+    busy={busy === 'delete'}
+    error={deleteError}
+    onConfirm={() => void deletePaper()}
+    onCancel={() => {
+      confirmDelete = false
+      deleteError = ''
+    }}
+  />
+{/if}
+
+{#if moveFolders}
+  <MoveDialog
+    folders={moveFolders}
+    current={folderId}
+    busy={busy === 'move'}
+    error={moveError}
+    onMove={(f) => void moveTo(f)}
+    onClose={() => (moveFolders = null)}
+  />
+{/if}
+
+{#if paletteOpen}
+  <CommandPalette commands={paletteCommands} onRun={runCommand} onClose={() => (paletteOpen = false)} />
+{/if}
+
+{#if sheetOpen}
+  <ShortcutSheet onClose={() => (sheetOpen = false)} />
+{/if}
+
+{#if verifiedOpen}
+  <Dialog title="What “verified” means" width="30rem" onClose={() => (verifiedOpen = false)}>
+    <div class="verified">
+      <p>
+        A question the app generates is <strong>verified</strong>: a program works out its answer from the numbers
+        printed in it. The answer in the key is the solution to exactly the question on the paper.
+      </p>
+      <p>
+        Questions you write yourself, edit as your own text, or import are <strong>not verified</strong>. The app
+        prints them as they are, so check their answers yourself.
+      </p>
+      <p>Verified means the maths is right. It does not mean the question suits your class: read the paper before you print it.</p>
+    </div>
+  </Dialog>
 {/if}
 
 <MathPopover />
@@ -1154,6 +1519,27 @@
     justify-self: start;
     width: 100%;
     max-width: 300px;
+  }
+  /* View > Show side panel off (EXA-163): the page gets its full A4 width at every size. */
+  .desk.nopanel {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 210mm) minmax(0, 1fr);
+    column-gap: 0;
+  }
+  .desk.nopanel > .main {
+    grid-column: 2;
+    grid-row: auto;
+  }
+  .keywrap {
+    scroll-margin-top: calc(var(--bar-h, 0px) + 1rem);
+    outline: none;
+  }
+  .verified p {
+    margin: 0 0 var(--s3);
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .verified p:last-child {
+    margin-bottom: 0;
   }
   @media (max-width: 1199px) {
     .desk {

@@ -10,6 +10,23 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Menus and keyboard shortcuts in the editor (EXA-163, UI redesign S5).** Under the paper's
+  title sits a menu row: **Paper** (Paper settings…, Cover page…, Regenerate N unlocked
+  questions…, Rename, Move to folder…, Make a copy, Delete paper…), **Insert** (Question…,
+  Section, Cover page, Blank or rough-work page, Page break, Image…, Equation), **View** (Paper,
+  Answer key, Preview pages, Show side panel) and **Help** (Keyboard shortcuts, What “verified”
+  means). It is a real menubar: ←/→ move between menus, also while one is open. Below 900 px it
+  folds into one "Menu" button. The toolbar keeps + Question and + Section; cover page, blank
+  page and page break left its ⋯, which now only holds lists, equation and image on a narrow
+  window. Editor-wide shortcuts (Cmd on a Mac, shown as ⌘ there): **Ctrl+K** a command palette
+  that finds any menu row or the selected question's actions by name, **Ctrl+Enter** add a
+  question, **Ctrl+Alt+K** go to the answer key and back, **Ctrl+P** preview the pages instead
+  of printing the screen, **Ctrl+\\** show or hide the side panel, **Ctrl+/** the shortcut sheet,
+  **Ctrl+M** an equation. Typing keys (Ctrl+B/I/U/Z/Y) and the browser's own (Ctrl+R/L/T/W)
+  are untouched, and the inserts never fire from a form field. Hiding the side panel gives the
+  page its full A4 width (between 900 and 1199 px it was narrower), and the choice is
+  remembered in this browser. Make a copy is done in the browser (a new paper, then this
+  paper's content saved into it), so the API is unchanged.
 - **The question bar and menu (EXA-161, UI redesign S3).** A question carries no buttons at
   rest and no blank band under it any more. A locked question shows a small padlock badge by
   its number ("locked" for screen readers, "Locked: kept when you regenerate" as its tooltip);

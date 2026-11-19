@@ -8,7 +8,7 @@
   import Icon from '../Icon.svelte'
   import Menu, { type MenuItem } from '../Menu.svelte'
   import { menuGroups, pillActions, primaryRow, rowForShortcut, type QuestionAction, type QuestionFacts } from './questionMenu'
-  import { blockShortcut, isBlockKeyTarget, isTypingTarget, registerBlockKeys, BLOCK_KEYS } from './shortcuts'
+  import { blockShortcut, isBlockKeyTarget, isTypingTarget, registerBlockCommands, registerBlockKeys, BLOCK_KEYS } from './shortcuts'
 
   let {
     host,
@@ -121,7 +121,24 @@
     el.addEventListener('focusin', onFocusIn)
     el.addEventListener('focusout', onFocusOut)
     const unregister = registerBlockKeys(el, handleKey)
+    // the command palette (Ctrl+K) lists this block's menu rows while it is selected
+    const unlist = registerBlockCommands(el, () =>
+      busy
+        ? []
+        : menuGroups(facts)
+            .flat()
+            .map((row) => ({
+              label: row.label,
+              group: number === null ? 'Question' : `Question ${number}`,
+              shortcut: row.shortcut,
+              // checked again when it runs: the block may have got busy since the list was made
+              run: () => {
+                if (!busy) onAction(row.action)
+              },
+            })),
+    )
     return () => {
+      unlist()
       el.removeEventListener('keydown', onKeydown)
       el.removeEventListener('contextmenu', onContextMenu)
       el.removeEventListener('focusin', onFocusIn)

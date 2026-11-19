@@ -32,7 +32,7 @@ for (const width of [1366, 1024, 768]) {
     await expect(toWrite).toHaveText(/^\d+( placeholders?)? to write$/)
     // Export is one menu with the three PDFs.
     await page.getByRole('button', { name: 'Export', exact: true }).click()
-    await expect(page.getByRole('menuitem')).toHaveText([
+    await expect(page.getByRole('menu', { name: 'Export' }).getByRole('menuitem')).toHaveText([
       'Student paper (PDF)',
       'Answer key (PDF)',
       'Paper and key together (PDF)',
