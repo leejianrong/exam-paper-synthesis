@@ -63,14 +63,17 @@ export async function generateSinglePaper(page, label, level) {
 /** EXA-160: choose a PDF from the editor header's Export ▾ menu. */
 export async function exportPdf(page, item) {
   await page.getByRole('button', { name: 'Export', exact: true }).click()
-  await page.getByRole('menuitem', { name: item, exact: true }).click()
+  await page.getByRole('menu', { name: 'Export' }).getByRole('menuitem', { name: item, exact: true }).click()
 }
 
-/** EXA-160: the formatting toolbar's ⋯ menu (cover page, blank page, page break for now). */
-export async function moreTools(page) {
-  await page.getByRole('button', { name: 'More tools', exact: true }).click()
-  return page.getByRole('menu', { name: 'More tools' })
+/** EXA-163: open a menu of the header's menu row (Paper, Insert, View, Help) and return it. */
+export async function headerMenu(page, name) {
+  await page.getByRole('menubar', { name: 'Paper menus' }).getByRole('menuitem', { name, exact: true }).click()
+  return page.getByRole('menu', { name, exact: true })
 }
+
+/** The Insert menu: cover page, blank or rough-work page, page break, image, equation. */
+export const insertMenu = (page) => headerMenu(page, 'Insert')
 
 /** EXA-160: paper settings live on the side panel's Paper tab (a question you click brings its
  *  own tab forward). */
