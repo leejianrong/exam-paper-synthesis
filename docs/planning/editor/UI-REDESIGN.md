@@ -453,14 +453,27 @@ Step 2 sources: the popular-editor patterns in section 2 come from product knowl
 | Group | Keys |
 |---|---|
 | Paper | Ctrl+K command palette · Ctrl+Enter add a question · Ctrl+Alt+K answer key / back to the paper · Ctrl+P preview pages · Ctrl+\\ side panel · Ctrl+/ shortcut sheet |
-| Questions (a selected question) | R another like this · L lock · [ easier · ] harder · Alt+↑/↓ move · Del delete (with undo) · Shift+F10 or the Menu key its menu |
+| Questions (a selected question) | R another like this · L lock · [ or - easier · ] or = harder · Alt+↑/↓ move · Del delete (with undo) · Shift+F10 or the Menu key its menu |
 | Text | Ctrl+B/I/U · Ctrl+M equation · Shift+Enter line break · Ctrl+Z undo · Ctrl+Y redo |
 
 Ctrl+Enter and Ctrl+M never fire from a form field (the title, a marks box, a dialog). With a
 dialog open no global shortcut runs, though Ctrl+P is still kept from printing the screen.
 
+**[ and ] by character (EXA-172).** The bracket keys are read by the character the layout
+types (`e.key`), not as unmodified keys: on German, French, Spanish or Swiss keyboards they
+take AltGr (Windows reports it as Ctrl+Alt with `getModifierState('AltGraph')`, Linux as
+AltGraph alone), on a German Mac ⌥5 / ⌥6, on a French Mac ⌥⇧. A key press counts as typing
+when it has no Cmd, no Ctrl unless AltGraph is set, and no Alt unless on a Mac or with AltGraph
+(`typesCharacter` in `web/src/lib/keys.ts`, shared with the block selection guard below), so
+Ctrl+[, Cmd+[, Ctrl+Alt+[ without AltGraph and Alt+[ off a Mac stay chords and pass through.
+`-` and `=` do the same as `[` and `]` for layouts with no brackets (Russian, Ukrainian); the
+menus keep showing `[` and `]`, the shortcut sheet lists both. None of them fire in text. R and
+L are unchanged: no common layout needs a modifier for a letter, and on Cyrillic or Greek
+layouts those keys type other letters, so R and L do not work there (they are not read by
+physical key).
+
 **Other keys on a selected block (EXA-171).** On a selected question a key that is not a
-shortcut types nothing: since R, L, [ and ] are commands there, the other letters, digits and
+shortcut types nothing: since R, L, [ and ] (and - and =) are commands there, the other letters, digits and
 space do nothing either, so typing a word never half-types it with the question locked on the
 way. The first such key in a selection shows "Press Enter to write below" in the pill, which
 fades after a few seconds. Enter or Shift+Enter starts a paragraph after any selected top-level

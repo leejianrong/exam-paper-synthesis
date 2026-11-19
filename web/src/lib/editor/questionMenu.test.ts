@@ -121,6 +121,65 @@ describe('block shortcuts', () => {
     expect(blockShortcut(key('F10', { shiftKey: true }), true)).toBe('menu')
   })
 
+  // EXA-172: [ and ] need AltGr or ⌥ on many layouts; they are read by the character typed
+  const altGr = (k: string, mods: Partial<KeyboardEventInit> = {}) =>
+    key(k, { ctrlKey: true, altKey: true, modifierAltGraph: true, ...mods } as KeyboardEventInit)
+
+  it('takes [ and ] typed with AltGr (German Windows: AltGr+8 / AltGr+9, reported as Ctrl+Alt)', () => {
+    expect(blockShortcut(altGr('['), false, false)).toBe('[')
+    expect(blockShortcut(altGr(']'), false, false)).toBe(']')
+    // Linux reports AltGr alone, without Ctrl and Alt
+    expect(blockShortcut(key('[', { modifierAltGraph: true } as KeyboardEventInit), false, false)).toBe('[')
+    // Swiss and Hungarian-style layouts may add Shift; the character is still "["
+    expect(blockShortcut(altGr(']', { shiftKey: true }), false, false)).toBe(']')
+  })
+
+  it("takes [ and ] typed with ⌥ on a Mac (German Mac: ⌥5 / ⌥6), and French Mac's ⌥⇧", () => {
+    expect(blockShortcut(key('[', { altKey: true }), false, true)).toBe('[')
+    expect(blockShortcut(key(']', { altKey: true }), false, true)).toBe(']')
+    expect(blockShortcut(key('[', { altKey: true, shiftKey: true }), false, true)).toBe('[')
+    // ⌥↑ still moves, and ⌥ with another character is not a shortcut
+    expect(blockShortcut(key('ArrowUp', { altKey: true }), false, true)).toBe('Alt+↑')
+    expect(blockShortcut(key('“', { altKey: true }), false, true)).toBeNull()
+  })
+
+  it('a real chord with [ or ] is not the shortcut: Ctrl+[, Cmd+[, Ctrl+Alt+[ without AltGr, Alt+[ off a Mac', () => {
+    for (const mac of [false, true]) {
+      expect(blockShortcut(key('[', { ctrlKey: true }), false, mac)).toBeNull()
+      expect(blockShortcut(key(']', { metaKey: true }), false, mac)).toBeNull()
+      expect(blockShortcut(key('[', { ctrlKey: true, altKey: true }), false, mac)).toBeNull()
+      // Cmd with AltGr held is still a Cmd chord
+      expect(blockShortcut(key('[', { metaKey: true, modifierAltGraph: true } as KeyboardEventInit), false, mac)).toBeNull()
+    }
+    expect(blockShortcut(key('[', { altKey: true }), false, false)).toBeNull()
+    // …while the same key with AltGr is one
+    expect(blockShortcut(altGr('['), false, false)).toBe('[')
+  })
+
+  it('- and = stand in for [ and ] (layouts without brackets), the same way', () => {
+    expect(blockShortcut(key('-'), false, false)).toBe('[')
+    expect(blockShortcut(key('='), false, false)).toBe(']')
+    expect(blockShortcut(key('=', { shiftKey: true }), false, false)).toBe(']') // German Shift+0
+    expect(blockShortcut(key('-', { ctrlKey: true }), false, false)).toBeNull() // zoom out
+    expect(blockShortcut(key('=', { metaKey: true }), false, true)).toBeNull() // zoom in
+  })
+
+  it('never in text, however the character is typed', () => {
+    for (const k of ['[', ']', '-', '=']) {
+      expect(blockShortcut(altGr(k), true, false)).toBeNull()
+      expect(blockShortcut(key(k, { altKey: true }), true, true)).toBeNull()
+      expect(blockShortcut(key(k), true, false)).toBeNull()
+      expect(blockShortcut(altGr(k), false, false)).not.toBeNull() // on the block it is one
+    }
+  })
+
+  it('AltGr with a letter is not R or L, even if the browser leaves e.key a letter', () => {
+    expect(blockShortcut(altGr('r'), false, false)).toBeNull()
+    expect(blockShortcut(altGr('l'), false, false)).toBeNull()
+    expect(blockShortcut(altGr('@'), false, false)).toBeNull()
+    expect(blockShortcut(altGr('['), false, false)).toBe('[')
+  })
+
   it('knows where the author is typing', () => {
     const editable = document.createElement('div')
     editable.setAttribute('contenteditable', 'true')

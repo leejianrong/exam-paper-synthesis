@@ -8,7 +8,7 @@
 // What a typed character does (EXA-171), whichever way it arrives (a key, a keyboard's
 // beforeinput, ProseMirror's own text input):
 // - on a selected question (a generated or free-form question, or a part of one) nothing: there
-//   single keys are commands (R, L, [, ]; shortcuts.ts), so the other letters do nothing too,
+//   single keys are commands (R, L, [ or -, ] or =; shortcuts.ts), so the other letters do nothing too,
 //   rather than half a word turning into text with the question locked on the way. The
 //   question's pill says once "Press Enter to write below" (TYPED_ON_QUESTION);
 // - on any other selected top-level block (cover, section, blank page, image, page break) it
@@ -31,7 +31,7 @@ import {
   type Transaction,
 } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
-import { isMac } from '../keys'
+import { typesCharacter } from '../keys'
 import { imageFiles } from './assets'
 
 /** Fired (bubbling) on a selected question's DOM when a typed key was dropped on it, so its
@@ -90,12 +90,9 @@ function leaveBlock(view: EditorView): void {
 }
 
 /** The character a key press types, or null for a command key or a chord. */
-function typedChar(e: KeyboardEvent, mac = isMac()): string | null {
-  // AltGr types characters and reports as Ctrl+Alt on Windows
-  const altGraph = !!e.getModifierState?.('AltGraph')
-  if (e.metaKey || (e.ctrlKey && !altGraph)) return null
-  // Alt+letter types nothing on Windows and Linux; on a Mac ⌥ types (⌥8 is "•")
-  if (e.altKey && !mac && !altGraph) return null
+function typedChar(e: KeyboardEvent): string | null {
+  // AltGr and a Mac's ⌥ type (⌥8 is "•"); Alt+letter elsewhere and Ctrl/Cmd chords do not
+  if (!typesCharacter(e)) return null
   return [...e.key].length === 1 ? e.key : null
 }
 
@@ -127,7 +124,7 @@ export function insertBlockSafely(editor: Editor, content: JSONContent): void {
 export const BlockSelectionGuard = Extension.create({
   name: 'blockSelectionGuard',
   // Ahead of StarterKit's keys and input rules wherever it is listed (Shift+Enter's hard break
-  // replaces a selected block), behind the block shortcuts (1000), which take R, L, [ and ] first.
+  // replaces a selected block), behind the block shortcuts (1000), which take R, L, [, ], - and = first.
   priority: 500,
   addProseMirrorPlugins() {
     return [
