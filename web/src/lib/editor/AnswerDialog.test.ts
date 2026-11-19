@@ -31,13 +31,31 @@ describe('Edit answer… (EXA-162)', () => {
     await fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }))
     expect(onClose).not.toHaveBeenCalled()
     expect(within(dialog).getByRole('status')).toHaveTextContent('Image still uploading…')
-    await fireEvent.keyDown(dialog, { key: 'Escape' })
-    expect(onClose).not.toHaveBeenCalled()
+    expect(within(dialog).getByRole('status')).toHaveTextContent('Press Done again to close without it')
 
     // once it lands it goes into the answer, then the dialog closes as asked
     land()
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
     expect(JSON.stringify(onAnswer.mock.calls.at(-1)?.[0])).toContain('"type":"image"')
+  })
+
+  it('a stalled upload never traps the page: a second Done, or Esc, closes without the image (re-review of #242)', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {}))) // never lands
+    for (const second of ['done', 'escape'] as const) {
+      const onClose = vi.fn()
+      const view = render(AnswerDialog, {
+        props: { number: 2, block: freeformDocNode(), onAnswer: vi.fn(), onPartAnswer: vi.fn(), onError: vi.fn(), onClose },
+      })
+      const dialog = screen.getByRole('dialog', { name: 'Answer to question 2' })
+      const input = await waitFor(() => within(dialog).getByLabelText('Choose answer image') as HTMLInputElement)
+      await fireEvent.change(input, { target: { files: [new File(['png'], 'fig.png', { type: 'image/png' })] } })
+      await fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }))
+      expect(onClose).not.toHaveBeenCalled()
+      if (second === 'done') await fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }))
+      else await fireEvent.keyDown(dialog, { key: 'Escape' })
+      expect(onClose).toHaveBeenCalledTimes(1)
+      view.unmount()
+    }
   })
 
   it('closes at once when nothing is uploading', async () => {

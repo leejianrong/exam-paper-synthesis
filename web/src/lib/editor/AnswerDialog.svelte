@@ -33,8 +33,9 @@
   $effect(() => {
     if (held && !busy) onClose()
   })
+  // A second Done or Esc while held closes anyway: an upload that stalls must not trap the page.
   function close() {
-    if (busy) held = true
+    if (busy && !held) held = true
     else onClose()
   }
   const answerOf = (n: DocNode) => (n.attrs?.answer as DocJSON | undefined) ?? { type: 'doc', content: [] }
@@ -75,7 +76,10 @@
   {/if}
   <p class="note">One line prints after Ans: in the school key. Write more lines for working, and they print as you write them.</p>
   <div class="actions">
-    {#if busy}<span class="wait" role="status">Image still uploading…{held ? ' It closes when the image is in.' : ''}</span>{/if}
+    {#if busy}<span class="wait" role="status">Image still uploading…{held
+          ? ' It closes when the image is in. Press Done again to close without it.'
+          : ''}</span
+      >{/if}
     <button class="done" type="button" onclick={close}>Done</button>
   </div>
 </Dialog>

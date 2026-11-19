@@ -247,6 +247,64 @@ describe('the answer key view keeps up with the paper (review of #242)', () => {
   })
 })
 
+describe('a scroll that waits for the next key (re-review of #242)', () => {
+  /** jsdom draws no srcdoc: give every new frame question 3's row before its load fires. */
+  function drawNewFrames() {
+    const mo = new MutationObserver(() => {
+      for (const f of document.querySelectorAll<HTMLIFrameElement>('iframe:not([data-drawn])')) {
+        f.dataset.drawn = ''
+        if (f.contentDocument) f.contentDocument.body.innerHTML = '<table class="key-table"><tr><th scope="row">Q3</th><td>w</td></tr></table>'
+      }
+    })
+    mo.observe(document.body, { childList: true, subtree: true })
+    return mo
+  }
+
+  async function waitingScroll(failFirst: boolean) {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const scrollTo = vi.fn()
+    vi.stubGlobal('scrollTo', scrollTo)
+    const mo = drawNewFrames()
+    try {
+      const { load, pending } = deferredLoads()
+      const { view } = setup({ load, numbers: [3] })
+      await waitFor(() => expect(load).toHaveBeenCalledTimes(1))
+      pending[0].resolve('<p>KEY 1</p>')
+      await waitFor(() => expect(document.querySelector('iframe.ready')).not.toBeNull())
+      // a refresh is due: the scroll waits for the next key
+      await view.rerender({ revision: 2 })
+      const kv = view.component as unknown as { scrollToQuestion: (n: number, m?: number) => boolean }
+      expect(kv.scrollToQuestion(3)).toBe(false)
+      await vi.advanceTimersByTimeAsync(KEY_REFRESH_MS + 10)
+      expect(load).toHaveBeenCalledTimes(2)
+      if (failFirst) {
+        pending[1].reject(new Error('offline'))
+        await screen.findByRole('alert')
+        // a later key loads fine
+        await view.rerender({ revision: 3 })
+        await vi.advanceTimersByTimeAsync(KEY_REFRESH_MS + 10)
+        pending[2].resolve('<p>KEY 3</p>')
+      } else {
+        pending[1].resolve('<p>KEY 2</p>')
+      }
+      await waitFor(() => expect(frames().map((f) => f.getAttribute('srcdoc'))).toEqual([failFirst ? '<p>KEY 3</p>' : '<p>KEY 2</p>']))
+      await vi.advanceTimersByTimeAsync(50)
+      return scrollTo
+    } finally {
+      mo.disconnect()
+      vi.unstubAllGlobals()
+    }
+  }
+
+  it('lands on the row once the next key has loaded', async () => {
+    expect(await waitingScroll(false)).toHaveBeenCalledTimes(1)
+  })
+
+  it('is dropped when that load fails: a later key never jumps the page', async () => {
+    expect(await waitingScroll(true)).not.toHaveBeenCalled()
+  })
+})
+
 describe('reading the printed key (keyRows)', () => {
   const doc = (html: string) => new DOMParser().parseFromString(html, 'text/html')
   const SCHOOL_KEY = doc(
