@@ -4,6 +4,8 @@
 
 import { Node } from '@tiptap/core'
 import { NodeSelection, TextSelection } from '@tiptap/pm/state'
+import { closeHistory } from '@tiptap/pm/history'
+import type { Node as PMNode } from '@tiptap/pm/model'
 import type { NodeViewRendererProps } from '@tiptap/core'
 import { mount, unmount } from 'svelte'
 import { writable } from 'svelte/store'
@@ -82,10 +84,16 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
       let current = node // the live node: attrs the inspector sets (remark) must survive edits here
       let latest = node.attrs.question as Question
       const store_value = () => latest
-      const pos = () => {
-        const p = getPos()
-        return typeof p === 'number' ? p : 0
+      /** Run `fn` on the block where it is now; if it has gone, drop the change (and say so). */
+      const withBlock = (fn: (at: { pos: number; node: PMNode }) => void, late = false) => {
+        const at = locateBlock(editor, getPos, current)
+        if (at) return fn(at)
+        if (late) options.onNotice('That question was removed before the change arrived.')
       }
+      const setAttrs = (patch: Record<string, unknown>, late = false) =>
+        withBlock(({ pos, node: live }) => {
+          editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...live.attrs, ...patch }))
+        }, late)
 
       const component = mount(QuestionBlock, {
         target: dom,
@@ -97,68 +105,54 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
           place: { subscribe: place.subscribe },
           host: dom,
           ctx: {
-            replace: (q: Question) => {
-              const { tr } = editor.state
-              tr.setNodeMarkup(pos(), undefined, {
-                ...current.attrs,
-                question: q,
-              })
-              editor.view.dispatch(tr)
-            },
-            setLayout: (patch: Partial<BlockLayout>) => {
-              const { tr } = editor.state
-              tr.setNodeMarkup(pos(), undefined, {
-                ...current.attrs,
-                ...patch,
-              })
-              editor.view.dispatch(tr)
-            },
-            remove: () => {
-              const from = pos()
-              editor
-                .chain()
-                .focus()
-                .deleteRange({ from, to: from + current.nodeSize })
-                .run()
-              options.onDeleted()
-            },
+            // An edit's reply: it may arrive after the block was moved or deleted.
+            replace: (q: Question) => setAttrs({ question: q }, true),
+            setLayout: (patch: Partial<BlockLayout>) => setAttrs(patch),
+            remove: () =>
+              withBlock(({ pos, node: live }) => {
+                editor
+                  .chain()
+                  .focus()
+                  // its own undo step: the toast's Undo brings back just this question
+                  .command(({ tr }) => {
+                    closeHistory(tr)
+                    return true
+                  })
+                  .deleteRange({ from: pos, to: pos + live.nodeSize })
+                  .run()
+                options.onDeleted()
+              }),
             swap: (mode: SwapMode) => options.onSwap(String(current.attrs.block_id), mode),
-            setLocked: (locked: boolean) => {
-              const { tr } = editor.state
-              tr.setNodeMarkup(pos(), undefined, { ...current.attrs, locked })
-              editor.view.dispatch(tr)
-            },
-            setInKey: (in_key: boolean) => {
-              const { tr } = editor.state
-              tr.setNodeMarkup(pos(), undefined, { ...current.attrs, in_key })
-              editor.view.dispatch(tr)
-            },
-            move: (dir: -1 | 1) => {
-              moveBlock(editor, pos(), current.nodeSize, dir)
-              refocus(dom)
-            },
-            addBelow: () => options.onAddBelow(pos() + current.nodeSize),
+            setLocked: (locked: boolean) => setAttrs({ locked }),
+            setInKey: (in_key: boolean) => setAttrs({ in_key }),
+            move: (dir: -1 | 1) =>
+              withBlock(({ pos, node: live }) => {
+                moveBlock(editor, pos, live.nodeSize, dir)
+                refocus(dom)
+              }),
+            addBelow: () => withBlock(({ pos, node: live }) => options.onAddBelow(pos + live.nodeSize)),
             // Tier 3 (ADR-0021): the block becomes teacher-owned text, one undo step.
             convert: async () => {
               const out = await convertToFreeform(store_value())
-              const block = freeformNode()
-              const json = {
-                ...block,
-                attrs: {
-                  ...block.attrs,
-                  marks: out.marks,
-                  answer: out.answer,
-                  remark: current.attrs.remark ?? null,
-                },
-                content: out.content,
-              }
-              const { tr, schema } = editor.state
-              const from = pos()
-              tr.replaceWith(from, from + current.nodeSize, schema.nodeFromJSON(json))
-              editor.view.dispatch(tr)
-              if (out.dropped.length) {
-                options.onNotice(`Now your own text. Not included: ${out.dropped.join('; ')}.`)
-              }
+              withBlock(({ pos, node: live }) => {
+                const block = freeformNode()
+                const json = {
+                  ...block,
+                  attrs: {
+                    ...block.attrs,
+                    marks: out.marks,
+                    answer: out.answer,
+                    remark: live.attrs.remark ?? null,
+                  },
+                  content: out.content,
+                }
+                const { tr, schema } = editor.state
+                tr.replaceWith(pos, pos + live.nodeSize, schema.nodeFromJSON(json))
+                editor.view.dispatch(tr)
+                if (out.dropped.length) {
+                  options.onNotice(`Now your own text. Not included: ${out.dropped.join('; ')}.`)
+                }
+              }, true)
             },
           },
         },
@@ -188,6 +182,34 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
     }
   },
 })
+
+/** Where a question block is now, and its live node; null once it has gone. Anything that runs
+ *  after a wait (an edit's reply) or from a node view that may be torn down acts only on the
+ *  same block (same type and block_id), never on whatever now sits at its old position
+ *  (EXA-161 review: a late reply used to land on position 0, the cover page). */
+export function locateBlock(
+  editor: NodeViewRendererProps['editor'],
+  getPos: () => number | undefined,
+  current: PMNode,
+): { pos: number; node: PMNode } | null {
+  if (editor.isDestroyed) return null
+  const { doc } = editor.state
+  const id = current.attrs.block_id
+  const isMe = (n: PMNode | null | undefined): n is PMNode =>
+    !!n && n.type === current.type && (id === null ? n === current : n.attrs.block_id === id)
+  const p = getPos()
+  if (typeof p === 'number' && p >= 0 && p < doc.content.size) {
+    const n = doc.nodeAt(p)
+    if (isMe(n)) return { pos: p, node: n }
+  }
+  if (id === null) return null
+  // Moved (a move redraws the block): find it by its id.
+  let found: { pos: number; node: PMNode } | null = null
+  doc.forEach((child, offset) => {
+    if (!found && isMe(child)) found = { pos: offset, node: child }
+  })
+  return found
+}
 
 /** P8d: whether the generator filled this block (it can be swapped) and whether it's locked. */
 export interface PaperSlot {

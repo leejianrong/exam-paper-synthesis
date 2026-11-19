@@ -10,6 +10,8 @@
     facts: QuestionFacts
     number: number | null
     selected: boolean
+    /** A fill is out for this block. */
+    busy: boolean
     marks: number | null
     /** Single-part questions edit their marks in the pill; with parts it shows the total. */
     showMarks: boolean
@@ -24,6 +26,7 @@
   facts={$state.facts}
   number={$state.number}
   selected={$state.selected}
+  busy={$state.busy}
   marks={$state.marks}
   onMarks={$state.showMarks ? onMarks : undefined}
   summary={$state.summary}

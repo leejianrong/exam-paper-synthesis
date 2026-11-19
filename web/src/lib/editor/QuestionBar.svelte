@@ -8,7 +8,7 @@
   import Icon from '../Icon.svelte'
   import Menu, { type MenuItem } from '../Menu.svelte'
   import { menuGroups, pillActions, primaryRow, rowForShortcut, type QuestionAction, type QuestionFacts } from './questionMenu'
-  import { blockShortcut, isTypingTarget, registerBlockKeys, BLOCK_KEYS } from './shortcuts'
+  import { blockShortcut, isBlockKeyTarget, isTypingTarget, registerBlockKeys, BLOCK_KEYS } from './shortcuts'
 
   let {
     host,
@@ -52,6 +52,8 @@
         shortcut: row.shortcut,
         hint: row.hint,
         danger: row.danger,
+        // while an edit or swap is out, nothing else starts (Delete included)
+        disabled: busy,
         separator: g > 0 && i === 0,
         onSelect: () => onAction(row.action),
       })),
@@ -76,22 +78,30 @@
       void openMenu()
       return true
     }
+    if (busy) return false // while an edit or swap is out, nothing else starts
     const row = rowForShortcut(facts, key)
-    if (!row || (busy && row.action !== 'delete')) return false
+    if (!row) return false
     e.preventDefault()
     onAction(row.action)
     return true
   }
 
   function onKeydown(e: KeyboardEvent) {
-    const t = e.target as HTMLElement
-    // The open menu and anything typed in (marks, units) keep their own keys.
-    if (isTypingTarget(t) || t.closest('[role="menu"]')) return
+    // Only the block itself, its handle and its pill buttons take the block's keys: any other
+    // control inside it (the working-space grip, a part's buttons, the names form, the open
+    // menu) keeps its own, so Alt+↑ on the grip never moves the question too.
+    if (!isBlockKeyTarget(e.target, host)) return
     if (handleKey(e, false)) e.stopPropagation()
   }
 
   function onContextMenu(e: MouseEvent) {
-    if (isTypingTarget(e.target)) return // text keeps the browser's menu (spelling, paste)
+    // Text being typed or selected, and figures, keep the browser's menu (spelling, copy,
+    // save image).
+    if (isTypingTarget(e.target)) return
+    const t = e.target as Element
+    if (t instanceof Element && t.closest('img, svg')) return
+    const sel = host.ownerDocument.getSelection()
+    if (sel && !sel.isCollapsed && sel.toString().trim() && sel.anchorNode && host.contains(sel.anchorNode)) return
     e.preventDefault()
     void openMenu()
   }
@@ -137,6 +147,8 @@
   type="button"
   class="qhandle"
   tabindex="-1"
+  aria-haspopup="menu"
+  aria-expanded={menuOpen}
   aria-label="Menu for {name}"
   title="Menu for {name}"
   onmousedown={keepFocus}
@@ -170,7 +182,7 @@
           ><Icon name="swap" /><span class="label">{primary.label}</span></button
         >
       {:else if control === 'addPart'}
-        <button type="button" title="Add a lettered part" onclick={() => onAction('addPart')}
+        <button type="button" disabled={busy} title="Add a lettered part" onclick={() => onAction('addPart')}
           ><Icon name="plus" /><span class="label">Part</span></button
         >
       {:else if control === 'lock'}
@@ -178,6 +190,7 @@
         <button
           type="button"
           class="ico"
+          disabled={busy}
           aria-label="Lock"
           aria-pressed={facts.locked}
           title={facts.locked
