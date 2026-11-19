@@ -10,6 +10,21 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **The school key by default (EXA-159).** New, template and generated papers start with the
+  answer key schools issue: a header block from the cover (school, level, subject, exam; an
+  empty line left out), an answer grid for Booklet A, then ruled tables with the solver's short
+  working and a right-aligned "Ans:". 1-mark answers sit two to a row with no working, structured
+  questions keep their parts on their own lines, and no marks, M1/A1 lines, distractor reasons or
+  question text print. The key flows on from page to page and a row never splits: a P6 exam
+  set's keys drop from 31 pages to 5. Marking scheme, marks and 1-mark working are options in
+  the editor's "Answer key" group; the old layout stays as "Worked solutions". A new account
+  setting, "Answer key style: School key / Worked solutions", picks which one new papers get.
+  Saved papers keep their own key options (worked-solution papers print exactly as before; a
+  paper saved with the compact key keeps its M/A lines and 1-mark working but takes the new
+  school layout). Switching the style in the editor starts from that style's defaults. Document schema 1.16.0 (`key_options.show_marks`,
+  `key_options.one_mark_working`). The e2e run's ports can now be moved with `E2E_API_PORT`,
+  `E2E_WEB_PORT` and `E2E_CSP_PORT`, so it can run beside the dev servers.
+
 - **Square-grid questions (EXA-144).** Real P5/P6 prelims set about 3 grid questions a set and
   we had none. A new `grid` figure (canonical schema 1.14.0: lines or dots, shaded or lettered
   squares, figures, lines, lettered points, a compass rose), drawn by the server in greys with

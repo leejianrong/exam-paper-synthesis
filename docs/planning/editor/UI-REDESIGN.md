@@ -1,0 +1,432 @@
+# Editor and app UI redesign: research and proposal
+
+Cards: **EXA-159** (answer key clutter), **EXA-160** (editor top bars), **EXA-161** (per-question buttons), plus an app-wide pass the owner asked for.
+Status: approved by the owner on 2026-11-19 (section 10). S2 (EXA-159, the school key by default) is built.
+
+Research build: worktree off `origin/main` at `f54b92c`, API on :8100 (dev auth, throwaway stores), Vite on :5273. Papers generated with `POST /documents/generate` (P6, seed 11) and through the New dialog (an exam set in a folder).
+
+The screenshots and the mockup were local to the research run and are not committed. The real school keys were looked at for their structure only; none of their text is recorded here, and they are never to be committed.
+
+---
+
+## 1. Findings
+
+### 1.1 Editor top bar (EXA-160)
+
+The editor has three horizontal layers: the app bar (`.bar`), the formatting toolstrip, and on narrower screens the "This paper" panel, which drops between them.
+
+**The bar overflows on the laptops teachers actually use.** Measured `scrollWidth` against the viewport:
+
+| Viewport | Page width | Bar height | Result |
+|---|---|---|---|
+| 1440 | 1440 | 85 px | fits, labels wrap onto two lines |
+| 1366 (common school laptop) | 1399 | 95 px | **Preview and the PDFs are off-screen** |
+| 1280 | 1399 | 95 px | same |
+| 1024 | 1399 | 95 px | Preview at x=1124, Full copy at x=1347 (unreachable without horizontal scroll) |
+
+The two actions a teacher came for, Preview and Export, are the first to fall off.
+
+**Inventory of the app bar** (`web/src/lib/editor/EditorPage.svelte` lines ~502–598):
+
+| Control | What it does | How often needed | Notes |
+|---|---|---|---|
+| ← Papers | back to list | every session | label wraps to two lines |
+| Saved chip | autosave state | glanced at | fine |
+| "55 marks" (red) | paper total | glanced at | red reads as an error. `--mark` is meant for marks on paper, not a warning |
+| Marks shown (select) | paper-level marks placement | once per paper, if ever | **duplicates** the section-level "Marks shown" with different wording and options |
+| Time (min) | paper time | once per paper | prefilled by template |
+| First Q | number_from | once per Booklet B / Paper 2 | prefilled by the exam-set flow |
+| Answer key: Full/Compact | key layout | once | belongs with the key |
+| ☐ question | key repeats question | once | label "question" is meaningless out of context. Silently disabled in Compact |
+| ☐ M/A marks | key marking scheme | once | jargon |
+| "30 exports left today" | quota | rarely | belongs in the Export menu |
+| Regenerate unlocked | refill the paper | a few times per generated paper | destructive-ish. Sits next to a quota label |
+| AccountChip | name, sign out, data, delete account | rarely | in production adds two more buttons here |
+| Preview | paginated preview | often | |
+| Student PDF / Answer key PDF / Full copy PDF | export | once or twice at the end | three equal-weight buttons, no primary |
+
+**Formatting toolstrip** (same file, ~lines 637–738): B, I, U, H1, H2, H3, bullet, numbered, Section, Cover page, Blank page, Page break, Equation, Image, Undo, Redo. That is 16 equal buttons. Structure inserts (section, cover, blank page, page break) use icons that are hard to tell apart (`ToolIcon`). Equation is greyed with no reason given (it needs a text caret). There is no "+ Question" here. The only add-question affordances are the "Add question" button at the foot of the page and "+ Add below" on each block.
+
+**Settings live in five places.** Paper settings sit in the top bar. Section settings (mode, target, marks shown, marking margin) sit inline above each section. Cover settings sit inline in an expanded cover card at the top of the page. Key options sit in the top bar. Account settings (one toggle) are on `#/settings`. A teacher looking for "where do I change X" has no single answer.
+
+### 1.2 Per-question actions (EXA-161)
+
+On hover or selection a generated question shows **13 buttons in three rows**: Another like this, Another topic, Write my own, Lock; Regenerate, Make easier, Make harder, Edit names, Convert to free-form, ↑, ↓; + Add below, Delete. When idle the buttons are hidden but **their space stays reserved**, so every question carries a ~90 px blank band under its Ans: line (`04-question-idle`). That band is not working space and does not print, yet it looks like it might.
+
+Code: `QuestionBlock.svelte` lines 129–166 (`paper tools` and `question tools` groups). Free-form questions build the same row imperatively in `freeformQuestion.ts` lines 164–200 (+ Add part, Fill with a question, Another topic, Lock, ↑, ↓, + Add below, Delete). Swap/lock logic is in `paperOps.ts`.
+
+| Action | Frequency (teacher reviewing a generated paper) | Comment |
+|---|---|---|
+| Another like this | high | the main review verb |
+| Regenerate | medium | **near-duplicate** of "Another like this" (new seed, same blueprint vs same slot and topic). A teacher can't tell them apart |
+| Lock | medium | state, should be visible only when on |
+| Make easier / Make harder | medium | |
+| Another topic | low–medium | |
+| Edit names | low | |
+| Write my own | low | label hides that it empties the question |
+| Convert to free-form | low | jargon. "free-form" vs "Write my own" vs the picker's "Free-form" tab |
+| ↑ / ↓ | low | drag or Alt+↑/↓ would do |
+| + Add below | low | |
+| Delete | low | always-visible danger button |
+
+### 1.3 Answer key (EXA-159)
+
+What we produce for one P6 exam set (Booklet A 15 MCQ, Booklet B 15 Q, Paper 2 17 Q):
+
+| | Full (the default) | Compact | Real school keys (4 papers) |
+|---|---|---|---|
+| Booklet A | **10 pages**: one MCQ per page, each with the question, figure, four options, working, "Answer:", A1 line and distractor reasons | 1 page: grid | a third of a page: grid |
+| Booklet B | 8 pages | 3 pages | 1–2 pages |
+| Paper 2 | 13 pages | 5 pages | 3–4 pages |
+| Whole set | **31 pages, 3 files** | 9 pages, 3 files | **4–7 pages, one document** |
+
+Specific clutter in our key:
+
+- **Full layout paginates the key like the student paper**, so most key pages are half empty. The Full layout repeats every question, figure and MCQ option.
+- **M1/A1 lines on every question, on by default.** None of the four real keys has a marking scheme.
+- **MCQ distractor reasons** ("Wrong options: (1) read the digits…") print in the key. They're useful to a teacher reviewing the paper, but no school key carries them.
+- A green "ANSWER" kicker before every answer in the editor's key view, plus an "in key" checkbox and a red [n] on every row.
+- **The editor's key view ignores the Compact setting.** It always shows the Full style, so the teacher never sees on screen what will print.
+- Header duplication: "P6 Paper 1 Booklet A — Answer Key / Total: 20 marks", then a LEVEL/SUBJECT block. School and exam name are left blank unless the cover was filled in.
+- One-mark Booklet B answers carry two or three lines of working and an A1 line, where schools give the answer alone.
+- Section headings say "Section A / Section B" where schools head the key by booklet ("Booklet B", "Paper 2").
+
+**How the four schools lay out keys** (structure only):
+
+- **One document for the whole exam**, appended after Paper 2, typed, not scanned. 4 to 7 pages.
+- **Header block** at the top, left-aligned with colon-aligned labels: SCHOOL, LEVEL, SUBJECT, TERM/exam. Then a rule.
+- **Booklet A: an answer grid.** One row of Q1–Q10 with the option numbers beneath, then Q11–Q15 with empty cells to fill the row. Grey header cells. No working at all. It takes a third of a page.
+- **Booklet B: a ruled two-column table.** A narrow label column (Q16, Q21(a)) and a wide working column. One-mark questions get just the answer or one line. Two-mark questions get 2–4 lines of working. One school packs **two questions per table row** (four columns) to halve the length.
+- **Paper 2: the same table with "short working".** Typically 2–5 lines per part, then a right-aligned **"ANS : …"** (parts on separate lines "(a) … (b) …"). Answers that are figures are pasted pictures or "See figure".
+- **Marks are not shown.** No [n], no M1/A1. The paper already printed them.
+- **Question text is never repeated.**
+- Density: about 8–12 Booklet B questions or 4–7 Paper 2 questions per page, small type, single-line spacing.
+
+Our **Compact** layout is close to this already: grid for Booklet A, label | working | right-aligned Ans: table. The gap is defaults, the M/A lines, one-mark density, and three separate files instead of one.
+
+### 1.4 The rest of the app
+
+| Screen | Clutter, wording, consistency | Navigation |
+|---|---|---|
+| Sign in | No product name or one-line description. Three equal provider buttons with no logos. The page says "Sign in" twice | none needed |
+| Documents list | Brand reads `exam-paper-synthesis` (the repo slug). Every row shows **Move** and a red **Delete**. US timestamps ("11/19/2026, 9:05:14 AM") for Singapore teachers. Two papers with the same title can't be told apart. The folder's "Booklet A / Booklet B / Paper 2" pills look like buttons but aren't interactive. Folders can't collapse. No search or sort | Settings is a small grey link. The account chip appears only in production |
+| Empty list | "No papers yet. Start with + New." Fine but bare. Doesn't name the one-click exam set | |
+| List error | Raw `API 500: boom` in red. No retry | |
+| New dialog | **"New folder" is the first and focused choice**, ahead of the exam set and the single paper teachers actually want. Step 2's three buttons mix level choice with "Empty starters". A dense explanatory paragraph | After creating a set you stay on the list with no confirmation of what was made or where |
+| Editor, not found | A red "not found" banner **over a live, empty editor that says "Saved"** with an active toolbar | should be a plain error page |
+| Editor page | Title plus "Name: ____ Total: 20 marks" header shown even when the cover replaces it in print. Cover card expanded inline with 10 fields, taking the first screen of every paper. "PAGE OF ITS OWN" card. Section settings inline above each section | |
+| Inspector / "This paper" | Useful but passive: three counts and a hint. Question view shows blueprint code and seed to teachers. At ≤1280 it jumps above the toolstrip | |
+| Add question | Tabs "Templated / From my bank / Free-form". "Templated" is internal vocabulary. No level or marks filter. Topic defaults to Ratio. Candidates are tall cards, two per screen | |
+| Bank (inside Add question) | The bank exists only as a tab of the Add-question dialog. Cards carry a ~100 px empty band. "Unreviewed" badge in red on every imported item | no way to browse or manage the bank outside a paper |
+| Bank import | "Import canonical question JSON" (developer wording) inside a question picker | |
+| Preview | Good. The page-chip index at the top is three lines of small links. The modal can't export directly | |
+| Export (top bar) | Three peer buttons. The quota sits elsewhere. A key export without a filled cover gives a key with no school name | |
+| Settings | One toggle. Paper defaults (school name, level, marks placement, key style) that a teacher would set once are not here | "← Your papers" link only |
+| Classic (off / on) | Different visual language: black primary button, uppercase field labels, its own logo mark. **No link back** to papers or settings when on | dead end |
+
+---
+
+## 2. How popular editors stay clean
+
+| Product | Pattern | What fits a teacher building a paper |
+|---|---|---|
+| **PowerPoint / Word** | Ribbon tabs group commands by task (Home, Insert, Layout). **Contextual tabs** (Picture Format, Table Design) appear only while that object is selected. **File backstage** is a full-screen page for document-level work: info, print, export, share | Contextual = question tools appear only for the selected question. Backstage = export and print as one destination with options, not three buttons |
+| **Google Docs** | **Title and a text menu bar** (File, Edit, View, Insert, Format, Tools) stacked at top left, then **one slim toolbar** of the most-used formatting. Everything is in a menu; the toolbar is the shortcut layer. Right side: Share (primary), comments, avatar. Toolbar collapses into a `⋮` overflow as the window narrows | The two-row header. A single primary on the right. Overflow as width drops, never horizontal scroll |
+| **VS Code** | Activity bar picks a side view. Each view has a title bar with 2–3 icons and a **`…` overflow** for the rest. **Command palette** (Ctrl+Shift+P) reaches every command by name. Right-click context menus. Settings UI is searchable, grouped, with "modified" markers | `⋯` overflow on a block. A command palette as the keyboard route to everything. One searchable settings page |
+| **Notion** | Nothing shows on a block until hover. Then a **⋮⋮ handle** appears in the left gutter: drag to move, click for the block menu (Delete, Duplicate, Turn into, Move to, Color). **"/" slash commands** insert anything at the caret | Gutter handle for move and the block menu. Slash command for "insert a question / section / page break" |
+| **Figma** | Left: layers. Right: a **properties panel that changes with the selection** (nothing selected = page/document properties). Top bar is small: menu, tools, file name, share and present | Right panel with **Paper** properties when nothing is selected and **Question** properties when a question is selected |
+| **Canva** | Contextual toolbar above the canvas changes with the selection. A floating mini-toolbar sits on the selected element (lock, duplicate, delete, `⋯`). Lock is a small padlock that stays visible on locked elements | Floating mini-toolbar with Lock and `⋯`. Padlock badge stays visible when locked |
+
+The patterns that fit:
+
+1. **Selection decides what you see** (contextual tabs, Figma's panel, Canva's mini-toolbar). Question tools exist only for the selected question.
+2. **Menus hold everything; the toolbar holds the frequent few** (Docs). Nothing important is reachable only through a menu, and nothing rare gets a permanent button.
+3. **One primary action** at top right (Docs' Share). For us that's Export.
+4. **Overflow, never scroll** (Docs, VS Code). The header degrades by moving items into `⋯`.
+5. **State shows as a badge, actions hide** (Canva lock).
+6. **A keyboard route to every command** (VS Code palette, Notion slash).
+
+---
+
+## 3. Answer key redesign (EXA-159)
+
+### Drop
+
+- The **Full layout as the default**. Keep it as "Worked solutions" for teachers who want to hand it to pupils after the test.
+- **M1/A1 lines** by default. Keep as a toggle "Marking scheme (M1, A1)".
+- **Distractor reasons** in the printed key by default. Keep them in the editor's key view and in Worked solutions.
+- **Repeated question text** in the school-style key. Not offered there. In Worked solutions it stays on.
+- The "Answer Key" title plus "Total: n marks" line, replaced by the school header block (SCHOOL, LEVEL, SUBJECT, EXAM) taken from the cover page. If the cover's school is empty, print the block without that line (as today) and warn once at export.
+- The green "ANSWER" kicker and per-row "in key" checkbox in the editor's key view. "Leave out of key" moves into the question's `⋯` menu, and left-out rows show struck through with a small "Not in key" tag.
+- **Per-question pagination in any key layout.** A key flows continuously, and a row never splits across pages.
+
+### Defaults per section type
+
+| Section mode | Default key form | Working | Marks |
+|---|---|---|---|
+| `mcq` | Answer grid, 10 per row, Q-number header cells, option number below, empty cells to complete the last row | none | hidden |
+| `short`, 1-mark questions | Two questions per table row (label, answer, label, answer). Working only if the solver has more than one step and the teacher opts in | answer only | hidden |
+| `short`, 2-mark questions | Two-column row (label, working) | the solver's steps, max ~4 lines, then right-aligned **Ans:** | hidden |
+| `structured` | Two-column row per question, parts on their own lines "(a) … Ans: …" | short working per part | hidden |
+| no mode | as `short` | | |
+
+Options, kept short and placed **in the key view itself** (see 4.3), not in the top bar:
+
+- **Style:** School key (default) · Worked solutions
+- **Show:** Marking scheme (M1, A1) ☐ · Marks per question ☐ · Working for 1-mark questions ☐
+- (Worked solutions only) Repeat the question ☑
+
+Later slice: **Exam-set key.** From a folder that holds a complete exam set (the list already detects a complete set), export one key covering Booklet A, Booklet B and Paper 2 with booklet headings, the way schools issue it.
+
+Schema impact: `settings.key_options.layout` already exists (`full` | `compact`). The default flips to `compact` for new and generated papers. Papers that already have a saved setting keep it. `show_scheme` defaults to false for new papers. A new optional `show_marks` and `one_mark_working` came in document schema 1.16.0. No change to verification.
+
+---
+
+## 4. Editor redesign (EXA-160)
+
+### 4.1 One header, two rows (Docs model)
+
+The header has two rows: a 56 px **app header** (title, menus, primary actions) and a 40 px **toolbar**. The current three layers become two. All paper settings leave the bar.
+
+**Before** (1440 px, wraps to 85 px; overflows below 1400 px):
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│← Papers [Saved] 55 marks  Marks shown[beside the answer line▾] Time(min)[90] First Q[1] Answer key[Full▾]    │
+│                          ☑question ☑M/A marks  30 exports left today [Regenerate unlocked] [Preview][Student│
+│                                                                                    PDF][Answer key PDF][Full…│ → off-screen
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│          [B][I][U] [H1][H2][H3] [•][1.][§][▤][▢][⤓] [Σ][▣] [↶][↷]                       ┌ This paper ──────┐ │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**After:**
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ ←  P6 Prelims 2026 / P6 Paper 2   ✓ Saved                [ Paper | Answer key ]  55/55 marks  [Preview] [Export ▾] (MT)│
+│    Paper  Insert  View  Help                                                                                 │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ [+ Question] [+ Section] │ ↶ ↷ │ Normal text ▾ │ B I U │ • 1. │ Σ ▣ │                                 [⋯]      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  desk ┌──────────── page ────────────┐   ┌ Paper │ Question ┐  ← right panel, 300 px
+       │                              │   │ …                │
+```
+
+Always visible: back, folder/title breadcrumb (title editable in place), save state, the **Paper / Answer key** view switch, marks total (neutral ink; it turns `--mark` only when a section is off target), **Preview** (secondary), **Export ▾** (the one green primary), account avatar.
+
+Narrow widths: at < 1200 px the view switch becomes an icon pair and "55/55 marks" drops into the Paper panel. At < 1024 px the toolbar's tail (lists, Σ, image) goes into its own `⋯`. Preview and Export never leave the screen.
+
+### 4.2 Menus
+
+| Menu | Items (in order) |
+|---|---|
+| **Paper** | Paper settings… (opens the Paper panel) · Cover page… · Regenerate unlocked questions… (shows the count) · ─ · Rename · Move to folder… · Make a copy · ─ · Delete paper… |
+| **Insert** | Question… `Ctrl+Enter` · Section · Cover page · Blank or rough-work page · Page break · ─ · Image… · Equation `Ctrl+M` |
+| **View** | Paper · Answer key (`Ctrl+Alt+K`) · ─ · Preview pages `Ctrl+P` · Show side panel `Ctrl+\` · ─ · Show working space outlines ☑ |
+| **Help** | Keyboard shortcuts `Ctrl+/` · What "verified" means · Send feedback |
+| **Export ▾** | Student paper (PDF) · Answer key (PDF) · Paper and key together (PDF) · ─ · *24 exports left today* (muted footer) |
+
+A command palette (`Ctrl+K`) lists every menu item by name. Today there are no keyboard shortcuts at all beyond the editor's own.
+
+### 4.3 Where settings live
+
+| Setting | Today | Proposed |
+|---|---|---|
+| Time, first question number, marks shown (paper) | top bar | **Paper panel** (right side, the default tab when no question is selected) |
+| Level, regenerate unlocked | top bar button | Paper panel "Generated paper" group, plus the Paper menu |
+| Section mode, target, marks shown, marking margin | inline above every section | Section header shows only title and "Questions 1–5 · 10/10 marks". Clicking the header selects the section and the panel shows its settings. One "Marks shown" vocabulary for paper and section ("Default (paper setting)", "In the section header", "Beside each question", "After the Ans: line", "Both") |
+| Cover page fields | expanded card at the top of the page | collapsed card that looks like the printed cover (school, exam, level, paper). Click to edit in the panel |
+| Answer key options | top bar | the **Answer key view**: a slim options strip above the key (Style · Show) |
+| Export quota | top bar | footer of the Export menu |
+| Account | AccountChip (editor and list only) | avatar menu everywhere: name · Settings · Download my data · Sign out |
+| Paper defaults (school name, level, key style, marks placement) | none | **Settings page** "New paper defaults" |
+
+### 4.4 Answer key as a view, not an appendix
+
+Today the key is a second document appended under the paper. Make it a **view** switched in the header (`Paper | Answer key`). The key view renders exactly what will print in the selected style, with the options strip on top and per-row hover actions (`⋯` → Leave out of key, Edit answer). The paper and key share the selection: selecting Q12 in the paper and switching views scrolls the key to Q12.
+
+---
+
+## 5. Per-question actions (EXA-161)
+
+### Options compared
+
+| Option | Clean at rest | Discoverable | Speed for "another like this" | Keyboard / a11y | Fit |
+|---|---|---|---|---|---|
+| **A. `⋯` overflow menu only** | yes | medium (one visible button) | 2 clicks | easy: menu button pattern | good, but the main review verb is buried |
+| **B. Floating toolbar on hover/selection** (Canva) | yes | high | 1 click | fine on selection. Hover-only fails keyboard and touch | good if it holds ≤ 3 items |
+| **C. Right-click context menu** | yes | **low**: teachers rarely right-click in a web page | 2 clicks | needs a keyboard equivalent (Shift+F10) | only as a secondary route |
+| **D. Notion-style gutter handle ⋮⋮** | yes | medium | 2 clicks | handle must be focusable | great for move/drag, weak for the swap verbs |
+| **E. Hybrid: selection pill (B) with `⋯` (A), plus a gutter handle (D) for move, plus right-click (C) opening the same menu** | yes | high | **1 click** | one menu, three routes | **recommended** |
+
+### Recommendation: E
+
+- **At rest:** nothing. No reserved band. Only a **padlock badge** next to the question number when the question is locked, and a dashed outline on placeholders.
+- **Hover:** a faint ⋮⋮ handle in the left gutter (drag to reorder; click opens the menu). Nothing else, so moving the mouse down a paper stays calm.
+- **Selected** (click or keyboard focus): a pill on the block's top-right edge with three controls:
+  `[↻ Another like this]  [🔒 Lock]  [⋯]`
+  For free-form questions, `[+ Part]  [🔒]  [⋯]`. For placeholders, `[Fill with a question]  [⋯]`.
+- **Right-click** on a question and **Shift+F10** open the same `⋯` menu.
+- "Regenerate" and "Another like this" merge into one verb. The server's `swap like` already covers a new seed of the same blueprint.
+
+```
+   ⋮⋮ 6.  Postage costs $1.90 for a 500 g letter …          [↻ Another like this] [🔒] [⋯]
+          ┌─────────────────────────────────────────┐                             ┌──────────────────────────────┐
+          │                                         │                             │ Another like this         R  │
+          │            working space                │                             │ Another topic                │
+          └─────────────────────────────────────────┘                             │ Make easier               [  │
+                                   Ans: $ ____________ [2]                        │ Make harder               ]  │
+                                                                                  │ Edit names…                  │
+   🔒 7.  The table shows …                         (locked: badge only)          │ Slice into units             │
+                                                                                  │ ──────────────────────────── │
+                                                                                  │ Lock                      L  │
+                                                                                  │ Leave out of answer key      │
+                                                                                  │ ──────────────────────────── │
+                                                                                  │ Move up               Alt+↑  │
+                                                                                  │ Move down             Alt+↓  │
+                                                                                  │ Add question below  Ctrl+↵   │
+                                                                                  │ ──────────────────────────── │
+                                                                                  │ Replace with my own question │
+                                                                                  │ Edit as my own text…         │
+                                                                                  │ ──────────────────────────── │
+                                                                                  │ Delete                  Del  │
+                                                                                  └──────────────────────────────┘
+```
+
+Menu order follows frequency, top to bottom: change it, keep it, place it, take it over, remove it. Items that don't apply are hidden (Make harder on the top rung), not greyed. Op-specific items (Change to decimals, Show model in key, Slice into units) appear in the first group only when `available_ops` offers them.
+
+Wording changes: "Write my own" → **Replace with my own question** (it empties the slot). "Convert to free-form" → **Edit as my own text…** (with a one-line confirm: "It won't be checked by the engine any more"). Picker tab "Templated" → **Generate**, "Free-form" → **Write my own**.
+
+---
+
+## 6. Keyboard and accessibility
+
+- Every pill and menu control is a real `<button>`. The `⋯` follows the WAI-ARIA menu button pattern (`aria-haspopup="menu"`, `aria-expanded`; arrows move, Esc closes and returns focus).
+- Question blocks become focusable (`tabindex="0"`, `role="group"`, `aria-label="Question 6, 2 marks, locked"`). Focusing a block shows its pill, so keyboard users get what hover users get. Hover-only UI is never the only route.
+- Shortcuts on a focused block: `R` another like this, `L` lock, `[`/`]` easier/harder, `Alt+↑/↓` move, `Del` delete (with undo toast rather than a confirm), `Shift+F10` or the Menu key opens the menu.
+- Global: `Ctrl+K` command palette, `Ctrl+Enter` add question, `Ctrl+Alt+K` toggle Paper/Answer key, `Ctrl+P` preview, `Ctrl+/` shortcut sheet.
+- The padlock badge has text for screen readers ("locked") and a tooltip. It is not colour-only.
+- The marks total uses text ("10/10") and only turns `--mark` red with an icon when off target. Red is never the resting state.
+- The header's overflow behaviour replaces horizontal scroll at every width ≥ 768 px.
+- Focus ring stays the existing `:focus-visible` (2 px `--verify`). Reduced-motion: the pill and menus appear without transition.
+- Destructive actions (Delete paper, Regenerate unlocked) confirm in a dialog that names what happens ("Replaces 13 unlocked questions. 2 locked questions stay."). Delete question uses undo instead.
+
+---
+
+## 7. App-wide
+
+### 7.1 One navigation model
+
+```
+┌ App header (every screen) ──────────────────────────────────────────────────┐
+│ ▦ Papers   Question bank                                     (MT) ▾         │   ← list, bank, settings
+└──────────────────────────────────────────────────────────────────────────────┘
+┌ Editor header (replaces the app header inside a paper) ─────────────────────┐
+│ ←  Folder / Title  ✓Saved   Paper  Insert  View  Help   [Paper|Key] [Preview][Export ▾] (MT) │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+- Two top-level places: **Papers** and **Question bank** (promoted out of the Add-question dialog into a page with filters, review state and Import). Settings and account live under the avatar menu on every screen.
+- The Classic generator, when turned on, appears as a third tab "Classic" with the same header, so it stops being a dead end.
+- Inside a paper, the editor header replaces the app header. "←" always returns to the folder the paper was in.
+
+### 7.2 Component vocabulary
+
+| Element | Rule |
+|---|---|
+| **Primary button** | One per screen, `--verify` fill, white text: "+ New" on the list, "Export" in the editor, "Import" in the import dialog, "Add to paper" in the picker. The Classic page's black button goes |
+| **Secondary button** | White, `--line` border, `--ink` text: Preview, Cancel, Move |
+| **Quiet / icon button** | No border at rest, `--wash` on hover, 32 px square, always with `aria-label` and a tooltip that names the shortcut |
+| **Danger** | Never at rest on a list row or block. Lives at the bottom of a menu, red text, and confirms or offers undo |
+| **Menu** | 8 px radius, `--shadow`, 13.5 px items, shortcut right-aligned in `--ink-faint`, separators between groups |
+| **Chip / badge** | Status only, never clickable: Saved, Verified, Unreviewed (amber-neutral, not red), Locked |
+| **Labels** | Sentence case, verb first for actions ("Add question", "Export answer key"), noun for settings ("Time", "Marks shown"). No uppercase micro-labels (Classic, cover card "COVER PAGE", "PAGE OF ITS OWN") |
+| **Icons** | One stroke set (1.5 px, 16 px), always paired with text in menus. Icon-only only in the toolbar and the pill, and always with a tooltip |
+| **Spacing** | 4 px base: 8 inside controls, 12 between controls in a group, 24 between groups, 32 page gutters |
+| **Dates** | `19 Nov 2026, 9:05 am` (en-SG), or relative ("edited 5 min ago") on the list |
+| **Words** | paper, question, section, answer key, question bank, generated (not "templated"), my own question (not "free-form"), exam set |
+
+### 7.3 Issues ranked by impact on a teacher
+
+| # | Issue | Where | Impact |
+|---|---|---|---|
+| 1 | Preview and Export off-screen below 1400 px | editor bar | **Blocks the core job** on a standard school laptop |
+| 2 | Answer key defaults to 31 pages across three files, half-empty pages, M1/A1 and distractor notes | export, key | Wastes paper and time. Teachers redo it by hand |
+| 3 | 13 buttons per question, and a blank band under every question at rest | question block | Paper looks unfinished. Review is slow. "Regenerate" vs "Another like this" confuses |
+| 4 | Settings scattered across bar, inline section and cover cards, key strip and Settings page; two different "Marks shown" | editor | Teachers can't find or trust a setting |
+| 5 | Editor key view doesn't match the exported key | key view | What you see is not what prints |
+| 6 | Bank hidden inside the Add-question dialog, developer wording for import | bank | A teacher's own collection is hard to find |
+| 7 | "Not found" shows a live, "Saved" empty editor. Raw `API 500` errors | states | Alarming, and edits typed there go nowhere |
+| 8 | New dialog leads with "New folder". No confirmation after making a set | list | Slows the first-run path |
+| 9 | Always-visible red Delete on every list row; no search; US dates; same-name papers indistinguishable | list | Risky and noisy as the list grows |
+| 10 | Classic page is a dead end with a different look | classic | Lost users (few, it's off by default) |
+| 11 | Sign-in page has no product name; brand is the repo slug | login, list | First impression |
+| 12 | Icon-only structure buttons (cover, blank page, page break); Equation disabled without reason | toolbar | Guesswork |
+
+---
+
+## 8. Slices (PR-sized, ordered by value)
+
+| # | Slice | Cards | Scope | Notes |
+|---|---|---|---|---|
+| S1 | **Header that fits** | EXA-160 | New two-row editor header: breadcrumb title, save state, marks total in neutral ink, Preview, **Export ▾** (three exports + quota footer), avatar. Move Time / First Q / Marks shown / Regenerate unlocked into the right panel's **Paper** tab. Overflow instead of horizontal scroll down to 768 px | Biggest single win. Pure web. Playwright width test at 1024 / 1366 |
+| S2 | **School-style key by default** | EXA-159 | Default `layout: compact` and `show_scheme: false` for new and generated papers. Drop distractor reasons from the compact key. Fix key pagination (continuous flow, rows don't split). Header block from the cover | Engine render + small schema default. Goldens for key HTML |
+| S3 | **Question pill and menu** | EXA-161 | Remove the reserved band. Selection pill (Another like this · Lock · ⋯), menu with the groups above, padlock badge, gutter handle for drag. Merge Regenerate into Another like this. Same for free-form blocks | Shared menu component reused in S5 and S8 |
+| S4 | **Key as a view** | EXA-159 | Paper/Answer key switch in the header. The key view renders the chosen style. Options strip. "Leave out of key" via the menu | Depends on S2, S3 |
+| S5 | **Menus and shortcuts** | EXA-160 | Paper / Insert / View / Help menus, toolbar trimmed to + Question, + Section, undo/redo, text style dropdown, B I U, lists, Σ, image. Shortcut sheet. Command palette can follow as S5b | |
+| S6 | **Section and cover settings in the panel** | EXA-160 | Collapsed section header and cover card. Settings edit in the panel. One "Marks shown" vocabulary | |
+| S7 | **States** | app | Not-found and error pages with retry. Plain-language errors (no `API 500`). Loading skeleton for list and editor | Small, independent, can go any time |
+| S8 | **Documents list cleanup** | app | Row `⋯` menu (Open, Rename, Move, Make a copy, Delete). New dialog leads with Exam set. en-SG dates. Search. Collapsible folders. Non-button set-progress ticks | |
+| S9 | **App header and Question bank page** | app | Shared header (Papers, Question bank, avatar menu with Settings and Sign out on every screen). Bank as its own page with filters, review and Import ("Import questions from a file"). Classic as a tab when on | |
+| S10 | **Exam-set key** | EXA-159 | One key PDF for a complete set in a folder, booklet headings | Engine + API. After S2 |
+| S11 | **Settings: new-paper defaults** | app | School name, level, key style, marks placement prefilled into new papers | Needs settings keys |
+| S12 | **Sign-in polish** | app | Product name and one line, provider marks | |
+
+---
+
+## 9. Mockup
+
+A local mockup page (not committed): self-contained, existing tokens (`web/src/app.css`), Inter embedded as data URIs (no new font). Three frames: the editor (header, toolbar, paper with a selected question's pill and open menu, a locked question, the Paper panel), the Answer key view in school style, and the documents list.
+
+Verification run on the mockup (frontend-design verify steps), served from `127.0.0.1:5274`:
+
+- Console: no errors on load (the only entry is the static server's missing favicon).
+- Overflow: `scrollWidth` equals the viewport at 1440, 1024 and 375 px.
+- Fonts: Inter 400, 600 and 700 all report `loaded`. No other family.
+- Tokens: the only hex values are the `:root` token definitions. One proposed new token, `--on-accent`, replaces three bare `#fff`.
+- Keyboard: Tab order runs back, title, Paper, Insert, View, Help, view switch, Preview, Export, matching the visual order. Every stop shows the existing 2 px `--verify` focus ring.
+- Accessibility tree: no unlabelled buttons. Icon-only buttons carry `aria-label` with the shortcut. Headings run h1 → h2 → h3 → h4.
+- Contrast: `--ink-faint` on white is about 5.3:1, white on `--verify` about 5.4:1. Light only, as the app is.
+- Not checked: real menu keyboard behaviour (the mockup is static) and screen-reader announcements.
+
+Step 2 sources: the popular-editor patterns in section 2 come from product knowledge, not a web search done for this research.
+
+---
+
+## 10. Owner decisions (2026-11-19)
+
+- The design is approved as proposed. One change: **remove the green-check exam-set status ticks** (Booklet A / Booklet B / Paper 2) from the folder headers in the papers list (EXA-166).
+- Cards: S1 = EXA-160, S2 = EXA-159, S3 = EXA-161, S4 = EXA-162, S5 = EXA-163, S6 = EXA-164, S7 = EXA-165, S8 = EXA-166, S9 = EXA-167, S10 = EXA-168, S11 = EXA-169, S12 = EXA-170.
+- **New papers get the school-style key by default.** Add an account setting (Settings page) for the preferred answer-key style, defaulting to school style; new papers take it. Saved papers keep their own setting.
+- **Keyboard shortcuts now** (EXA-163 pulled forward, right after S1 and S3), as proposed in section 6, including the Ctrl+K command palette.
+
+---
+
+## 11. S2 as built (EXA-159)
+
+- New, template and generated papers write `settings.key_options` explicitly: the school key is
+  `{layout: compact, show_scheme: false, show_marks: false, one_mark_working: false}`, worked
+  solutions are `{layout: full, show_question: true, show_scheme: true}`. Which one a new paper
+  gets is the account setting `answer_key_style` (`school` by default) on the Settings page.
+- Document schema 1.16.0 adds `show_marks` and `one_mark_working`. An absent option keeps the
+  behaviour the paper had before it existed, so saved papers print as they did (no key options:
+  worked solutions with M/A lines; a compact key saved before 1.16.0 keeps its 1-mark working).
+- The key was never paginated question by question: Chromium lays it out, and a worked solution
+  is kept whole on a page, which is what left most of the Full key's pages half empty. The school
+  key flows on, and a table row (`break-inside: avoid`) never splits; a PDF test reads this back.
+- Measured on one P6 exam set (seed 11), key PDFs: worked solutions 10 + 8 + 13 = 31 pages; the
+  school key 1 + 1 + 3 = 5 pages.
+- Not in S2: the editor's key view still shows the worked layout (S4), and the options stay in
+  the top bar's "Answer key" group until S1 and S4 move them.
+

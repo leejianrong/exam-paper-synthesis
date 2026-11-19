@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test'
+import { API } from './ports.js'
 
 /**
  * Wait until the editor has saved what was just edited.
@@ -19,10 +20,12 @@ export async function settled(page) {
  * Turn the Classic generator on for the dev owner (O1: it is hidden by default) and open it.
  * `api` is the API origin the page talks to (the dev server, or the CSP spec's one origin).
  */
-export async function openClassic(page, { api = 'http://localhost:8000', origin = '' } = {}) {
+export async function openClassic(page, { api = API, origin = '' } = {}) {
   const res = await page.request.put(`${api}/settings`, { data: { classic_generator: true } })
   expect(res.ok()).toBeTruthy()
   await page.goto(`${origin}/#/classic`)
+  // A page already open read its settings at load; a hash change keeps them: load them again.
+  await page.reload()
 }
 
 /**

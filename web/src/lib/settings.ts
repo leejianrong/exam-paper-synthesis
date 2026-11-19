@@ -7,12 +7,16 @@ import { session } from './session'
 
 const BASE: string = import.meta.env.VITE_API ?? 'http://localhost:8000'
 
+/** The answer key a new paper starts with (EXA-159); a saved paper keeps its own. */
+export type AnswerKeyStyle = 'school' | 'worked'
+
 export interface Settings {
   /** Show the original Generate + tray page (off by default). */
   classic_generator: boolean
+  answer_key_style: AnswerKeyStyle
 }
 
-export const DEFAULT_SETTINGS: Settings = { classic_generator: false }
+export const DEFAULT_SETTINGS: Settings = { classic_generator: false, answer_key_style: 'school' }
 
 export const settings = writable<Settings | null>(null)
 

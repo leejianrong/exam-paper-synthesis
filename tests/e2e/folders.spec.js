@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test'
+import { API } from './ports.js'
 
 /**
  * Browser acceptance for O2 (EXA-126): make a folder on "Your papers", move a paper into it from
  * the paper's Move menu, see the folder's exam-set chip fill, then delete the folder: the paper
  * is unfiled, never deleted. The store is shared with the other specs, so names are unique.
  */
-const API = 'http://localhost:8000'
 
 test('create a folder, move a paper in, see its chip, delete the folder: the paper is unfiled', async ({ page }) => {
   const stamp = Date.now()

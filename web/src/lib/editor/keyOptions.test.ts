@@ -6,14 +6,14 @@ import { freeformDocNode, makeQuestion, templatedNodes } from './fixtures'
 import { keyOptionsOf } from './layout'
 
 describe('answer-key options (P5)', () => {
-  it('default to the full key and read what is set', () => {
-    expect(keyOptionsOf(undefined)).toEqual({ show_question: true, show_scheme: true, layout: 'full' })
-    expect(keyOptionsOf({ key_options: { show_scheme: false } })).toEqual({
-      show_question: true,
-      show_scheme: false,
-      layout: 'full',
-    })
+  it('absent options keep a saved paper as it printed, and read what is set', () => {
+    const before = { show_question: true, show_scheme: true, layout: 'full', show_marks: false, one_mark_working: true }
+    expect(keyOptionsOf(undefined)).toEqual(before)
+    expect(keyOptionsOf({ key_options: { show_scheme: false } })).toEqual({ ...before, show_scheme: false })
     expect(keyOptionsOf({ key_options: { layout: 'compact' } }).layout).toBe('compact')
+    // a new paper's school key (EXA-159), as the API writes it
+    const school = { layout: 'compact' as const, show_scheme: false, show_marks: false, one_mark_working: false }
+    expect(keyOptionsOf({ key_options: school })).toEqual({ ...school, show_question: true })
   })
 
   it('store in_key only when a question is left out', () => {
@@ -33,7 +33,7 @@ describe('answer-key options (P5)', () => {
     const { rerender } = render(AnswerKey, { props: { blocks: blocks() } })
     expect(document.body).toHaveTextContent('FREEFORM-BODY')
     expect(document.querySelector('.scheme')).not.toBeNull()
-    rerender({ blocks: blocks(), options: { show_question: false, show_scheme: false, layout: 'full' } })
+    rerender({ blocks: blocks(), options: { show_question: false, show_scheme: false, layout: 'full', show_marks: false, one_mark_working: true } })
     expect(document.body).not.toHaveTextContent('FREEFORM-BODY')
     expect(document.querySelector('.scheme')).toBeNull()
   })
