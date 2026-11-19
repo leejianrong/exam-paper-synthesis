@@ -74,7 +74,8 @@ test('a new paper has the school key; marks, worked solutions and leaving questi
   await page.reload()
   await expect(page.getByLabel('Answer key style')).toHaveValue('full')
   await expect(page.getByLabel('Answer key repeats each question')).not.toBeChecked()
-  await expect(page.getByLabel('Answer key shows the marking scheme (M1, A1)')).not.toBeChecked()
+  // switching to worked solutions brought back their M1/A1 lines
+  await expect(page.getByLabel('Answer key shows the marking scheme (M1, A1)')).toBeChecked()
   await expect(key.getByLabel('Include question 1 in the answer key')).not.toBeChecked()
   await expect(key.getByLabel('Include question 2 in the answer key')).toBeChecked()
 
