@@ -8,7 +8,10 @@ import { NodeSelection } from '@tiptap/pm/state'
 import EditorPage from './EditorPage.svelte'
 import SidePanel from './SidePanel.svelte'
 import MarksShown from './MarksShown.svelte'
-import { Section, outline, sectionCues, sectionMarksNote, sectionNode } from './sections'
+import { Section, outline, sectionCues, sectionMarksNote, sectionNode, titlePrints } from './sections'
+import { questionNode } from './templatedQuestion'
+import { makeQuestion } from './fixtures'
+import type { Editor as TipTap } from '@tiptap/core'
 import { BlockSelectionGuard } from './blockSelection'
 import { CoverPage, coverNode } from './pages'
 import { selectedSettingsBlock, settingsBlockPos, settingsTransaction, type SettingsBlock } from './blockSettings'
@@ -69,9 +72,9 @@ describe('the section header on the page', () => {
   it('follows attribute changes made elsewhere (the side panel)', () => {
     const { element, editor } = make()
     const pos = settingsBlockPos(editor.state.doc, { kind: 'section', index: 0, attrs: {} })!
-    editor.view.dispatch(settingsTransaction(editor.state, pos, { title: 'Booklet A', mode: 'short', marking: false }))
+    editor.view.dispatch(settingsTransaction(editor.state, pos, { title: 'Fractions', mode: 'short', marking: false }))
     const a = element.querySelector('.section-block')!
-    expect(a.querySelector('.section-title')).toHaveTextContent('Booklet A')
+    expect(a.querySelector('.section-title')).toHaveTextContent('Fractions')
     expect(a.querySelector('.section-cues')).toHaveTextContent(/^Short answer$/)
   })
 
@@ -98,6 +101,24 @@ describe('the section header on the page', () => {
     expect(sectionCues({ mode: null })).toBe('')
     expect(sectionCues({ mode: null, marking: true })).toBe('marking margin')
     expect(sectionCues({ mode: 'short' })).toBe('Short answer · marking margin')
+    expect(sectionCues({ title: 'Booklet B', mode: 'mcq' })).toBe('title not printed · Multiple choice')
+    expect(sectionCues({ title: 'Section A2' })).toBe('')
+  })
+
+  it('a generic title shows faint, as it does not print (EXA-139)', () => {
+    const element = document.createElement('div')
+    document.body.append(element)
+    editor = new Editor({
+      element,
+      extensions: [StarterKit, Section],
+      content: { type: 'doc', content: [sectionNode('Section A'), sectionNode('Fractions')] },
+    })
+    const [generic, own] = Array.from(element.querySelectorAll('.section-title'))
+    expect(generic).toHaveClass('untitled')
+    expect(element.querySelector('.section-cues')).toHaveTextContent('title not printed')
+    expect(own).not.toHaveClass('untitled')
+    expect(titlePrints(' booklet 2 ')).toBe(false)
+    expect(titlePrints('Part One')).toBe(true)
   })
 })
 
@@ -166,9 +187,9 @@ describe('Marks shown: one control for the paper and each section', () => {
 })
 
 describe('SidePanel: Paper / Question / Section / Cover', () => {
-  const section = (attrs: Record<string, unknown> = {}): SettingsBlock => ({
+  const section = (attrs: Record<string, unknown> = {}, index = 1): SettingsBlock => ({
     kind: 'section',
-    index: 1,
+    index,
     attrs: { title: 'Section B', instructions: null, mode: null, marks_target: 40, marking: null, marks_placement: null, ...attrs },
   })
   afterEach(() => {
@@ -261,6 +282,37 @@ describe('SidePanel: Paper / Question / Section / Cover', () => {
     ])
   })
 
+  it('only a new selection brings the tab forward, not the section moving to another place', async () => {
+    const view = render(SidePanel, { props: { context: null, pick: 0 } })
+    await view.rerender({ context: section(), pick: 1 })
+    expect(screen.getByRole('tab', { name: 'Section B' })).toHaveAttribute('aria-selected', 'true')
+    await fireEvent.click(screen.getByRole('tab', { name: 'Paper' }))
+    // a section inserted above (or removed, or undone) shifts its place: same selection
+    await view.rerender({ context: section({}, 2), pick: 1 })
+    await view.rerender({ context: section({}, 0), pick: 1 })
+    expect(screen.getByRole('tab', { name: 'Paper' })).toHaveAttribute('aria-selected', 'true')
+    // selecting it again does
+    await view.rerender({ context: section({}, 0), pick: 2 })
+    expect(screen.getByRole('tab', { name: 'Section B' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('while a swap or regenerate runs, the settings are disabled', async () => {
+    const view = render(SidePanel, { props: { context: section(), pick: 1, locked: true } })
+    expect(screen.getByRole('group')).toBeDisabled()
+    expect(screen.getByLabelText('Title')).toBeDisabled()
+    await view.rerender({ context: { kind: 'cover', attrs: {} }, pick: 2, locked: true })
+    expect(screen.getByLabelText('School')).toBeDisabled()
+    await view.rerender({ locked: false })
+    expect(screen.getByLabelText('School')).toBeEnabled()
+  })
+
+  it('the paper says sections follow it, but multiple choice and short answer use the header', () => {
+    render(SidePanel, { props: {} })
+    expect(screen.getByRole('tabpanel', { name: 'Paper' })).toHaveTextContent(
+      'Sections follow this unless they set their own; multiple-choice and short-answer sections show marks in the section header.',
+    )
+  })
+
   it('Escape in the settings hands back to the page', async () => {
     const done = vi.fn()
     render(SidePanel, { props: { context: section() }, events: { done } })
@@ -331,7 +383,51 @@ describe('in the editor', () => {
     expect(saved).toEqual({ type: 'section', attrs: { title: 'Booklet B', marks_target: 5 } })
   })
 
+  it('a section inserted above the selected one leaves the panel on the Paper tab', async () => {
+    await open()
+    await fireEvent.click(screen.getByRole('button', { name: 'Edit section settings' }))
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'Section A' })).toHaveAttribute('aria-selected', 'true'))
+    await fireEvent.click(screen.getByRole('tab', { name: 'Paper' }))
+    const ed = (document.querySelector('.page .ProseMirror') as HTMLElement & { editor: TipTap }).editor
+    const at = ed.state.doc.child(0).nodeSize // after the cover, above Section A
+    ed.view.dispatch(ed.state.tr.insert(at, ed.schema.nodeFromJSON(sectionNode('New'))))
+    await waitFor(() => expect(document.querySelectorAll('.section-block')).toHaveLength(2))
+    expect(screen.getByRole('tab', { name: 'Paper' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Section A' })).toBeInTheDocument() // still Section A
+    ed.commands.undo()
+    await waitFor(() => expect(document.querySelectorAll('.section-block')).toHaveLength(1))
+    expect(screen.getByRole('tab', { name: 'Paper' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('while Regenerate runs, the section settings are disabled and an edit is not applied', async () => {
+    let finish: () => void = () => {}
+    const withQ = [...content, questionNode(makeQuestion())]
+    const rec = { ...record, document: { ...record.document, content: { type: 'doc', content: withQ } } }
+    fetchMock.mockImplementation(async (url: string, init: RequestInit = {}) => {
+      if (/\/regenerate$/.test(url)) {
+        await new Promise<void>((r) => (finish = r))
+        return { ok: false, status: 409, json: async () => ({ detail: 'stale' }), text: async () => '' }
+      }
+      return { ok: true, status: 200, json: async () => (init.method === 'PUT' ? { ...rec, version: 5 } : /\/folders$/.test(url) ? { folders: [] } : rec), text: async () => '' }
+    })
+    render(EditorPage, { props: { id: 'd1' } })
+    await waitFor(() => expect(document.querySelector('.section-block')).not.toBeNull())
+    await fireEvent.click(screen.getByRole('button', { name: 'Edit section settings' }))
+    const title = await screen.findByLabelText('Title')
+    await fireEvent.click(screen.getByRole('tab', { name: 'Paper' }))
+    await fireEvent.click(screen.getByRole('button', { name: /^Regenerate 1 unlocked/ }))
+    await fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Regenerate' }))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => /\/regenerate$/.test(String(u)))).toBe(true))
+    await fireEvent.click(screen.getByRole('tab', { name: 'Section A' }))
+    expect(title).toBeDisabled()
+    await fireEvent.input(title, { target: { value: 'Lost' } }) // a script or a stale event
+    expect(document.querySelector('.section-title')).toHaveTextContent('Section A')
+    finish()
+    await waitFor(() => expect(title).toBeEnabled())
+  })
+
   it('the cover card edits in the panel; a hidden panel is shown for it', async () => {
+
     localStorage.setItem('exam.editor.sidePanel', 'hidden')
     await open()
     expect(screen.queryByRole('complementary', { name: 'Side panel' })).toBeNull()

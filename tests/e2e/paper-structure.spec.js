@@ -144,7 +144,7 @@ test('the marking margin follows the section mode and can be switched per sectio
   await panel.getByLabel('Mode').selectOption('mcq')
   await expect(panel.getByLabel('Marking margin')).not.toBeChecked()
   await panel.getByLabel('Marking margin').check()
-  await expect(section.locator('.section-cues')).toHaveText('Multiple choice · marking margin')
+  await expect(section.locator('.section-cues')).toHaveText('title not printed · Multiple choice · marking margin')
   await settled(page)
   expect(await preview()).toContain('question marked')
 

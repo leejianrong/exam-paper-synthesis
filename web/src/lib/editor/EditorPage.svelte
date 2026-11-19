@@ -29,7 +29,8 @@
   import { onDestroy, onMount, tick as nextTick } from 'svelte'
   import { Editor } from '@tiptap/core'
   import StarterKit from '@tiptap/starter-kit'
-  import { NodeSelection, TextSelection } from '@tiptap/pm/state'
+  import { NodeSelection, TextSelection, type Selection } from '@tiptap/pm/state'
+
   import type { Question } from '../types'
   import AddQuestion from './AddQuestion.svelte'
   import AnswerDialog from './AnswerDialog.svelte'
@@ -126,6 +127,10 @@
   let panelTab: 'paper' | 'selection' = 'paper'
   /** The selected section or cover, whose settings the side panel shows (EXA-164). */
   let settingsBlock: SettingsBlock | null = null
+  /** Bumps when the author selects a section or the cover; a selection that only moved with an
+   *  edit above it (an insert, a delete, an undo) does not count. */
+  let settingsPick = 0
+  let lastSelection: Selection | null = null
   let confirmRegen = false
   let innerWidth = 1440
   /** Below 1024 px the toolbar's tail (lists, equation, image) moves into its ⋯ menu. */
@@ -253,7 +258,8 @@
 
   /** A change in the side panel's section or cover settings. */
   function setSettingsAttrs(attrs: Record<string, unknown>) {
-    if (!editor || !settingsBlock) return
+    // during a swap or regenerate the fields are disabled; an edit then could be overwritten
+    if (!editor || !settingsBlock || opInFlight) return
     const pos = settingsBlockPos(editor.state.doc, settingsBlock)
     if (pos !== null) editor.view.dispatch(settingsTransaction(editor.state, pos, attrs))
   }
@@ -498,7 +504,11 @@
         },
         onTransaction: ({ editor: e, transaction }) => {
           tick += 1
+          const sel = e.state.selection
+          const moved = !lastSelection || !sel.eq(lastSelection.map(e.state.doc, transaction.mapping))
+          lastSelection = sel
           settingsBlock = selectedSettingsBlock(e.state)
+          if (moved && settingsBlock) settingsPick += 1
           // The toast's Undo undoes only the deletion it reports: any later change (or a
           // Ctrl+Z) closes it. The deletion itself comes before `questionDeleted`.
           if (deleted && transaction.docChanged) closeDeleted()
@@ -1242,6 +1252,8 @@
 <SidePanel
   bind:tab={panelTab}
   context={settingsBlock}
+  pick={settingsPick}
+  locked={busy === 'paper'}
   {blocks}
   {marks}
   {selectedId}
@@ -1800,7 +1812,6 @@
   .surface :global(.section-instructions) {
     margin: 0.3rem 0 0;
     font-size: 0.9rem;
-    font-style: italic;
     color: var(--ink-soft);
   }
   .surface :global(.cover-block) {

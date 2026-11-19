@@ -564,7 +564,10 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
 - **On the page.** A section is a compact header (`sections.ts` node view): its title ("Untitled
   section" in faint ink when it has none), the derived "Questions 16–30 · 40 / 40 marks" (in
   `--mark` when off target, as before), short cues in faint ink (the mode, "marking margin" when
-  it will print one) and its instructions in italics, as they print. The cover is a compact card
+  it will print one) and its instructions. The header is an editing aid, not a print preview: a
+  generic title ("Section A", "Booklet 2", "Part B", the engine's `_GENERIC_TITLE`, EXA-139) is
+  not printed, so it shows faint with the cue "title not printed" (`titlePrints`), and the
+  printed marks sentence is not reproduced. The cover is a compact card
   (`pages.ts`): a "Cover page" caption, then school, exam, and "level · subject · paper" centred,
   or "Add the school and exam" when empty. Neither has form fields; the inline forms and their
   CSS are deleted. The blank page keeps its small inline form (not in this slice).
@@ -572,6 +575,10 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
   as do the arrow keys. The side panel's second tab follows the selection: the question
   inspector, or the selected section's settings (tab named by its title, else "Section N") or the
   cover's ("Cover page"); selecting a different one brings that tab forward, as a question did.
+  Only a new selection does: the page counts the author's selections (`settingsPick`, bumped
+  when the selection is not just the previous one mapped through the change), so a section
+  inserted, removed or undone above the selected one moves its place without pulling the panel
+  off the Paper tab.
   `blockSettings.ts` reads the selection (`selectedSettingsBlock`) and writes a change
   (`settingsTransaction`), which keeps the block selected so the panel stays on it while you
   type. The section is found again by its place among the sections, since sections carry no id
@@ -593,7 +600,12 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
   default" / "Short answer default" for the modes the engine keeps in the header. The section's
   long "Default: …" option text no longer fits a 300 px panel, so the line under the control says
   what the choice comes to ("Follows the paper: after the Ans: line."). The paper's control says
-  that sections follow it unless they have their own.
+  that sections follow it unless they set their own, and that multiple-choice and short-answer
+  sections show marks in the section header (the engine's `section_placement`).
+- **During a swap or regenerate** the section and cover settings are a disabled `<fieldset>`,
+  and the page ignores any change that still arrives (`opInFlight`): `applyServerContent` would
+  otherwise drop it.
+
 - **Narrow widths.** Below 900 px the panel stacks above the page as before; Edit scrolls to and
   focuses the field there. No horizontal scroll at 820 px.
 - **Not changed:** a generated paper with no text in it still opens with the cover node-selected

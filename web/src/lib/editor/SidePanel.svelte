@@ -39,6 +39,11 @@
   export let tab: 'paper' | 'selection' = 'paper'
   /** A selected section or the cover: its settings show instead of a question's (EXA-164). */
   export let context: SettingsBlock | null = null
+  /** Bumps each time the author selects a section or the cover (not when one moves because a
+   *  block above it came or went), so only a real selection brings its tab forward. */
+  export let pick = 0
+  /** A swap or regenerate is running: the section and cover settings wait (EXA-164). */
+  export let locked = false
 
   const dispatch = createEventDispatcher<{
     time: Event
@@ -66,9 +71,7 @@
   let shownFor: string | null = null
   $: showSelection(
     context
-      ? context.kind === 'cover'
-        ? 'cover'
-        : `section:${context.index}`
+      ? `${context.kind}#${pick}`
       : index >= 0
         ? `q:${selectedId}`
         : null,
@@ -177,7 +180,10 @@
         <span>Marks shown</span>
         <MarksShown value={paperPlacement($paperSettings)} on:change={(e) => dispatch('placement', e)} />
       </label>
-      <p class="hint">Each section follows this unless it has its own.</p>
+      <p class="hint">
+        Sections follow this unless they set their own; multiple-choice and short-answer sections show
+        marks in the section header.
+      </p>
     </div>
 
     {#if regen || placeholdersLeft}
@@ -212,11 +218,17 @@
         attrs={context.attrs}
         info={$outline[context.index]}
         paper={paperPlacement($paperSettings)}
+        disabled={locked}
         on:change={(e) => dispatch('blockattrs', e.detail)}
         on:done
       />
     {:else if context?.kind === 'cover'}
-      <CoverSettings attrs={context.attrs} on:change={(e) => dispatch('blockattrs', e.detail)} on:done />
+      <CoverSettings
+        attrs={context.attrs}
+        disabled={locked}
+        on:change={(e) => dispatch('blockattrs', e.detail)}
+        on:done
+      />
     {:else}
       <Inspector {blocks} {selectedId} {start} on:remark on:review />
     {/if}
@@ -357,7 +369,15 @@
   .pbody :global(.settings) {
     display: grid;
     gap: var(--s3);
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
   }
+  .pbody :global(.settings:disabled) {
+    opacity: 0.6;
+  }
+
   .pbody :global(.settings .row) {
     display: grid;
     gap: var(--s1);

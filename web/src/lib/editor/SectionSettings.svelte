@@ -8,6 +8,8 @@
   import { MODE_LABELS, markingOn, sectionMarksNote, sectionSummary, targetState } from './sections'
 
   export let attrs: Record<string, unknown>
+  /** A swap or regenerate is running: the fields wait. */
+  export let disabled = false
   export let info: SectionInfo | undefined = undefined
   export let paper: SectionPlacement
 
@@ -30,8 +32,8 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="settings" on:keydown={onKey}>
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<fieldset class="settings" {disabled} on:keydown={onKey}>
   <p class="summary" data-state={state}>{sectionSummary(info)}</p>
   <label class="row">
     <span>Title</span>
@@ -93,4 +95,4 @@
     <span>Marking margin</span>
   </label>
   <p class="hint">A ruled strip beside each question: "Do not write in this space".</p>
-</div>
+</fieldset>

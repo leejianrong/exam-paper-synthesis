@@ -154,10 +154,24 @@ export function sectionIndexAt(doc: PMNode, pos: number): number {
   return found
 }
 
-/** The header's short cues: the mode and whether the marking margin is on. */
-export function sectionCues(attrs: { mode?: unknown; marking?: unknown }): string {
+/** A generic title ("Section A", "Booklet 2", "Part B") is not printed: the engine's
+ *  `_GENERIC_TITLE` (EXA-139). */
+const GENERIC_TITLE = /^\s*(section|booklet|part)\s+([a-z]|\d{1,2})\s*$/i
+
+/** Whether the section's title prints in the paper (a teacher's own title, not a generic one). */
+export function titlePrints(title: unknown): boolean {
+  const t = String(title ?? '').trim()
+  return !!t && !GENERIC_TITLE.test(t)
+}
+
+/** The header's short cues: a generic title that won't print, the mode, and whether the marking
+ *  margin is on. */
+export function sectionCues(attrs: { title?: unknown; mode?: unknown; marking?: unknown }): string {
+  const generic = String(attrs.title ?? '').trim() !== '' && !titlePrints(attrs.title)
   const mode = MODE_LABELS[attrs.mode as SectionMode] as string | undefined
-  return [mode, markingOn(attrs) && 'marking margin'].filter(Boolean).join(' · ')
+  return [generic && 'title not printed', mode, markingOn(attrs) && 'marking margin']
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export const Section = Node.create<SectionOptions>({
@@ -239,7 +253,9 @@ export const Section = Node.create<SectionOptions>({
         const a = current.attrs
         const text = String(a.title ?? '').trim()
         title.textContent = text || 'Untitled section'
-        title.classList.toggle('untitled', !text)
+        // faint unless it prints: an empty or generic title is for the editor only
+        title.classList.toggle('untitled', !titlePrints(text))
+
         cues.textContent = sectionCues(a)
         const instr = String(a.instructions ?? '').trim()
         instructions.textContent = instr

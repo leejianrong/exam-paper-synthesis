@@ -5,6 +5,8 @@
   import { COVER_FIELDS, COVER_SWITCHES } from './pages'
 
   export let attrs: Record<string, unknown>
+  /** A swap or regenerate is running: the fields wait. */
+  export let disabled = false
 
   const dispatch = createEventDispatcher<{ change: Record<string, unknown>; done: void }>()
   const set = (a: Record<string, unknown>) => dispatch('change', a)
@@ -17,8 +19,8 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="settings" on:keydown={onKey}>
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<fieldset class="settings" {disabled} on:keydown={onKey}>
   {#each COVER_FIELDS as f (f.key)}
     <label class="row">
       <span>{f.label}</span>
@@ -64,4 +66,4 @@
     Time, question count, total marks, the examiner’s table and the page count come from the paper.
     The cover replaces the paper’s header and is left out of the answer key.
   </p>
-</div>
+</fieldset>
