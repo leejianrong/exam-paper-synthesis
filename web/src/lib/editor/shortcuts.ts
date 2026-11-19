@@ -1,9 +1,105 @@
 import { Extension } from '@tiptap/core'
 import { NodeSelection, Plugin, PluginKey } from '@tiptap/pm/state'
+import { isMac } from '../keys'
 
-// Keyboard shortcuts (EXA-161; S5/EXA-163 adds the global ones here). A shortcut is named by
-// the label it shows right-aligned in a menu ("R", "Alt+↑"), so a key does exactly what the
-// visible menu row with that label does, and a row that is hidden has no shortcut.
+export { ariaKeys, isMac, keyLabel } from '../keys'
+
+// Keyboard shortcuts (EXA-161 block keys, EXA-163 global keys). A shortcut is named by the
+// label it shows right-aligned in a menu ("R", "Alt+↑", "Ctrl+K"), so a key does exactly what
+// the visible menu row with that label does, and a row that is hidden has no shortcut. Labels
+// are written the PC way; `keyLabel` shows them the Mac way (⌘, ⌥) on a Mac, where Cmd stands
+// in for Ctrl.
+
+/** The editor-wide shortcuts (UI-REDESIGN 6). Each one is a chord with Ctrl (Cmd on a Mac), so
+ *  none of them types a character; typing keys (Ctrl+B/I/U, Ctrl+Z/Y) stay the editor's and the
+ *  browser keeps its own (Ctrl+R, L, T, W). */
+export const GLOBAL_KEYS = {
+  palette: 'Ctrl+K',
+  addQuestion: 'Ctrl+Enter',
+  answerKey: 'Ctrl+Alt+K',
+  preview: 'Ctrl+P',
+  panel: 'Ctrl+\\',
+  sheet: 'Ctrl+/',
+  equation: 'Ctrl+M',
+} as const
+
+export type GlobalCommand = keyof typeof GLOBAL_KEYS
+
+/** Commands that put something into the paper: they never fire from a form field (the title,
+ *  a marks box, a dialog's input), only from the page itself. */
+const INSERTS: GlobalCommand[] = ['addQuestion', 'equation']
+
+/** Which editor-wide command a key press asks for, or null. `fromField` is true when the key
+ *  was pressed in an input, text area or select. */
+export function globalShortcut(e: KeyboardEvent, fromField = false, mac = isMac()): GlobalCommand | null {
+  if (e.isComposing || e.shiftKey) return null
+  const mod = mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey
+  if (!mod) return null
+  let cmd: GlobalCommand | null = null
+  if (e.altKey) {
+    // Alt changes e.key on a Mac (⌥K is "˚"), so read the physical key
+    if (e.code === 'KeyK' || e.key.toLowerCase() === 'k') cmd = 'answerKey'
+  } else {
+    const key = e.key.length === 1 ? e.key.toLowerCase() : e.key
+    if (key === 'k') cmd = 'palette'
+    else if (key === 'Enter') cmd = 'addQuestion'
+    else if (key === 'p') cmd = 'preview'
+    else if (key === '\\' || e.code === 'Backslash') cmd = 'panel'
+    else if (key === '/' || e.code === 'Slash') cmd = 'sheet'
+    else if (key === 'm') cmd = 'equation'
+  }
+  if (cmd && fromField && INSERTS.includes(cmd)) return null
+  return cmd
+}
+
+/** The shortcut sheet (Ctrl+/): every shortcut, grouped as a teacher thinks of them. */
+export const SHEET: Array<{ group: string; rows: Array<{ label: string; keys: string[] }> }> = [
+  {
+    group: 'Paper',
+    rows: [
+      { label: 'Find a command', keys: [GLOBAL_KEYS.palette] },
+      { label: 'Add a question', keys: [GLOBAL_KEYS.addQuestion] },
+      { label: 'Go to the answer key', keys: [GLOBAL_KEYS.answerKey] },
+      { label: 'Preview pages', keys: [GLOBAL_KEYS.preview] },
+      { label: 'Show or hide the side panel', keys: [GLOBAL_KEYS.panel] },
+      { label: 'Keyboard shortcuts', keys: [GLOBAL_KEYS.sheet] },
+    ],
+  },
+  {
+    group: 'Questions',
+    rows: [
+      { label: 'Another like this', keys: ['R'] },
+      { label: 'Lock or unlock', keys: ['L'] },
+      { label: 'Make easier', keys: ['['] },
+      { label: 'Make harder', keys: [']'] },
+      { label: 'Move up', keys: ['Alt+↑'] },
+      { label: 'Move down', keys: ['Alt+↓'] },
+      { label: 'Delete', keys: ['Del'] },
+      { label: "Open the question's menu", keys: ['Shift+F10'] },
+    ],
+  },
+  {
+    group: 'Text',
+    rows: [
+      { label: 'Bold', keys: ['Ctrl+B'] },
+      { label: 'Italic', keys: ['Ctrl+I'] },
+      { label: 'Underline', keys: ['Ctrl+U'] },
+      { label: 'Equation', keys: [GLOBAL_KEYS.equation] },
+      { label: 'Line break', keys: ['Shift+Enter'] },
+      { label: 'Undo', keys: ['Ctrl+Z'] },
+      { label: 'Redo', keys: ['Ctrl+Y'] },
+    ],
+  },
+]
+
+/** A command the palette (Ctrl+K) can run: a menu row or a question action, by name. */
+export interface Command {
+  label: string
+  /** Where it lives: "Paper", "Insert", "Question 6", … */
+  group: string
+  shortcut?: string
+  run: () => void
+}
 
 /** The block shortcuts: active on a focused or selected question, never while typing. */
 export const BLOCK_KEYS = {
@@ -70,6 +166,21 @@ export function registerBlockKeys(dom: Element, handler: BlockKeyHandler): () =>
   return () => {
     if (handlers.get(dom) === handler) handlers.delete(dom)
   }
+}
+
+/** The question menus' rows by block, for the command palette: a block lists its rows while it
+ *  is mounted. */
+const blockCommands = new WeakMap<Element, () => Command[]>()
+
+export function registerBlockCommands(dom: Element, list: () => Command[]): () => void {
+  blockCommands.set(dom, list)
+  return () => {
+    if (blockCommands.get(dom) === list) blockCommands.delete(dom)
+  }
+}
+
+export function commandsForBlock(dom: Element | null | undefined): Command[] {
+  return dom ? (blockCommands.get(dom)?.() ?? []) : []
 }
 
 export function blockKeyHandler(dom: Element | null | undefined): BlockKeyHandler | undefined {

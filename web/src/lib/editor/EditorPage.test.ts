@@ -538,11 +538,12 @@ describe('toolbar (P1)', () => {
     expect(container.querySelector('header.ehead .tools')).not.toBeNull()
   })
 
-  it('keeps cover page, blank page and page break in the ⋯ menu', async () => {
+  it('has no ⋯ on a wide window: the page inserts live in the Insert menu (EXA-163)', async () => {
     renderEmpty()
-    await fireEvent.click(await screen.findByRole('button', { name: 'More tools' }))
-    const names = screen.getAllByRole('menuitem').map((m) => m.textContent?.trim())
-    expect(names).toEqual(['Cover page', 'Blank page', 'Page break'])
+    await screen.findByRole('toolbar', { name: 'Formatting' })
+    expect(screen.queryByRole('button', { name: 'More tools' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Question' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Section' })).toBeInTheDocument()
   })
 
   it('says why Equation is unavailable instead of greying it out silently', async () => {
@@ -560,8 +561,11 @@ describe('toolbar (P1)', () => {
       await screen.findByRole('toolbar', { name: 'Formatting' })
       expect(screen.queryByRole('button', { name: 'Bulleted list' })).toBeNull()
       await fireEvent.click(screen.getByRole('button', { name: 'More tools' }))
-      const names = screen.getAllByRole('menuitem').map((m) => m.textContent?.trim())
-      expect(names).toEqual(['Bulleted list', 'Numbered list', 'Equation', 'Image', 'Cover page', 'Blank page', 'Page break'])
+      const menu = screen.getByRole('menu', { name: 'More tools' })
+      const names = within(menu)
+        .getAllByRole('menuitem')
+        .map((m) => m.querySelector('.label')?.textContent)
+      expect(names).toEqual(['Bulleted list', 'Numbered list', 'Equation', 'Image'])
     } finally {
       window.innerWidth = was
     }
@@ -766,7 +770,7 @@ describe('formatting toolbar focus (EXA-120)', () => {
     expect(document.activeElement).toBe(bold)
   })
 
-  it('an insert from the ⋯ menu puts the caret back in the paper', async () => {
+  it('an insert from the Insert menu puts the caret back in the paper', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
@@ -776,7 +780,7 @@ describe('formatting toolbar focus (EXA-120)', () => {
     await waitFor(() => expect(document.querySelector('.page .ProseMirror')).not.toBeNull())
     const page = document.querySelector('.page .ProseMirror') as HTMLElement
     page.focus()
-    await fireEvent.click(screen.getByRole('button', { name: 'More tools' }))
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Insert' }))
     await fireEvent.click(screen.getByRole('menuitem', { name: 'Page break' }))
     expect(page.contains(document.activeElement)).toBe(true)
     expect(document.querySelector('.page-break-marker')).not.toBeNull()

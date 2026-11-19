@@ -1,11 +1,14 @@
 <script lang="ts">
   // The editor header's first row (EXA-160): back, folder / title, save state, the marks total,
   // Preview, the one primary action (Export ▾) and the account avatar. Paper settings live in the
-  // side panel, never here. Room is left after the title for the Paper / Insert / View / Help
-  // menus (S5). Narrow windows drop the folder and the resting marks total (the panel shows it);
+  // side panel, never here. The Paper / Insert / View / Help menus (EXA-163) sit under the
+  // title, passed in as `menus`. Narrow windows drop the folder and the resting marks total (the panel shows it);
   // Preview and Export always stay on screen. On a generated paper with placeholders still to
   // write, a quiet link beside the total says how many and opens the side panel's Paper tab.
+  import type { Snippet } from 'svelte'
   import Icon from '../Icon.svelte'
+  import { ariaKeys, keyLabel } from '../keys'
+  import { GLOBAL_KEYS } from './shortcuts'
   import Menu, { type MenuItem } from '../Menu.svelte'
   import AccountMenu from './AccountMenu.svelte'
   import type { ExportMode } from './docsApi'
@@ -28,6 +31,7 @@
     onPreview,
     onExport,
     onRename,
+    menus,
   }: {
     title: string
     folderName?: string | null
@@ -46,6 +50,8 @@
     onPreview: () => void
     onExport: (mode: ExportMode) => void
     onRename: () => void
+    /** The menu row under the title. */
+    menus?: Snippet
   } = $props()
 
   const STATUS: Record<Status, string> = {
@@ -81,6 +87,7 @@
         {#if status === 'saved'}<Icon name="check" size={14} />{/if}{STATUS[status]}
       </span>
     </div>
+    {#if menus}{@render menus()}{/if}
   </div>
   <span class="total" class:off={!!offTarget} title={offTarget || undefined} data-testid="marks-total">
     {#if offTarget}<Icon name="alert" size={14} />{/if}<b>{marks}</b>{target === null ? '' : ` / ${target}`} marks
@@ -95,7 +102,13 @@
       >{placeholdersLeft}<span class="wide">{placeholdersLeft === 1 ? ' placeholder' : ' placeholders'}</span> to write</button
     >
   {/if}
-  <button class="btn" disabled={!!busy} onclick={onPreview}>
+  <button
+    class="btn"
+    disabled={!!busy}
+    title="Preview pages ({keyLabel(GLOBAL_KEYS.preview)})"
+    aria-keyshortcuts={ariaKeys(GLOBAL_KEYS.preview)}
+    onclick={onPreview}
+  >
     <Icon name="eye" /><span class="btn-txt">Preview</span>
   </button>
   <Menu {items} align="end" triggerClass="btn primary" disabled={!!busy} label={exporting ? 'Exporting…' : 'Export'}>
@@ -124,7 +137,6 @@
   .titleblock {
     flex: 1;
     min-width: 0;
-    /* S5's menus (Paper, Insert, View, Help) go under the crumb */
   }
   .crumb {
     display: flex;

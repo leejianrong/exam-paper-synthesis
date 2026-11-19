@@ -13,6 +13,8 @@
     hint?: string
     danger?: boolean
     separator?: boolean
+    /** An on/off row (e.g. "Show side panel"): a menuitemcheckbox with a tick when on. */
+    checked?: boolean
   }
 </script>
 
@@ -22,9 +24,12 @@
   // with it, Enter/Space choose, Esc closes and gives focus back to the trigger, Tab closes.
   // Opening focuses the first item (ArrowUp: the last). Choosing an item closes the menu and
   // returns focus to the trigger before the action runs, so an action may move focus itself
-  // (e.g. back into the paper). Reused by the editor header, toolbar and (S3/S5) block menus.
+  // (e.g. back into the paper). Reused by the editor header, toolbar, block menus and, as one
+  // menu of a menubar (MenuBar.svelte, EXA-163), by the Paper / Insert / View / Help menus.
+  // Shortcuts are written the PC way and shown the Mac way on a Mac (keys.ts).
   import { tick, type Snippet } from 'svelte'
   import Icon from './Icon.svelte'
+  import { ariaKeys, isMac, keyLabel } from './keys'
 
   let {
     items,
@@ -38,6 +43,10 @@
     disabled = false,
     menuLabel,
     onOpenChange,
+    triggerRole,
+    triggerTabindex,
+    onSide,
+    onTriggerEnter,
   }: {
     items: MenuItem[]
     /** The trigger's accessible name when its content is an icon or not the whole story. */
@@ -55,22 +64,23 @@
     menuLabel?: string
     /** Told when the menu opens or closes (e.g. a block keeps its toolbar while it's open). */
     onOpenChange?: (open: boolean) => void
+    /** In a menubar the trigger is itself a menuitem with a roving tabindex. */
+    triggerRole?: 'menuitem'
+    triggerTabindex?: number
+    /** In a menubar: ←/→ pressed on the trigger (`open` false) or inside the open menu, which
+     *  has closed by then (`open` true). */
+    onSide?: (dir: 1 | -1, open: boolean) => void
+    /** In a menubar: the pointer moved onto this trigger. */
+    onTriggerEnter?: () => void
   } = $props()
+
+  const mac = isMac()
 
   const uid = `menu-${Math.random().toString(36).slice(2, 9)}`
   let open = $state(false)
   let button: HTMLButtonElement | undefined = $state()
   let root: HTMLElement | undefined = $state()
   let rows: HTMLButtonElement[] = $state([])
-
-  /** "Alt+↑" as ARIA names keys ("Alt+ArrowUp"); the row's name stays its label. */
-  function ariaKeys(shortcut: string): string {
-    const names: Record<string, string> = { '↑': 'ArrowUp', '↓': 'ArrowDown', '↵': 'Enter', Del: 'Delete', Ctrl: 'Control' }
-    return shortcut
-      .split('+')
-      .map((k) => names[k] ?? k)
-      .join('+')
-  }
 
   function focusItem(i: number) {
     const n = items.length
@@ -101,13 +111,20 @@
     if (!open) void show(at)
   }
 
+  export function focusTrigger() {
+    button?.focus()
+  }
+
   function onTriggerClick() {
     if (open) close(true)
     else void show('first')
   }
 
   function onTriggerKey(e: KeyboardEvent) {
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (onSide && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault()
+      onSide(e.key === 'ArrowRight' ? 1 : -1, false)
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault()
       void show(e.key === 'ArrowDown' ? 'first' : 'last')
     }
@@ -139,6 +156,14 @@
         break
       case 'Tab':
         close(false)
+        break
+      case 'ArrowLeft':
+      case 'ArrowRight':
+        if (onSide) {
+          e.preventDefault()
+          close(false)
+          onSide(e.key === 'ArrowRight' ? 1 : -1, true)
+        }
         break
       default:
         if (e.key.length === 1 && /\S/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -183,8 +208,11 @@
     aria-controls={open ? uid : undefined}
     aria-label={label}
     title={triggerTitle}
+    role={triggerRole}
+    tabindex={triggerTabindex}
     {disabled}
     onclick={onTriggerClick}
+    onpointerenter={onTriggerEnter}
     onkeydown={onTriggerKey}>{@render trigger()}</button
   >
   {#if open}
@@ -203,17 +231,19 @@
           <button
             bind:this={rows[i]}
             type="button"
-            role="menuitem"
+            role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+            aria-checked={item.checked === undefined ? undefined : item.checked}
             tabindex="-1"
             class:danger={item.danger}
             aria-disabled={item.disabled ? 'true' : undefined}
             title={item.hint}
-            aria-keyshortcuts={item.shortcut ? ariaKeys(item.shortcut) : undefined}
+            aria-keyshortcuts={item.shortcut ? ariaKeys(item.shortcut, mac) : undefined}
             onclick={() => choose(item)}
           >
-            {#if item.icon}<Icon name={item.icon} />{/if}
+            {#if item.checked !== undefined}<span class="tick">{#if item.checked}<Icon name="check" />{/if}</span
+              >{:else if item.icon}<Icon name={item.icon} />{/if}
             <span class="label">{item.label}</span>
-            {#if item.shortcut}<span class="k" aria-hidden="true">{item.shortcut}</span>{/if}
+            {#if item.shortcut}<span class="k" aria-hidden="true">{keyLabel(item.shortcut, mac)}</span>{/if}
           </button>
         {/each}
       </div>
@@ -252,7 +282,7 @@
     flex-direction: column;
     outline: none;
   }
-  [role='menuitem'] {
+  .popup [role^='menuitem'] {
     display: flex;
     align-items: center;
     gap: var(--s2);
@@ -267,24 +297,29 @@
     white-space: nowrap;
     cursor: pointer;
   }
-  [role='menuitem']:hover,
-  [role='menuitem']:focus {
+  .popup [role^='menuitem']:hover,
+  .popup [role^='menuitem']:focus {
     background: var(--wash);
     outline: none;
   }
-  [role='menuitem']:focus-visible {
+  .popup [role^='menuitem']:focus-visible {
     box-shadow: inset 0 0 0 2px var(--verify);
   }
-  [role='menuitem'] :global(.icon) {
+  .popup [role^='menuitem'] :global(.icon) {
     color: var(--ink-soft);
   }
-  [role='menuitem'][aria-disabled='true'] {
+  .popup [role^='menuitem'][aria-disabled='true'] {
     color: var(--ink-faint);
     cursor: default;
   }
-  [role='menuitem'].danger,
-  [role='menuitem'].danger :global(.icon) {
+  .popup [role='menuitem'].danger,
+  .popup [role='menuitem'].danger :global(.icon) {
     color: var(--mark);
+  }
+  .tick {
+    display: inline-flex;
+    width: 16px;
+    flex: none;
   }
   .k {
     margin-left: auto;
