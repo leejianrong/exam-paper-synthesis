@@ -96,11 +96,55 @@ def _shortfall(code: str, marks: int) -> int:
     return max(0, need - _RUNG[META[code]["rung"]])
 
 
+def _capped(code: str, kind: str, topics: Counter) -> bool:
+    """EXA-154: a structured stand-in never gives a topic its third question in a paper, so a
+    blueprint of a topic the paper had twice when the stand-in was picked could not be taken."""
+    return kind == "structured" and topics[META[code]["topic"]] >= 2
+
+
+def _topics_at_pick(doc, node) -> Counter[str]:
+    """The paper's topics when ``node`` (a structured stand-in) was picked, written out from the
+    fill order: every section's multi-part questions first (EXA-154), then every earlier
+    section, then this section's stand-ins biggest first (equal marks in print order, since the
+    section is sorted stably)."""
+
+    def multipart(n) -> bool:
+        return META[n["attrs"]["question"]["blueprint_code"]]["parts"] > 1
+
+    out: Counter[str] = Counter()
+    sections = [
+        [n for n in nodes if n["type"] == "templatedQuestion"] for _, nodes in _by_section(doc)
+    ]
+    for nodes in sections:
+        out.update(_topic(n) for n in nodes if multipart(n))
+    for _, nodes in _by_section(doc):
+        if node not in nodes:
+            out.update(
+                _topic(n) for n in nodes if n["type"] == "templatedQuestion" and not multipart(n)
+            )
+            continue
+        here = nodes.index(node)
+        for i, n in enumerate(nodes):
+            if n["type"] != "templatedQuestion" or n is node:
+                continue
+            bigger = _marks(n) > _marks(node) or (_marks(n) == _marks(node) and i < here)
+            if bigger and not multipart(n):
+                out[_topic(n)] += 1
+        return out
+    raise AssertionError("node not in the paper")
+
+
+def _topic(node) -> str:
+    return node["attrs"]["question"]["syllabus"]["topic"]
+
+
 def _takes(code: str, kind: str, level: str) -> bool:
     """Whether a single-part blueprint could fill a slot of ``kind`` in a ``level`` paper."""
     m = META[code]
     if m["level"] not in LEVELS[: LEVELS.index(level) + 1] or m["parts"] != 1:
         return False
+    if m["answer_types"] == {"choice"}:  # asks multiple choice itself (EXA-147): mcq slots only
+        return kind == "mcq"
     return kind != "mcq" or m["answer_types"] <= _CONVERTIBLE
 
 
@@ -241,7 +285,8 @@ def test_generated_papers_keep_every_rule(code, level):
 
         # difficulty follows marks (EXA-146): a question falls below its slot's rung only when
         # every blueprint that could have filled the slot at that rung is already in the paper
-        # (or, in an exam set, its topic is full: EXA-153)
+        # (or, in an exam set, its topic is full: EXA-153; or, for a stand-in, the paper had
+        # two questions of its topic when the stand-in was picked: EXA-154)
         for sec, nodes in _by_section(doc):
             for n in nodes:
                 if n["type"] != "templatedQuestion":
@@ -257,6 +302,7 @@ def test_generated_papers_keep_every_rule(code, level):
                     and _shortfall(c, marks) < _shortfall(bp, marks)
                     and c not in codes
                     and META[c]["topic"] not in full
+                    and not _capped(c, sec["mode"], _topics_at_pick(doc, n))
                 ]
                 assert not better, (where, bp, better)
 
@@ -332,18 +378,25 @@ def test_an_exam_set_spreads_its_topics(level):
     make the papers on their own, and no topic passes _SET_MAX. Paper 2 is filled first
     (set_fill_order), so its hard and medium slots keep the rungs they would have alone."""
     assert set_fill_order(TEMPLATES) == _FILL_ORDER
+    over_together = over_apart = 0
     for seed, papers in _sets(level).items():
         together = _set_topics(papers)
         apart = _set_topics([generate_paper(code, level, seed) for code in TEMPLATES])
         where = (level, seed, dict(together))
         assert sum(together.values()) == sum(apart.values()), where  # no question lost
         assert max(together.values()) <= max(apart.values()), where
-        assert _over_cap(together) <= _over_cap(apart), where
+        over_together += _over_cap(together)
+        over_apart += _over_cap(apart)
         assert max(together.values()) <= _SET_MAX[level], where
         p2 = TEMPLATES.index("p2")
         assert _fit(papers[p2][0]) >= _fit(generate_paper("p2", level, seed)[0]), where
         # each report counts its own paper's topics, as the wizard adds them up
         assert sum((Counter(r["topics"]) for _, r in papers), Counter()) == together, where
+    # the fill is greedy, paper by paper, so one set may sit a question or two further over the
+    # cap than its papers made apart (P6 seed 12 once multi-part questions pick first, EXA-154);
+    # over the seeds a set has clearly fewer (seeds 1-30: P5 360 against 426, P6 70 against
+    # 118; picking multi-part first under the cap cost the P6 sets 65 -> 70)
+    assert over_together <= 0.9 * over_apart, (level, over_together, over_apart)
 
 
 # a number, or an answer in terms of π (EXA-155): multiple choice
@@ -388,9 +441,15 @@ def test_booklet_a_fills_every_slot_and_spreads_topics(level):
             if m["level"] in allowed
             and m["marks"] == 1
             and m["parts"] == 1
-            and m["answer_types"] <= _CONVERTIBLE
+            and (m["answer_types"] <= _CONVERTIBLE or m["answer_types"] == {"choice"})
         }
-        assert eligible <= paper_topics, (seed, eligible - paper_topics)
+        # since EXA-147 (Solids, Nets) P6 has 13 such topics for its 10 one-mark slots, so a
+        # paper may leave out up to 3; P5 has 10 and leaves out none
+        one_mark = sum(1 for c in codes if META[c]["marks"] == 1)
+        assert len(eligible - paper_topics) <= max(0, len(eligible) - one_mark), (
+            seed,
+            eligible - paper_topics,
+        )
 
 
 @pytest.mark.parametrize("level", LEVELS)
@@ -408,20 +467,30 @@ def test_difficulty_follows_marks_without_costing_a_question(code, level):
             if n["type"] == "templatedQuestion"
         ]
         used = {q["blueprint_code"] for _, q in qs}
-        groups: dict[tuple[int, str], list[str]] = {}
-        for slot, q in qs:
-            if META[q["blueprint_code"]]["parts"] == 1:
-                groups.setdefault((slot["marks"], slot["kind"]), []).append(q["blueprint_code"])
-        for (marks, kind), bps in groups.items():
-            if all(_shortfall(bp, marks) == 0 for bp in bps):
+        topics = Counter(q["syllabus"]["topic"] for _, q in qs)
+        groups: dict[tuple[int, str], list[dict]] = {}
+        for n in _questions(doc):
+            if (
+                n["type"] == "templatedQuestion"
+                and META[n["attrs"]["question"]["blueprint_code"]]["parts"] == 1
+            ):
+                slot = n["attrs"]["slot"]
+                groups.setdefault((slot["marks"], slot["kind"]), []).append(n)
+        for (marks, kind), nodes in groups.items():
+            low = [
+                n for n in nodes if _shortfall(n["attrs"]["question"]["blueprint_code"], marks) > 0
+            ]
+            if not low:
                 continue
             fitting = {
                 c
                 for c, m in META.items()
-                if m["marks"] == marks and _takes(c, kind, level) and _shortfall(c, marks) == 0
+                if m["marks"] == marks
+                and _takes(c, kind, level)
+                and _shortfall(c, marks) == 0
+                and not all(_capped(c, kind, _topics_at_pick(doc, n)) for n in low)
             }
             assert fitting <= used, (code, level, seed, marks, kind, fitting - used)
-        topics = Counter(q["syllabus"]["topic"] for _, q in qs)
         assert max(topics.values()) <= 2, (code, level, seed, topics)
 
 
@@ -433,13 +502,13 @@ def test_what_todays_content_fills():
         return r["filled"], r["placeholders"]
 
     assert fill("p1_booklet_a", "P6") == (15, 0)  # 13 one-mark MCQ-able (P8e batch 3)
-    assert fill("p1_booklet_a", "P5") == (15, 0)  # 12 one-mark at P5
+    assert fill("p1_booklet_a", "P5") == (15, 0)  # 13 one-mark at P5 (cubes_count, EXA-147)
     assert fill("p1_booklet_b", "P6") == (15, 0)
-    assert fill("p1_booklet_b", "P5") == (13, 2)
-    assert fill("p2", "P6") == (17, 0)  # Section B: 8 multi-part + 4 single-part stand-ins
+    assert fill("p1_booklet_b", "P5") == (15, 0)  # all 10 P5 two-mark mediums (EXA-147, 148, 154)
+    assert fill("p2", "P6") == (17, 0)  # Section B: 10 multi-part + 2 single-part stand-ins
     _, r = generate_paper("p2", "P6", 1)
-    assert [(s["multipart"], s["stand_ins"]) for s in r["sections"]] == [(0, 0), (8, 4)]
-    assert fill("p2", "P5") == (16, 3)  # Section B: 11 stand-ins, 3 placeholders (15 marks)
+    assert [(s["multipart"], s["stand_ins"]) for s in r["sections"]] == [(0, 0), (10, 2)]
+    assert fill("p2", "P5") == (21, 1)  # Section B: 16 stand-ins, 1 placeholder
 
 
 def test_unknown_template_and_level_are_refused():
@@ -483,6 +552,7 @@ def test_the_stand_in_plan_stays_fast_and_exact_as_content_grows():
 
     class _F:
         used: set = set()
+        topics: dict = {}
         pool = [
             Candidate(f"b{m}_{i}", "T", "P6", m, "constructed")
             for m in range(2, 9)

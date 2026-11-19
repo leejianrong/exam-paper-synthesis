@@ -10,6 +10,51 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Square-grid questions (EXA-144).** Real P5/P6 prelims set about 3 grid questions a set and
+  we had none. A new `grid` figure (canonical schema 1.14.0: lines or dots, shaded or lettered
+  squares, figures, lines, lettered points, a compass rose), drawn by the server in greys with
+  letters clear of every line, and four blueprints: the area of a shaded figure by counting
+  whole and half squares (2 marks), and three 1-mark multiple-choice questions with letter
+  options: which point makes a line parallel or perpendicular to AB, which place lies in a
+  compass direction or is faced after a turn, and which square completes a symmetric figure.
+  Drawing answers (shade, complete, draw) are not built.
+
+- **Data-table questions (EXA-148).** Three new blueprints print a data table before the
+  question (the existing content-level `question.table`, filled by a new optional solver hook
+  `table()`; no schema change): `postage_table` (P5, 2 marks: postage for two letters from a
+  table of mass bands), `rental_table` (P5, 3 marks: the greatest number of hours a sum of
+  money rents an item for, from a three-item rental table) and `tariff_gst` (P6, 4 marks,
+  multi-part: a three-band water or electricity tariff, then the bill with 9% GST). The paper
+  generator places them by their marks; P5 Booklet B and Paper 2 have fewer placeholders. The
+  editor's question blocks, the Add question picker and the Classic page now show a question's
+  table too. A solver can ask for whole-number options only (`mcq_whole`, used for rental
+  hours).
+
+- **Cube stacks and nets (EXA-147).** Four new questions on solids, as real P6 prelims ask
+  them: count the cubes in a drawn solid, hidden ones included (1 mark); the least cubes to add
+  to make it a cuboid or a cube (2 marks); which picture is the front or side view (1 mark,
+  picture options); and which face of a folded net is opposite a marked face (1 mark, letter
+  options). Nets are a new figure (`net`, canonical schema 1.13.0), and a stack of cubes can now
+  show a "Front" arrow. The two picture and letter questions go into Booklet A as they are.
+
+- **Deeper P6 angle questions (EXA-150).** Four new blueprints, each with a figure drawn to
+  scale: a rectangle's corner folded along a line (2 marks), a rhombus, parallelogram or
+  trapezium joined to an isosceles or equilateral triangle (3 marks), reflex angles at a point
+  (2 marks), and a two-part Paper 2 question on a rhombus with an equilateral triangle inside
+  it (4 marks). Figures can now mark a reflex angle: it is drawn the long way round, on a wider
+  arc. A P6 Paper 2 now has 9 multi-part questions in Section B and 3 stand-ins.
+
+- **2-mark medium questions for Ratio, Percentage, Speed and both Geometry topics (EXA-154).**
+  Five new blueprints, each a rung between the topic's 2-mark easy and 3-mark medium ones: the
+  total from a ratio and a difference, a percentage of the remainder, speed with the time in
+  minutes, vertically opposite angles, and a rectangle's area from its perimeter (or the
+  reverse). A P6 Booklet B now fills all ten 2-mark slots with medium questions (was 7 of 10)
+  and covers 13.5 topics on average (was 11.5); a P5 Booklet B has no placeholders (was 2). In
+  Paper 2 a stand-in (and any swap or "Regenerate unlocked") never gives a topic a third
+  question, and the 3-mark stand-ins are chosen first, so a P5 Section B takes `ratio_medium`
+  rather than a 2-mark easy question. Paper 2's multi-part questions are picked before any
+  other question, so a P6 Paper 2 keeps all 8 of them under the same cap of 2 a topic.
+
 - **Multiple choice in terms of π (EXA-155).** A perimeter left "in terms of π" can now be a
   Booklet A question: four options such as (6π + 24) cm, printed like the answer key and listed
   by the π part then the number, whose wrong options are real slips with reasons (the radius
@@ -110,6 +155,10 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   white space; the key's panels are light grey with a black rule. The editor shows the same.
 
 ### Fixed
+
+- **Web dependencies (Dependabot #207, re-applied on main).** Minor and patch bumps: TipTap
+  3.34, Svelte 5.58, eslint-plugin-svelte, svelte-eslint-parser, globals, tslib, @tsconfig/svelte and raised floors
+  for the dev tools the minimatch fix already moved. No version goes down; `npm audit` is clean.
 
 - **minimatch advisory (GHSA-g3hv-75wg-m249).** `npm audit fix` moves the web dev tools'
   minimatch to a fixed release (11.0.9), so the Dependency audit check passes again. It also

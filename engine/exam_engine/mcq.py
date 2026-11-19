@@ -296,6 +296,7 @@ def distractor_candidates(obj: dict) -> list[tuple[Fraction, str]]:
     answer = _value(answer_obj)
     is_fraction = answer_obj["type"] == "fraction"
     kind = _kind(answer_obj)
+    whole_only = _solver_flag(obj, "mcq_whole", False)
     out: list[tuple[Fraction, str]] = []
 
     def add(v: Fraction | None, why: str, *, vouched: bool = False) -> None:
@@ -303,6 +304,8 @@ def distractor_candidates(obj: dict) -> list[tuple[Fraction, str]]:
         if v is None or not _plausible(
             v, answer, fraction=is_fraction, kind="vouched" if vouched and not kind else kind
         ):
+            return
+        if whole_only and v.denominator != 1:  # e.g. whole hours of rental: never "3.5 h"
             return
         if all(v != have for have, _ in out):
             out.append((v, why))
@@ -371,14 +374,19 @@ def _gives_it_away(answer: Fraction, chosen: list[Fraction]) -> bool:
     return between or odd
 
 
-def _ascending(obj: dict) -> bool:
-    """Options print in ascending order unless the solver opts out (``mcq_ascending = False``:
-    "which is the greatest?", whose answer would then always be (1) or (4))."""
+def _solver_flag(obj: dict, name: str, default: bool) -> bool:
+    """A solver's optional multiple-choice setting (``default`` for a sourced question)."""
     try:
         solver = get_solver(obj.get("blueprint_code") or "")
     except Exception:  # a sourced or unknown blueprint
-        return True
-    return bool(getattr(solver, "mcq_ascending", True))
+        return default
+    return bool(getattr(solver, name, default))
+
+
+def _ascending(obj: dict) -> bool:
+    """Options print in ascending order unless the solver opts out (``mcq_ascending = False``:
+    "which is the greatest?", whose answer would then always be (1) or (4))."""
+    return _solver_flag(obj, "mcq_ascending", True)
 
 
 # An option as to_mcq weighs it: (order key, value for the give-away guard, text, reason). The

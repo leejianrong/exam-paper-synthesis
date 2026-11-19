@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte'
-import { makeBankQuestion, makeQuestion, routeFetch } from './fixtures'
+import { makeBankQuestion, makeQuestion, makeTableQuestion, routeFetch } from './fixtures'
 
 import AddQuestion from './AddQuestion.svelte'
 
@@ -33,6 +33,16 @@ describe('AddQuestion picker', () => {
 
     await fireEvent.click(screen.getAllByRole('button', { name: 'Use this' })[1])
     expect(insert.mock.calls[0][0].detail.question.id).toBe('c2')
+  })
+
+  it('previews a candidate\'s data table (EXA-148)', async () => {
+    fetchMock.mockResolvedValue(ok({ questions: [makeTableQuestion()] }))
+    render(AddQuestion, { props: {} })
+    await fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
+    await waitFor(() => expect(screen.getAllByTestId('candidate')).toHaveLength(1))
+    const table = screen.getByRole('table')
+    expect(table).toHaveTextContent('Up to 20 g')
+    expect(table).toHaveTextContent('$0.40')
   })
 
   it('shows an API error and keeps the dialog open', async () => {

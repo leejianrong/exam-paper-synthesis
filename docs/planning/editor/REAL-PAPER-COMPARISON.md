@@ -346,8 +346,11 @@ such items.
      constant-difference / constant-total transfers; LCM packs of m and n with a budget.
    - Give each a cheap 1-mark (a) and a 2–3-mark (b).
    - No new diagram.
-2. **Square-grid geometry family:** ∥/⊥ identification, symmetry (shade k squares), 8-point compass
-   directions and turns, area by counting squares, and completing a trapezium, parallelogram or rhombus.
+2. ~~**Square-grid geometry family:** ∥/⊥ identification, symmetry (shade k squares), 8-point compass
+   directions and turns, area by counting squares, and completing a trapezium, parallelogram or rhombus.~~
+   Done in #232 (EXA-144): a `grid` diagram and four blueprints with a number or letter answer (area by
+   whole and half squares; which point gives a ∥/⊥ line; compass direction or turn; which square completes
+   the symmetry). Not built: drawing answers (shade, draw, complete a shape).
    - Real: 13 questions, about 3 a set, in every paper part.
    - Needs a new `grid` diagram and a grid-cell or point answer type, which can be auto-checked as a cell set.
 3. ~~**Booklet A number-sense and measurement 1-markers.** These fill the 2 placeholders and widen 1-mark coverage.~~
@@ -361,11 +364,16 @@ such items.
    - Uses the existing `number_line` renderer; a scale/ruler reading needs a new small diagram.
 4. ~~**Recalibrate rung to marks in the generator.**~~ Done in #225 (EXA-146): 2-mark slots take a
    medium or hard rung and 3+-mark slots a hard one whenever content allows (P8-SHAPING.md).
-   - Booklet A 2-mark MCQ and Booklet B 2-mark slots should draw hard or multi-step rungs.
+   - ~~Booklet A 2-mark MCQ and Booklet B 2-mark slots should draw hard or multi-step rungs.~~ Done in
+     #228 (EXA-154): 2-mark medium rungs for Ratio, Percentage, Speed and both Geometry ladders, so
+     every P6 Booklet B 2-mark slot is medium (was 7 of 10).
    - Section B 3-mark stand-ins should require 3+ steps.
    - Stop letting a one-step easy rung fill a 2-mark MCQ or a 4-mark slot (2 steps).
    - No diagram.
-5. **Solids family: cube-stack views and counting.**
+5. ~~**Solids family: cube-stack views and counting.**~~ Done in #230 (EXA-147): count the cubes,
+   least cubes to make a cuboid or cube, front/side view with picture options, and the face
+   opposite a marked one on a cube net (new `net` diagram). Not yet built: asking the top view,
+   "which figure is a net", nets of cuboids and prisms, most cubes without changing the views.
    - Draw or choose the front/side/top view; maximum or least cubes to add without changing the views
      or to make a cube; count cubes.
    - Real: 7 questions on nets, solids, views and cube counting (the topic table), of which 3 are nets.
@@ -377,6 +385,9 @@ such items.
      this data" MCQ.
    - Real: 15 data questions plus 3 tick tables.
    - Needs a `table` figure (simple) and a tick-table answer type.
+   - ~~Data tables~~ done in #231 (EXA-148): `postage_table`, `rental_table` and the multi-part
+     `tariff_gst` print the existing content-level `question.table` (no schema change). Still open:
+     the tick-table answer type, the tank line graph and pie charts in fractions.
 7. ~~**Circles ladder.**~~ Done in #226 (EXA-149): a P6 `circles` ladder (1/2/3 marks) with
    semicircle and quarter-circle composites, shaded regions, π = 3.14 or 22/7 and some hard
    answers in terms of π (P8-SHAPING.md). ~~π-terms MCQs~~ done in #235 (EXA-155): 2-mark
@@ -386,7 +397,7 @@ such items.
      π = 3.14.
    - Real: 8 questions (2 per set, always present); ours: 1.
    - Extends `geometry_figure` with arc composites.
-8. **Angles depth.**
+8. ~~**Angles depth.**~~ Done in #229 (EXA-150): folded corner, composite (rhombus, parallelogram, trapezium with an isosceles or equilateral triangle), reflex and a two-part Paper 2 angle blueprint, figures drawn to scale; folding is drawn as the folded shape, not two panels.
    - Folded paper; rhombus, trapezium and parallelogram composites with isosceles or equilateral
      triangles; reflex angles at a point; 2-part angle questions for Section B.
    - Real: 16 questions (the most frequent single topic after fractions); ours: 3, at 1–2 steps.

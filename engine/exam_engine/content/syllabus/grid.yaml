@@ -1,0 +1,12 @@
+# PROVISIONAL skill codes — remap to MOE P5-P6 syllabus outcomes when the
+# official doc is available (Q-M1). Codes are carried, not queried, in v1
+# (ADR-0016), so remapping is a mechanical find/replace with no data migration.
+# Square-grid questions (EXA-144). Real P5/P6 prelims set about 3 an exam set; these are the
+# ones with a number or letter answer. Grid work starts in P4 (8-point compass, symmetry,
+# perpendicular and parallel lines) and P5 (area of triangles); PSLE assumes it, so all are P5.
+strand: "Geometry"
+skills:
+  GRID.AREA: "Find the area of a figure on a square grid by counting whole and half squares"  # grid_area (no ladder)
+  GRID.LINES: "Identify a line parallel or perpendicular to a given line on a square grid"  # grid_lines (no ladder)
+  GRID.COMPASS: "Use the 8-point compass and turns in multiples of 45 degrees on a square grid"  # grid_compass (no ladder)
+  GRID.SYMMETRY: "Complete a symmetric figure on a square grid about a given line of symmetry"  # grid_symmetry (no ladder)

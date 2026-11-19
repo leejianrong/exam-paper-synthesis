@@ -1,0 +1,57 @@
+code: percentage_remainder
+syllabus:
+  level: P5
+  strand: "Percentage"
+  topic: "Percentage"
+  subtopic: "A percentage of the remainder"
+  skill_codes: ["PCT.REMAINDER"]        # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Hidden structure"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, context, ask, total, p1, p2]
+  properties:
+    name:
+      type: string
+    context:
+      type: string
+      enum: [bag_shoes, book_calculator, lamp_rug, racket_cap, watch_wallet]
+    ask:
+      type: string
+      enum: [left, second]               # the money left, or the second purchase's cost
+    total:
+      type: integer
+      minimum: 100
+      maximum: 1200
+    p1: { type: integer, minimum: 10, maximum: 60 }
+    p2: { type: integer, minimum: 10, maximum: 60 }
+# Every parameter_schema property needs a role (W1a). name|item = cosmetic (teacher-editable,
+# never enters solve()); number|choice drive the maths and are not cosmetically editable.
+param_roles:
+  name:    { role: name }
+  context: { role: choice }
+  ask:     { role: choice }
+  total:   { role: number }
+  p1:      { role: number }
+  p2:      { role: number }
+story_templates:
+  - stem: null
+    text: >
+      {name} had ${total}. {name} spent {p1}% of the money on {first} and {p2}% of
+      the remaining money on {second}. {ask_text}
+solution_template:
+  steps:
+    - text: "Money left after the first purchase = (100% − {p1}%) of ${total} = {keep1}% × ${total} = ${rest}."
+      expr: "{keep1}*{total}/100"
+    - text: "{step2}"
+      expr: "{expr2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Find the money left after the first purchase." }
+  - { mark: 1, type: A, description: "Correct amount with the $ unit (the percentage taken of the remainder)." }
+answer:
+  type: quantity
+  unit: "$"

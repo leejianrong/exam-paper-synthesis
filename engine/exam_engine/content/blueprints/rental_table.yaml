@@ -1,0 +1,68 @@
+code: rental_table
+syllabus:
+  level: P5
+  strand: "Data Analysis"
+  topic: "Statistics (Tables)"
+  subtopic: "Reading a rental table: the greatest number of hours for a sum of money"
+  skill_codes: ["DATA.TABLE.RATE"]      # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: non_routine_heuristic
+  difficulty_levers: ["Reasoning depth", "Direction", "Hidden structure"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, items, first_hours, first, extra, pick, budget]
+  properties:
+    name:
+      type: string
+    items:                              # the three rows of the table
+      type: array
+      minItems: 3
+      maxItems: 3
+      items: { type: string, enum: [Bicycle, Rowing boat, Kayak, Canoe, Scooter, Pedal boat] }
+    first_hours: { type: integer, enum: [1, 2] }
+    first:                              # cents, the first period of each row
+      type: array
+      minItems: 3
+      maxItems: 3
+      items: { type: integer, minimum: 50, maximum: 5000 }
+    extra:                              # cents, each additional hour of each row
+      type: array
+      minItems: 3
+      maxItems: 3
+      items: { type: integer, minimum: 50, maximum: 2000 }
+    pick: { type: integer, minimum: 0, maximum: 2 }
+    budget: { type: integer, minimum: 100, maximum: 10000 }   # cents
+param_roles:
+  name:        { role: name }
+  items:       { role: choice }
+  first_hours: { role: number }
+  first:       { role: number }
+  extra:       { role: number }
+  pick:        { role: choice }
+  budget:      { role: number }
+# The table (question.table) is built by the solver's table().
+story_templates:
+  - stem: "The table shows the charges for renting some items at a park."
+    text: >
+      {name} has {budget}. What is the greatest number of hours {name} can rent
+      a {item} for?
+solution_template:
+  steps:
+    - text: "Money left after paying for {first_text} = {budget2} − {first} = {left}."
+      expr: "{e_left}"
+    - text: >
+        {left} ÷ {extra} = {more} remainder {rem}, so {name} can pay for
+        {more_hours}.
+      expr: "{e_more}"
+    - text: "Greatest number of hours = {fh} + {more} = {hours} h."
+      expr: "{e_hours}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Subtracts the charge for the first period from the money." }
+  - { mark: 1, type: M, description: "Finds the whole number of additional hours (drops the remainder)." }
+  - { mark: 1, type: A, description: "Correct number of hours." }
+answer:
+  type: integer
+  unit: "h"

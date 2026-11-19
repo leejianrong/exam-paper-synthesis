@@ -35,7 +35,7 @@ ladder (1/2/3 marks) (below).
 | P1 Booklet A | 15 MCQ, 20 marks (10 × 1, 5 × 2) | 15 / 15 (was 13 before batch 3, 0 before P8b) | 15 / 15 (was 12 before batch 3) |
 | P1 Booklet B | 15 short answer, 25 marks (5 × 1, 10 × 2) | 15 / 15, 25 / 25 (was 12 / 15) | 13 / 15, 21 / 25 (was 9 / 15) |
 | P2 Section A | 5 × 2 marks | 5 / 5 | 5 / 5 |
-| P2 Section B | ~12 multi-part, 45 marks | 45 / 45: 3 multi-part (4 + 5 + 5 marks) + 9 stand-ins | 30 / 45: 11 stand-ins (eight 3-mark, three 2-mark) + 3 placeholders (was 15 / 45) |
+| P2 Section B | ~12 multi-part, 45 marks | 45 / 45: 9 multi-part + 3 stand-ins (was 3 + 9) | 30 / 45: 11 stand-ins (eight 3-mark, three 2-mark) + 3 placeholders (was 15 / 45) |
 
 So a P6 teacher gets a complete paper set, and a P5 teacher complete Booklet A. The remaining
 gaps are P5 2-mark content (Booklet B) and P5 multi-part / 3-mark content for Paper 2
@@ -240,7 +240,8 @@ in generation (the engine stays deterministic).
   `stand_in`.
 - **What it fills now.** P6 Paper 2 Section B: 12 questions, 45 / 45 marks = the three
   multi-part (4 + 5 + 5) and nine single-part stand-ins (five 3-mark, four 4-mark). A P5 paper
-  is unchanged (all three are P6).
+  is unchanged (all three are P6). Since EXA-143 (five more multi-part) and EXA-154 (the topic
+  cap, below) a P6 Section B has 8 multi-part questions and 4 stand-ins; 9 and 3 since the angles one (EXA-150).
 
 ## P8c polish (EXA-123, 2026-11-15)
 
@@ -257,7 +258,8 @@ in generation (the engine stays deterministic).
   the answer's own quantity and unit. `mcq.common_wrong_answers` re-solves the object's
   `parameters` and asks the solver; `distractor_candidates` takes those first, then (only for
   a solver without a hook) the worked solution's intermediates within 8×, then the generic
-  near misses / doubling / place value. All 39 single-part ladder solvers have a hook; tests
+  near misses / doubling / place value. All 44 single-part ladder solvers (and the five
+  1-mark Booklet A blueprints off the ladders) have a hook; tests
   `tests/test_distractors_group_{a,b,c}.py` re-derive at least one named mistake per blueprint
   from the printed question and require the hook to supply 2 of the 3 wrong options in ≥ 90%
   of seeds (two exceptions, below).
@@ -466,3 +468,33 @@ in generation (the engine stays deterministic).
   a P5 set, no set worse than its papers made apart, Paper 2 of a set at least as well fitted as
   alone) and set papers in `test_generated_papers_keep_every_rule`
   (`tests/test_invariants_paper.py`). Swaps stay per-paper.
+
+## 2-mark medium rungs and the per-paper topic cap (EXA-154, 2026-11-17)
+
+- **Content.** Ratio, Percentage, Speed and both Geometry ladders had a 2-mark easy and a 3-mark
+  medium rung, so after EXA-146 their topics could not fill a 2-mark slot at its rung. Each
+  gets a 2-mark medium rung between the two (`ratio_difference`, `percentage_remainder`,
+  `speed_minutes`, `geometry_angle_opposite`, `geometry_area_perimeter`): 4-rung ladders.
+- **Per-paper cap** (`paper.TOPIC_CAP = 2`). With four blueprints a topic, a Paper 2 Section B
+  could give a topic a third question. A structured stand-in never does: it is picked only
+  from a topic the paper has fewer than 2 questions of, and marks no such topic can take become
+  placeholders. Swaps and "regenerate unlocked" apply the same cap to every slot (a candidate
+  from a topic the rest of the paper has twice is out; a refused swap says so).
+- **Biggest first.** Stand-ins are picked biggest first, and the stand-in plan is made again
+  after every pick (a pick can fill its topic, and the plan counts only topics under the cap),
+  so a 3-mark question claims a topic before a 2-mark one: a P5 Section B takes `ratio_medium`,
+  not `ratio_easy`. Regenerate refills structured stand-ins in the same order.
+- **Multi-part first** (after EXA-143 added five heuristic multi-part blueprints). A multi-part
+  question is under the same cap, and `generate_paper` picks every structured section's
+  multi-part questions before any other question of the paper, so Section A cannot fill their
+  topics first: a P6 Paper 2 keeps all 8 (500 seeds: 8 multi-part + 4 stand-ins, every topic
+  at most 2).
+- **Effect** (500 seeds a paper on its own): P6 Booklet B's 2-mark slots 70% → 100% medium,
+  topics per booklet 11.5 → 13.5; P5 Booklet B placeholders 2 → 0 (8 of its 10 2-mark slots
+  medium, the P5 ceiling); P6 Booklet A's 2-mark MCQs draw on 12 topics (was 7); P5 Paper 2
+  keeps 3 placeholders (P5 has few 3–5-markers); P6 Paper 2 has 17 questions.
+- **Tests.** `tests/test_invariants_two_mark_medium.py`, `tests/test_distractors_group_e.py`,
+  `tests/test_generate_two_mark_medium.py`; the rung checks in `tests/test_invariants_paper.py`
+  excuse a stand-in whose better-rung blueprint's topic had two questions when it was picked;
+  `_check_rules` in `tests/test_invariants_paper_swap.py` asserts at most two questions a topic,
+  with a P5 and P6 Paper 2 full-regenerate sweep.

@@ -1,0 +1,52 @@
+code: grid_symmetry
+# EXA-144: a 1-mark Booklet A question; the options are lettered squares, so the blueprint
+# asks multiple choice itself. No difficulty ladder.
+syllabus:
+  level: P5
+  strand: "Geometry"
+  topic: "Square Grids"
+  subtopic: "Completing a symmetric figure on a grid"
+  skill_codes: ["GRID.SYMMETRY"]        # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Representation translation"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [axis, shaded, options, letters]
+  properties:
+    axis: { type: string, enum: [vertical, horizontal] }
+    # squares as [across, along]: across counts over the dashed line (0-7), along it (0-5)
+    shaded: { type: array, minItems: 3, maxItems: 24, items: { $ref: "#/$defs/cell" } }
+    # the four lettered squares, the correct one first
+    options: { type: array, minItems: 4, maxItems: 4, items: { $ref: "#/$defs/cell" } }
+    letters: { type: string, pattern: "^[A-D]{4}$" }
+  $defs:
+    cell:
+      type: array
+      minItems: 2
+      maxItems: 2
+      items: { type: integer, minimum: 0, maximum: 7 }
+param_roles:
+  axis:    { role: choice }
+  shaded:  { role: number }
+  options: { role: number }
+  letters: { role: choice }
+story_templates:
+  - stem: null
+    text: "One more square must be shaded so that the dashed line is a line of symmetry of the shaded figure. Which square is it?"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: null
+    - text: "{step2}"
+      expr: null
+    - text: "{step3}"
+      expr: null
+marking_scheme:
+  - { mark: 1, type: A, description: "Correct square." }
+answer:
+  type: choice
+diagram: grid

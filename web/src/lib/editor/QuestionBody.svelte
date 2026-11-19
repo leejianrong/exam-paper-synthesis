@@ -1,6 +1,7 @@
 <script lang="ts">
   // The presentational body of a question (no edit/approve chrome): marks, question text and diagram. Used by the editor's question block and the picker.
   import ChoiceOptions from '../ChoiceOptions.svelte'
+  import DataTable from '../DataTable.svelte'
   import DiagramView from '../DiagramView.svelte'
   import MathText from '../MathText.svelte'
   import type { Question } from '../types'
@@ -24,6 +25,7 @@
   {/if}
   {#if q.question.stem}<p class="text"><MathText text={q.question.stem} /></p>{/if}
   <DiagramView compact keyOnly={q.source_type === 'generated'} spec={q.question.diagram} />
+  <DataTable table={q.question.table} />
   <p class="text"><MathText text={part.text} /></p>
   <DiagramView compact keyOnly={q.source_type === 'generated'} spec={part.diagram} />
   {#if part.answer?.type === 'choice'}<ChoiceOptions options={part.answer.options ?? []} />{/if}

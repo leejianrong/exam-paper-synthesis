@@ -6,7 +6,13 @@ import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { fireEvent, screen, waitFor } from '@testing-library/svelte'
 import { TemplatedQuestion, questionNode } from './templatedQuestion'
-import { makeBankQuestion, makeMultipartQuestion, makeQuestion, routeFetch } from './fixtures'
+import {
+  makeBankQuestion,
+  makeMultipartQuestion,
+  makeQuestion,
+  makeTableQuestion,
+  routeFetch,
+} from './fixtures'
 import type { DocJSON } from './doc'
 
 let editor: Editor | null = null
@@ -46,6 +52,15 @@ describe('templatedQuestion node view', () => {
     expect(screen.getByText('First question text.')).toBeInTheDocument()
     expect(screen.getByText('Second question text.')).toBeInTheDocument()
     expect(screen.getAllByTestId('question-block')).toHaveLength(2)
+  })
+
+  it('shows a single-part question\'s data table in the block (EXA-148)', () => {
+    make({ type: 'doc', content: [questionNode(makeTableQuestion())] })
+    const table = screen.getByRole('table')
+    expect(table).toHaveTextContent('Postage for letters')
+    expect(table).toHaveTextContent('Mass of letter')
+    expect(table).toHaveTextContent('Above 20 g, up to 40 g')
+    expect(table).toHaveTextContent('$0.55')
   })
 
   it('round-trips block_id and the frozen snapshot through getJSON', () => {

@@ -55,6 +55,7 @@ def test_an_mcq_slot_needs_every_declared_answer_type_convertible():
     assert not _fits(_candidate("decimal", "text"), "mcq")  # one text answer is enough to bar
     assert not _fits(_candidate(), "mcq")  # nothing declared: not routed by accident
     assert _fits(_candidate("decimal", "text"), "short")
+    assert _fits(_candidate("choice"), "mcq") and not _fits(_candidate("choice"), "short")
 
 
 @pytest.mark.parametrize("level", ["P5", "P6"])
@@ -66,5 +67,8 @@ def test_every_blueprint_an_mcq_slot_may_take_converts_on_every_seed(level):
             continue
         for seed in range(1, 41):
             obj = generate(c.code, seed)
+            if c.answer_types == ("choice",):  # asks multiple choice itself (EXA-147)
+                assert obj["question"]["parts"][0]["answer"]["type"] == "choice", (c.code, seed)
+                continue
             assert convertible(obj), (c.code, seed)
             to_mcq(obj, seed)

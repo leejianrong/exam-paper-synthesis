@@ -111,3 +111,27 @@ export function freeformDocNode(over: { id?: string; marks?: number | null; body
     content: [para(over.body ?? 'How many sweets are left?')],
   }
 }
+
+/** A generated single-part question that prints a data table (EXA-148, postage_table). */
+export function makeTableQuestion(over: Partial<Question> = {}): Question {
+  const base = makeQuestion(
+    { id: 'postage_table:1', blueprint_code: 'postage_table' },
+    'Ben posted two letters. One letter had a mass of 35 g and the other had a mass of 120 g.',
+  )
+  return {
+    ...base,
+    question: {
+      ...base.question,
+      stem: 'The table shows the postage for sending a letter.',
+      table: {
+        caption: 'Postage for letters',
+        headers: ['Mass of letter', 'Postage'],
+        rows: [
+          ['Up to 20 g', '$0.40'],
+          ['Above 20 g, up to 40 g', '$0.55'],
+        ],
+      },
+    },
+    ...over,
+  }
+}

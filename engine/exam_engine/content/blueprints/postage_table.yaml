@@ -1,0 +1,60 @@
+code: postage_table
+syllabus:
+  level: P5
+  strand: "Data Analysis"
+  topic: "Statistics (Tables)"
+  subtopic: "Reading a rate table: postage by mass, for two letters"
+  skill_codes: ["DATA.TABLE.READ"]      # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Representation"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, limits, prices, masses]
+  properties:
+    name:
+      type: string
+    limits:                             # grams, the upper limit of each row
+      type: array
+      minItems: 5
+      maxItems: 5
+      items: { type: integer, minimum: 1, maximum: 1000 }
+    prices:                             # cents, the postage of each row
+      type: array
+      minItems: 5
+      maxItems: 5
+      items: { type: integer, minimum: 1, maximum: 2000 }
+    masses:                             # grams, the two letters
+      type: array
+      minItems: 2
+      maxItems: 2
+      items: { type: integer, minimum: 1, maximum: 1000 }
+# Every parameter_schema property needs a role (W1a).
+param_roles:
+  name:   { role: name }
+  limits: { role: number }
+  prices: { role: number }
+  masses: { role: number }
+# The table (question.table) is built by the solver's table().
+story_templates:
+  - stem: "The table shows the postage for sending a letter."
+    text: >
+      {name} posted two letters. One letter had a mass of {m1} g and the other had a
+      mass of {m2} g. How much did {name} pay for postage altogether?
+solution_template:
+  steps:
+    - text: "Postage for the {m1} g letter = {p1}."
+      expr: "{e1}"
+    - text: "Postage for the {m2} g letter = {p2}."
+      expr: "{e2}"
+    - text: "Total postage = {p1} + {p2} = {total}."
+      expr: "{e1}+{e2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Reads the postage for each letter from the correct row." }
+  - { mark: 1, type: A, description: "Correct total postage with the $ unit." }
+answer:
+  type: decimal
+  unit: "$"
