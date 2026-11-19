@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { settled, newBlankPaper, paperTab } from './helpers.js'
+import { settled, newBlankPaper, paperTab, exportPdf } from './helpers.js'
 import { API } from './ports.js'
 
 /**
@@ -97,7 +97,7 @@ test('a new paper has the school key; marks, worked solutions and leaving questi
 
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: /Answer key\s*PDF/ }).click(),
+    exportPdf(page, 'Answer key (PDF)'),
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })
