@@ -1,7 +1,7 @@
 # Editor and app UI redesign: research and proposal
 
 Cards: **EXA-159** (answer key clutter), **EXA-160** (editor top bars), **EXA-161** (per-question buttons), plus an app-wide pass the owner asked for.
-Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14), S7 (EXA-165, section 15) and S6 (EXA-164, section 16).
+Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14), S7 (EXA-165, section 15), S6 (EXA-164, section 16) and S9 (EXA-167, section 17).
 
 Research build: worktree off `origin/main` at `f54b92c`, API on :8100 (dev auth, throwaway stores), Vite on :5273. Papers generated with `POST /documents/generate` (P6, seed 11) and through the New dialog (an exam set in a folder).
 
@@ -676,3 +676,55 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
 - **Not changed:** a generated paper with no text in it still opens with the cover node-selected
   (there is nowhere for `startWithTextCursor` to put a caret; this predates S6). The panel shows
   the Paper tab until you click something, and typing still goes after the cover (EXA-129).
+
+---
+
+## 17. S9 as built (EXA-167)
+
+- **One app header.** `AppHeader.svelte`, rendered by `App.svelte` above every route but the
+  editor (the list, `#/bank`, Settings, Classic and the Classic-off page). Left to right: the
+  product mark and name "Exam papers" (the mockup's; the name hides below 600 px), a
+  `<nav aria-label="Main">` with Papers, Question bank and, only while *Show the Classic
+  generator* is on, Classic, then the `AccountMenu` avatar (Settings, and outside the dev stub
+  Download my data, Sign out, Delete my account). The tab for the current route has
+  `aria-current="page"` (green underline); Settings is not a tab, so nothing is current there.
+  52 px high, one row, no horizontal scroll at 390 px.
+- **Removed as superseded:** the list's masthead (the `exam-paper-synthesis` wordmark, its
+  "Settings" and "Classic generator" links and its own `AccountMenu`), Settings' "← Your
+  papers" link, the Classic-off page's "Back to your papers", and the Classic page's glyph and
+  wordmark. Settings' note now points at the Classic tab.
+- **The editor** keeps its own header (EditorBar) with the ← "Back to papers" link and the same
+  `AccountMenu`; it returns to Papers (section 7.1's "back to the folder" is not built: the
+  list shows every folder, open unless the teacher collapsed it).
+- **Question bank page** (`BankPage.svelte`, `#/bank`). `GET /bank` once; filtering is in the
+  browser (`bank.ts`: `filterOptions`, `filterBank`, `isFiltered`), so no API change. Filters:
+  a search (every word must appear in the question text, topic or id, ignoring case and
+  accents, the papers list's `titleMatches`), Topic, Level, Difficulty, Source (Imported /
+  Generated) and Review (Reviewed / Not reviewed; "not reviewed" is an imported question only,
+  since a generated one is proven by the engine). The options are the values the bank holds. A
+  count ("3 of 12 questions") and Clear filters sit under them. Each question is a card: topic ·
+  level · difficulty, a status chip (Reviewed in green, Unreviewed neutral with an amber dot,
+  per 7.2 not red; Generated for generated ones), the source's origin and year, the question
+  drawn by the engine (`FragmentView`), and for imported questions the existing
+  `ReviewControl` (confirmation tick before Mark as reviewed, one click to withdraw). Cards draw
+  20 at a time ("Show more (N left)", which moves focus to the first new card), since each is a
+  server render.
+- **Import.** The one primary button, **Import questions from a file**, opens `BankImport` in a
+  `Dialog` of that name: files or pasted JSON, *Replace existing questions with the same id*,
+  per-item results (Imported / Replaced / Already in your bank / Not imported with the reasons).
+  A finished import reloads the list behind the dialog and announces "N questions imported.";
+  "Back to bank" closes. Its lead line is plain now ("Choose question files (.json), or paste
+  what's in one…") in the picker too.
+- **States.** Loading: three skeleton cards (`.skel`) in a `role="status"` with hidden "Loading
+  your question bank…". Error: `ErrorNote` "Couldn't load your question bank. …" with Try again
+  when `canRetry`. Empty: a dashed panel, "Your bank is empty.", and what importing gives you;
+  the filters are hidden. No match: "No questions match these filters." A failed reload after
+  an import keeps the list and says so in the status line.
+- **The picker's "From my bank" tab** is unchanged (its own topic and Reviewed-only filters,
+  Import…, Use this).
+- **Not in S9:** restyling the Classic page itself (its black Generate button and uppercase
+  labels, issue 10's "different visual language"); deleting a question from the bank (no
+  endpoint); using a bank question in a paper from the bank page (the picker does that); a
+  skip link. The bank list is not virtualised: past a few hundred questions the client-side
+  filter is still instant but only 20 cards draw at a time.
+

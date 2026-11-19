@@ -39,7 +39,6 @@ const TEMPLATES = {
 import DocumentList from './DocumentList.svelte'
 import { ApiError } from '../errors'
 import { lastReport } from './paperReport'
-import { DEFAULT_SETTINGS, settings } from '../settings'
 
 const summary = (id: string, title: string, folder_id: string | null = null) => ({
   id,
@@ -184,18 +183,6 @@ describe('DocumentList', () => {
     expect(screen.queryByRole('list', { name: /Exam set in/ })).toBeNull()
     expect(section('P6 exam set')).not.toHaveTextContent('Booklet A')
     expect(screen.getByRole('status')).toHaveTextContent('Folder “P6 exam set” created.')
-  })
-
-  it('hides the Classic generator link unless the setting is on (O1); Settings is always there', async () => {
-    listDocuments.mockResolvedValue([])
-    settings.set({ ...DEFAULT_SETTINGS, classic_generator: false })
-    const { unmount } = render(DocumentList)
-    expect(await screen.findByRole('link', { name: 'Settings' })).toHaveAttribute('href', '#/settings')
-    expect(screen.queryByRole('link', { name: 'Classic generator' })).toBeNull()
-    unmount()
-    settings.set({ ...DEFAULT_SETTINGS, classic_generator: true })
-    render(DocumentList)
-    expect(await screen.findByRole('link', { name: 'Classic generator' })).toHaveAttribute('href', '#/classic')
   })
 
   it('shows a loading state until the papers arrive', async () => {

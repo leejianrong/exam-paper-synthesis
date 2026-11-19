@@ -10,6 +10,20 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **One app header and a Question bank page (EXA-167, UI redesign S9).** Your papers, the
+  question bank, Settings and the Classic generator now share one header: the product name,
+  **Papers** and **Question bank** (and **Classic** while *Show the Classic generator* is on),
+  and the avatar menu with Settings, Download my data, Sign out and Delete my account. The
+  current place is marked for screen readers (`aria-current`) and the header fits a phone. The
+  page's own ad-hoc links ("Settings" and "Classic generator" on the list, "← Your papers" on
+  Settings, "Back to your papers" on the Classic-off page) and the Classic page's own wordmark
+  are gone. The editor keeps its own header with its back arrow. The question bank
+  (`#/bank`) lists every question you imported, drawn as it prints, with a search and filters
+  for topic, level, difficulty, imported or generated, and reviewed or not; each imported
+  question carries its review mark (still confirmed, ADR-0019), and **Import questions from a
+  file** opens the existing import (duplicates reported unless *Replace* is ticked) in a
+  dialog. Long banks draw 20 at a time. The add-question picker's "From my bank" tab is
+  unchanged.
 - **Plain errors, a not-found page and loading skeletons (EXA-165, UI redesign S7).** Opening a
   paper that doesn't exist (or was deleted) shows a page that says so, with **Back to Your
   papers**, instead of an empty editor claiming "Saved" (the server answers "not found" for
