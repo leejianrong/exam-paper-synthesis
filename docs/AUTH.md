@@ -6,12 +6,12 @@ Social sign-in only (ADR-0022): **Google, Microsoft, GitHub**. No passwords are 
 
 | Variable | Meaning |
 |---|---|
-| `EXAM_OAUTH_{GOOGLE,MICROSOFT,GITHUB}_CLIENT_ID` / `_CLIENT_SECRET` | Both set ⇒ that provider is offered on the login page. |
+| `EXAM_OAUTH_{GOOGLE,MICROSOFT,GITHUB}_CLIENT_ID` / `_CLIENT_SECRET` | Both set ⇒ that provider is offered on the login page, as a "Sign in with Google / Microsoft / GitHub" button with the provider's mark (EXA-170). A failed sign-in returns to `#/login?error=<code>` (`denied`, `state`, `provider`, `rate_limited`, `not_configured`), which the page words in `web/src/lib/errors.ts` `signInErrorText`. |
 | `EXAM_PUBLIC_URL` | The API's external base URL (default `http://localhost:8000`). Redirect URIs are built from it; `https://…` also turns on `Secure` cookies. |
 | `EXAM_WEB_URL` | The web app's URL (default `http://localhost:5173`). The only place the API ever redirects to, and the default CORS origin. |
 | `EXAM_CORS_ORIGINS` | Optional comma-separated override of the allowed web origins. |
 | `EXAM_AUTH_PATH` | SQLite accounts DB (default `~/.exam_engine/accounts.sqlite3`; Postgres arrives in W3b). |
-| `EXAM_DEV_AUTH=1` | Local development stub: no sign-in, owner = `X-Dev-Owner` (default `local`). A valid session still wins. **Never set in production** — without it, anonymous requests are 401. |
+| `EXAM_DEV_AUTH=1` | Local development stub: no sign-in, owner = `X-Dev-Owner` (default `local`). A valid session still wins. **Never set in production** — without it, anonymous requests are 401. If the login page is ever reached with it on, it shows a dashed "Development only" panel with "Continue without signing in" (EXA-170). |
 
 ## Register with each provider
 

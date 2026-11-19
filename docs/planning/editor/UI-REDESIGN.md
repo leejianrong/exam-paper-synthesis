@@ -1,7 +1,7 @@
 # Editor and app UI redesign: research and proposal
 
 Cards: **EXA-159** (answer key clutter), **EXA-160** (editor top bars), **EXA-161** (per-question buttons), plus an app-wide pass the owner asked for.
-Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14), S7 (EXA-165, section 15), S6 (EXA-164, section 16) and S9 (EXA-167, section 17).
+Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14), S7 (EXA-165, section 15), S6 (EXA-164, section 16), S9 (EXA-167, section 17) and S12 (EXA-170, section 19).
 
 Research build: worktree off `origin/main` at `f54b92c`, API on :8100 (dev auth, throwaway stores), Vite on :5273. Papers generated with `POST /documents/generate` (P6, seed 11) and through the New dialog (an exam set in a folder).
 
@@ -752,3 +752,61 @@ moves nothing. The rule lives in the block selection guard,
   skip link. The bank list is not virtualised: past a few hundred questions the client-side
   filter is still instant but only 20 cards draw at a time.
 
+## 19. S12 as built (EXA-170)
+
+- **The sign-in page** (`LoginPage.svelte`) is one white card on the desk: the product mark
+  (the app header's green square with a tick, larger), the name **Exam papers** as the page's
+  h1, and one line, "Singapore P5–P6 maths papers with answer keys you can trust." The old
+  visible "Sign in" heading and "Sign in to write, keep and print your papers." are gone (the
+  page said "Sign in" twice); a visually hidden h2 "Sign in" heads the buttons.
+- **Provider buttons.** One per provider the server is configured for (`GET /auth/providers`,
+  unchanged), in each provider's own wording: "Sign in with Google", "Sign in with Microsoft",
+  "Sign in with GitHub". Each carries its mark as inline SVG in the provider's brand colours
+  (`ProviderMark.svelte`; no outside request, so the CSP is untouched). All three use a light
+  button: white, dark text, mark at the left, 44 px high, with Google's light-button border
+  `#747775` (a new token, `--rule-strong`). That is Google's spec exactly; Microsoft's light
+  button asks for `#8C8C8C`, so ours is a shade darker; GitHub sets no button style. They stay links to `/auth/{provider}/login`. A provider with no mark gets the
+  same button without one.
+- **Errors in the EXA-165 voice.** `errors.ts` `signInErrorText(code)` words the codes the API
+  sends back in `#/login?error=…`: `denied` "Sign-in was cancelled. Choose an account to sign
+  in with.", `state` "That sign-in took too long or was started in another tab. Sign in again.",
+  `provider` "The sign-in service didn't accept the request. Try again in a moment.",
+  `rate_limited` "Too many sign-in attempts. Try again in a few minutes.", `not_configured`
+  "That way of signing in isn't available on this server.", anything else "Sign-in didn't work.
+  Try again." Shown in the shared `ErrorNote`. When the providers can't be loaded the page says
+  "Couldn't load the ways to sign in." with the plain reason from `errorText` and Try again
+  when `canRetry`. `loadSession` now tells an unanswered `/auth/me` (no connection, or a 5xx
+  while the server restarts: `{status: 'anon', unreachable: true}`) from a real 401, so Try
+  again asks `/auth/me` first in that case and a teacher whose cookie is still good goes
+  straight back to their papers; only a real "nobody" reloads the providers. After a
+  successful Try again, focus goes to the first provider button (or the hidden "Sign in"
+  heading when there is none). No "please", no apology. While loading, a skeleton button.
+- **The dev stub** (`EXAM_DEV_AUTH=1`, reported as `dev` by `/auth/providers`) is a dashed
+  grey panel under the buttons, headed "Development only", naming the variable and saying never
+  to turn it on in production, with a secondary button "Continue without signing in" (it asks
+  `/auth/me` again, which the stub answers). It reads "Continuing…" and is disabled while it
+  waits; if the answer is still "nobody", an `ErrorNote` says "Couldn't continue." and why. With the stub on and no provider configured the
+  panel is all there is; "Sign-in isn't set up on this server yet." shows only when neither
+  exists.
+- **Branding.** One product name, "Exam papers", as in the app header: the SPA's `<title>`
+  (was "Exam Paper Synthesis"), a new meta description (the same one line), a new favicon
+  (`web/public/favicon.svg`, the green tick mark; there was none), and the landing page
+  `site/index.html` (title, wordmark, its home link's label, the closing paragraph and the
+  footer, whose repo URL text is now "Source on GitHub"; the GitHub links still point at the
+  repo). PDFs already take the paper's own title as their metadata title. Not renamed: the
+  repo, the packages, the OpenAPI title ("Exam Paper Synthesis API", developer-facing), the Fly
+  app and its `exam-paper-synthesis.fly.dev` host, and the OAuth apps' consent-screen names
+  (set in each provider's console, outside the repo).
+- **Quality.** Tab order: the provider buttons top to bottom, then the dev button. Focus shows
+  the app's 2 px `--verify` ring. At 390 px the card fills the width from the top with 16 px
+  gutters and nothing scrolls sideways (e2e checks it). The only motion is the hover
+  transition and the skeleton sheen, both off under `prefers-reduced-motion` (app.css).
+- **Tests.** vitest (`LoginPage.test.ts`): name and line, configured providers only with their
+  labels and marks, the no-provider note, the unreachable server and Try again, an error code's
+  words, the dev panel only when `dev` (and its button signs in), and every code's wording.
+  e2e (`tests/e2e/sign-in.spec.js`): the e2e API runs the dev stub, so the spec answers
+  `/auth/me` with 401 to reach the page; it checks the tab title, the h1, an error code's
+  words, the dev panel letting a developer in, and with two stand-in providers the buttons,
+  their keyboard order and no sideways scroll at 390 px.
+- **Not in S12:** Google's guidance asks for Roboto on its button; the app keeps its one
+  typeface (Inter, EXA-94). A signed-out-by-expiry note ("You're signed out…") on this page.

@@ -22,14 +22,18 @@ describe('session', () => {
     expect(get(session)).toEqual({ status: 'user', user })
   })
 
-  it('401 means nobody is signed in; an unreachable API does too (login page, not a hang)', async () => {
+  it('401 means nobody is signed in; an unreachable API is the login page too, marked unreachable', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 401 })
-    await loadSession()
+    expect(await loadSession()).toEqual({ status: 'anon' })
     expect(get(session)).toEqual({ status: 'anon' })
     session.set({ status: 'loading' })
     fetchMock.mockRejectedValue(new Error('down'))
     await loadSession()
-    expect(get(session)).toEqual({ status: 'anon' })
+    expect(get(session)).toEqual({ status: 'anon', unreachable: true })
+    // a restarting server's proxy (502) says nothing about the cookie either
+    fetchMock.mockResolvedValue({ ok: false, status: 502 })
+    await loadSession()
+    expect(get(session)).toEqual({ status: 'anon', unreachable: true })
   })
 
   it('apiFetch always sends the cookie, and a 401 anywhere ends the session', async () => {
