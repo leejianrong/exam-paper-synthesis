@@ -5,8 +5,10 @@ through the real ``generate()``: the hook offers named mistakes, at least two of
 three wrong options come from it in ≥ 90% of seeds, and the copy stays engine-proven. Then
 the typical slips (radius / diameter, half / whole circle, the straight edges) are
 re-derived *independently* from the printed question text and must be among the hook's
-values. The hard rung (3 marks) is never multiple choice, but its numeric questions still
-name their wrong answers; an answer in terms of π has none.
+values. The hard rung (3 marks) is never multiple choice, but its questions still name their
+wrong answers. An answer in terms of π (medium and hard, EXA-155) names expression slips, and
+its typical ones (a missed straight edge, the radius used as the diameter, π × r × r for the
+curved edge) are re-derived from the question text too.
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ import re
 from fractions import Fraction
 
 import pytest
-from exam_engine import mcq
+from exam_engine import expression, mcq
 from exam_engine.document import verify_snapshot
 from exam_engine.pipeline import generate
 
@@ -31,10 +33,15 @@ def test_the_hook_supplies_most_wrong_options(code):
     from_hook = 0
     for seed in SEEDS:
         obj = generate(code, seed)
-        hooked = mcq.common_wrong_answers(obj)
-        assert len(hooked) >= 3 and all(why.strip() for _, why in hooked), (code, seed)
         answer = obj["question"]["parts"][0]["answer"]
-        hook_texts = {mcq.answer_text(mcq._with_value(answer, v)) for v, _ in hooked}
+        if answer["type"] == "expression":  # in terms of π: the slips are expressions
+            slips = mcq.expression_wrong_answers(obj)
+            assert len(slips) >= 3 and all(why.strip() for _, why in slips), (code, seed)
+            hook_texts = {mcq.answer_text(e) for e, _ in slips}
+        else:
+            hooked = mcq.common_wrong_answers(obj)
+            assert len(hooked) >= 3 and all(why.strip() for _, why in hooked), (code, seed)
+            hook_texts = {mcq.answer_text(mcq._with_value(answer, v)) for v, _ in hooked}
         m = mcq.to_mcq(obj, seed)
         assert verify_snapshot(m) == [], (code, seed)
         choice = m["question"]["parts"][0]["answer"]
@@ -106,6 +113,27 @@ def hard_slips(text: str) -> list[Fraction]:
     return [s * s - p * s * s / 4]  # the corner only, without the semicircle
 
 
+def pi_slips(text: str) -> list[tuple[Fraction, Fraction]]:
+    """(π coefficient, number) slips of a perimeter in terms of π, from the question text."""
+    if text.startswith("The figure shows a quarter circle"):
+        r = _n(r"radius (\d+) cm", text)
+        return [
+            (Fraction(r, 2), Fraction(0)),  # the curved edge only
+            (Fraction(r, 4), Fraction(2 * r)),  # π × r ÷ 4: the radius as the diameter
+            (Fraction(r * r, 4), Fraction(2 * r)),  # π × r × r ÷ 4: the area
+        ]
+    s = _n(r"square of side (\d+) cm", text)
+    if "made up of a square" in text:
+        return [
+            (Fraction(s, 2), Fraction(4 * s)),  # all four sides
+            (Fraction(s), Fraction(3 * s)),  # π × s: a whole circle
+        ]
+    return [
+        (Fraction(s), Fraction(0)),  # left out AD
+        (Fraction(s) + Fraction(s, 2), Fraction(s)),  # the semicircle's diameter as its radius
+    ]
+
+
 DERIVE = {"circles_easy": easy_slips, "circles_medium": medium_slips, "circles_hard": hard_slips}
 
 
@@ -114,8 +142,12 @@ def test_a_named_slip_is_rederived_from_the_printed_question(code):
     for seed in SEEDS:
         obj = generate(code, seed)
         if obj["question"]["parts"][0]["answer"]["type"] == "expression":
-            assert mcq.common_wrong_answers(obj) == []
-            assert not mcq.convertible(obj)
+            assert mcq.common_wrong_answers(obj) == []  # no numbers for a π-terms answer
+            assert mcq.convertible(obj)
+            slips = {expression.pi_parts(e) for e, _ in mcq.expression_wrong_answers(obj)}
+            assert len(slips) >= 3, (code, seed)
+            for slip in pi_slips(_text(obj)):
+                assert slip in slips, (code, seed, _text(obj), slip)
             continue
         values = [v for v, _ in mcq.common_wrong_answers(obj)]
         assert len(values) >= 3, (code, seed)

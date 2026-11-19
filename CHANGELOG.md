@@ -26,6 +26,20 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   answer is now written in **Edit answer…**, in its ⋯ menu (or from that list, or by clicking
   its row in the key): a dialog with the question above the answer, one answer per part. The
   old editable key under the paper is gone.
+- **A tidier papers list (EXA-166, UI redesign S8).** Each paper's actions sit behind one ⋯
+  button (shown on hover or focus with a mouse, always on a touch screen; also Shift+F10, the
+  Menu key or a right-click on the row outside its title link): **Open**, **Rename** (the title becomes a field: Enter
+  saves, Escape backs out), **Move to folder…** (a dialog), **Make a copy** ("Copy of …" in the
+  same folder) and **Delete…** (asks in a dialog). There is no red Delete or Move button on
+  every row any more. A folder's Rename, Delete and "+ New in folder" moved into its own ⋯
+  menu, and deleting a folder asks in a dialog too. Folders collapse from their name and stay
+  collapsed in this browser. A search box filters papers by title (every word, any order,
+  ignoring case); while searching, folders show only their matches ("2 matches") and screen
+  readers hear how many papers match. Edit times are en-SG
+  ("19 Nov 2026, 9:05 am"), and recent ones relative ("5 min ago", "today, 9:05 am",
+  "yesterday, 4:40 pm"), with the full time as a tooltip. The **+ New** dialog now leads with
+  **Exam set** (first and focused), then Single paper, Blank paper and New folder. At the owner's
+  request the Booklet A / Booklet B / Paper 2 ticks are gone from the folder headers.
 - **Menus and keyboard shortcuts in the editor (EXA-163, UI redesign S5).** Under the paper's
   title sits a menu row: **Paper** (Paper settings…, Cover page…, Regenerate N unlocked
   questions…, Rename, Move to folder…, Make a copy, Delete paper…), **Insert** (Question…,
@@ -142,6 +156,19 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   question, and the 3-mark stand-ins are chosen first, so a P5 Section B takes `ratio_medium`
   rather than a 2-mark easy question. Paper 2's multi-part questions are picked before any
   other question, so a P6 Paper 2 keeps all 8 of them under the same cap of 2 a topic.
+
+- **Multiple choice in terms of π (EXA-155).** A perimeter left "in terms of π" can now be a
+  Booklet A question: four options such as (6π + 24) cm, printed like the answer key and listed
+  by the π part then the number, whose wrong options are real slips with reasons (the radius
+  used as the diameter, a missed or an extra straight edge, π × r × r for the curved edge,
+  halved twice). The options are a 2 × 2 grid of two π parts (the right one and a slip) and two
+  numbers (the right one and a slip), so every part is in exactly two options and the answer is
+  not the one that shares a part with all the others; the answer is in each place about a
+  quarter of the time.
+  The 2-mark circles rung now sometimes asks a quarter circle's or a square-and-semicircle's
+  perimeter in terms of π. A blueprint now lists every answer type it can give, and the paper
+  generator only puts it in a multiple-choice slot when all of them convert (the 3-mark circles
+  rung said "decimal" while one form answered in terms of π).
 
 - **A P6 Circles ladder (EXA-149).** Three blueprints with a drawn figure: the circumference or
   area of a circle, semicircle or quarter circle (1 mark); the perimeter or area of a square or

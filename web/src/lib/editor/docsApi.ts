@@ -265,3 +265,37 @@ export async function moveDocument(id: string, folderId: string | null): Promise
   if (!res.ok) return fail(res)
   return (await res.json()) as DocumentSummary
 }
+
+/** Rename a paper from the list (EXA-166): its title is part of the content, so this is a save. */
+export async function renameDocument(id: string, title: string): Promise<DocumentRecord> {
+  const rec = await getDocument(id)
+  return saveDocument(id, { ...rec.document, title }, rec.version)
+}
+
+/** The schema's longest title (document.schema.json `title.maxLength`), in code points. */
+export const TITLE_MAX = 200
+
+/** "Copy of …", cut to the longest title the schema allows. */
+export function copyTitle(title: string): string {
+  return [...`Copy of ${title || 'Untitled paper'}`].slice(0, TITLE_MAX).join('')
+}
+
+/**
+ * Make a copy (EXA-166): "Copy of …" in the same folder with the same content and settings. There
+ * is no copy endpoint, so it is a create and a save; a copy left empty by a failed save is
+ * deleted again. The list copies the saved paper; the editor passes what it holds (`from`).
+ */
+export async function copyDocument(
+  id: string,
+  from?: { document: PaperDocument; folder_id: string | null },
+): Promise<DocumentRecord> {
+  const src = from ?? (await getDocument(id))
+  const title = copyTitle(src.document.title)
+  const made = await createDocument(title, undefined, src.folder_id ?? null)
+  try {
+    return await saveDocument(made.id, { ...src.document, title }, made.version)
+  } catch (e) {
+    await deleteDocument(made.id).catch(() => {})
+    throw e
+  }
+}

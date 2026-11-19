@@ -132,6 +132,30 @@ def _from_stem(text: str) -> tuple[Fraction, str] | None:
     raise AssertionError(f"unrecognised stem: {text}")
 
 
+def _terms_from_stem(text: str) -> tuple[Fraction, Fraction]:
+    """(π coefficient, number) of a perimeter asked in terms of π, from the printed question:
+    each curved edge as its fraction of a whole circumference π × d, plus the straight edges."""
+    assert "Leave your answer in terms of π." in text and "perimeter" in text, text
+    if text.startswith("The figure shows a quarter circle"):
+        r = _num(r"radius (\d+) cm", text)
+        return Fraction(2 * r, 4), Fraction(r + r)  # a quarter of π × 2r; two radii
+    if "made up of a square" in text:
+        s = _num(r"square of side (\d+) cm", text)
+        return Fraction(s, 2), Fraction(s + s + s)  # half of π × s; three sides
+    if "semicircle with diameter AB" in text:
+        s = _num(r"square of side (\d+) cm", text)
+        # a quarter of π × 2s (centre A), half of π × s (diameter AB), and the side AD
+        return Fraction(2 * s, 4) + Fraction(s, 2), Fraction(s)
+    raise AssertionError(f"unrecognised stem: {text}")
+
+
+def _pi_answer(a: Fraction, b: Fraction) -> dict:
+    terms = [{"coefficient": float(a), "symbol": "π"}]
+    if b:
+        terms.append({"coefficient": float(b), "symbol": None})
+    return {"type": "expression", "terms": terms, "unit": "cm"}
+
+
 # ------------------------------------------------------------------ the drawn figure
 
 
@@ -238,8 +262,18 @@ def test_every_answer_is_rederived_from_the_stem_and_the_figure(code):
         stem = _from_stem(text)
         if stem is None:  # in terms of π
             assert answer["type"] == "expression", where
-            assert expression.check_expression_consistency(answer), where
+            assert all(expression.check_expression_consistency(answer).values()), where
+            assert expression.expressions_equal(answer, _pi_answer(*_terms_from_stem(text)))
             assert math.isclose(expression.evaluate(answer), measured, rel_tol=1e-5), where
+            # every named wrong answer is an expression the figure tells apart (EXA-155)
+            slips = mcq.expression_wrong_answers(obj)
+            assert len(slips) >= 3, where
+            for wrong, why in slips:
+                assert not expression.expressions_equal(wrong, answer), (where, why)
+                assert not math.isclose(expression.evaluate(wrong), measured, rel_tol=1e-3), (
+                    where,
+                    why,
+                )
             continue
         exact, stem_unit = stem
         assert stem_unit == unit, where
@@ -257,9 +291,13 @@ def test_every_answer_is_rederived_from_the_stem_and_the_figure(code):
 
 def test_pi_is_stated_and_mostly_three_point_one_four():
     """Real papers say "Take π = 3.14" about 7 times for each 22/7; both appear here, and
-    the hard rung leaves some answers in terms of π."""
+    the medium (EXA-155) and hard rungs leave some answers in terms of π."""
     seen = {"3.14": 0, "22/7": 0, "terms": 0}
+    terms = {code: 0 for code in CODES}
     for code in CODES:
         for seed in SEEDS:
-            seen[generate(code, seed)["parameters"]["pi"]] += 1
+            pi = generate(code, seed)["parameters"]["pi"]
+            seen[pi] += 1
+            terms[code] += pi == "terms"
     assert seen["3.14"] > seen["22/7"] > 0 and seen["terms"] > 0, seen
+    assert terms["circles_easy"] == 0 and terms["circles_medium"] > 0 < terms["circles_hard"]

@@ -47,7 +47,7 @@
   } from './doc'
   import {
     ApiError,
-    createDocument,
+    copyDocument,
     deleteDocument,
     exportDocument,
     getDocument,
@@ -290,17 +290,12 @@
     if (!ed || busy) return
     busy = 'copy'
     actionError = ''
-    let made: string | null = null
     try {
       await autosaver?.flush()
-      const name = `Copy of ${title || 'Untitled paper'}`
-      const rec = await createDocument(name, undefined, folderId)
-      made = rec.id
-      await saveDocument(rec.id, buildDocument(name, ed.getJSON() as DocJSON, $paperSettings), rec.version)
+      const document = buildDocument(title, ed.getJSON() as DocJSON, $paperSettings)
+      const rec = await copyDocument(id, { document, folder_id: folderId })
       navigate(`/docs/${rec.id}`)
     } catch (e) {
-      // the copy exists but is empty: take it away again rather than leave a blank "Copy of …"
-      if (made) await deleteDocument(made).catch(() => {})
       actionError = e instanceof Error ? e.message : String(e)
     } finally {
       busy = ''
