@@ -9,6 +9,7 @@
   import Menu, { type MenuItem } from '../Menu.svelte'
   import { menuGroups, pillActions, primaryRow, rowForShortcut, type QuestionAction, type QuestionFacts } from './questionMenu'
   import { blockShortcut, isBlockKeyTarget, isTypingTarget, registerBlockCommands, registerBlockKeys, BLOCK_KEYS } from './shortcuts'
+  import { TYPED_ON_QUESTION } from './blockSelection'
 
   let {
     host,
@@ -111,6 +112,26 @@
     void openMenu()
   }
 
+  // A key typed on the selected question does nothing (EXA-171): say once per selection how to
+  // write below it, then let the hint go.
+  const HINT_MS = 4000
+  let hint = $state(false)
+  let hinted = false
+  let hintTimer: ReturnType<typeof setTimeout> | undefined
+  function onTypedOn() {
+    if (hinted) return
+    hinted = true
+    hint = true
+    clearTimeout(hintTimer)
+    hintTimer = setTimeout(() => (hint = false), HINT_MS)
+  }
+  $effect(() => {
+    if (selected) return
+    hinted = false
+    hint = false
+    clearTimeout(hintTimer)
+  })
+
   const onFocusIn = () => (focusWithin = true)
   const onFocusOut = (e: FocusEvent) => (focusWithin = host.contains(e.relatedTarget as Node | null))
 
@@ -120,6 +141,7 @@
     el.addEventListener('contextmenu', onContextMenu)
     el.addEventListener('focusin', onFocusIn)
     el.addEventListener('focusout', onFocusOut)
+    el.addEventListener(TYPED_ON_QUESTION, onTypedOn)
     const unregister = registerBlockKeys(el, handleKey)
     // the command palette (Ctrl+K) lists this block's menu rows while it is selected
     const unlist = registerBlockCommands(el, () =>
@@ -143,6 +165,8 @@
       el.removeEventListener('contextmenu', onContextMenu)
       el.removeEventListener('focusin', onFocusIn)
       el.removeEventListener('focusout', onFocusOut)
+      el.removeEventListener(TYPED_ON_QUESTION, onTypedOn)
+      clearTimeout(hintTimer)
       unregister()
     }
   })
@@ -193,6 +217,8 @@
         />
       </label>
     {/if}
+    <!-- mounted empty with the pill, so a screen reader hears the text when it appears -->
+    <span class="hint" class:shown={hint} role="status">{hint ? 'Press Enter to write below' : ''}</span>
     {#if summary}<span class="summary">{summary}</span>{/if}
     {#each pill as control (control)}
       {#if control === 'primary' && primary}
@@ -337,9 +363,27 @@
     font: inherit;
     font-weight: 400;
   }
-  .summary {
+  .summary,
+  .hint.shown {
     padding: 0 8px 0 10px;
     color: var(--ink-soft);
+  }
+  .hint.shown {
+    animation: hint-out 4s forwards;
+  }
+  @keyframes hint-out {
+    0%,
+    80% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hint.shown {
+      animation: none;
+    }
   }
   /* the menu is the block's, not the page's text */
   .qpill :global(.popup) {
