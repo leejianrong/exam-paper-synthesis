@@ -1,6 +1,6 @@
 import { Extension } from '@tiptap/core'
 import { NodeSelection, Plugin, PluginKey } from '@tiptap/pm/state'
-import { isMac } from '../keys'
+import { isMac, typesCharacter } from '../keys'
 import { SETTINGS_KEY } from './blockSettings'
 
 export { ariaKeys, isMac, keyLabel } from '../keys'
@@ -78,8 +78,8 @@ export const SHEET: Array<{ group: string; rows: Array<{ label: string; keys: st
     rows: [
       { label: 'Another like this', keys: ['R'] },
       { label: 'Lock or unlock', keys: ['L'] },
-      { label: 'Make easier', keys: ['['] },
-      { label: 'Make harder', keys: [']'] },
+      { label: 'Make easier', keys: ['[', '-'] },
+      { label: 'Make harder', keys: [']', '='] },
       { label: 'Move up', keys: ['Alt+↑'] },
       { label: 'Move down', keys: ['Alt+↓'] },
       { label: 'Delete', keys: ['Del'] },
@@ -122,11 +122,28 @@ export const BLOCK_KEYS = {
 
 export type BlockKey = (typeof BLOCK_KEYS)[keyof typeof BLOCK_KEYS]
 
+/** Keys matched by the character they type, whatever modifier the layout needs for it. "-" and
+ *  "=" stand in for [ and ] on layouts without them (Russian, Ukrainian); never from the keypad. */
+const CHAR_KEYS = new Map<string, BlockKey>([
+  ['[', BLOCK_KEYS.easier],
+  ['-', BLOCK_KEYS.easier],
+  [']', BLOCK_KEYS.harder],
+  ['=', BLOCK_KEYS.harder],
+])
+
 /** What a key press on a question block asks for: a shortcut's label, "menu" (Shift+F10 or the
  *  ContextMenu key), or null. `inText` is true while the caret is in text the author types in
  *  (a free-form question's body): then only chords that never type a character count. */
-export function blockShortcut(e: KeyboardEvent, inText: boolean): BlockKey | 'menu' | null {
-  if (e.isComposing || e.ctrlKey || e.metaKey) return null
+export function blockShortcut(e: KeyboardEvent, inText: boolean, mac = isMac()): BlockKey | 'menu' | null {
+  // an input method is composing or opening ('Process', or keyCode 229), like the guard's composes()
+  if (e.isComposing || e.key === 'Process' || e.keyCode === 229) return null
+  // [ and ] are read by the character typed (EXA-172): on many layouts they take AltGr (German
+  // AltGr+8, which Windows reports as Ctrl+Alt) or ⌥ on a Mac (German ⌥5), sometimes Shift too.
+  // A real chord (Ctrl+[, Cmd+[, Alt+[ off a Mac) types nothing and is not one of them.
+  // The keypad's - (and a Mac keypad's =) type numbers, not commands.
+  const byChar = e.code.startsWith('Numpad') ? undefined : CHAR_KEYS.get(e.key)
+  if (byChar && !inText && typesCharacter(e, mac)) return byChar
+  if (e.ctrlKey || e.metaKey) return null
   if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) return 'menu'
   if (e.altKey) {
     if (e.shiftKey) return null
@@ -142,10 +159,6 @@ export function blockShortcut(e: KeyboardEvent, inText: boolean): BlockKey | 'me
     case 'l':
     case 'L':
       return BLOCK_KEYS.lock
-    case '[':
-      return BLOCK_KEYS.easier
-    case ']':
-      return BLOCK_KEYS.harder
     case 'Delete':
     case 'Backspace':
       return BLOCK_KEYS.delete

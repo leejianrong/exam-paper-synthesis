@@ -18,7 +18,7 @@
           {#each g.rows as r (r.label)}
             <div class="row">
               <dt>{r.label}</dt>
-              <dd>{#each r.keys as k (k)}<kbd>{keyLabel(k, mac)}</kbd>{/each}</dd>
+              <dd>{#each r.keys as k, i (k)}{#if i > 0}<span class="or">&nbsp;or&nbsp;</span>{/if}<kbd>{keyLabel(k, mac)}</kbd>{/each}</dd>
             </div>
           {/each}
         </dl>
@@ -71,6 +71,10 @@
     font-size: 12px;
     text-align: center;
     color: var(--ink);
+  }
+  .or {
+    font-size: 12px;
+    color: var(--ink-soft);
   }
   .note {
     margin: var(--s4) 0 0;

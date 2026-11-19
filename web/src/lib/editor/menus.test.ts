@@ -369,7 +369,9 @@ describe('global shortcuts', () => {
     const sheet = screen.getByRole('dialog', { name: 'Keyboard shortcuts' })
     expect(within(sheet).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Paper', 'Questions', 'Text'])
     expect(sheet).toHaveTextContent(/Find a command\s*Ctrl\+K/)
-    expect(sheet).toHaveTextContent(/Make harder\s*\]/)
+    // alternative keys read as alternatives, not as one chord
+    expect(sheet).toHaveTextContent(/Make easier\s*\[ or -/)
+    expect(sheet).toHaveTextContent(/Make harder\s*\] or =/)
     await key({ key: 'Escape' }, document.activeElement!)
     expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).toBeNull()
     expect(document.activeElement).toBe(page)
