@@ -46,8 +46,9 @@
   /** Try again for the failure in `error`, when the same request may work now (EXA-165). */
   let errorRetry: (() => void) | null = $state(null)
   let errorRetryLabel: string | undefined = $state(undefined)
-  /** EXA-168: the folder whose set key is being made, if any. */
-  let setKeyFolder: string | null = $state(null)
+  /** EXA-168: the folders whose set key is being made (each folder's own, so one finishing
+   *  never frees another's). */
+  let setKeyBusy: Set<string> = $state(new Set())
   /** Why the list itself didn't load: it shows in place of the list, with Try again. */
   let listError: unknown = $state(null)
   // Paper templates (P8a) come from the engine, for the wizard.
@@ -302,8 +303,9 @@
   /** EXA-168: one PDF answer key for the folder's exam set. Empty placeholders are refused with
    *  the server's words and a "Download anyway". */
   async function downloadSetKey(f: Folder, allowPlaceholders = false) {
+    if (setKeyBusy.has(f.id)) return
     clearError()
-    setKeyFolder = f.id
+    setKeyBusy = new Set([...setKeyBusy, f.id])
     announce = `Making the answer key for “${f.name}”…`
     try {
       const url = URL.createObjectURL(await exportSetKey(f.id, allowPlaceholders))
@@ -321,7 +323,7 @@
         errorRetryLabel = 'Download anyway'
       } else failed(e, "Couldn't download the set's answer key", () => void downloadSetKey(f, allowPlaceholders))
     } finally {
-      setKeyFolder = null
+      setKeyBusy = new Set([...setKeyBusy].filter((id) => id !== f.id))
     }
   }
 
@@ -443,7 +445,7 @@
             }}
             onNew={() => openWizard(document.activeElement as HTMLElement | null, g.folder)}
             setKey={setKeys.get(g.folder.id) ?? null}
-            setKeyBusy={setKeyFolder === g.folder.id}
+            setKeyBusy={setKeyBusy.has(g.folder.id)}
             onSetKey={() => void downloadSetKey(g.folder)}
           >
             <ul class="docs" aria-label={`Papers in “${g.folder.name}”`}>

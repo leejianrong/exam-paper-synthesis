@@ -19,7 +19,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
 
-from exam_engine.document import paper_part
+from exam_engine.document import paper_part_source
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS documents (
@@ -123,7 +123,8 @@ def _record(row: sqlite3.Row, *, with_document: bool = True) -> dict:
     # O3: the exam-set part, derived from the cover (title as fallback). The row already holds
     # the document, so the list pays one JSON parse per paper and no extra query.
     document = json.loads(row["document"])
-    rec["paper_part"] = paper_part(document)
+    # EXA-168: and where it was read (cover or title), so a set prefers a cover's word
+    rec["paper_part"], rec["paper_part_source"] = paper_part_source(document)
     if with_document:
         rec["document"] = document
     return rec

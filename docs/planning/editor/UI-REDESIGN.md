@@ -684,39 +684,60 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
 - **Where.** A folder's ⋯ menu on Your papers has **Download the set’s answer key** when the folder
   holds any paper of an exam set. With one Booklet A, one Booklet B and one Paper 2 it downloads
   one PDF ("<folder name> answer key.pdf"); otherwise it is greyed out with the reason on a
-  second line ("This folder has no Booklet B.", "This folder has more than one Booklet A.").
-  Folders with no set paper don't offer it. Other papers in the folder (a spare worksheet) are
-  ignored. A search doesn't change it: the status counts every paper in the folder. `Menu`
-  items gained an optional `note` line for this.
-- **Which papers, in what order.** By the server-derived `paper_part` (the cover's paper line,
-  the title as fallback), the list summary's field the web reads again (`folders.setKeyStatus`).
-  The engine's `document.exam_set_order` is the rule, applied again by the API, which answers
-  409 `incomplete_set` / `ambiguous_set` with the same sentence; a doubled part is reported
-  before a missing one. A paper with no questions is a 422. Empty generator placeholders are a
-  409 `unfilled_placeholders` naming the paper and questions ("Paper 2 question 1 is still
+  second line ("This folder has no Booklet B.", "“Booklet A practice” and “P6 Booklet A” both
+  look like Booklet A."). Folders with no set paper don't offer it. A search doesn't change it:
+  the status counts every paper in the folder. Each folder's download is busy on its own, so two
+  at once don't free each other. `Menu` items gained an optional `note` line for this.
+- **Which papers, in what order.** By the server-derived `paper_part` and, new in the list
+  summary, `paper_part_source`: `cover` when the cover's paper line names the part (generated
+  and template papers fill it in), `title` when only the title does. For each part a paper
+  named on its cover wins over papers only guessed from their titles, so a worksheet titled
+  "Booklet A practice" doesn't block the set's real Booklet A; a title alone counts when no
+  cover names the part. Papers that name no part at all are not in the set. When two papers are
+  equally good candidates (two covers, or two titles with no cover), the set is ambiguous and
+  the message names them. The rule is the engine's `document.exam_set_order`; the web mirrors it
+  in `folders.setKeyStatus` and the API applies it again, answering 409 `incomplete_set` /
+  `ambiguous_set` with the same sentence; an ambiguous part is reported before a missing one.
+  A generated paper carries no template marker, so a Booklet A whose cover paper line was
+  edited away *and* whose title no longer says "Booklet A" reads as missing; the message says
+  which part to fix.
+- **Covers must agree.** The key prints one title block, so the three covers must agree on
+  level, school, subject and exam (an empty field agrees with anything; case and spacing don't
+  count). Otherwise 409 `mixed_set` names each clash: "Booklet A is Primary 5 but Booklet B is
+  Primary 6.", "Booklet A is from … but Paper 2 is from …". The list summary has no cover
+  fields, so only the server checks this; the menu shows its sentence as the error.
+- **Other refusals.** A paper with no questions is a 422. Empty generator placeholders are a 409
+  `unfilled_placeholders` naming the paper and questions ("Paper 2 question 1 is still
   empty…"), and the list offers **Download anyway** (`allow_placeholders=true`), as the editor's
-  exports do.
+  exports do. A paper deleted, moved out or changed into another part between the folder's
+  listing and its read is a 409 `incomplete_set` ("Booklet A was just deleted, moved or
+  changed."), never a 500.
 - **The key.** `render.render_set_key_html(title, [(title, doc), …])`: the cover lines (school,
-  level, subject, exam; each from the first cover that fills it) head the first page once, or
-  the folder name when every cover is empty. Then each paper, under "Paper 1 Booklet A",
-  "Paper 1 Booklet B" or "Paper 2", is exactly its own key minus its cover lines and paper name:
-  its style (school key or worked solutions), its options, its left-out questions, its numbers
-  (Booklet B from 16; worked solutions get explicit numbers so Paper 2 restarts at 1). Paper 1's
-  two booklets flow on; Paper 2 starts a new page (`break-before: page`), since it is a separate
-  sitting. Like every key, it is not paginated by the script: Chromium's `@page key` counter
-  numbers the pages through the whole set.
+  level, subject, exam) head the first page once, or the folder name when every cover is empty.
+  Then each paper, under "Paper 1 Booklet A", "Paper 1 Booklet B" or "Paper 2", is its own key
+  from the same helper the paper's key uses (`render._paper_key_body`), so the two can't drift:
+  the school key minus its cover lines and paper name, or the worked solutions under the
+  heading and "Total: n marks" in place of the key's title bar. Style, options, left-out
+  questions and numbers are the paper's own (Booklet B from 16; each paper's list restarts the
+  question counter, so Paper 2 counts from 1). Paper 1's two booklets flow on; Paper 2 starts a
+  new page (`break-before: page`), since it is a separate sitting. Like every key, it is not
+  paginated by the script: Chromium's `@page key` counter numbers the pages through the whole
+  set.
 - **API.** `POST /folders/{id}/key` (PDF) and `GET /folders/{id}/key/preview` (HTML, free),
   owner-scoped (another owner's folder is a 404). The PDF spends one export from the allowance
   (429 with Retry-After when used up), after every refusal above, and a failed render is
-  refunded. No store change: the folder is checked with `list_folders` and the papers read with
-  `list` + `get`, so both backends behave alike (`tests/test_api_set_key.py` runs on Postgres in
-  CI).
-- **Tests.** `tests/test_set_key.py`: the invariant (each paper's part of the set key is its own
-  key, every in-key question once, in order, under its heading) over P5 and P6 sets of eight
-  seeds, the title block, mixed styles and left-out questions, the set rule, and a PDF read back
-  for page numbers 1…n and Paper 2 starting a page. `test_monochrome_print.py` covers the set key
-  in both styles. e2e `tests/e2e/set-key.spec.js` downloads the key of a generated set from the
-  folder menu.
+  refunded. The file is named with an ASCII fallback and the folder's own name
+  (`filename*=UTF-8''…`, RFC 5987). No store change beyond the derived `paper_part_source`: the
+  folder is checked with `list_folders` and the papers read with `list` + `get`, so both
+  backends behave alike (`tests/test_api_set_key.py` runs on Postgres in CI).
+- **Tests.** `tests/test_set_key.py`: the invariant (each paper's part of the set key is byte for
+  byte its own key, every in-key question once, in order, under its heading) over P5 and P6
+  sets of eight seeds; worked solutions and non-default options (M/A lines, marks, 1-mark
+  working, a left-out question) compared byte for byte; the title block; the set rule (cover
+  beats title, ambiguity named); mixed level, school and the cases that don't clash; and a PDF
+  read back for page numbers 1…n and Paper 2 starting a page. `test_monochrome_print.py` covers
+  the set key in both styles. e2e `tests/e2e/set-key.spec.js` downloads the key of a generated
+  set from the folder menu.
 - **Measured** on the P6 set of seed 11 with the school key: 5 pages (Paper 1 on pages 1–2,
   Paper 2 on 3–5).
 - **Not built:** an Export menu item in the editor for a paper that belongs to a complete set

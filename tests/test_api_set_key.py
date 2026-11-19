@@ -75,7 +75,10 @@ def test_a_complete_set_prints_one_key_in_exam_order(pdfs):
     assert resp.status_code == 200, resp.text
     assert resp.content == b"%PDF-set"
     assert resp.headers["content-type"] == "application/pdf"
-    assert 'filename="term-3-prelim-answer-key.pdf"' in resp.headers["content-disposition"]
+    assert resp.headers["content-disposition"] == (
+        'attachment; filename="term-3-prelim-answer-key.pdf"; '
+        "filename*=UTF-8''Term%203%20Prelim%20answer%20key.pdf"
+    )
     html = _main(pdfs[0])
     heads = re.findall(r'<h2 class="key-paper">([^<]*)</h2>', html)
     assert heads == ["Paper 1 Booklet A", "Paper 1 Booklet B", "Paper 2"]
@@ -109,8 +112,132 @@ def test_two_booklet_as_are_ambiguous(pdfs):
     assert resp.status_code == 409
     detail = resp.json()["detail"]
     assert detail["code"] == "ambiguous_set" and detail["parts"] == ["booklet_a"]
-    assert detail["message"].startswith("This folder has more than one Booklet A.")
+    assert detail["message"] == (
+        "\u201cP6 Paper 1 Booklet A\u201d and \u201cP6 Paper 1 Booklet A\u201d "
+        "both look like Booklet A. "
+        "Keep one Booklet A in the folder to make the set's answer key."
+    )
     assert pdfs == []
+
+
+def _put(doc_id: str, change, headers=ALICE) -> None:
+    rec = client.get(f"/documents/{doc_id}", headers=headers).json()
+    doc = rec["document"]
+    change(doc)
+    saved = client.put(
+        f"/documents/{doc_id}",
+        json={"document": doc, "base_version": rec["version"]},
+        headers=headers,
+    )
+    assert saved.status_code == 200, saved.text
+
+
+def test_a_worksheet_titled_like_a_booklet_doesnt_block_the_set(pdfs):
+    folder, papers = _set_folder()
+    # no cover: its title is all that says "Booklet A", and the set's cover says more
+    client.post(
+        "/documents", json={"title": "Booklet A practice", "folder_id": folder}, headers=ALICE
+    )
+    listed = {d["title"]: d for d in client.get("/documents", headers=ALICE).json()["documents"]}
+    assert listed["Booklet A practice"]["paper_part_source"] == "title"
+    assert papers[0]["paper_part_source"] == "cover"
+    resp = client.post(f"/folders/{folder}/key", headers=ALICE)
+    assert resp.status_code == 200, resp.text
+    assert len(pdfs) == 1
+
+
+def test_a_renamed_booklet_is_still_found_by_its_cover(pdfs):
+    folder, papers = _set_folder()
+    # renamed to a title that names another part: the cover's paper line still decides
+    _put(papers[0]["id"], lambda d: d.update(title="Booklet B notes"))
+    assert client.post(f"/folders/{folder}/key", headers=ALICE).status_code == 200
+
+
+@pytest.mark.parametrize(
+    "field, values, message",
+    [
+        (
+            "level",
+            ("Primary 5", "Primary 6"),
+            "Booklet A is Primary 5 but Booklet B is Primary 6.",
+        ),
+        (
+            "school",
+            ("Pandan Primary", "Kranji Primary"),
+            "Booklet A is from Pandan Primary but Booklet B is from Kranji Primary.",
+        ),
+    ],
+)
+def test_a_mixed_set_is_a_409_naming_the_clash(pdfs, field, values, message):
+    folder, papers = _set_folder()
+    for paper, value in zip(papers, (values[0], values[1], values[1]), strict=True):
+        _put(paper["id"], lambda d, v=value: d["content"]["content"][0]["attrs"].update({field: v}))
+    resp = client.post(f"/folders/{folder}/key", headers=ALICE)
+    assert resp.status_code == 409
+    detail = resp.json()["detail"]
+    assert detail["code"] == "mixed_set"
+    assert detail["parts"] == ["booklet_a", "booklet_b"]
+    assert (
+        detail["message"] == f"{message} Make the covers match to print one answer key for the set."
+    )
+    assert client.get(f"/folders/{folder}/key/preview", headers=ALICE).status_code == 409
+    assert pdfs == []
+
+
+class _Racing:
+    """The real store, but a paper changes between the folder's list and its read."""
+
+    def __init__(self, store, change):
+        self._store, self._change, self._done = store, change, False
+
+    def __getattr__(self, name):
+        return getattr(self._store, name)
+
+    def get(self, owner, doc_id):
+        if not self._done:
+            self._done = True
+            self._change(owner, doc_id)
+        return self._store.get(owner, doc_id)
+
+
+@pytest.mark.parametrize("race", ["deleted", "moved"])
+def test_a_paper_gone_between_list_and_read_is_a_409_not_a_500(pdfs, race):
+    from app.docstore import get_store
+
+    folder, _ = _set_folder()
+    other = _folder("Elsewhere")
+    real = get_store()
+
+    def change(owner, doc_id):
+        if race == "deleted":
+            real.delete(owner, doc_id)
+        else:
+            real.move(owner, doc_id, other)
+
+    app.dependency_overrides[get_store] = lambda: _Racing(real, change)
+    try:
+        resp = TestClient(app, raise_server_exceptions=False).post(
+            f"/folders/{folder}/key", headers=ALICE
+        )
+    finally:
+        app.dependency_overrides.pop(get_store, None)
+    assert resp.status_code == 409, resp.text
+    detail = resp.json()["detail"]
+    assert detail["code"] == "incomplete_set" and detail["parts"] == ["booklet_a"]
+    assert detail["message"].startswith("Booklet A was just deleted, moved or changed.")
+    assert pdfs == []
+
+
+def test_the_file_is_named_after_the_folder_in_any_script(pdfs):
+    folder = _folder("Prélim 数学")
+    for t in reversed(SET):
+        _generate(t, folder)
+    resp = client.post(f"/folders/{folder}/key", headers=ALICE)
+    assert resp.status_code == 200
+    assert resp.headers["content-disposition"] == (
+        'attachment; filename="pr-lim-answer-key.pdf"; '
+        "filename*=UTF-8''Pr%C3%A9lim%20%E6%95%B0%E5%AD%A6%20answer%20key.pdf"
+    )
 
 
 def test_another_owners_folder_is_a_404(pdfs):

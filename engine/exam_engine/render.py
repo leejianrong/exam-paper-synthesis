@@ -1556,6 +1556,33 @@ def _render_compact_key(
     return f'<div class="compact-key">{"".join(out)}</div>'
 
 
+def _paper_key_body(
+    doc: dict,
+    assets: AssetResolver | None,
+    key: KeyOptions,
+    *,
+    title: str,
+    marks: int,
+    heading: str | None = None,
+) -> str:
+    """A paper's key in its own style: the school key, or its worked solutions. Shared by the
+    paper's key (and the key section of ``full``) and the exam-set key (EXA-168), whose
+    ``heading`` replaces the school key's cover lines and paper name."""
+    if key.layout == "compact":
+        return _render_compact_key(doc, assets, key, title=title, marks=marks, heading=heading)
+    numbered = [(n, b) for n, b in enumerate(numbered_blocks(doc), number_from(doc)) if in_key(b)]
+    # The key counts up by itself unless a question was left out: then it keeps the paper's numbers.
+    numbers = [n for n, _ in numbered]
+    return _render_numbered_blocks(
+        [b for _, b in numbered],
+        answer_key=True,
+        assets=assets,
+        placement=paper_placement(doc),
+        key=key,
+        numbers=None if numbers == list(range(1, len(numbers) + 1)) else numbers,
+    )
+
+
 def render_document_html(
     title: str, doc: dict, *, mode: str, assets: AssetResolver | None = None
 ) -> str:
@@ -1577,24 +1604,10 @@ def render_document_html(
     ]
     marks = _doc_total_marks(blocks)
     key_opts = _key_options(doc)
-    numbered = [(n, b) for n, b in enumerate(blocks, number_from(doc)) if in_key(b)]
-    key_blocks = [b for _, b in numbered]
-    # The key counts up by itself unless a question was left out: then it keeps the paper's numbers.
-    all_numbers = [n for n, _ in numbered]
-    key_numbers = None if all_numbers == list(range(1, len(all_numbers) + 1)) else all_numbers
     key_body = (
         ""
         if mode == "student"
-        else _render_compact_key(doc, assets, key_opts, title=title, marks=marks)
-        if key_opts.layout == "compact"
-        else _render_numbered_blocks(
-            key_blocks,
-            answer_key=True,
-            assets=assets,
-            placement=paper_placement(doc),
-            key=key_opts,
-            numbers=key_numbers,
-        )
+        else _paper_key_body(doc, assets, key_opts, title=title, marks=marks)
     )
 
     if mode == "key" and key_opts.layout == "compact":
@@ -1662,24 +1675,13 @@ def _set_paper_key(title: str, doc: dict, assets: AssetResolver | None) -> str:
     options, numbered as the paper numbers it (Booklet B from 16)."""
     part = paper_part(doc)
     heading = SET_HEADINGS.get(part or "") or _key_paper_name(doc, title)
-    blocks = numbered_blocks(doc)
-    marks = _doc_total_marks(blocks)
+    marks = _doc_total_marks(numbered_blocks(doc))
     key = _key_options(doc)
-    if key.layout == "compact":
-        body = _render_compact_key(doc, assets, key, title=title, marks=marks, heading=heading)
-    else:
-        numbered = [(n, b) for n, b in enumerate(blocks, number_from(doc)) if in_key(b)]
+    body = _paper_key_body(doc, assets, key, title=title, marks=marks, heading=heading)
+    if key.layout != "compact":  # worked solutions: the heading and total the key's title bar has
         body = (
             f'<h2 class="key-paper">{_esc(heading)}</h2>'
-            f'<p class="key-total">Total: {marks} marks</p>'
-            + _render_numbered_blocks(
-                [b for _, b in numbered],
-                answer_key=True,
-                assets=assets,
-                placement=paper_placement(doc),
-                key=key,
-                numbers=[n for n, _ in numbered],
-            )
+            f'<p class="key-total">Total: {marks} marks</p>{body}'
         )
     return f'<section class="set-paper" data-part="{_esc(part or "")}">{body}</section>'
 

@@ -14,12 +14,15 @@ import io
 import re
 
 import pytest
+from documents import gen_block, make_doc
 from exam_engine.document import (
+    check_exam_set_covers,
     exam_set_order,
     in_key,
     number_from,
     numbered_blocks,
     paper_part,
+    paper_part_source,
     with_key_style,
 )
 from exam_engine.errors import ExamSetError
@@ -128,10 +131,49 @@ def test_each_paper_keeps_its_own_style_and_left_out_questions():
     assert [int(n) for n in _LABEL.findall(b)] == _in_key_numbers(left_out)
     # worked solutions: the full layout, numbered from 1 and never continuing Booklet B's count
     assert "compact-key" not in p2 and '<ol class="questions">' in p2
-    assert [int(n) + 1 for n in _LI_NUMBER.findall(p2)] == _in_key_numbers(worked)
+    # its own <ol class="questions"> resets the CSS counter, so Paper 2 counts 1, 2, 3, ...
+    assert _LI_NUMBER.findall(p2) == [] and p2.count('<ol class="questions">') == 1
+    assert _in_key_numbers(worked) == list(range(1, len(_in_key_numbers(worked)) + 1))
     assert '<h2 class="key-paper">Paper 2</h2>' in p2
     total = sum(b["attrs"]["question"]["question"]["total_marks"] for b in numbered_blocks(worked))
     assert f"Total: {total} marks" in p2
+
+
+def _own_worked_key_as_in_set(doc: dict) -> str:
+    """The paper's own worked-solutions key, its title bar replaced by the booklet heading and
+    the total: what the set key must print for it, byte for byte."""
+    own = _main(render_document_html(doc["title"], doc, mode="key"))
+    body = own[own.index("</header>") + len("</header>\n") :].removesuffix("\n")
+    total = re.search(r"Total: (\d+) marks", own).group(1)
+    return (
+        f'<h2 class="key-paper">{SET_HEADINGS[paper_part(doc)]}</h2>'
+        f'<p class="key-total">Total: {total} marks</p>{body}'
+    )
+
+
+OPTIONS = [
+    {"show_scheme": True, "show_marks": True, "one_mark_working": True},
+    {"show_scheme": False, "show_marks": True, "one_mark_working": False},
+]
+
+
+@pytest.mark.parametrize("seed", [3, 6])
+@pytest.mark.parametrize("options", OPTIONS)
+def test_worked_and_optioned_keys_are_byte_for_byte_each_papers_own(seed, options):
+    """Worked solutions (with and without M/A lines and the question) and school keys with
+    non-default options, mixed in one set: each part is exactly the paper's own key."""
+    a, b, p2 = (copy.deepcopy(d) for d in _set("P6", seed))
+    a["settings"]["key_options"].update(options)  # school key, options changed
+    b = with_key_style(b, "worked")
+    b["settings"]["key_options"].update(show_scheme=options["show_scheme"], show_question=False)
+    numbered_blocks(b)[1]["attrs"]["in_key"] = False  # Q17 left out: explicit numbers
+    p2 = with_key_style(p2, "worked")
+    html = render_set_key_html("Set", [(d["title"], d) for d in (a, b, p2)])
+    (_, ka), (_, kb), (_, kp2) = _sections(html)
+    assert ka == _own_key_as_in_set(a)
+    assert kb == _own_worked_key_as_in_set(b)
+    assert kp2 == _own_worked_key_as_in_set(p2)
+    assert "counter-reset: q 17" in kb and 'counter-reset: q 16"' not in kb
 
 
 def test_the_set_key_flows_with_paper_2_on_a_new_page():
@@ -141,20 +183,49 @@ def test_the_set_key_flows_with_paper_2_on_a_new_page():
     assert '.set-paper[data-part="paper_2"] { break-before: page;' in html
 
 
+def _cover(part, title=""):
+    return (part, "cover", title or part)
+
+
 @pytest.mark.parametrize(
-    "parts, order",
+    "papers, order",
     [
-        (["booklet_a", "booklet_b", "paper_2"], [0, 1, 2]),
-        (["paper_2", None, "booklet_a", "booklet_b"], [2, 3, 0]),
+        ([_cover("booklet_a"), _cover("booklet_b"), _cover("paper_2")], [0, 1, 2]),
+        (
+            [_cover("paper_2"), (None, None, "Drill"), _cover("booklet_a"), _cover("booklet_b")],
+            [2, 3, 0],
+        ),
+        # a title alone is enough when nothing better names the part
+        ([_cover("booklet_a"), ("booklet_b", "title", "Booklet B"), _cover("paper_2")], [0, 1, 2]),
     ],
 )
-def test_the_set_is_found_by_part_and_put_in_exam_order(parts, order):
-    assert exam_set_order(parts) == order
+def test_the_set_is_found_by_part_and_put_in_exam_order(papers, order):
+    assert exam_set_order(papers) == order
+
+
+def test_a_cover_beats_a_title_that_only_looks_like_the_part():
+    """A worksheet titled "Booklet A practice" doesn't stand in the way of the set's Booklet A."""
+    papers = [
+        ("booklet_a", "title", "Booklet A practice"),
+        _cover("booklet_b"),
+        _cover("booklet_a", "P6 Prelim A"),
+        _cover("paper_2"),
+    ]
+    assert exam_set_order(papers) == [2, 1, 3]
+
+
+def test_where_the_part_was_read():
+    worksheet = make_doc(gen_block(), title="Booklet A practice")
+    assert paper_part_source(worksheet) == ("booklet_a", "title")
+    booklet_a = _set("P6", 1)[0]
+    booklet_a["title"] = "Prelim, first booklet"  # renamed: the cover still says
+    assert paper_part_source(booklet_a) == ("booklet_a", "cover")
+    assert paper_part_source(make_doc(gen_block(), title="Fractions")) == (None, None)
 
 
 def test_an_incomplete_set_is_refused_with_what_is_missing():
     with pytest.raises(ExamSetError) as e:
-        exam_set_order(["booklet_a", None])
+        exam_set_order([_cover("booklet_a"), (None, None, "Drill")])
     assert e.value.code == "incomplete_set"
     assert e.value.parts == ["booklet_b", "paper_2"]
     assert e.value.message == (
@@ -163,12 +234,62 @@ def test_an_incomplete_set_is_refused_with_what_is_missing():
     )
 
 
-def test_two_of_a_part_is_ambiguous():
+@pytest.mark.parametrize("source", ["cover", "title"])
+def test_two_equally_good_candidates_are_ambiguous_and_named(source):
+    papers = [
+        ("booklet_a", source, "Booklet A practice"),
+        ("booklet_a", source, "P6 Booklet A"),
+        _cover("booklet_b"),
+    ]
     with pytest.raises(ExamSetError) as e:
-        exam_set_order(["booklet_a", "booklet_a", "booklet_b"])
+        exam_set_order(papers)
     assert e.value.code == "ambiguous_set"  # reported before what is missing
     assert e.value.parts == ["booklet_a"]
-    assert "more than one Booklet A." in e.value.message
+    assert e.value.message == (
+        "\u201cBooklet A practice\u201d and \u201cP6 Booklet A\u201d both look like Booklet A. "
+        "Keep one Booklet A in the folder to make the set's answer key."
+    )
+
+
+def _covers(docs, **per_part):
+    for doc, attrs in zip(docs, (per_part.get(k, {}) for k in ("a", "b", "p2")), strict=True):
+        doc["content"]["content"][0]["attrs"].update(attrs)
+    return docs
+
+
+def test_a_mixed_level_is_refused_naming_the_clash():
+    docs = _covers(
+        _set("P6", 2), a={"level": "Primary 5"}, b={"level": "Primary 6"}, p2={"level": "Primary 6"}
+    )
+    with pytest.raises(ExamSetError) as e:
+        check_exam_set_covers(docs)
+    assert e.value.code == "mixed_set"
+    assert e.value.parts == ["booklet_a", "booklet_b"]
+    assert e.value.message == (
+        "Booklet A is Primary 5 but Booklet B is Primary 6. "
+        "Make the covers match to print one answer key for the set."
+    )
+
+
+def test_a_mixed_school_is_refused_naming_the_clash():
+    docs = _covers(_set("P6", 2), a={"school": "Pandan Primary"}, p2={"school": "Kranji Primary"})
+    with pytest.raises(ExamSetError) as e:
+        check_exam_set_covers(docs)
+    assert e.value.code == "mixed_set"
+    assert e.value.parts == ["booklet_a", "paper_2"]
+    assert e.value.message.startswith(
+        "Booklet A is from Pandan Primary but Paper 2 is from Kranji Primary."
+    )
+
+
+def test_empty_fields_case_and_spacing_dont_clash():
+    docs = _covers(
+        _set("P6", 2),
+        a={"school": "Pandan Primary", "exam": ""},
+        b={"school": "  pandan   PRIMARY "},
+        p2={"exam": "Prelim"},
+    )
+    check_exam_set_covers(docs)  # no error
 
 
 def test_the_printed_set_key_numbers_its_pages_through_the_set():

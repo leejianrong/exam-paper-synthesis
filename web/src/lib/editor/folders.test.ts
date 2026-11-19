@@ -61,7 +61,19 @@ describe('setKeyStatus (EXA-168)', () => {
     expect(setKeyStatus(parts('booklet_a', 'booklet_b'))).toEqual({ ready: false, reason: 'This folder has no Paper 2.' })
     expect(setKeyStatus(parts('booklet_a', 'booklet_a', 'paper_2'))).toEqual({
       ready: false,
-      reason: 'This folder has more than one Booklet A.',
+      reason: '“P0” and “P1” both look like Booklet A.',
+    })
+  })
+
+  it('a part named on a cover wins over a title that only looks like it', () => {
+    const fromCover = parts('booklet_a', 'booklet_b', 'paper_2').map((d) => ({ ...d, paper_part_source: 'cover' as const }))
+    const worksheet = { ...doc('w', 'Booklet A practice', 'f'), paper_part: 'booklet_a' as const, paper_part_source: 'title' as const }
+    expect(setKeyStatus([worksheet, ...fromCover])).toEqual({ ready: true })
+    // two covers saying Booklet A are still two: both are named
+    const second = { ...fromCover[0], id: 'x', title: 'P6 Booklet A' }
+    expect(setKeyStatus([worksheet, ...fromCover, second])).toEqual({
+      ready: false,
+      reason: '“P0” and “P6 Booklet A” both look like Booklet A.',
     })
   })
 })

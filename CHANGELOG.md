@@ -17,7 +17,10 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   "Paper 2") in its own key style and options, numbered as the paper numbers it (Booklet B from
   16). Paper 1's booklets flow on; Paper 2 starts a new page; the page numbers run through the
   set. While the set is incomplete or holds a paper twice the item is greyed out and says why
-  ("This folder has no Booklet B."). Empty generator placeholders are named, with **Download
+  ("This folder has no Booklet B."). A paper named on its cover beats one whose title only looks
+  like the part, and two equally likely papers are named. The three covers must agree on level,
+  school, subject and exam, or the download says where they differ ("Booklet A is Primary 5 but
+  Booklet B is Primary 6."). Empty generator placeholders are named, with **Download
   anyway**. The API is `POST /folders/{id}/key` (PDF, one export from the allowance) and
   `GET /folders/{id}/key/preview` (HTML).
 - **Plain errors, a not-found page and loading skeletons (EXA-165, UI redesign S7).** Opening a

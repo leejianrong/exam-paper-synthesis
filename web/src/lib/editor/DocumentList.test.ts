@@ -725,6 +725,27 @@ describe('DocumentList: the set’s answer key (EXA-168)', () => {
     expect(within(drills).queryByRole('menuitem', { name: KEY })).toBeNull()
   })
 
+  it('two folders at once: one finishing leaves the other busy', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026'), folder('f2', 'Mid-year')])
+    listDocuments.mockResolvedValue([...SET, ...SET.map((d) => ({ ...d, id: `${d.id}2`, folder_id: 'f2' }))])
+    const pending: Record<string, (b: Blob) => void> = {}
+    exportSetKey.mockImplementation((id: string) => new Promise<Blob>((done) => (pending[id] = done)))
+    render(DocumentList)
+    await fireEvent.click(within(await folderMenu()).getByRole('menuitem', { name: KEY }))
+    await fireEvent.click(within(await folderMenu('Mid-year')).getByRole('menuitem', { name: KEY }))
+    await waitFor(() => expect(Object.keys(pending)).toEqual(['f1', 'f2']))
+    pending.f1(new Blob(['%PDF']))
+    await waitFor(() => expect(clicked).toEqual(['Prelims 2026 answer key.pdf']))
+    const busy = within(await folderMenu('Mid-year')).getByRole('menuitem', { name: /Making the set’s answer key/ })
+    expect(busy).toHaveAttribute('aria-disabled', 'true')
+    await fireEvent.keyDown(screen.getByRole('menu', { name: 'Mid-year' }), { key: 'Escape' })
+    const free = within(await folderMenu()).getByRole('menuitem', { name: KEY })
+    expect(free).not.toHaveAttribute('aria-disabled')
+    await fireEvent.keyDown(screen.getByRole('menu', { name: 'Prelims 2026' }), { key: 'Escape' })
+    pending.f2(new Blob(['%PDF']))
+    await waitFor(() => expect(clicked).toEqual(['Prelims 2026 answer key.pdf', 'Mid-year answer key.pdf']))
+  })
+
   it('a search doesn’t hide the set: the status counts every paper in the folder', async () => {
     listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
     listDocuments.mockResolvedValue(SET)
