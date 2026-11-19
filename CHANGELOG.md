@@ -10,6 +10,26 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **The question bar and menu (EXA-161, UI redesign S3).** A question carries no buttons at
+  rest and no blank band under it any more. A locked question shows a small padlock badge by
+  its number ("locked" for screen readers, "Locked: kept when you regenerate" as its tooltip);
+  a placeholder keeps its dashed outline. Hovering shows a ⋮⋮ handle in the left gutter that
+  opens the question's menu. Selecting a question (a click, Tab, or the caret in its text)
+  shows a pill on its top edge: **Another like this**, Lock and ⋯ for a generated question;
+  marks, **+ Part**, Lock and ⋯ for your own; **Fill with a question** and ⋯ for a placeholder.
+  The ⋯ menu (also on a right-click, Shift+F10 or the ContextMenu key) runs: change it (another
+  like this, another topic, easier, harder, edit names, and the engine's own edits such as
+  change to decimals), keep it (lock, leave out of / include in the answer key), place it (move
+  up, move down, add question below), take it over (**Replace with my own question**, was
+  "Write my own"; **Edit as my own text…**, was "Convert to free-form", now asking first that
+  the engine stops checking it) and Delete. Rows that don't apply are left out. "Regenerate"
+  is now "Another like this" (the like-swap already draws a new seed of the same blueprint).
+  Shortcuts on a focused or selected question, never while typing: R another like this, L lock,
+  [ and ] easier and harder, Alt+↑/↓ move, Del delete with a "Question deleted · Undo" toast
+  instead of a confirmation. Questions are focusable groups named like "Question 6, 2 marks,
+  locked". In Add question the tabs read **Generate** and **Write my own**. The shortcut
+  handling lives in `web/src/lib/editor/shortcuts.ts` for the global shortcuts to come (S5).
+
 - **An editor header that fits (EXA-160, UI redesign S1).** The editor's top bar, which ran
   off the screen below 1400 px and hid Preview and the PDFs, is now one sticky header of two
   rows. Row one: back, the folder / title breadcrumb, the save state, the marks total in neutral
