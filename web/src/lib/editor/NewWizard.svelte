@@ -86,7 +86,6 @@
     created_at: r.created_at,
     updated_at: r.updated_at,
     folder_id: r.folder_id ?? null,
-    paper_part: r.paper_part ?? null,
   })
   $: partTemplates = PARTS.map((p) => templates.find((t) => t.code === PART_TEMPLATES[p.key])).filter(
     (t): t is PaperTemplateInfo => !!t,

@@ -335,6 +335,37 @@ describe('DocumentList: a paper’s ⋯ menu (EXA-166)', () => {
       expect(within(section('Unfiled')).getByRole('link', { name: /Ratio quiz/ })).toBeInTheDocument(),
     )
   })
+
+  it('the Move dialog stays open while the move runs, so a failure still shows', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
+    listDocuments.mockResolvedValue([summary('d1', 'Ratio quiz')])
+    let fail: (e: Error) => void = () => {}
+    moveDocument.mockReturnValue(new Promise((_, reject) => (fail = reject)))
+    render(DocumentList)
+    await choose('Ratio quiz', 'Move to folder…')
+    const dialog = await screen.findByRole('dialog', { name: 'Move to folder' })
+    await fireEvent.click(within(dialog).getByRole('radio', { name: 'Prelims 2026' }))
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Move' }))
+    await fireEvent.keyDown(dialog, { key: 'Escape' })
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+    expect(screen.getByRole('dialog', { name: 'Move to folder' })).toBeInTheDocument()
+    fail(new Error('API 500: boom'))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('boom')
+    // once it has failed the dialog closes again
+    await fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('a right-click on the row opens the menu; on the title link the browser keeps its own', async () => {
+    listDocuments.mockResolvedValue([summary('d1', 'Ratio Review')])
+    render(DocumentList)
+    const link = await screen.findByRole('link', { name: /Ratio Review/ })
+    // fireEvent returns false when the event's default was prevented
+    expect(await fireEvent.contextMenu(link)).toBe(true)
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(await fireEvent.contextMenu(link.closest('li')!)).toBe(false)
+    expect(await screen.findByRole('menu', { name: 'Ratio Review' })).toBeInTheDocument()
+  })
 })
 
 describe('DocumentList: search (EXA-166)', () => {
@@ -376,6 +407,54 @@ describe('DocumentList: search (EXA-166)', () => {
     await fireEvent.input(screen.getByRole('searchbox'), { target: { value: 'paper' } })
     expect(screen.getByRole('link', { name: /P6 Paper 2/ })).toBeInTheDocument()
   })
+
+  it('counts matches in the folder header and announces how many papers match', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
+    listDocuments.mockResolvedValue([
+      summary('d1', 'P6 Paper 2', 'f1'),
+      summary('d2', 'P6 Paper 1 Booklet A', 'f1'),
+      summary('d3', 'P5 Paper 2'),
+    ])
+    render(DocumentList)
+    await screen.findByRole('link', { name: /P5 Paper 2/ })
+    expect(section('Prelims 2026')).toHaveTextContent('2 papers')
+    await fireEvent.input(screen.getByRole('searchbox'), { target: { value: 'paper 2' } })
+    expect(section('Prelims 2026')).toHaveTextContent('1 match')
+    expect(section('Prelims 2026')).not.toHaveTextContent('paper')
+    expect(screen.getByRole('status')).toHaveTextContent('2 papers match “paper 2”.')
+    await fireEvent.input(screen.getByRole('searchbox'), { target: { value: 'booklet' } })
+    expect(screen.getByRole('status')).toHaveTextContent('1 paper matches “booklet”.')
+  })
+
+  it('a rename that leaves the search results moves focus to the search box', async () => {
+    listDocuments.mockResolvedValue([summary('d1', 'Ratio quiz'), summary('d2', 'Ratio drill')])
+    renameDocument.mockResolvedValue({ ...summary('d1', 'Fractions quiz'), version: 4, document: {} })
+    render(DocumentList)
+    const box = await screen.findByRole('searchbox')
+    await fireEvent.input(box, { target: { value: 'ratio' } })
+    await choose('Ratio quiz', 'Rename')
+    const input = await screen.findByRole('textbox', { name: 'Paper title' })
+    await fireEvent.input(input, { target: { value: 'Fractions quiz' } })
+    await fireEvent.submit(input.closest('form')!)
+    await waitFor(() => expect(screen.queryByRole('link', { name: /Fractions quiz/ })).toBeNull())
+    await waitFor(() => expect(box).toHaveFocus())
+    expect(screen.getByRole('status')).toHaveTextContent('Renamed to “Fractions quiz”. It no longer matches the search.')
+  })
+
+  it('keeps the search box while a search is on, even when no paper is left', async () => {
+    listDocuments.mockResolvedValue([summary('d1', 'Ratio quiz')])
+    deleteDocument.mockResolvedValue(undefined)
+    render(DocumentList)
+    await fireEvent.input(await screen.findByRole('searchbox'), { target: { value: 'ratio' } })
+    await choose('Ratio quiz', 'Delete…')
+    await fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete paper' }))
+    await waitFor(() => expect(screen.queryByRole('link', { name: /Ratio quiz/ })).toBeNull())
+    const box = screen.getByRole('searchbox')
+    await fireEvent.keyDown(box, { key: 'Escape' })
+    // cleared, and with no papers the box goes
+    expect(screen.queryByRole('searchbox')).toBeNull()
+    expect(screen.getByText(/No papers yet/)).toBeInTheDocument()
+  })
 })
 
 describe('DocumentList folders (O2, EXA-166)', () => {
@@ -408,6 +487,8 @@ describe('DocumentList folders (O2, EXA-166)', () => {
     await fireEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('link', { name: /P6 Paper 2/ })).toBeNull()
+    // the body the toggle controls is still there, hidden
+    expect(document.getElementById('folder-body-f1')).toHaveAttribute('hidden')
     expect(section('Prelims 2026')).toHaveTextContent('1 paper')
     expect(JSON.parse(localStorage.getItem('exam.papers.collapsed')!)).toEqual(['f1'])
     unmount()

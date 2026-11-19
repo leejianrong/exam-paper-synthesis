@@ -377,7 +377,7 @@ Wording changes: "Write my own" → **Replace with my own question** (it empties
 | S5 | **Menus and shortcuts** | EXA-160 | Paper / Insert / View / Help menus, toolbar trimmed to + Question, + Section, undo/redo, text style dropdown, B I U, lists, Σ, image. Shortcut sheet. Command palette can follow as S5b | |
 | S6 | **Section and cover settings in the panel** | EXA-160 | Collapsed section header and cover card. Settings edit in the panel. One "Marks shown" vocabulary | |
 | S7 | **States** | app | Not-found and error pages with retry. Plain-language errors (no `API 500`). Loading skeleton for list and editor | Small, independent, can go any time |
-| S8 | **Documents list cleanup** | app | Row `⋯` menu (Open, Rename, Move, Make a copy, Delete). New dialog leads with Exam set. en-SG dates. Search. Collapsible folders. Non-button set-progress ticks | |
+| S8 | **Documents list cleanup** | app | Row `⋯` menu (Open, Rename, Move, Make a copy, Delete). New dialog leads with Exam set. en-SG dates. Search. Collapsible folders. ~~Non-button set-progress ticks~~ (dropped: the owner asked for no ticks, section 10) | |
 | S9 | **App header and Question bank page** | app | Shared header (Papers, Question bank, avatar menu with Settings and Sign out on every screen). Bank as its own page with filters, review and Import ("Import questions from a file"). Classic as a tab when on | |
 | S10 | **Exam-set key** | EXA-159 | One key PDF for a complete set in a folder, booklet headings | Engine + API. After S2 |
 | S11 | **Settings: new-paper defaults** | app | School name, level, key style, marks placement prefilled into new papers | Needs settings keys |
@@ -467,29 +467,38 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
 - A paper row is `PaperRow.svelte`: the title links to the editor, the line under it reads
   "12 marks · edited 5 min ago", and a ⋯ `Menu` holds Open, Rename, Move to folder…, Make a copy
   and Delete… (danger, last, after a rule). The ⋯ shows on hover or focus where there is a
-  pointer (`@media (hover: hover)`), always on touch. Shift+F10, the Menu key or a right-click
-  on the row opens it. Move to folder… is off, with a reason, while there are no folders.
+  mouse (`@media (hover: hover) and (pointer: fine)`), always on touch. Shift+F10, the Menu key
+  or a right-click on the row opens it; a right-click on the title link keeps the browser's own
+  menu (Open in new tab). Move to folder… is off, with a reason, while there are no folders.
 - Rename and Make a copy have no endpoint of their own: rename reads the paper and saves it with
   the new title (a version bump, as an editor rename is); a copy is a create plus a save, and a
-  copy whose save fails is deleted again (`docsApi.renameDocument`, `copyDocument`). The copy
-  is listed under its original; the list stays where it is (the editor's Make a copy opens it).
+  copy whose save fails is deleted again (`docsApi.renameDocument`, `copyDocument`, which the
+  editor's Make a copy uses too, passing the content it holds). The copy's title is cut to the
+  schema's 200 characters. The list shows the copy under its original until it reloads; the API
+  orders papers by last edit, so after a reload the copy comes first. The list stays where it
+  is (the editor's Make a copy opens the copy). A rename that takes a paper out of the current
+  search results moves focus to the search box.
 - Delete paper and Delete folder use `ConfirmDialog`; Move uses the editor's `MoveDialog`, so the
-  old inline "Confirm delete" and `MoveMenu.svelte` are gone. After a delete focus goes to the
+  old inline "Confirm delete" and `MoveMenu.svelte` are gone. `MoveDialog` ignores Escape, the
+  backdrop and × while a move runs, so a failure still shows in it. After a delete focus goes to the
   "Your papers" heading; after a move, to the paper's ⋯ in its new folder.
 - A folder's header is a disclosure button (chevron, folder icon, name) with the paper count
   and a ⋯ menu: New paper in folder…, Rename folder, Delete folder…. The collapsed folders are
   kept in `localStorage` (`exam.papers.collapsed`, a list of folder ids), read and written in
-  try/catch; without storage a collapse lasts for the visit. A folder the wizard just filled,
+  try/catch; without storage a collapse lasts for the visit. The folder body stays in the DOM
+  (`hidden`) so the toggle's `aria-controls` always names it. A folder the wizard just filled,
   or a paper was just moved into, opens.
 - Search (`folders.titleMatches`): every word typed must appear in the title, ignoring case and
   accents. While searching, folders without a match are hidden, the rest show their matches and
-  their names are plain headings (no collapse), and Escape in the box clears it. The box is
-  hidden while there are no papers; under 600 px it takes its own line.
+  their names are plain headings (no collapse) with "N matches" in place of the paper count,
+  the status line announces "N papers match …", and Escape in the box clears it. The box is
+  hidden while there are no papers and no search; under 600 px it takes its own line.
 - Dates (`dates.ts`): `fullDate` "19 Nov 2026, 9:05 am" (en-SG, the viewer's time zone) and
   `editedWhen`: "just now", "N min ago" under an hour, "today, 9:05 am", "yesterday, 4:40 pm",
   then the full date. The full date is the `<time>` tooltip. The list's clock ticks each minute.
 - The exam-set chips are removed (owner decision), with `FolderGroup.parts`, `paperPart` and
-  `partOf`; the server still derives `paper_part` (the list no longer shows it).
+  `partOf`, and the web client's `paper_part` field; the server still derives `paper_part`
+  (nothing in the web app reads it now).
 - The New dialog's cards are Exam set (focused), Single paper, Blank paper, New folder. Back from
   a step returns focus to the card that was picked.
 - Not in S8: the shared app header (brand, Papers / Question bank, S9), a "Generated / Mixed"

@@ -31,7 +31,6 @@ const record = (id: string, folder_id: string | null = null) => ({
   id,
   title: id,
   folder_id,
-  paper_part: null,
   total_marks: 0,
   version: 1,
   created_at: '',

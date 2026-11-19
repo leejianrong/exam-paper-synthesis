@@ -3,7 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const apiFetch = vi.fn()
 vi.mock('../http', () => ({ apiFetch: (...a: unknown[]) => apiFetch(...a) }))
 
-import { copyDocument, renameDocument } from './docsApi'
+import { copyDocument, copyTitle, renameDocument, TITLE_MAX } from './docsApi'
+import type { PaperDocument } from './doc'
 
 const record = (id: string, title: string, version = 3) => ({
   id,
@@ -51,6 +52,31 @@ describe('copyDocument (EXA-166)', () => {
     expect(put.body.base_version).toBe(1)
     expect(put.body.document.title).toBe('Copy of Ratio quiz')
     expect(put.body.document.settings).toEqual({ x: 1 })
+  })
+
+  it('cuts “Copy of …” to the schema’s 200 characters (code points, not UTF-16 units)', async () => {
+    const long = 'Ä'.repeat(150) + '😀'.repeat(60)
+    expect([...copyTitle(long)]).toHaveLength(TITLE_MAX)
+    expect(copyTitle(long).startsWith('Copy of ÄÄ')).toBe(true)
+    expect(copyTitle('')).toBe('Copy of Untitled paper')
+    apiFetch
+      .mockResolvedValueOnce(ok(record('d1', long)))
+      .mockResolvedValueOnce(ok(record('c1', copyTitle(long), 1)))
+      .mockResolvedValueOnce(ok(record('c1', copyTitle(long), 2)))
+    await copyDocument('d1')
+    expect([...sent(1).body.title]).toHaveLength(200)
+    expect(sent(2).body.document.title).toBe(copyTitle(long))
+  })
+
+  it('copies the content it is given (the editor) without reading the paper first', async () => {
+    const doc = record('d1', 'Held in the editor').document
+    apiFetch
+      .mockResolvedValueOnce(ok(record('c1', 'Copy of Held in the editor', 1)))
+      .mockResolvedValueOnce(ok(record('c1', 'Copy of Held in the editor', 2)))
+    await copyDocument('d1', { document: doc as unknown as PaperDocument, folder_id: null })
+    expect(apiFetch).toHaveBeenCalledTimes(2)
+    expect(sent(0)).toMatchObject({ method: 'POST', body: { title: 'Copy of Held in the editor', folder_id: null } })
+    expect(sent(1).body.document.content).toEqual(doc.content)
   })
 
   it('deletes the empty copy again when its save fails', async () => {

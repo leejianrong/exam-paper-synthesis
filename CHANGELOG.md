@@ -12,13 +12,14 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 - **A tidier papers list (EXA-166, UI redesign S8).** Each paper's actions sit behind one ⋯
   button (shown on hover or focus with a mouse, always on a touch screen; also Shift+F10, the
-  Menu key or a right-click on the row): **Open**, **Rename** (the title becomes a field: Enter
+  Menu key or a right-click on the row outside its title link): **Open**, **Rename** (the title becomes a field: Enter
   saves, Escape backs out), **Move to folder…** (a dialog), **Make a copy** ("Copy of …" in the
   same folder) and **Delete…** (asks in a dialog). There is no red Delete or Move button on
   every row any more. A folder's Rename, Delete and "+ New in folder" moved into its own ⋯
   menu, and deleting a folder asks in a dialog too. Folders collapse from their name and stay
   collapsed in this browser. A search box filters papers by title (every word, any order,
-  ignoring case); while searching, folders show only their matches. Edit times are en-SG
+  ignoring case); while searching, folders show only their matches ("2 matches") and screen
+  readers hear how many papers match. Edit times are en-SG
   ("19 Nov 2026, 9:05 am"), and recent ones relative ("5 min ago", "today, 9:05 am",
   "yesterday, 4:40 pm"), with the full time as a tooltip. The **+ New** dialog now leads with
   **Exam set** (first and focused), then Single paper, Blank paper and New folder. At the owner's

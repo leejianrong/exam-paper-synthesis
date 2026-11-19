@@ -1,9 +1,10 @@
 <script lang="ts">
   // One paper on "Your papers" (EXA-166): its title links to the editor, the line under it says
   // the marks and when it was last edited, and a ⋯ menu holds Open, Rename, Move, Make a copy and
-  // Delete. On a pointer device the ⋯ shows on hover or focus; on touch it is always there.
-  // Shift+F10, the Menu key or a right-click on the row opens the menu too. Rename edits the
-  // title in place: Enter saves, Escape backs out, and focus goes back to the ⋯ button.
+  // Delete. With a mouse the ⋯ shows on hover or focus; on touch it is always there.
+  // Shift+F10, the Menu key or a right-click on the row (not on the title link, which keeps the
+  // browser's own menu) opens the menu too. Rename edits the title in place: Enter saves, Escape
+  // backs out, and focus goes back to the ⋯ button.
   import { tick } from 'svelte'
   import Icon from '../Icon.svelte'
   import Menu, { type MenuItem } from '../Menu.svelte'
@@ -72,6 +73,8 @@
   }
 
   function onContext(e: MouseEvent) {
+    // over the title the browser's own menu stays (Open in new tab, Copy link)
+    if ((e.target as Element | null)?.closest?.('a')) return
     e.preventDefault()
     menu?.openMenu()
   }
@@ -205,8 +208,8 @@
     outline: 2px solid var(--verify);
     outline-offset: 1px;
   }
-  /* A pointer device shows the ⋯ on hover or focus; touch screens always show it. */
-  @media (hover: hover) {
+  /* A mouse shows the ⋯ on hover or focus; touch screens (and hybrid ones) always show it. */
+  @media (hover: hover) and (pointer: fine) {
     .row :global(.more) {
       opacity: 0;
     }

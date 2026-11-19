@@ -272,14 +272,25 @@ export async function renameDocument(id: string, title: string): Promise<Documen
   return saveDocument(id, { ...rec.document, title }, rec.version)
 }
 
+/** The schema's longest title (document.schema.json `title.maxLength`), in code points. */
+export const TITLE_MAX = 200
+
+/** "Copy of …", cut to the longest title the schema allows. */
+export function copyTitle(title: string): string {
+  return [...`Copy of ${title || 'Untitled paper'}`].slice(0, TITLE_MAX).join('')
+}
+
 /**
- * Make a copy of a paper from the list (EXA-166): "Copy of …" in the same folder with the same
- * content and settings. There is no copy endpoint, so it is a create and a save; a copy left
- * empty by a failed save is deleted again.
+ * Make a copy (EXA-166): "Copy of …" in the same folder with the same content and settings. There
+ * is no copy endpoint, so it is a create and a save; a copy left empty by a failed save is
+ * deleted again. The list copies the saved paper; the editor passes what it holds (`from`).
  */
-export async function copyDocument(id: string): Promise<DocumentRecord> {
-  const src = await getDocument(id)
-  const title = `Copy of ${src.title || 'Untitled paper'}`
+export async function copyDocument(
+  id: string,
+  from?: { document: PaperDocument; folder_id: string | null },
+): Promise<DocumentRecord> {
+  const src = from ?? (await getDocument(id))
+  const title = copyTitle(src.document.title)
   const made = await createDocument(title, undefined, src.folder_id ?? null)
   try {
     return await saveDocument(made.id, { ...src.document, title }, made.version)

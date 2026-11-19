@@ -5,7 +5,7 @@
   // copy, Delete) and each folder's (New paper, Rename, Delete) sit behind a ⋯ menu; deleting
   // asks in a dialog. A search box filters papers by title, folders collapse (remembered per
   // viewer in localStorage), and edit times read en-SG, relative when recent.
-  import { onMount, tick } from 'svelte'
+  import { onMount, tick, untrack } from 'svelte'
   import {
     copyDocument,
     deleteDocument,
@@ -50,6 +50,7 @@
   let collapsed = $state(readCollapsed())
   let now = $state(new Date())
   let heading: HTMLElement | undefined = $state()
+  let searchBox: HTMLInputElement | undefined = $state()
   // The open dialog, if any: move a paper, delete a paper, delete a folder.
   let moving: DocumentSummary | null = $state(null)
   let deleting: DocumentSummary | null = $state(null)
@@ -164,6 +165,12 @@
       const rec = await renameDocument(d.id, title)
       docs = docs.map((x) => (x.id === d.id ? summaryOf(rec, x) : x))
       announce = `Renamed to “${rec.title}”.`
+      if (!titleMatches(rec.title, query)) {
+        // the row has left the search results: its ⋯ is gone, so focus goes to the search box
+        announce += ' It no longer matches the search.'
+        await tick()
+        searchBox?.focus()
+      }
       return true
     } catch (e) {
       error = msg(e)
@@ -277,6 +284,14 @@
   const matches = $derived(shownGroups.reduce((n, g) => n + g.docs.length, 0) + shownUnfiled.length)
   const folderPapers = $derived(deletingFolder ? docs.filter((d) => d.folder_id === deletingFolder?.id).length : 0)
   const papers = (n: number): string => `${n} ${n === 1 ? 'paper' : 'papers'}`
+
+  // Say how many papers match as the search changes (an action's own message is left alone).
+  $effect(() => {
+    const q = query.trim()
+    untrack(() => {
+      if (q) announce = `${matches} ${matches === 1 ? 'paper matches' : 'papers match'} “${q}”.`
+    })
+  })
 </script>
 
 <main>
@@ -290,11 +305,12 @@
   </div>
   <div class="head">
     <h1 bind:this={heading} tabindex="-1">Your papers</h1>
-    {#if docs.length > 0}
+    {#if docs.length > 0 || query}
       <label class="search">
         <Icon name="search" />
         <input
           type="search"
+          bind:this={searchBox}
           bind:value={query}
           placeholder="Search papers"
           aria-label="Search papers"

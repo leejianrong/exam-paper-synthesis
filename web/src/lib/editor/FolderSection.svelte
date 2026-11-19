@@ -116,7 +116,8 @@
           <span class="toggle static"><Icon name="folder" /><span class="name">{f.name}</span></span>
         {/if}
       </h2>
-      <span class="count">{papers(count)}</span>
+      <!-- while searching (not collapsible) the folder lists only its matches -->
+      <span class="count">{collapsible ? papers(count) : `${count} ${count === 1 ? 'match' : 'matches'}`}</span>
     {/if}
     <span class="end">
       <Menu bind:this={menu} {items} label={`Actions for folder “${f.name}”`} menuLabel={f.name} align="end" triggerClass="more">
@@ -125,15 +126,16 @@
     </span>
   </div>
 
-  {#if open}
-    <div id={bodyId} class="body">
+  <!-- kept mounted when collapsed, so the toggle's aria-controls always names it -->
+  <div id={bodyId} class="body" hidden={!open}>
+    {#if open}
       {#if count === 0}
         <p class="empty">No papers here yet. Make one from this folder’s ⋯ menu, or move a paper in.</p>
       {:else}
         {@render children()}
       {/if}
-    </div>
-  {/if}
+    {/if}
+  </div>
 </section>
 
 <style>
