@@ -336,6 +336,9 @@ def _quoted(title: str) -> str:
     return f"\u201c{title.strip() or 'Untitled paper'}\u201d"
 
 
+_COUNT_WORDS = {2: "Two", 3: "Three", 4: "Four", 5: "Five"}
+
+
 def exam_set_order(papers: list[tuple[str | None, str | None, str]]) -> list[int]:
     """Which of a folder's papers form its exam set, in exam order (EXA-168): the indices of
     Booklet A, Booklet B and Paper 2. ``papers`` holds each paper's ``(part, source, title)``
@@ -355,7 +358,13 @@ def exam_set_order(papers: list[tuple[str | None, str | None, str]]) -> list[int
         for part in doubled:
             titles = [_quoted(papers[i][2]) for i in chosen[part]]
             verb = "both" if len(titles) == 2 else "all"
-            said.append(f"{_listed(titles, 'and')} {verb} look like {SET_PART_NAMES[part]}.")
+            # one title for all of them: say how many papers carry it, not the title twice
+            who = (
+                f"{_COUNT_WORDS.get(len(titles), str(len(titles)))} papers titled {titles[0]}"
+                if len(set(titles)) == 1
+                else _listed(titles, "and")
+            )
+            said.append(f"{who} {verb} look like {SET_PART_NAMES[part]}.")
         which = SET_PART_NAMES[doubled[0]] if len(doubled) == 1 else "of each"
         raise ExamSetError(
             "ambiguous_set",
@@ -382,11 +391,20 @@ _COVER_CLASH = {
 }
 
 
+_LEVEL = re.compile(r"^(?:p|pr|pri|primary)\.?\s*(\d)$", re.IGNORECASE)
+
+
+def _level_key(level: str) -> str:
+    """A level as compared across a set's covers: P6, Pri 6, Pr. 6 and Primary 6 are one."""
+    m = _LEVEL.match(level.strip())
+    return f"primary {m.group(1)}" if m else level.casefold()
+
+
 def check_exam_set_covers(docs: list[dict]) -> None:
     """The set's papers (in :data:`SET_PARTS` order) must agree on their covers' level,
     school, subject and exam, since a set key prints them once (EXA-168). An empty field
-    agrees with anything; case and spacing don't count. Raises :class:`ExamSetError`
-    (``mixed_set``) naming each clash."""
+    agrees with anything; case and spacing don't count, and P6 is Primary 6. Raises
+    :class:`ExamSetError` (``mixed_set``) naming each clash."""
     covers = [(cover_page(d) or {}).get("attrs") or {} for d in docs]
     said: list[str] = []
     parts: list[str] = []
@@ -399,7 +417,8 @@ def check_exam_set_covers(docs: list[dict]) -> None:
         if not filled:
             continue
         first_part, first = filled[0]
-        other = next(((p, v) for p, v in filled if v.casefold() != first.casefold()), None)
+        same = _level_key if field == "level" else str.casefold
+        other = next(((p, v) for p, v in filled if same(v) != same(first)), None)
         if other:
             said.append(
                 sentence.format(

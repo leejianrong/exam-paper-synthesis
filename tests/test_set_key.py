@@ -257,6 +257,25 @@ def _covers(docs, **per_part):
     return docs
 
 
+def test_papers_sharing_a_title_are_counted_not_listed_twice():
+    papers = [_cover("booklet_a", "P6 Paper 1 Booklet A")] * 3 + [_cover("booklet_b")]
+    with pytest.raises(ExamSetError) as e:
+        exam_set_order(papers)
+    assert e.value.message == (
+        "Three papers titled \u201cP6 Paper 1 Booklet A\u201d all look like Booklet A. "
+        "Keep one Booklet A in the folder to make the set's answer key."
+    )
+
+
+@pytest.mark.parametrize("level", ["P6", "p6", "Pri 6", "Pr. 6", "PRIMARY 6", " Primary  6 "])
+def test_the_same_level_written_another_way_doesnt_clash(level):
+    docs = _covers(_set("P6", 2), a={"level": level}, b={"level": "Primary 6"})
+    check_exam_set_covers(docs)  # no error
+    clash = _covers(_set("P6", 2), a={"level": level}, b={"level": "P5"})
+    with pytest.raises(ExamSetError, match=r"but Booklet B is P5\."):
+        check_exam_set_covers(clash)
+
+
 def test_a_mixed_level_is_refused_naming_the_clash():
     docs = _covers(
         _set("P6", 2), a={"level": "Primary 5"}, b={"level": "Primary 6"}, p2={"level": "Primary 6"}
@@ -272,13 +291,13 @@ def test_a_mixed_level_is_refused_naming_the_clash():
 
 
 def test_a_mixed_school_is_refused_naming_the_clash():
-    docs = _covers(_set("P6", 2), a={"school": "Pandan Primary"}, p2={"school": "Kranji Primary"})
+    docs = _covers(_set("P6", 2), a={"school": "Example Primary"}, p2={"school": "Sample Primary"})
     with pytest.raises(ExamSetError) as e:
         check_exam_set_covers(docs)
     assert e.value.code == "mixed_set"
     assert e.value.parts == ["booklet_a", "paper_2"]
     assert e.value.message.startswith(
-        "Booklet A is from Pandan Primary but Paper 2 is from Kranji Primary."
+        "Booklet A is from Example Primary but Paper 2 is from Sample Primary."
     )
 
 

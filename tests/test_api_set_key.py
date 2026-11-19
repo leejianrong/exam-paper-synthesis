@@ -113,8 +113,7 @@ def test_two_booklet_as_are_ambiguous(pdfs):
     detail = resp.json()["detail"]
     assert detail["code"] == "ambiguous_set" and detail["parts"] == ["booklet_a"]
     assert detail["message"] == (
-        "\u201cP6 Paper 1 Booklet A\u201d and \u201cP6 Paper 1 Booklet A\u201d "
-        "both look like Booklet A. "
+        "Two papers titled \u201cP6 Paper 1 Booklet A\u201d both look like Booklet A. "
         "Keep one Booklet A in the folder to make the set's answer key."
     )
     assert pdfs == []
@@ -163,8 +162,8 @@ def test_a_renamed_booklet_is_still_found_by_its_cover(pdfs):
         ),
         (
             "school",
-            ("Pandan Primary", "Kranji Primary"),
-            "Booklet A is from Pandan Primary but Booklet B is from Kranji Primary.",
+            ("Example Primary", "Sample Primary"),
+            "Booklet A is from Example Primary but Booklet B is from Sample Primary.",
         ),
     ],
 )

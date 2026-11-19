@@ -703,8 +703,8 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
   which part to fix.
 - **Covers must agree.** The key prints one title block, so the three covers must agree on
   level, school, subject and exam (an empty field agrees with anything; case and spacing don't
-  count). Otherwise 409 `mixed_set` names each clash: "Booklet A is Primary 5 but Booklet B is
-  Primary 6.", "Booklet A is from … but Paper 2 is from …". The list summary has no cover
+  count, and a level written P6, Pri 6, Pr. 6 or Primary 6 is one level). Otherwise 409
+  `mixed_set` names each clash: "Booklet A is Primary 5 but Booklet B is Primary 6.", "Booklet A is from … but Paper 2 is from …". The list summary has no cover
   fields, so only the server checks this; the menu shows its sentence as the error.
 - **Other refusals.** A paper with no questions is a 422. Empty generator placeholders are a 409
   `unfilled_placeholders` naming the paper and questions ("Paper 2 question 1 is still

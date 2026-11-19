@@ -67,6 +67,8 @@ export function titleMatches(title: string, query: string): boolean {
 /** EXA-168: can this folder's papers print one answer key for the whole set? */
 export type SetKeyStatus = { ready: true } | { ready: false; reason: string }
 
+const COUNT_WORDS: Record<number, string> = { 2: 'Two', 3: 'Three', 4: 'Four', 5: 'Five' }
+
 const listed = (names: string[], last = 'or'): string =>
   names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} ${last} ${names[names.length - 1]}`
 
@@ -90,7 +92,12 @@ export function setKeyStatus(docs: DocumentSummary[]): SetKeyStatus | null {
   if (doubled.length) {
     const said = doubled.map((p) => {
       const titles = chosen(p.key).map((d) => `“${d.title.trim() || 'Untitled paper'}”`)
-      return `${listed(titles, 'and')} ${titles.length === 2 ? 'both' : 'all'} look like ${p.label}.`
+      // one title for all of them: say how many papers carry it, not the title twice
+      const who =
+        new Set(titles).size === 1
+          ? `${COUNT_WORDS[titles.length] ?? titles.length} papers titled ${titles[0]}`
+          : listed(titles, 'and')
+      return `${who} ${titles.length === 2 ? 'both' : 'all'} look like ${p.label}.`
     })
     return { ready: false, reason: said.join(' ') }
   }

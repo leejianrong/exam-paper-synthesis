@@ -65,6 +65,14 @@ describe('setKeyStatus (EXA-168)', () => {
     })
   })
 
+  it('papers sharing a title are counted, not listed twice', () => {
+    const same = parts('booklet_a', 'booklet_a', 'paper_2').map((d) => ({ ...d, title: 'P6 Paper 1 Booklet A' }))
+    expect(setKeyStatus(same)).toEqual({
+      ready: false,
+      reason: 'Two papers titled “P6 Paper 1 Booklet A” both look like Booklet A.',
+    })
+  })
+
   it('a part named on a cover wins over a title that only looks like it', () => {
     const fromCover = parts('booklet_a', 'booklet_b', 'paper_2').map((d) => ({ ...d, paper_part_source: 'cover' as const }))
     const worksheet = { ...doc('w', 'Booklet A practice', 'f'), paper_part: 'booklet_a' as const, paper_part_source: 'title' as const }
