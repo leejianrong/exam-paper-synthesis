@@ -69,7 +69,7 @@ async function openMenu(name: string) {
 const labels = (menu: HTMLElement) =>
   Array.from(menu.querySelectorAll('[role^="menuitem"]')).map((r) => r.querySelector('.label')?.textContent)
 
-const key = (init: KeyboardEventInit, target: EventTarget = document.body) =>
+const key = (init: KeyboardEventInit, target: Element = document.body) =>
   fireEvent.keyDown(target, { bubbles: true, cancelable: true, ...init })
 
 describe('the menu row (EXA-163)', () => {
