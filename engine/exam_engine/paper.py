@@ -52,7 +52,12 @@ from functools import cache
 import yaml
 
 from .blueprints.registry import content_dir, load_blueprint
-from .document import DOCUMENT_SCHEMA_VERSION, _part_of, unfilled_placeholder_numbers
+from .document import (
+    DOCUMENT_SCHEMA_VERSION,
+    _part_of,
+    new_key_options,
+    unfilled_placeholder_numbers,
+)
 from .mcq import CONVERTIBLE, to_mcq
 from .pipeline import generate
 
@@ -128,10 +133,14 @@ def _empty_doc(title: str, settings: dict, blocks: list[dict]) -> dict:
 
 
 def _settings(t: dict) -> dict:
-    """A template's paper settings: its time, and where its numbering starts when that is not 1
-    (Booklet B carries on from Booklet A, EXA-134)."""
+    """A template's paper settings: its time, where its numbering starts when that is not 1
+    (Booklet B carries on from Booklet A, EXA-134), and the school key (EXA-159)."""
     start = t.get("number_from", 1)
-    return {"time_min": t["time_min"], **({"number_from": start} if start != 1 else {})}
+    return {
+        "time_min": t["time_min"],
+        **({"number_from": start} if start != 1 else {}),
+        "key_options": new_key_options(),
+    }
 
 
 _COVER_SWITCHES = ("examiner_table", "parent_signature", "even_pages")

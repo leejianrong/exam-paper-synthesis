@@ -45,17 +45,28 @@ export type KeyLayout = "full" | "compact";
 export interface KeyOptions {
   show_question?: boolean;
   show_scheme?: boolean;
-  /** full = each question with its worked solution; compact = a school-style key: an answer
-   *  grid for multiple choice and a working table with "Ans:" (EXA-142). */
+  /** compact = the school key (new papers' default, EXA-159): an answer grid for multiple
+   *  choice and a table of short working with "Ans:"; full = worked solutions (EXA-142). */
   layout?: KeyLayout;
+  /** School key only (EXA-159): print each question's marks. */
+  show_marks?: boolean;
+  /** School key only (EXA-159): show 1-mark questions' working; off = the answer alone. */
+  one_mark_working?: boolean;
 }
 
-/** The key options with defaults filled in (the engine's `key_options`). */
+/** The on/off key options a teacher can flip. */
+export type KeyToggle = "show_question" | "show_scheme" | "show_marks" | "one_mark_working";
+
+/** The key options with defaults filled in (the engine's `key_options`). An absent option
+ *  keeps the behaviour a paper had before it existed; new papers write theirs explicitly. */
 export function keyOptionsOf(settings: PaperSettings | undefined): Required<KeyOptions> {
+  const given = settings?.key_options;
   return {
-    show_question: settings?.key_options?.show_question ?? true,
-    show_scheme: settings?.key_options?.show_scheme ?? true,
-    layout: settings?.key_options?.layout ?? "full",
+    show_question: given?.show_question ?? true,
+    show_scheme: given?.show_scheme ?? true,
+    layout: given?.layout ?? "full",
+    show_marks: given?.show_marks ?? false,
+    one_mark_working: given?.one_mark_working ?? true,
   };
 }
 

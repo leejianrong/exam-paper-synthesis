@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { settled, newBlankPaper, newFromTemplate } from './helpers.js'
+import { API } from './ports.js'
 
 /**
  * Browser acceptance for P7: add a cover page and a blank page from the toolbar, fill the cover,
@@ -53,14 +54,14 @@ test('a starter template comes with its cover; fill it, add a blank page, reload
   await expect(blank).toHaveCount(2)
   await expect(page.locator('.blank-block[data-kind="rough"]')).toHaveCount(1)
 
-  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
+  const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
   expect(student).toContain('<p class="cover-school">Pandan Primary School</p>')
   expect(student).toContain('<p class="cover-level">Primary 6</p><p class="cover-subject">Mathematics</p>')
   expect(student).toContain('<li>Answer all questions.</li><li>Show your working.</li>')
   expect(student).toContain('Time: 1 h 30 min')
   expect(student).not.toContain('<header class="sheet-header">')
   expect(student).toContain('<div class="blank-page rough"><p class="blank-text">Rough work</p>')
-  const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
+  const key = await (await page.request.get(`${API}/documents/${id}/preview/key`)).text()
   expect(key).not.toContain('<div class="cover-page">')
   expect(key).not.toContain('<div class="blank-page')
 })

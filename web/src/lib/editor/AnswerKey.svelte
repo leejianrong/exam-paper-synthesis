@@ -9,14 +9,14 @@
   import type { Question } from '../types'
   import { blocksToHtml, freeformMarks, freeformParts, type DocJSON, type DocNode } from './doc'
   import { partLetter } from './freeformPart'
-  import type { KeyOptions } from './layout'
+  import { keyOptionsOf, type KeyOptions } from './layout'
   import AnswerEditor from './AnswerEditor.svelte'
   import { typesetMath } from './math'
   import FragmentView from './FragmentView.svelte'
 
   export let blocks: DocNode[] = []
   /** The paper's answer-key options (P5): the key below previews what will print. */
-  export let options: Required<KeyOptions> = { show_question: true, show_scheme: true, layout: 'full' }
+  export let options: Required<KeyOptions> = keyOptionsOf(undefined)
   /** The paper's first question number (Booklet B carries on from Booklet A, EXA-134). */
   export let start = 1
 

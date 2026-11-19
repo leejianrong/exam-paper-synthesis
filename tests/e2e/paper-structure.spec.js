@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { settled, newFromTemplate } from './helpers.js'
+import { API } from './ports.js'
 
 /**
  * Browser acceptance for P4 paper structure: start from the Paper 2 template, see its sections
@@ -53,7 +54,7 @@ test('start from the Paper 2 template, structure the paper, reload, preview and 
   await expect(page.getByLabel('Paper time in minutes')).toHaveValue('75')
   await expect(sections.nth(1).locator('.section-summary')).toHaveText('Question 1 · 3 / 3 marks')
 
-  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
+  const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
   // Only a teacher's own title prints; generic labels and empty titles do not (EXA-139).
   expect(student.match(/<h2 class="section-title">([^<]*)<\/h2>/g)).toEqual([
     '<h2 class="section-title">Part One</h2>',
@@ -61,7 +62,7 @@ test('start from the Paper 2 template, structure the paper, reload, preview and 
   expect(student).toContain('The number of marks available is shown in brackets [ ]')
   expect(student).toContain('<span class="section-total">(3 marks)</span>')
   expect(student).toContain('Time: 1 h 15 min')
-  const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
+  const key = await (await page.request.get(`${API}/documents/${id}/preview/key`)).text()
   expect(key).not.toContain('<div class="paper-section">')
 
   const [download] = await Promise.all([
@@ -88,7 +89,7 @@ test('the marking margin follows the section mode and can be switched per sectio
   await page.locator('.ffblock').getByLabel('Marks').press('Enter')
   await settled(page)
   const preview = async () =>
-    (await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()).split('</style>').pop()
+    (await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()).split('</style>').pop()
   expect(await preview()).toMatch(/<section data-marks="2" class="question marked freeform"/)
   expect(await preview()).toMatch(/<main [^>]*data-tally/) // the paginator gives each page a tally box
   // A short-answer section prints no [n]: the header gives the marks (EXA-139). Opt in per section.

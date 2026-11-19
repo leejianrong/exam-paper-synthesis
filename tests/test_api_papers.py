@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from app.main import app
 from app.ops import strip_document_hints
-from exam_engine.document import paper_outline, validate_document
+from exam_engine.document import new_key_options, paper_outline, validate_document
 from exam_engine.paper import generate_paper
 from fastapi.testclient import TestClient
 
@@ -46,7 +46,7 @@ def test_a_document_can_start_from_a_template():
     assert back["type"] == "blankPage"  # the blank back of the cover (EXA-140)
     assert "level" not in cover["attrs"]  # left for the teacher
     assert [b["attrs"]["title"] for b in sections] == ["Section A", "Section B"]
-    assert rec["document"]["settings"] == {"time_min": 90}
+    assert rec["document"]["settings"] == {"time_min": 90, "key_options": new_key_options()}
     named = client.post("/documents", json={"template": "p2", "title": "Mock"}, headers=ALICE)
     assert named.json()["title"] == "Mock"
     assert client.post("/documents", json={"template": "nope"}).status_code == 404

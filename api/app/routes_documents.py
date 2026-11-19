@@ -39,12 +39,14 @@ from .models import (
 )
 from .ops import strip_document_hints, with_document_hints
 from .quota import check_export_quota, export_slot, refund_export
+from .settings import SettingsStore, get_settings_store
 
 router = APIRouter(prefix="/documents")
 
 Owner = Annotated[str, Depends(current_owner)]
 Store = Annotated[DocumentStore, Depends(get_store)]
 Assets = Annotated[AssetStore, Depends(get_asset_store)]
+Settings = Annotated[SettingsStore, Depends(get_settings_store)]
 Mode = Literal["student", "key", "full"]
 # A little above the engine's content limit, to cover the JSON envelope.
 _MAX_BODY_BYTES = docs.MAX_CONTENT_BYTES + 100_000
@@ -103,11 +105,17 @@ def _resolver(assets: AssetStore, owner: str):
     return resolve
 
 
+def _key_style(settings: SettingsStore, owner: str) -> str:
+    """The answer key a new paper starts with: the account's choice (EXA-159)."""
+    return str(settings.get(owner)["answer_key_style"])
+
+
 @router.post("", status_code=201)
 def create_document(
     req: CreateDocumentRequest,
     owner: Owner,
     store: Store,
+    settings: Settings,
 ) -> dict:
     if req.template:
         try:
@@ -118,6 +126,7 @@ def create_document(
             document["title"] = req.title
     else:
         document = docs.empty_document(req.title or "Untitled paper")
+    document = docs.with_key_style(document, _key_style(settings, owner))
     return _store_new(store, owner, _valid_or_422(document), 0, req.folder_id)
 
 
@@ -125,7 +134,9 @@ _SEED_CEIL = 2**31
 
 
 @router.post("/generate", status_code=201)
-def generate_paper(req: GeneratePaperRequest, owner: Owner, store: Store) -> dict:
+def generate_paper(
+    req: GeneratePaperRequest, owner: Owner, store: Store, settings: Settings
+) -> dict:
     """P8a: one click, one paper. Fills the template's slots from the blueprints (the engine
     is pure; the seed — the only entropy — is chosen here, as for POST /generate) and stores
     it as a new document. The response is the document record plus the fill ``report``."""
@@ -134,6 +145,7 @@ def generate_paper(req: GeneratePaperRequest, owner: Owner, store: Store) -> dic
         document, report = paper.generate_paper(req.template, req.level, seed, req.set_topics)
     except paper.UnknownPaperTemplate:
         raise HTTPException(status_code=404, detail="unknown paper template") from None
+    document = docs.with_key_style(document, _key_style(settings, owner))
     stamp = datetime.now(UTC).isoformat()
     for node in document["content"]["content"]:
         if node["type"] == "templatedQuestion":

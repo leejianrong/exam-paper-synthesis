@@ -280,6 +280,18 @@ Each `marking_scheme` entry has a `type` — **M** (method) / **A** (accuracy) /
 **B** (independent). Worksheets render marks-per-part as `[n]`; the M/A/B breakdown
 shows only in the detailed answer-key mode (ADR-0005).
 
+How a paper's key prints is a setting of the *document*, not of the question
+(`settings.key_options` in `schemas/document.schema.json`). Since document schema 1.16.0
+(EXA-159) a new paper starts with the **school key** (`layout: compact`): the solution
+steps and the answer, never the question, the marks or the M/A/B lines unless the teacher
+turns them on (`show_marks`, `show_scheme`), and a 1-mark question's answer alone unless
+`one_mark_working` is on. An MCQ's marking-scheme line keeps its distractor reasons
+("Wrong options: …") for the worked solutions (`layout: full`) only. A saved paper without
+these fields keeps its options: no `key_options` is the worked solutions with M/A lines,
+exactly as before. A paper saved with the compact key before 1.16.0 keeps its M/A lines and
+1-mark working but prints in the new school layout (header from the cover, padded grid, one
+row per multi-part question, no section titles).
+
 ---
 
 ## Example 1 — generated, multi-part, with a bar-model aid

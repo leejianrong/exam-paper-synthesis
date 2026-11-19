@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { generateSinglePaper } from './helpers.js'
+import { API } from './ports.js'
 
 /**
  * Browser acceptance for P8d: on a generated paper, swap questions (another topic, write my
@@ -51,7 +52,7 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
 
   // Regenerate: the locked question stays, the placeholder is filled, targets hold.
-  const api = async () => (await page.request.get(`http://localhost:8000/documents/${id}`)).json()
+  const api = async () => (await page.request.get(`${API}/documents/${id}`)).json()
   const lockedBlock = (doc) => doc.document.content.content.filter((n) => n.attrs && n.attrs.locked === true)
   const lockedBefore = lockedBlock(await api())
   expect(lockedBefore).toHaveLength(1)

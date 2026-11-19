@@ -1,7 +1,7 @@
 <script lang="ts">
   // Settings (O1, EXA-125): saved on the account, so they follow the teacher across devices.
   import { onMount } from 'svelte'
-  import { loadSettings, settings, updateSettings } from './settings'
+  import { loadSettings, settings, updateSettings, type AnswerKeyStyle } from './settings'
 
   let busy = false
   let error = ''
@@ -11,19 +11,35 @@
     if ($settings === null) void loadSettings()
   })
 
-  async function toggleClassic(on: boolean) {
+  async function save(patch: Parameters<typeof updateSettings>[0], done: string) {
     busy = true
     error = ''
     saved = ''
     try {
-      await updateSettings({ classic_generator: on })
-      saved = on ? 'The Classic generator is on.' : 'The Classic generator is hidden.'
+      await updateSettings(patch)
+      saved = done
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
     } finally {
       busy = false
     }
   }
+
+  const toggleClassic = (on: boolean) =>
+    save({ classic_generator: on }, on ? 'The Classic generator is on.' : 'The Classic generator is hidden.')
+
+  const KEY_STYLES: { value: AnswerKeyStyle; label: string }[] = [
+    { value: 'school', label: 'School key' },
+    { value: 'worked', label: 'Worked solutions' },
+  ]
+
+  const setKeyStyle = (style: AnswerKeyStyle) =>
+    save(
+      { answer_key_style: style },
+      style === 'school'
+        ? 'New papers get the school key.'
+        : 'New papers get worked solutions.',
+    )
 </script>
 
 <main>
@@ -34,6 +50,31 @@
   {#if $settings === null}
     <p class="muted">Loading your settings…</p>
   {:else}
+    <section class="row">
+      <div class="text">
+        <span id="set-key-style" class="name">Answer key style</span>
+        <p class="desc">
+          The answer key a new paper starts with. The school key gives the answers and short
+          working only, as schools print it. Worked solutions repeat each question with its full
+          solution and marking scheme. Papers you already have keep their own.
+        </p>
+      </div>
+      <div class="seg" role="radiogroup" aria-labelledby="set-key-style">
+        {#each KEY_STYLES as s (s.value)}
+          <label class:on={$settings.answer_key_style === s.value}>
+            <input
+              type="radio"
+              name="answer-key-style"
+              value={s.value}
+              checked={$settings.answer_key_style === s.value}
+              disabled={busy}
+              on:change={() => setKeyStyle(s.value)}
+            />
+            {s.label}
+          </label>
+        {/each}
+      </div>
+    </section>
     <section class="row">
       <div class="text">
         <label for="set-classic" class="name">Show the Classic generator</label>
@@ -88,6 +129,48 @@
     background: var(--paper);
     border: 1px solid var(--line);
     border-radius: 10px;
+  }
+  .row + .row {
+    margin-top: 0.75rem;
+  }
+  /* a two-way segmented control: radios styled as one pill */
+  .seg {
+    flex: none;
+    display: inline-flex;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--wash);
+    padding: 2px;
+  }
+  .seg label {
+    position: relative;
+    padding: 0.35rem 0.8rem;
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .seg label.on {
+    background: var(--paper);
+    color: var(--ink);
+    font-weight: 600;
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .seg input {
+    position: absolute;
+    opacity: 0;
+    inset: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+  .seg label:has(input:focus-visible) {
+    outline: 3px solid var(--verify);
+    outline-offset: 1px;
+  }
+  .seg label:has(input:disabled) {
+    cursor: progress;
+    opacity: 0.6;
   }
   .name {
     font-weight: 600;
@@ -150,6 +233,11 @@
   }
   .error {
     color: var(--mark);
+  }
+  @media (max-width: 560px) {
+    .row:has(.seg) {
+      flex-wrap: wrap;
+    }
   }
   @media (prefers-reduced-motion: reduce) {
     .switch,

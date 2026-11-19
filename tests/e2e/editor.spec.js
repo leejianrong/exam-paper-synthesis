@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { API, E2E_SUFFIX } from './ports.js'
 
 /**
  * Browser acceptance for the W1 WYSIWYG editor: create a paper, add generated
@@ -72,12 +73,12 @@ test('build a paper, edit questions, reload, preview and export', async ({ page 
   await expect(page.getByTestId('question-block').nth(1)).toContainText('Zainab')
 
   // True-print renderings: the student copy has no answers, the full copy has the key.
-  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
-  const full = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/full`)).text()
+  const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
+  const full = await (await page.request.get(`${API}/documents/${id}/preview/full`)).text()
   expect(student).not.toContain('Answer:')
   expect(student).toContain('Zainab')
   expect(full).toContain('Answer Key')
-  expect(full).toContain('Answer:')
+  expect(full).toContain('class="key-ans"') // the school key's right-aligned Ans: (EXA-159)
 
   // In-editor preview opens the real print HTML.
   await page.getByRole('button', { name: 'Preview' }).click()
@@ -108,7 +109,7 @@ test('the documents list shows, opens and deletes a paper', async ({ page }) => 
 
 test('insert questions from my bank (MCQ and table) into a paper', async ({ page }) => {
   // Seed the bank the way a user does: the CLI, as the default `local` owner.
-  const bankDb = path.join(os.tmpdir(), 'exam-e2e-bank.sqlite3')
+  const bankDb = path.join(os.tmpdir(), `exam-e2e-bank${E2E_SUFFIX}.sqlite3`)
   for (const name of ['psle_2023_mcq', 'psle_2023_table']) {
     execFileSync(
       'uv',
@@ -172,12 +173,13 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
   await page.reload()
   await expect(page.getByTestId('question-block')).toHaveCount(2)
   const student = await (
-    await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)
+    await page.request.get(`${API}/documents/${id}/preview/student`)
   ).text()
   expect(student).toContain('class="option"')
   expect(student).not.toContain('Answer:')
-  const full = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/full`)).text()
-  expect(full).toContain('option-correct')
+  const full = await (await page.request.get(`${API}/documents/${id}/preview/full`)).text()
+  // the correct option, after Ans: or (a 1-mark question) on its own in the school key
+  expect(full).toMatch(/(<span class="ans-label">Ans:<\/span> |<td class="key-short">)\(\w+\)/)
 })
 
 test('write a free-form question, set marks, write its answer, reload, preview and export', async ({ page }) => {
@@ -212,8 +214,8 @@ test('write a free-form question, set marks, write its answer, reload, preview a
   await expect(page.locator('.ffblock .ff-area .marks')).toHaveText('[3]')
   await expect(page.locator('.entry.freeform .answer')).toContainText('Ann has 7 sweets left.')
 
-  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
-  const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
+  const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
+  const key = await (await page.request.get(`${API}/documents/${id}/preview/key`)).text()
   expect(student).toContain('How many are left?')
   expect(student).toContain('[3]')
   expect(student).not.toContain('Ann has 7 sweets left.')
@@ -262,8 +264,8 @@ test('a multi-part free-form question: lettered parts with marks, answers, reloa
   await expect(block.locator('.ffp-label')).toHaveText(['(a)', '(b)'])
   await expect(page.locator('.bar .total')).toHaveText('3 marks')
 
-  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
-  const answerKey = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
+  const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
+  const answerKey = await (await page.request.get(`${API}/documents/${id}/preview/key`)).text()
   expect(student).toContain('(a)')
   expect(student).toContain('(b)')
   expect(student).toContain('Find its volume.')
@@ -321,7 +323,7 @@ test('a free-form question with a PNG figure and an equation survives reload and
   await expect(page.locator('.ffblock img.doc-image-img')).toBeVisible()
 
   // The printed copy has the figure inlined as a data URI and the formula typeset.
-  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
+  const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
   expect(student).toContain('data:image/png;base64,')
   expect(student).toContain('\\(\\frac{3}{4} \\times 8\\)')
   const [download] = await Promise.all([
@@ -332,7 +334,7 @@ test('a free-form question with a PNG figure and an equation survives reload and
 })
 
 test('uploads are validated by content and are private to their owner', async ({ request }) => {
-  const api = 'http://localhost:8000'
+  const api = API
   const html = Buffer.from('<html><script>alert(1)</script></html>')
   const refused = await request.post(`${api}/assets`, { data: html, headers: { 'X-Filename': 'x.png', 'Content-Type': 'image/png' } })
   expect(refused.status()).toBe(422)
@@ -383,11 +385,11 @@ test('convert a generated question to free-form: text, answer and its figure as 
   await expect(ff.locator('.ff-body')).toContainText('(edited)')
 
   await settled(page)
-  const student = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/student`)).text()
+  const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
   expect(student).toContain('(edited)')
   // The bar model is the worked solution: never on the student paper, in the key (EXA-132).
   expect(student).not.toContain('data:image/png;base64,')
-  const key = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/key`)).text()
+  const key = await (await page.request.get(`${API}/documents/${id}/preview/key`)).text()
   expect(key).toContain('Answer:')
   expect(key).toContain('data:image/png;base64,')
 
@@ -434,7 +436,7 @@ test('import canonical JSON into the bank from the editor, review-gated, per-ite
   await dialog.getByRole('button', { name: 'Back to bank' }).click()
   const item = dialog.getByTestId('bank-item').filter({ has: page.locator('.tag', { hasText: 'Unreviewed' }) })
   await expect(item.first()).toBeVisible()
-  const bank = await (await page.request.get('http://localhost:8000/bank')).json()
+  const bank = await (await page.request.get(`${API}/bank`)).json()
   const stored = bank.items.find((i) => i.id === good.id)
   expect(stored).toBeTruthy()
   expect(stored.reviewed).toBe(false)
@@ -486,7 +488,7 @@ test('a remark is private: kept through edits and reloads, never in a preview or
   await expect(page.getByLabel(/^Remarks/)).toHaveValue(SECRET)
 
   for (const mode of ['student', 'key', 'full']) {
-    const html = await (await page.request.get(`http://localhost:8000/documents/${id}/preview/${mode}`)).text()
+    const html = await (await page.request.get(`${API}/documents/${id}/preview/${mode}`)).text()
     expect(html).not.toContain(SECRET)
   }
   await page.getByRole('button', { name: 'Preview' }).click()
@@ -497,10 +499,10 @@ test('a remark is private: kept through edits and reloads, never in a preview or
 test('reviewing a bank question is a deliberate act: confirm to mark, one click to withdraw', async ({ page }) => {
   const base = JSON.parse(fs.readFileSync('tests/fixtures/sourced/psle_2023_ratio.json', 'utf8'))
   const mine = { ...base, id: `sourced:e2e-review-${Date.now().toString(36)}` }
-  const imported = await page.request.post('http://localhost:8000/bank/import', { data: { objects: [mine] } })
+  const imported = await page.request.post(`${API}/bank/import`, { data: { objects: [mine] } })
   expect((await imported.json()).imported).toBe(1)
   const inBank = async () =>
-    (await (await page.request.get('http://localhost:8000/bank')).json()).items.find((i) => i.id === mine.id)
+    (await (await page.request.get(`${API}/bank`)).json()).items.find((i) => i.id === mine.id)
   expect((await inBank()).reviewed).toBe(false)
 
   await page.goto('/')
