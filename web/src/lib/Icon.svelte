@@ -40,6 +40,7 @@
     keyboard: ['M2.5 4h11a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z', 'M4.5 6.5h.01', 'M7 6.5h.01', 'M9.5 6.5h.01', 'M12 6.5h.01', 'M5 9.5h6'],
     panel: ['M3 2.5h10a.5.5 0 0 1 .5.5v10a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5V3a.5.5 0 0 1 .5-.5z', 'M10 2.5v11'],
     section: ['M2.5 4h11', 'M2.5 7h7', 'M2.5 11h11'],
+    info: ['M14 8A6 6 0 1 1 2 8a6 6 0 0 1 12 0z', 'M8 7.5v3.5', 'M8 5h.01'],
   }
   /** Drawn filled (dots), not stroked. */
   const DOTS: Record<string, Array<[number, number]>> = {

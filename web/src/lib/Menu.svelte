@@ -263,6 +263,9 @@
     left: 0;
     z-index: 40;
     min-width: 15.5rem;
+    /* a long menu (the folded menu row on a small screen) scrolls inside the window */
+    max-height: calc(100vh - 7rem);
+    overflow-y: auto;
     padding: var(--s1);
     background: var(--page);
     border: 1px solid var(--line);

@@ -9,7 +9,7 @@
   const mac = isMac()
 </script>
 
-<Dialog title="Keyboard shortcuts" width="40rem" {onClose}>
+<Dialog title="Keyboard shortcuts" width="46rem" {onClose}>
   <div class="cols">
     {#each SHEET as g (g.group)}
       <section aria-labelledby="sheet-{g.group}">

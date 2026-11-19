@@ -738,7 +738,7 @@
       label: 'Help',
       items: [
         { label: 'Keyboard shortcuts', icon: 'keyboard', shortcut: GLOBAL_KEYS.sheet, onSelect: () => (sheetOpen = true) },
-        { label: 'What “verified” means', icon: 'check', onSelect: () => (verifiedOpen = true) },
+        { label: 'What “verified” means', icon: 'info', onSelect: () => (verifiedOpen = true) },
       ],
     },
   ] satisfies BarMenu[]
