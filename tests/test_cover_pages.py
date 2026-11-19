@@ -13,7 +13,7 @@ from pypdf import PdfReader
 
 def cover(**attrs) -> dict:
     base = {
-        "school": "Pandan Primary School",
+        "school": "Example Primary School",
         "exam": "2026 Preliminary Examination",
         "level": "Primary 6",
         "subject": "Mathematics",
@@ -100,7 +100,7 @@ def test_the_cover_prints_the_paper_details_and_replaces_the_header():
     # the title block: one centred line each, the booklet in brackets on a line of its own
     head = _between(html, '<div class="cover-head">', "</div>")
     assert head == (
-        '<div class="cover-head"><p class="cover-school">Pandan Primary School</p>'
+        '<div class="cover-head"><p class="cover-school">Example Primary School</p>'
         '<p class="cover-exam">2026 Preliminary Examination</p>'
         '<p class="cover-level">Primary 6</p><p class="cover-subject">Mathematics</p>'
         '<p class="cover-paper">Paper 2</p>'
@@ -334,7 +334,7 @@ def test_cover_and_blank_pages_each_get_a_page_of_their_own(browser, tally):
     text, pgs = _pdf(browser, html)
 
     assert len(text) == 5, [t[:40] for t in text]
-    assert "PANDAN PRIMARY SCHOOL" in text[0] and "QA1" not in text[0]
+    assert "EXAMPLE PRIMARY SCHOOL" in text[0] and "QA1" not in text[0]
     assert "QA1" in text[1] and "QB3" in text[1]
     assert "intentionally left blank" in text[2] and "QB" not in text[2]
     assert "QB4" in text[3]

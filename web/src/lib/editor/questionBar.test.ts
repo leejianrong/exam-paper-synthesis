@@ -416,7 +416,7 @@ const questionId = (e: Editor, id: string) => (attrsOf(e, id).question as { id: 
 describe('a reply that arrives late (review)', () => {
   it('Make harder, then the question is deleted: the reply touches nothing else', async () => {
     const { answer } = slowFetch()
-    const { editor: e, onNotice } = make([coverNode({ school: 'Pandan' }), gq('a', 'First.'), gq('b', 'Second.')])
+    const { editor: e, onNotice } = make([coverNode({ school: 'Example Primary' }), gq('a', 'First.'), gq('b', 'Second.')])
     await tick()
     const before = JSON.stringify(e.getJSON().content?.slice(0, 2))
     qblock('Second.').focus()

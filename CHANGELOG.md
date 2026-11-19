@@ -254,6 +254,10 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Changed
 
+- **Test fixtures use a made-up school name (EXA-173).** Tests and the cover's School
+  field hint no longer use a name that could read as a real school: fixtures say "Example
+  Primary School" and the field's hint reads "Your school’s name".
+
 - **An exam set spreads its topics over the whole set (EXA-153).** The "+ New" wizard's exam
   set used to choose topics paper by paper, so a topic could have 6 questions in a P6 set. Each
   paper is now told the topics of the papers made before it and fills a topic past 3 questions
