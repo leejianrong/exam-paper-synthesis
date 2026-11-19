@@ -87,13 +87,16 @@ describe('EditorPage', () => {
       // the school key never repeats the question; its own options appear
       await waitFor(() => expect(screen.queryByLabelText('Answer key repeats each question')).toBeNull())
       expect(screen.getByLabelText("Answer key shows each question's marks")).not.toBeChecked()
-      expect(screen.getByLabelText('Answer key shows the working for 1-mark questions')).toBeChecked()
+      // switching starts from the school key's own defaults: no 1-mark working
+      expect(screen.getByLabelText('Answer key shows the working for 1-mark questions')).not.toBeChecked()
       await fireEvent.click(screen.getByLabelText("Answer key shows each question's marks"))
       await vi.advanceTimersByTimeAsync(1500)
       const puts = fetchMock.mock.calls.filter((c) => c[1]?.method === 'PUT')
       expect(puts.length).toBeGreaterThan(0)
       expect(JSON.parse(puts.at(-1)![1].body).document.settings.key_options).toEqual({
         layout: 'compact',
+        show_scheme: false,
+        one_mark_working: false,
         show_marks: true,
       })
     } finally {

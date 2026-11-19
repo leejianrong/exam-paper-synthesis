@@ -19,7 +19,9 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   set's keys drop from 31 pages to 5. Marking scheme, marks and 1-mark working are options in
   the editor's "Answer key" group; the old layout stays as "Worked solutions". A new account
   setting, "Answer key style: School key / Worked solutions", picks which one new papers get.
-  Saved papers keep their own key. Document schema 1.16.0 (`key_options.show_marks`,
+  Saved papers keep their own key options (worked-solution papers print exactly as before; a
+  paper saved with the compact key keeps its M/A lines and 1-mark working but takes the new
+  school layout). Switching the style in the editor starts from that style's defaults. Document schema 1.16.0 (`key_options.show_marks`,
   `key_options.one_mark_working`). The e2e run's ports can now be moved with `E2E_API_PORT`,
   `E2E_WEB_PORT` and `E2E_CSP_PORT`, so it can run beside the dev servers.
 

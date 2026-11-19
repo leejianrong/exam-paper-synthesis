@@ -320,3 +320,22 @@ def test_the_printed_key_flows_on_and_no_row_splits():
         assert len(set(on)) == 1, f"Q{n} split across pages {on}"
     for text in pages[:-1]:
         assert len(re.findall(r"R\d\dTOP", text)) >= 3  # continuous: no page per question
+
+
+def test_a_drawn_part_without_steps_is_still_labelled():
+    """Review of #237: a construction part with no solution steps names its part (and, with
+    marks on, its marks) on an "Ans:" line above the drawing."""
+    import json
+    from pathlib import Path
+
+    obj = json.loads(
+        (Path(__file__).parent / "fixtures/sourced/psle_2023_construction.json").read_text()
+    )
+    part = obj["question"]["parts"][0]
+    drawn = {**copy.deepcopy(part), "label": "b", "solution_steps": []}
+    obj["question"]["parts"] = [part, drawn]
+    from documents import question_block
+
+    html = key(school(make_doc(question_block(obj)), show_marks=True))
+    assert '<span class="ans-part">(b)</span>' in html
+    assert html.count('class="key-marks"') >= 2
