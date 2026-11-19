@@ -5,6 +5,7 @@ import { FreeformQuestion, QuestionDocument } from './freeformQuestion'
 import { MAX_PARTS } from './freeformPart'
 import { ImageBlock, MathNode } from './media'
 import { buildDocument, cleanNode, type DocJSON } from './doc'
+import { pillButton } from './blockTesting'
 
 const para = (t?: string) => ({ type: 'paragraph', content: t ? [{ type: 'text', text: t }] : undefined })
 const answer = (t: string) => ({ type: 'doc', content: [para(t)] })
@@ -38,6 +39,8 @@ afterEach(() => editor?.destroy())
 const json = () => editor.getJSON() as DocJSON
 const click = (sel: string, i = 0) =>
   (document.querySelectorAll(sel)[i] as HTMLElement).click()
+/** The pill's "+ Part" (EXA-161: the block's controls show once it is selected). */
+const addPart = async () => (await pillButton(document.querySelector('.ffblock') as HTMLElement, 'Part')).click()
 
 describe('part attributes survive copy and paste', () => {
   it('round-trips marks, answer, space and unit through HTML', () => {
@@ -74,7 +77,7 @@ describe('adding and deleting parts loses nothing', () => {
   it('the first part takes the question marks and answer; the question gives them up', async () => {
     make([question({ marks: 5, answer: answer('OLD') })])
     await new Promise((r) => setTimeout(r))
-    click('.ff-bar button[aria-label="Add a lettered part"]')
+    await addPart()
     const q = json().content[0]
     expect(q.attrs).toMatchObject({ marks: null })
     const p = q.content?.find((c) => c.type === 'freeformPart')
@@ -85,7 +88,7 @@ describe('adding and deleting parts loses nothing', () => {
   it('puts the caret in the new part at once, so typing never reaches the button', async () => {
     make([question({ marks: 2 })])
     await new Promise((r) => setTimeout(r))
-    click('.ff-bar button[aria-label="Add a lettered part"]')
+    await addPart()
     // synchronously, not a frame later: a key typed in between went to the button (a space
     // pressed it again and added a stray part)
     expect(editor.view.hasFocus()).toBe(true)

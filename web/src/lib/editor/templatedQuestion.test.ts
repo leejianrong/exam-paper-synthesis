@@ -4,7 +4,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import { fireEvent, screen, waitFor } from '@testing-library/svelte'
+import { screen, waitFor } from '@testing-library/svelte'
 import { TemplatedQuestion, questionNode } from './templatedQuestion'
 import {
   makeBankQuestion,
@@ -14,6 +14,7 @@ import {
   routeFetch,
 } from './fixtures'
 import type { DocJSON } from './doc'
+import { chooseFromMenu, menuLabels, pillButton, selectBlock } from './blockTesting'
 
 let editor: Editor | null = null
 afterEach(() => {
@@ -73,23 +74,22 @@ describe('templatedQuestion node view', () => {
 
   it('removes the block (and unmounts its component) on Delete', async () => {
     const { editor: e } = make(two())
-    const del = screen.getAllByRole('button', { name: 'Delete' })[0]
-    await fireEvent.click(del)
+    await chooseFromMenu(screen.getAllByTestId('question-block')[0], 'Delete')
     await waitFor(() => expect(screen.queryByText('First question text.')).not.toBeInTheDocument())
     expect(texts(e)).toEqual(['b'])
   })
 
   it('moves a block down and up', async () => {
     const { editor: e } = make(two())
-    await fireEvent.click(screen.getAllByRole('button', { name: 'Move down' })[0])
+    await chooseFromMenu(screen.getAllByTestId('question-block')[0], 'Move down')
     await waitFor(() => expect(texts(e)).toEqual(['b', 'a']))
-    await fireEvent.click(screen.getAllByRole('button', { name: 'Move up' })[1])
+    await chooseFromMenu(screen.getAllByTestId('question-block')[1], 'Move up')
     await waitFor(() => expect(texts(e)).toEqual(['a', 'b']))
   })
 
   it('asks the page to open the picker after the block', async () => {
     const { onAddBelow } = make(two())
-    await fireEvent.click(screen.getAllByRole('button', { name: '+ Add below' })[0])
+    await chooseFromMenu(screen.getAllByTestId('question-block')[0], 'Add question below')
     expect(onAddBelow).toHaveBeenCalledTimes(1)
     expect(onAddBelow.mock.calls[0][0]).toBeGreaterThan(0)
   })
@@ -101,7 +101,7 @@ describe('templatedQuestion node view', () => {
       vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ question: child }) }),
     )
     const { editor: e } = make(two())
-    await fireEvent.click(screen.getAllByRole('button', { name: 'Regenerate' })[0])
+    await chooseFromMenu(screen.getAllByTestId('question-block')[0], 'Make easier')
     await waitFor(() => expect(screen.getByText('Regenerated question text.')).toBeInTheDocument())
     expect(texts(e)).toEqual(['a:v2', 'b'])
     expect(screen.queryByText('First question text.')).not.toBeInTheDocument()
@@ -113,7 +113,7 @@ describe('templatedQuestion node view', () => {
       vi.fn().mockResolvedValue({ ok: false, status: 422, text: async () => 'nope' }),
     )
     const { editor: e } = make(two())
-    await fireEvent.click(screen.getAllByRole('button', { name: 'Make harder' })[0])
+    await chooseFromMenu(screen.getAllByTestId('question-block')[0], 'Make harder')
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('API 422: nope'))
     expect(texts(e)).toEqual(['a', 'b'])
   })
@@ -134,11 +134,12 @@ describe('templatedQuestion node view', () => {
     for (const tag of ['From my bank', 'Unreviewed', 'engine-verified']) {
       expect(screen.queryByText(tag)).not.toBeInTheDocument()
     }
-    for (const name of ['Regenerate', 'Make harder', 'Edit names']) {
-      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+    const labels = await menuLabels(screen.getByTestId('question-block'))
+    for (const name of ['Another like this', 'Make harder', 'Edit names…', 'Lock', 'Replace with my own question']) {
+      expect(labels).not.toContain(name)
     }
-    // …but it still moves, adds below and deletes like any block.
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+    // …but it still goes in the key or not, adds below, deletes, and can become your own text.
+    expect(labels).toEqual(['Leave out of answer key', 'Add question below', 'Edit as my own text…', 'Delete'])
     await waitFor(() =>
       expect(screen.getByTestId('fragment').shadowRoot?.textContent).toContain('bank question html'),
     )
@@ -164,8 +165,9 @@ describe('templatedQuestion node view', () => {
       expect(screen.getByTestId('fragment').shadowRoot?.textContent).toContain('(b) average speed'),
     )
     expect(bodies[0].question.id).toBe('speed_structured:1')
-    // The engine's whole-question edits stay; nothing else is offered.
-    expect(screen.getByRole('button', { name: 'Regenerate' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Make harder' })).not.toBeInTheDocument()
+    // The engine's whole-question edits stay ("Regenerate" is "Another like this"); nothing else.
+    expect(await pillButton(screen.getByTestId('question-block'), 'Another like this')).toBeInTheDocument()
+    expect(await menuLabels(screen.getByTestId('question-block'))).not.toContain('Make harder')
+    await selectBlock(screen.getByTestId('question-block'))
   })
 })

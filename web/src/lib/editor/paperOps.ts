@@ -20,9 +20,11 @@ export function isGeneratedPosition(n: DocNode): boolean {
   return n.type === 'freeformQuestion' && !!slot?.placeholder
 }
 
-/** Does the paper have anything "Regenerate unlocked" would refill? */
+/** Does the paper have anything "Regenerate unlocked" would refill or keep? The same rule as
+ *  `regenerateCounts`: generated questions and empty placeholders, not ones you have written in. */
 export function hasGeneratedSlots(doc: DocJSON): boolean {
-  return (doc.content ?? []).some(isGeneratedPosition)
+  const { unlocked, locked } = regenerateCounts(doc)
+  return unlocked + locked > 0
 }
 
 /** What "Regenerate unlocked" would do (EXA-160's confirmation): the generated questions and

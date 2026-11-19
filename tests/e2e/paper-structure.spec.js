@@ -25,7 +25,7 @@ test('start from the Paper 2 template, structure the paper, reload, preview and 
 
   // A question appended at the end lands in Section B; the summary is derived, not typed.
   await page.getByRole('button', { name: 'Add question' }).click()
-  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
+  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Write my own' }).click()
   const block = page.locator('.ffblock')
   await expect(block).toHaveCount(1)
   await page.keyboard.type('Ann has 12 sweets and gives away 5. How many are left?')
@@ -84,7 +84,7 @@ test('the marking margin follows the section mode and can be switched per sectio
   const section = page.locator('.section-block').last()
   await expect(section.getByLabel('Marking margin')).toBeChecked()
   await page.getByRole('button', { name: 'Add question' }).click()
-  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
+  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Write my own' }).click()
   await page.keyboard.type('Ann has 12 sweets and gives away 5. How many are left?')
   await page.locator('.ffblock').getByLabel('Marks').fill('2')
   await page.locator('.ffblock').getByLabel('Marks').press('Enter')
