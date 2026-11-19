@@ -80,6 +80,48 @@ describe('EditorPage', () => {
     expect(screen.queryByText(/Question deleted/)).toBeNull()
   })
 
+  it("the toast's Undo is only for that deletion: a later change closes it (review)", async () => {
+    const gen = (id: string, text: string) => {
+      const n = questionNode(makeQuestion({ id }, text))
+      return { ...n, attrs: { ...n.attrs, block_id: id } }
+    }
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => record([gen('a', 'Keep me.'), gen('b', 'Delete me.')]),
+    })
+    render(EditorPage, { props: { id: 'd1' } })
+    const doomed = (await screen.findByText('Delete me.')).closest('.qblock') as HTMLElement
+    doomed.focus()
+    await fireEvent.keyDown(doomed, { key: 'Delete' })
+    await waitFor(() => expect(screen.queryByText('Delete me.')).toBeNull())
+    expect(screen.getByText(/Question deleted/)).toBeInTheDocument()
+    // lock the other question: Undo would now undo the lock, so the toast goes
+    const keep = (screen.getByText('Keep me.')).closest('.qblock') as HTMLElement
+    keep.focus()
+    await fireEvent.keyDown(keep, { key: 'l' })
+    await waitFor(() => expect(screen.queryByText(/Question deleted/)).toBeNull())
+    expect(screen.queryByText('Delete me.')).toBeNull()
+  })
+
+  it('an undo with Ctrl+Z closes the toast (review)', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => record([questionNode(makeQuestion({ id: 'a' }, 'Keep me.')), questionNode(makeQuestion({ id: 'b' }, 'Delete me.'))]),
+    })
+    render(EditorPage, { props: { id: 'd1' } })
+    const doomed = (await screen.findByText('Delete me.')).closest('.qblock') as HTMLElement
+    doomed.focus()
+    await fireEvent.keyDown(doomed, { key: 'Delete' })
+    await waitFor(() => expect(screen.getByText(/Question deleted/)).toBeInTheDocument())
+    const pm = document.querySelector('.ProseMirror') as HTMLElement
+    pm.focus()
+    await fireEvent.keyDown(pm, { key: 'z', ctrlKey: true })
+    expect(await screen.findByText('Delete me.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText(/Question deleted/)).toBeNull())
+  })
+
   it('says so when the paper does not exist', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found', json: async () => ({ detail: 'document not found' }) })
     render(EditorPage, { props: { id: 'nope' } })

@@ -90,21 +90,27 @@ export const FreeformPart = Node.create({
         return typeof p === 'number' ? p : 0
       }
       const letter = () => partLetter(partIndex(editor, pos()))
+      /** This part's position now, or null if it has gone: a control then does nothing. */
+      const live = (): number | null => {
+        const p = getPos()
+        if (typeof p !== 'number' || editor.isDestroyed) return null
+        return editor.state.doc.nodeAt(p) === current ? p : null
+      }
 
       const dom = el('div', 'ffpart')
       const head = el('div', 'ffp-head')
       const label = el('span', 'ffp-label', `(${letter()})`)
-      label.contentEditable = 'false'
+      label.setAttribute('contenteditable', 'false')
       const contentDOM = el('div', 'ffp-body')
       const marksEl = el('span', 'ffp-marks')
-      marksEl.contentEditable = 'false'
+      marksEl.setAttribute('contenteditable', 'false')
       head.append(label, contentDOM, marksEl)
 
       const areaHost = el('div', 'ffp-area')
-      areaHost.contentEditable = 'false'
+      areaHost.setAttribute('contenteditable', 'false')
 
       const bar = el('div', 'ffp-bar')
-      bar.contentEditable = 'false'
+      bar.setAttribute('contenteditable', 'false')
       bar.setAttribute('role', 'group')
       bar.setAttribute('aria-label', 'part tools')
       const field = el('label', 'ffp-marks-field')
@@ -118,14 +124,16 @@ export const FreeformPart = Node.create({
       const del = el('button', 'danger', 'Delete part')
       del.type = 'button'
       del.addEventListener('click', () => {
+        const at = live()
+        if (at === null) return
         const { tr, doc } = editor.state
-        const $pos = doc.resolve(pos())
+        const $pos = doc.resolve(at)
         const parent = $pos.parent
         let parts = 0
         parent.forEach((c) => {
           if (c.type.name === PART_NODE) parts++
         })
-        tr.delete(pos(), pos() + current.nodeSize)
+        tr.delete(at, at + current.nodeSize)
         // Deleting the only part makes the question single-part again: it takes the part's
         // marks and answer back, so nothing the teacher wrote is lost.
         if (parts === 1) {
@@ -142,8 +150,10 @@ export const FreeformPart = Node.create({
       bar.append(field, el('span', 'ff-spacer'), del)
 
       const patch = (attrs: Record<string, unknown>) => {
+        const at = live()
+        if (at === null) return
         const { tr } = editor.state
-        tr.setNodeMarkup(pos(), undefined, { ...current.attrs, ...attrs })
+        tr.setNodeMarkup(at, undefined, { ...current.attrs, ...attrs })
         editor.view.dispatch(tr)
       }
       input.addEventListener('change', () => patch({ marks: clampMarks(input.value) }))

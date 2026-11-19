@@ -8,7 +8,8 @@ import { Node } from '@tiptap/core'
 import { Plugin } from '@tiptap/pm/state'
 import type { NodeViewRendererProps } from '@tiptap/core'
 import { EMPTY_ANSWER } from './doc'
-import { moveBlock } from './templatedQuestion'
+import { locateBlock, moveBlock } from './templatedQuestion'
+import { closeHistory } from '@tiptap/pm/history'
 import { FreeformPart, MAX_PARTS, PART_NODE, jsonAttr, partLetter } from './freeformPart'
 import { hasContent } from './paperReport'
 import { mount, unmount } from 'svelte'
@@ -125,10 +126,8 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
     const options = this.options
     return ({ node, getPos, editor }: NodeViewRendererProps) => {
       let current = node
-      const pos = () => {
-        const p = getPos()
-        return typeof p === 'number' ? p : 0
-      }
+      /** The block's position now; null once it has gone (then a control does nothing). */
+      const pos = (): number | null => locateBlock(editor, getPos, current)?.pos ?? null
 
       const dom = el('div', 'qblock ffblock')
       dom.setAttribute('data-block-id', String(node.attrs.block_id))
@@ -145,12 +144,12 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       const row = el('div', 'ff-row')
       const contentDOM = el('div', 'ff-body')
       const marksEl = el('span', 'ff-marks')
-      marksEl.contentEditable = 'false'
+      marksEl.setAttribute('contenteditable', 'false')
       row.append(contentDOM, marksEl)
 
       // A generated paper's placeholder (P8a): says what to write until the body has text.
       const hint = el('p', 'ff-placeholder-hint')
-      hint.contentEditable = 'false'
+      hint.setAttribute('contenteditable', 'false')
 
       // The block's controls (QuestionBar): nothing at rest, a pill when selected.
       const barHost = el('div', 'qbar-host')
@@ -165,9 +164,10 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       }
       // Adding the first part moves the marks onto the parts: one undoable step.
       function addPart() {
-        if (parts().length >= MAX_PARTS) return
+        const from = pos()
+        if (from === null || parts().length >= MAX_PARTS) return
         const { tr, schema } = editor.state
-        const at = pos() + current.nodeSize - 1 // the end of the question's content
+        const at = from + current.nodeSize - 1 // the end of the question's content
         // The first part takes over the question's marks and written answer (nothing is lost);
         // later parts start at one mark.
         const first = parts().length === 0
@@ -179,7 +179,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         )
         tr.insert(at, part)
         if (first) {
-          tr.setNodeMarkup(pos(), undefined, { ...current.attrs, marks: null, answer: EMPTY_ANSWER })
+          tr.setNodeMarkup(from, undefined, { ...current.attrs, marks: null, answer: EMPTY_ANSWER })
         }
         editor.view.dispatch(tr)
         // Caret into the new part, focused *now*: TipTap's focus() waits a frame, and keys typed
@@ -189,13 +189,15 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       }
 
       const areaHost = el('div', 'ff-area')
-      areaHost.contentEditable = 'false'
+      areaHost.setAttribute('contenteditable', 'false')
       main.append(hint, row, areaHost)
       dom.append(num, main, barHost)
 
       const setLayout = (patch: Record<string, unknown>) => {
+        const from = pos()
+        if (from === null) return
         const { tr } = editor.state
-        tr.setNodeMarkup(pos(), undefined, { ...current.attrs, ...patch })
+        tr.setNodeMarkup(from, undefined, { ...current.attrs, ...patch })
         editor.view.dispatch(tr)
       }
       // The [n] follow the section the question sits in (EXA-152); live as sections change.
@@ -215,6 +217,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         },
       })
       const place = { current: NOWHERE }
+      let swapping = false // a fill is out: the block's controls wait for it
       const barState = writable(barProps())
       const bar = mount(FreeformBar, {
         target: barHost,
@@ -248,7 +251,8 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
           inKey: current.attrs.in_key !== false,
           ops: [],
           canEditNames: false,
-          canAddPart: !waiting() && parts().length < MAX_PARTS,
+          // a structured placeholder is written as lettered parts, so it can take them too
+          canAddPart: parts().length < MAX_PARTS,
           canMoveUp: place.current.canMoveUp,
           canMoveDown: place.current.canMoveDown,
         }
@@ -260,6 +264,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
           facts: facts(),
           number: place.current.number,
           selected: place.current.selected,
+          busy: swapping,
           marks: (current.attrs.marks as number | null) ?? null,
           showMarks: !multi && !waiting(),
           summary: multi
@@ -267,13 +272,18 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
             : '',
         }
       }
-      let swapping = false
       function swap(mode: SwapMode) {
         if (swapping) return
         swapping = true
-        void options.onSwap(String(current.attrs.block_id), mode).finally(() => (swapping = false))
+        barState.set(barProps())
+        void options.onSwap(String(current.attrs.block_id), mode).finally(() => {
+          swapping = false
+          barState.set(barProps())
+        })
       }
       function act(action: QuestionAction) {
+        const from = pos()
+        if (from === null) return
         switch (action) {
           case 'fill':
           case 'like':
@@ -288,15 +298,22 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
             return setLayout({ in_key: current.attrs.in_key === false })
           case 'up':
           case 'down':
-            moveBlock(editor, pos(), current.nodeSize, action === 'up' ? -1 : 1)
+            moveBlock(editor, from, current.nodeSize, action === 'up' ? -1 : 1)
             return
           case 'addBelow':
-            return options.onAddBelow(pos() + current.nodeSize)
-          case 'delete': {
-            const from = pos()
-            editor.chain().focus().deleteRange({ from, to: from + current.nodeSize }).run()
+            return options.onAddBelow(from + current.nodeSize)
+          case 'delete':
+            // its own undo step: the toast's Undo brings back just this question
+            editor
+              .chain()
+              .focus()
+              .command(({ tr }) => {
+                closeHistory(tr)
+                return true
+              })
+              .deleteRange({ from, to: from + current.nodeSize })
+              .run()
             return options.onDeleted()
-          }
         }
       }
 

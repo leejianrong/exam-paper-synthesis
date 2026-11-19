@@ -438,7 +438,12 @@
           content = e.getJSON() as DocJSON
           scheduleSave()
         },
-        onTransaction: () => (tick += 1),
+        onTransaction: ({ transaction }) => {
+          tick += 1
+          // The toast's Undo undoes only the deletion it reports: any later change (or a
+          // Ctrl+Z) closes it. The deletion itself comes before `questionDeleted`.
+          if (deleted && transaction.docChanged) closeDeleted()
+        },
       })
       startWithTextCursor(editor)
       content = editor.getJSON() as DocJSON
@@ -484,9 +489,14 @@
     deletedTimer = setTimeout(() => (deleted = false), 8000)
   }
 
-  function undoDelete() {
+  function closeDeleted() {
     deleted = false
     clearTimeout(deletedTimer)
+  }
+
+  function undoDelete() {
+    if (!deleted) return
+    closeDeleted()
     editor?.chain().focus().undo().run()
   }
 

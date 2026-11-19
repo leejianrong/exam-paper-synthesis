@@ -56,10 +56,16 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
 
   // The R shortcut on a focused question is "Another like this" (EXA-161).
-  const beforeR = await textOf(third)
+  // Compared by the saved question's id: "another like this" may keep the wording and change
+  // only the figure (a grid-area question), so the stem text alone can stay the same.
+  const savedId = async () => {
+    const doc = await (await page.request.get(`${API}/documents/${id}`)).json()
+    return doc.document.content.content.filter((n) => n.type === 'templatedQuestion')[1].attrs.question.id
+  }
+  const beforeR = await savedId()
   await questionHost(third).focus()
   await page.keyboard.press('r')
-  await expect.poll(() => textOf(third)).not.toBe(beforeR)
+  await expect.poll(savedId).not.toBe(beforeR)
   await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
 
   // Regenerate: the locked question stays, the placeholder is filled, targets hold.

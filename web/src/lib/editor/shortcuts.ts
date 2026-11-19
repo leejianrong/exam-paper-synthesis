@@ -155,6 +155,17 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   return !!host && host.getAttribute('contenteditable') !== 'false'
 }
 
+/** May a key on `target` act as a block shortcut of the block `host`? Only on the block itself,
+ *  its ⋮⋮ handle or a pill button (EXA-161 review); never on any other control inside it
+ *  (the working-space grip, a part's "Delete part", the names form, a select, a link, the
+ *  open menu, or anything marked `data-own-keys`). */
+export function isBlockKeyTarget(target: EventTarget | null, host: Element): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  if (target === host) return true
+  if (!host.contains(target) || target.closest('[data-own-keys], [role="menu"]')) return false
+  return target.matches('.qhandle') || (target.tagName === 'BUTTON' && !!target.closest('.qpill'))
+}
+
 /** The question blocks' key handlers, by their node view's DOM: the editor plugin looks up the
  *  selected block's handler when the editor itself has focus (a block selected with the arrow
  *  keys, or the caret in a free-form question). */
@@ -199,6 +210,8 @@ export const BlockShortcuts = Extension.create({
         key: new PluginKey('blockShortcuts'),
         props: {
           handleKeyDown(view, event) {
+            // Keys from a control inside a block (a part's button, a grip) are that control's.
+            if (event.target !== view.dom) return false
             const sel = view.state.selection
             if (sel instanceof NodeSelection && sel.$from.depth === 0) {
               if (!QUESTION_NODES.includes(sel.node.type.name)) return false

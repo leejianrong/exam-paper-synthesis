@@ -5,13 +5,14 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { fireEvent, screen, waitFor, within } from '@testing-library/svelte'
-import { TemplatedQuestion, questionNode } from './templatedQuestion'
+import { TemplatedQuestion, moveBlock, questionNode } from './templatedQuestion'
 import { FreeformQuestion, QuestionDocument } from './freeformQuestion'
-import { BlockShortcuts } from './shortcuts'
+import { BlockShortcuts, isBlockKeyTarget } from './shortcuts'
 import { makeQuestion } from './fixtures'
 import { ImageBlock, MathNode } from './media'
-import { menuLabels, selectBlock } from './blockTesting'
+import { chooseFromMenu, menuLabels, openMenu, selectBlock } from './blockTesting'
 import type { DocJSON } from './doc'
+import { CoverPage, coverNode } from './pages'
 
 let editor: Editor | null = null
 afterEach(() => {
@@ -36,6 +37,7 @@ const own = (id: string, text: string) => ({
 function make(content: object[]) {
   const onSwap = vi.fn(async () => {})
   const onDeleted = vi.fn()
+  const onNotice = vi.fn()
   editor = new Editor({
     element: document.body.appendChild(document.createElement('div')),
     extensions: [
@@ -43,13 +45,14 @@ function make(content: object[]) {
       ImageBlock,
       MathNode,
       StarterKit.configure({ document: false, trailingNode: false }),
+      CoverPage,
       BlockShortcuts,
-      TemplatedQuestion.configure({ onSwap, onDeleted }),
+      TemplatedQuestion.configure({ onSwap, onDeleted, onNotice }),
       FreeformQuestion.configure({ onSwap, onDeleted }),
     ],
     content: { type: 'doc', content } as DocJSON as never,
   })
-  return { editor, onSwap, onDeleted }
+  return { editor, onSwap, onDeleted, onNotice }
 }
 
 const gq = (id: string, text: string) => {
@@ -101,10 +104,13 @@ describe('at rest and selected', () => {
     expect(slot).toHaveAccessibleName('Question 2, 2 marks, to write')
     await selectBlock(slot)
     const sp = within(slot.querySelector('.qpill') as HTMLElement)
+    // a structured slot is written as parts: "+ Part" stays (as on main)
     expect(sp.getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent?.trim())).toEqual([
       'Fill with a question',
+      'Part',
       'More actions for question 2',
     ])
+    expect(await menuLabels(slot)).toContain('Add a part')
   })
 
   it('a right-click or Shift+F10 opens the same menu', async () => {
@@ -123,11 +129,40 @@ describe('at rest and selected', () => {
     expect(await within(a).findByRole('menu')).toBeInTheDocument()
   })
 
-  it('the ⋮⋮ handle opens the menu too', async () => {
+  it('the ⋮⋮ handle opens the menu too, and says it is a menu button', async () => {
     make([gq('a', 'First.')])
     await tick()
     const a = qblock('First.')
-    await fireEvent.click(within(a).getByRole('button', { name: 'Menu for question 1' }))
+    const handle = within(a).getByRole('button', { name: 'Menu for question 1' })
+    expect(handle).toHaveAttribute('aria-haspopup', 'menu')
+    expect(handle).toHaveAttribute('aria-expanded', 'false')
+    await fireEvent.click(handle)
+    expect(await within(a).findByRole('menu')).toBeInTheDocument()
+    expect(handle).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('a right-click over selected text or a figure keeps the browser menu', async () => {
+    make([gq('a', 'First.')])
+    await tick()
+    const a = qblock('First.')
+    const text = within(a).getByText('First.')
+    const range = document.createRange()
+    range.selectNodeContents(text)
+    document.getSelection()?.removeAllRanges()
+    document.getSelection()?.addRange(range)
+    const rightClick = (el: Element) => {
+      const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+      el.dispatchEvent(ev)
+      return !ev.defaultPrevented // true: the browser's own menu
+    }
+    expect(rightClick(text)).toBe(true)
+    document.getSelection()?.removeAllRanges()
+    const fig = a.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'svg'))
+    expect(rightClick(fig)).toBe(true)
+    fig.remove()
+    expect(within(a).queryByRole('menu')).toBeNull()
+    // elsewhere (no selection) it is ours
+    expect(rightClick(text)).toBe(false)
     expect(await within(a).findByRole('menu')).toBeInTheDocument()
   })
 })
@@ -209,5 +244,173 @@ describe('block shortcuts', () => {
     marks.focus()
     await fireEvent.keyDown(marks, { key: 'Delete' })
     expect(ids(e)).toEqual(['o1', 'p1'])
+  })
+})
+
+/** A fetch that answers only when told to (a slow /edit). */
+function slowFetch() {
+  let answer: (q: unknown) => void = () => {}
+  const fetchMock = vi.fn(
+    () =>
+      new Promise((resolve) => {
+        answer = (question) => resolve({ ok: true, status: 200, json: async () => ({ question }) })
+      }),
+  )
+  vi.stubGlobal('fetch', fetchMock)
+  return { fetchMock, answer: (q: unknown) => answer(q) }
+}
+const questionId = (e: Editor, id: string) => (attrsOf(e, id).question as { id: string } | undefined)?.id
+
+describe('a reply that arrives late (review)', () => {
+  it('Make harder, then the question is deleted: the reply touches nothing else', async () => {
+    const { answer } = slowFetch()
+    const { editor: e, onNotice } = make([coverNode({ school: 'Pandan' }), gq('a', 'First.'), gq('b', 'Second.')])
+    await tick()
+    const before = JSON.stringify(e.getJSON().content?.slice(0, 2))
+    qblock('Second.').focus()
+    await fireEvent.keyDown(qblock('Second.'), { key: ']' })
+    // deleted before the reply (here as a selection deleted in the editor: its own menu waits)
+    let at = -1
+    e.state.doc.forEach((n, off) => {
+      if (n.attrs.block_id === 'b') at = off
+    })
+    e.commands.deleteRange({ from: at, to: at + (e.state.doc.nodeAt(at)?.nodeSize ?? 0) })
+    expect(ids(e)).toEqual([undefined, 'a'])
+    answer(makeQuestion({ id: 'b:v2' }, 'Harder text.'))
+    await waitFor(() => expect(onNotice).toHaveBeenCalledWith('That question was removed before the change arrived.'))
+    expect(JSON.stringify(e.getJSON().content)).toBe(before) // the cover and Q1 untouched
+    expect(screen.queryByText('Harder text.')).toBeNull()
+  })
+
+  it('Make harder, then the question moves: the reply lands on it in its new place', async () => {
+    const { answer } = slowFetch()
+    const { editor: e, onNotice } = make([gq('a', 'First.'), gq('b', 'Second.')])
+    await tick()
+    qblock('Second.').focus()
+    await fireEvent.keyDown(qblock('Second.'), { key: ']' })
+    moveBlock(e, e.state.doc.child(0).nodeSize, e.state.doc.child(1).nodeSize, -1)
+    expect(ids(e)).toEqual(['b', 'a'])
+    answer(makeQuestion({ id: 'b:v2' }, 'Harder text.'))
+    await waitFor(() => expect(questionId(e, 'b')).toBe('b:v2'))
+    expect(questionId(e, 'a')).toBe('a')
+    expect(onNotice).not.toHaveBeenCalled()
+  })
+})
+
+describe('while a block is busy (review)', () => {
+  it('every menu row is disabled, Delete included, and the shortcuts wait', async () => {
+    const { answer } = slowFetch()
+    const { editor: e, onSwap, onDeleted } = make([gq('a', 'First.'), gq('b', 'Second.')])
+    await tick()
+    const a = qblock('First.')
+    a.focus()
+    await fireEvent.keyDown(a, { key: '[' })
+    const menu = await openMenu(a)
+    const rows = within(menu).getAllByRole('menuitem')
+    expect(rows.length).toBeGreaterThan(3)
+    for (const row of rows) expect(row).toHaveAttribute('aria-disabled', 'true')
+    await fireEvent.click(within(menu).getByRole('menuitem', { name: /Delete/ }))
+    expect(ids(e)).toEqual(['a', 'b'])
+    await fireEvent.keyDown(menu, { key: 'Escape' })
+    for (const key of ['Delete', 'r', 'l']) await fireEvent.keyDown(qblock('First.'), { key })
+    await fireEvent.keyDown(qblock('First.'), { key: 'ArrowDown', altKey: true })
+    expect(ids(e)).toEqual(['a', 'b'])
+    expect(onSwap).not.toHaveBeenCalled()
+    expect(onDeleted).not.toHaveBeenCalled()
+    expect(attrsOf(e, 'a').locked).toBeFalsy()
+    answer(makeQuestion({ id: 'a:v2' }, 'Easier text.'))
+    await waitFor(() => expect(screen.getByText('Easier text.')).toBeInTheDocument())
+  })
+})
+
+describe('keys on other controls inside a block are theirs (review)', () => {
+  it('the working-space grip: Backspace, R and Alt+↑ never delete, swap or move the question', async () => {
+    const { editor: e, onSwap, onDeleted } = make([gq('a', 'First.'), gq('b', 'Second.')])
+    await tick()
+    const grip = within(qblock('Second.')).getByRole('slider', { name: 'Working space height' })
+    grip.focus()
+    await fireEvent.keyDown(grip, { key: 'Backspace' })
+    await fireEvent.keyDown(grip, { key: 'r' })
+    await fireEvent.keyDown(grip, { key: 'ArrowUp', altKey: true })
+    await tick()
+    expect(ids(e)).toEqual(['a', 'b'])
+    expect(onSwap).not.toHaveBeenCalled()
+    expect(onDeleted).not.toHaveBeenCalled()
+  })
+
+  it('a part\'s "Delete part" button: Delete and Alt+↑ are not the question\'s', async () => {
+    const withParts = {
+      ...own('o1', 'Stem.'),
+      attrs: { ...own('o1', 'Stem.').attrs, marks: null },
+      content: [
+        para('Stem.'),
+        { type: 'freeformPart', attrs: { marks: 1 }, content: [para('Part one.')] },
+        { type: 'freeformPart', attrs: { marks: 2 }, content: [para('Part two.')] },
+      ],
+    }
+    const { editor: e, onDeleted } = make([gq('a', 'First.'), withParts])
+    await tick()
+    e.commands.setTextSelection(e.state.doc.child(0).nodeSize + 2) // the caret in the stem
+    const del = qblock('Stem.').querySelector<HTMLButtonElement>('.ffpart button.danger') as HTMLButtonElement
+    del.focus()
+    await fireEvent.keyDown(del, { key: 'Delete' })
+    await fireEvent.keyDown(del, { key: 'ArrowUp', altKey: true })
+    await tick()
+    expect(ids(e)).toEqual(['a', 'o1'])
+    expect(onDeleted).not.toHaveBeenCalled()
+    expect(e.getJSON().content?.[1].content?.filter((c) => c.type === 'freeformPart')).toHaveLength(2)
+  })
+
+  it('a free-form question\'s grip: Alt+↑ is not the question\'s', async () => {
+    const { editor: e } = make([gq('a', 'First.'), own('o1', 'Mine.')])
+    await tick()
+    e.commands.setTextSelection(e.state.doc.child(0).nodeSize + 2) // the caret in its text
+    const grip = within(qblock('Mine.')).getByRole('slider', { name: 'Working space height' })
+    grip.focus()
+    await fireEvent.keyDown(grip, { key: 'ArrowUp', altKey: true })
+    await fireEvent.keyDown(grip, { key: 'Delete' })
+    await tick()
+    expect(ids(e)).toEqual(['a', 'o1'])
+  })
+
+  it('the names form: its buttons and fields keep R and Delete', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ slots: [{ key: 'names', role: 'name', count: 3, max_length: 24 }] }),
+      }),
+    )
+    const { editor: e, onSwap, onDeleted } = make([gq('a', 'First.')])
+    await tick()
+    await chooseFromMenu(qblock('First.'), 'Edit names…')
+    const form = await screen.findByRole('form', { name: 'Edit names' })
+    await within(form).findByLabelText('Name 1')
+    for (const name of ['Apply', 'Cancel']) {
+      const b = within(form).getByRole('button', { name })
+      b.focus()
+      await fireEvent.keyDown(b, { key: 'r' })
+      await fireEvent.keyDown(b, { key: 'Delete' })
+      await fireEvent.keyDown(b, { key: 'l' })
+    }
+    expect(ids(e)).toEqual(['a'])
+    expect(onSwap).not.toHaveBeenCalled()
+    expect(onDeleted).not.toHaveBeenCalled()
+    expect(attrsOf(e, 'a').locked).toBeFalsy()
+  })
+
+  it('isBlockKeyTarget: the block, its handle and pill buttons only', () => {
+    const host = document.createElement('div')
+    host.innerHTML =
+      '<button class="qhandle"></button><div class="qpill"><button id="p"></button></div>' +
+      '<div role="slider" tabindex="0"></div><button id="x"></button><a href="#">l</a>' +
+      '<div class="qpill"><button data-own-keys id="o"></button></div><select></select>'
+    const $ = (sel: string) => host.querySelector(sel)
+    expect(isBlockKeyTarget(host, host)).toBe(true)
+    expect(isBlockKeyTarget($('.qhandle'), host)).toBe(true)
+    expect(isBlockKeyTarget($('#p'), host)).toBe(true)
+    for (const sel of ['[role=slider]', '#x', 'a', '#o', 'select']) expect(isBlockKeyTarget($(sel), host)).toBe(false)
+    expect(isBlockKeyTarget(document.createElement('button'), host)).toBe(false) // not in the block
   })
 })

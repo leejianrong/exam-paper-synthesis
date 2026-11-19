@@ -69,6 +69,8 @@ export function menuGroups(f: QuestionFacts): QuestionRow[][] {
       { action: 'topic', label: 'Another topic', icon: 'topic', hint: 'A question with the same marks from a topic this paper uses less' },
     )
   } else if (f.kind !== 'generated' && f.kind !== 'placeholder' && f.ops.includes('regenerate')) {
+    // Reachable: the API gives `available_ops` (regenerate among them) to any templated question
+    // that names a blueprint (`ops.with_document_hints`), and a bank copy may still name one.
     change.push({ action: 'regenerate', label: 'Another like this', icon: 'swap', shortcut: BLOCK_KEYS.like, hint: 'The same kind of question with new numbers' })
   }
   if (f.kind === 'placeholder' && !f.locked) {
@@ -115,7 +117,12 @@ export function menuGroups(f: QuestionFacts): QuestionRow[][] {
 /** The pill's first controls (before ⋯): the one action a teacher reaches for most. */
 export function pillActions(f: QuestionFacts): Array<'primary' | 'addPart' | 'lock'> {
   const out: Array<'primary' | 'addPart' | 'lock'> = []
-  if (f.kind === 'placeholder') return f.locked ? [] : ['primary']
+  if (f.kind === 'placeholder') {
+    // a structured slot is written as lettered parts, so "+ Part" stays on a placeholder
+    if (!f.locked) out.push('primary')
+    if (f.canAddPart) out.push('addPart')
+    return out
+  }
   if (f.kind === 'own') {
     if (f.canAddPart) out.push('addPart')
   } else if (primaryRow(f)) {
