@@ -321,8 +321,8 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   Ctrl+Alt; ⌥ on a Mac; Shift). A real chord is still not one of them: Ctrl+[, Cmd+[, Ctrl+Alt+[
   without AltGr and Alt+[ off a Mac pass through as before, and any other AltGr character on a
   selected question is still dropped. For layouts with no brackets at all (Russian, Ukrainian),
-  the minus key (-) also makes the question easier and = harder; the shortcut sheet lists
-  both. Inside a question's text these keys type as usual.
+  the minus key (-) also makes the question easier and = harder (not the keypad's, which
+  types numbers); the shortcut sheet lists both as "[ or -" and "] or =". Inside a question's text these keys type as usual.
 - **A key on a selected block never replaces it (EXA-171).** With a question selected as a
   block (by the arrow keys, or after a swap), a key that is not one of its shortcuts could take
   the question's place, and Shift+Enter put a line break in place of any selected block. Now:

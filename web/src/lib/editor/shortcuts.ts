@@ -123,7 +123,7 @@ export const BLOCK_KEYS = {
 export type BlockKey = (typeof BLOCK_KEYS)[keyof typeof BLOCK_KEYS]
 
 /** Keys matched by the character they type, whatever modifier the layout needs for it. "-" and
- *  "=" stand in for [ and ] on layouts without them (Russian, Ukrainian). */
+ *  "=" stand in for [ and ] on layouts without them (Russian, Ukrainian); never from the keypad. */
 const CHAR_KEYS = new Map<string, BlockKey>([
   ['[', BLOCK_KEYS.easier],
   ['-', BLOCK_KEYS.easier],
@@ -135,11 +135,13 @@ const CHAR_KEYS = new Map<string, BlockKey>([
  *  ContextMenu key), or null. `inText` is true while the caret is in text the author types in
  *  (a free-form question's body): then only chords that never type a character count. */
 export function blockShortcut(e: KeyboardEvent, inText: boolean, mac = isMac()): BlockKey | 'menu' | null {
-  if (e.isComposing) return null
+  // an input method is composing or opening ('Process', or keyCode 229), like the guard's composes()
+  if (e.isComposing || e.key === 'Process' || e.keyCode === 229) return null
   // [ and ] are read by the character typed (EXA-172): on many layouts they take AltGr (German
   // AltGr+8, which Windows reports as Ctrl+Alt) or ⌥ on a Mac (German ⌥5), sometimes Shift too.
   // A real chord (Ctrl+[, Cmd+[, Alt+[ off a Mac) types nothing and is not one of them.
-  const byChar = CHAR_KEYS.get(e.key)
+  // The keypad's - (and a Mac keypad's =) type numbers, not commands.
+  const byChar = e.code.startsWith('Numpad') ? undefined : CHAR_KEYS.get(e.key)
   if (byChar && !inText && typesCharacter(e, mac)) return byChar
   if (e.ctrlKey || e.metaKey) return null
   if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) return 'menu'

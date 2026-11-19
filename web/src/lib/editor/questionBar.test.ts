@@ -348,6 +348,18 @@ describe('[ and ] on layouts that need AltGr or ⌥ (EXA-172)', () => {
     await waitFor(() => expect(edits(fetchMock)).toEqual(['make-easier']))
   })
 
+  it('the keypad - types nothing and sends no edit; the main-row - makes it easier', async () => {
+    const { editor: e, fetchMock, press } = selected()
+    await tick()
+    const before = e.getJSON()
+    expect(press('-', { code: 'NumpadSubtract' }).defaultPrevented).toBe(true) // dropped by the guard
+    await tick()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(e.getJSON()).toEqual(before)
+    press('-', { code: 'Minus' })
+    await waitFor(() => expect(edits(fetchMock)).toEqual(['make-easier']))
+  })
+
   it('another AltGr character on a selected question is still dropped, with the hint', async () => {
     const { editor: e, fetchMock, press } = selected()
     await tick()

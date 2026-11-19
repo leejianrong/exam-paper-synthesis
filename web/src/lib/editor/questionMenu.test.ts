@@ -164,6 +164,21 @@ describe('block shortcuts', () => {
     expect(blockShortcut(key('=', { metaKey: true }), false, true)).toBeNull() // zoom in
   })
 
+  it('- and = from the keypad type numbers, never a shortcut; the main-row keys are one', () => {
+    expect(blockShortcut(key('-', { code: 'NumpadSubtract' }), false, false)).toBeNull()
+    expect(blockShortcut(key('=', { code: 'NumpadEqual' }), false, true)).toBeNull()
+    expect(blockShortcut(key('-', { code: 'Minus' }), false, false)).toBe('[')
+    expect(blockShortcut(key('=', { code: 'Equal' }), false, true)).toBe(']')
+  })
+
+  it('nothing while an input method composes or opens (Process, keyCode 229)', () => {
+    expect(blockShortcut(key('Process', { keyCode: 229 } as KeyboardEventInit), false, false)).toBeNull()
+    expect(blockShortcut(key('[', { keyCode: 229 } as KeyboardEventInit), false, false)).toBeNull()
+    expect(blockShortcut(key('r', { keyCode: 229 } as KeyboardEventInit), false, false)).toBeNull()
+    expect(blockShortcut(key('[', { isComposing: true }), false, false)).toBeNull()
+    expect(blockShortcut(key('[', { keyCode: 219 } as KeyboardEventInit), false, false)).toBe('[')
+  })
+
   it('never in text, however the character is typed', () => {
     for (const k of ['[', ']', '-', '=']) {
       expect(blockShortcut(altGr(k), true, false)).toBeNull()

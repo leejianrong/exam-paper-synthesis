@@ -467,7 +467,9 @@ when it has no Cmd, no Ctrl unless AltGraph is set, and no Alt unless on a Mac o
 (`typesCharacter` in `web/src/lib/keys.ts`, shared with the block selection guard below), so
 Ctrl+[, Cmd+[, Ctrl+Alt+[ without AltGraph and Alt+[ off a Mac stay chords and pass through.
 `-` and `=` do the same as `[` and `]` for layouts with no brackets (Russian, Ukrainian); the
-menus keep showing `[` and `]`, the shortcut sheet lists both. None of them fire in text. R and
+menus keep showing `[` and `]`, the shortcut sheet lists both ("[ or -"). The keypad's `-` and `=` type
+numbers and are not shortcuts, and no block key fires while an input method composes or opens
+(`Process`, keyCode 229). None of them fire in text. R and
 L are unchanged: no common layout needs a modifier for a letter, and on Cyrillic or Greek
 layouts those keys type other letters, so R and L do not work there (they are not read by
 physical key).
