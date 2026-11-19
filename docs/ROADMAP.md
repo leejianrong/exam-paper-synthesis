@@ -30,7 +30,7 @@ and **Paper format** (E15, P1–P5, P6a–d, P7, P8a, P8b and P8d done (P6d = a 
 [`planning/editor/PAPER-FORMAT.md`](planning/editor/PAPER-FORMAT.md) and [`planning/editor/P8-SHAPING.md`](planning/editor/P8-SHAPING.md)).
 A comparison of generated papers with four real 2025 P6 prelims (O4, EXA-128) is in
 [`planning/editor/REAL-PAPER-COMPARISON.md`](planning/editor/REAL-PAPER-COMPARISON.md): its layout gaps are EXA-134–142 (done: EXA-134, Booklet B numbers on from 16; EXA-137, a paper with empty placeholders asks before it prints; EXA-135, papers print monochrome; EXA-136, figure labels clear of lines; EXA-139, real section headers, per-section marks placement and a short right-aligned Ans: line, shown per section on the editing page too (EXA-152); EXA-151, the editor shows the engine's figures too; EXA-138, page numbers, "Go on" and end markers, pages filled with working space, one marking strip per page; EXA-140, real cover pages with the set's examiner's table, the page-count line and a blank back of the cover; EXA-141, MCQ options in one column, numbers in ascending order, the OAS sentence in the Booklet A header; EXA-142, a compact school-style answer key and cm²/×/− in key text, the default for new papers since EXA-159) and its content gaps EXA-143–150 (done: EXA-146, the generator matches the rung to the slot's marks; EXA-153, an exam set spreads its topics over the whole set; EXA-156, an MCQ's answer is no longer mostly the smallest or largest option; EXA-149, a Circles ladder; EXA-154, 2-mark medium rungs for five more topics; EXA-150, folded-paper, composite, reflex and two-part angle questions; EXA-147, cube-stack and net questions; EXA-148, data-table blueprints: postage, rental, tariff with GST; tick tables still to do; EXA-144, square-grid questions on a new `grid` figure; EXA-155, π-terms multiple choice).
-From the P7–P8 acceptance run: **Organise and create** (O1 settings, O2 folders, O3 the + New wizard, O4 a comparison with real papers — done, see above; O1 done; O2 folders built: API and the folder view on "Your papers"; O3 the + New wizard built, with a server-derived `paper_part` for the exam-set chips) — see
+From the P7–P8 acceptance run: **Organise and create** (O1 settings, O2 folders, O3 the + New wizard, O4 a comparison with real papers — done, see above; O1 done; O2 folders built: API and the folder view on "Your papers"; O3 the + New wizard built, with a server-derived `paper_part` (its folder chips were removed in EXA-166)) — see
 [`planning/editor/ORGANIZE-SHAPING.md`](planning/editor/ORGANIZE-SHAPING.md).
 The editor and app UI redesign (EXA-159–170) is planned in
 [`planning/editor/UI-REDESIGN.md`](planning/editor/UI-REDESIGN.md) (approved 2026-11-19; done: S2,
@@ -39,7 +39,9 @@ editor header that fits: two rows, one Export menu, an avatar menu, and Time / f
 marks shown / Regenerate unlocked in a Paper / Question side panel; S3, EXA-161, the question
 bar: nothing at rest, a pill when a question is selected, one ⋯ menu, block shortcuts and undo
 on delete; S5, EXA-163, the Paper / Insert / View / Help menus, a Ctrl+K command palette, a
-shortcut sheet and the editor-wide shortcuts, and a side panel you can hide).
+shortcut sheet and the editor-wide shortcuts, and a side panel you can hide; S8, EXA-166, the
+papers list: a ⋯ menu per paper and per folder, the New dialog leading with Exam set, en-SG and
+relative edit times, a title search, collapsible folders, and no exam-set ticks on folders).
 
 ---
 

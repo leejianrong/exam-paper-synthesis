@@ -23,9 +23,14 @@
   // the current place is where the choice starts
   // svelte-ignore state_referenced_locally
   let choice = $state<string>(current ?? '')
+
+  // While the move runs the dialog stays, so a failure still has somewhere to show.
+  const close = () => {
+    if (!busy) onClose()
+  }
 </script>
 
-<Dialog title="Move to folder" width="24rem" {onClose}>
+<Dialog title="Move to folder" width="24rem" onClose={close}>
   <form
     onsubmit={(e) => {
       e.preventDefault()
@@ -43,7 +48,7 @@
     {#if error}<p class="error" role="alert">{error}</p>{/if}
     <div class="row">
       <button class="primary" type="submit" disabled={busy || choice === (current ?? '')}>Move</button>
-      <button type="button" disabled={busy} onclick={onClose}>Cancel</button>
+      <button type="button" disabled={busy} onclick={close}>Cancel</button>
     </div>
   </form>
 </Dialog>
