@@ -1,8 +1,8 @@
 // The `freeformQuestion` TipTap node (W2a, ADR-0021): a question the teacher types straight
 // onto the page. Unlike the templated atom its body is editable content (paragraphs and
 // lists); `marks` and the written `answer` live in node attributes — the answer is edited
-// in the answer-key region, not on the page. Chrome (marks field, move, delete) sits in a
-// toolbar that never prints; `[n]` shows on the page exactly as it prints.
+// in the answer-key region, not on the page. Its controls (marks, parts, move, delete) are the
+// shared question bar (EXA-161), which never prints; `[n]` shows on the page as it prints.
 
 import { Node } from '@tiptap/core'
 import { Plugin } from '@tiptap/pm/state'
@@ -17,18 +17,17 @@ import FreeformArea from './FreeformArea.svelte'
 import { layoutOf, marksBeside } from './layout'
 import { trackPlacement } from './sections'
 import type { SwapMode } from './docsApi'
+import FreeformBar from './FreeformBar.svelte'
+import LockBadge from './LockBadge.svelte'
+import { NOWHERE, trackPlace } from './blockPlace'
+import { blockLabel, type QuestionAction, type QuestionFacts } from './questionMenu'
 
 export interface FreeformQuestionOptions {
   onAddBelow: (afterPos: number) => void
   /** P8d: fill a generated placeholder with a question (the page saves first). */
   onSwap: (blockId: string, mode: SwapMode) => Promise<void>
-}
-
-function clampMarks(raw: string): number | null {
-  if (raw.trim() === '') return null
-  const n = Math.round(Number(raw))
-  if (!Number.isFinite(n)) return null
-  return Math.min(100, Math.max(0, n))
+  /** The question was deleted from its menu or with Del (EXA-161: the page offers Undo). */
+  onDeleted: () => void
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string) {
@@ -55,7 +54,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
   },
 
   addOptions() {
-    return { onAddBelow: () => {}, onSwap: async () => {} }
+    return { onAddBelow: () => {}, onSwap: async () => {}, onDeleted: () => {} }
   },
 
   addAttributes() {
@@ -133,9 +132,14 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
 
       const dom = el('div', 'qblock ffblock')
       dom.setAttribute('data-block-id', String(node.attrs.block_id))
+      // One group per question (EXA-161). Not focusable itself: the caret in its text selects it
+      // (a tabindex here would take focus away from the editor while typing).
+      dom.setAttribute('role', 'group')
       const num = el('div', 'ff-num')
-      num.contentEditable = 'false'
-      num.setAttribute('aria-hidden', 'true')
+      num.setAttribute('contenteditable', 'false')
+      const badgeHost = el('span', 'ff-badge')
+      num.append(badgeHost)
+      const badge = mount(LockBadge, { target: badgeHost })
 
       const main = el('div', 'ff-main')
       const row = el('div', 'ff-row')
@@ -148,63 +152,9 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       const hint = el('p', 'ff-placeholder-hint')
       hint.contentEditable = 'false'
 
-      const bar = el('div', 'ff-bar')
-      bar.contentEditable = 'false'
-      bar.setAttribute('role', 'group')
-      bar.setAttribute('aria-label', 'question tools')
-      const label = el('label', 'ff-marks-field')
-      label.append('Marks ')
-      const input = el('input', 'ff-marks-input')
-      input.type = 'number'
-      input.min = '0'
-      input.max = '100'
-      input.setAttribute('aria-label', 'Marks')
-      label.append(input)
-      const button = (text: string, onClick: () => void, extra = '', aria?: string) => {
-        const b = el('button', extra, text)
-        b.type = 'button'
-        if (aria) {
-          b.setAttribute('aria-label', aria)
-          b.title = aria
-        }
-        b.addEventListener('click', onClick)
-        return b
-      }
-      const spacer = el('span', 'ff-spacer')
-      const totalEl = el('span', 'ff-total')
-      const addPartBtn = button('+ Add part', () => addPart(), '', 'Add a lettered part')
-      // P8d: a generated placeholder can be filled by the generator, and locked.
-      const fill = (mode: SwapMode, b: () => HTMLButtonElement) => () => {
-        b().disabled = true
-        void options.onSwap(String(current.attrs.block_id), mode).finally(() => (b().disabled = false))
-      }
-      const fillBtn = button('Fill with a question', fill('like', () => fillBtn))
-      fillBtn.title = 'Let the generator put a question with these marks here'
-      const topicBtn = button('Another topic', fill('topic', () => topicBtn))
-      topicBtn.title = 'Fill it with a question from a topic this paper uses less'
-      const lockBtn = button('Lock', () => setLayout({ locked: current.attrs.locked !== true }), 'ff-lock')
-      bar.append(
-        label,
-        totalEl,
-        fillBtn,
-        topicBtn,
-        lockBtn,
-        spacer,
-        button('↑', () => moveBlock(editor, pos(), current.nodeSize, -1), '', 'Move up'),
-        button('↓', () => moveBlock(editor, pos(), current.nodeSize, 1), '', 'Move down'),
-        addPartBtn,
-        button('+ Add below', () => options.onAddBelow(pos() + current.nodeSize)),
-        button(
-          'Delete',
-          () =>
-            editor
-              .chain()
-              .focus()
-              .deleteRange({ from: pos(), to: pos() + current.nodeSize })
-              .run(),
-          'danger',
-        ),
-      )
+      // The block's controls (QuestionBar): nothing at rest, a pill when selected.
+      const barHost = el('div', 'qbar-host')
+      barHost.setAttribute('contenteditable', 'false')
 
       const parts = () => {
         const out: Array<{ marks: number }> = []
@@ -238,17 +188,10 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         editor.view.focus()
       }
 
-      input.addEventListener('change', () => {
-        const marks = clampMarks(input.value)
-        const { tr } = editor.state
-        tr.setNodeMarkup(pos(), undefined, { ...current.attrs, marks })
-        editor.view.dispatch(tr)
-      })
-
       const areaHost = el('div', 'ff-area')
       areaHost.contentEditable = 'false'
-      main.append(hint, row, areaHost, bar)
-      dom.append(num, main)
+      main.append(hint, row, areaHost)
+      dom.append(num, main, barHost)
 
       const setLayout = (patch: Record<string, unknown>) => {
         const { tr } = editor.state
@@ -271,6 +214,90 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
           onUnit: (u: string) => setLayout({ ans_unit: u }),
         },
       })
+      const place = { current: NOWHERE }
+      const barState = writable(barProps())
+      const bar = mount(FreeformBar, {
+        target: barHost,
+        props: {
+          host: dom,
+          state: { subscribe: barState.subscribe },
+          onAction: (a: QuestionAction) => act(a),
+          onMarks: (marks: number | null) => setLayout({ marks }),
+        },
+      })
+      const stopPlace = trackPlace(editor, getPos, (p) => {
+        place.current = p
+        if (ready) sync()
+      })
+
+      function slotOf() {
+        return current.attrs.slot as { kind?: string; placeholder?: boolean } | null
+      }
+      function waiting() {
+        // Same rule as the "to write" count: anything in the stem or a part means it's written.
+        return !!slotOf()?.placeholder && !hasContent(current.toJSON().content)
+      }
+      function facts(): QuestionFacts {
+        const locked = current.attrs.locked === true
+        return {
+          kind: waiting() ? 'placeholder' : 'own',
+          locked,
+          lockable: !!slotOf(),
+          inKey: current.attrs.in_key !== false,
+          ops: [],
+          canEditNames: false,
+          canAddPart: !waiting() && parts().length < MAX_PARTS,
+          canMoveUp: place.current.canMoveUp,
+          canMoveDown: place.current.canMoveDown,
+        }
+      }
+      function barProps() {
+        const ps = parts()
+        const multi = ps.length > 0
+        return {
+          facts: facts(),
+          number: place.current.number,
+          selected: place.current.selected,
+          marks: (current.attrs.marks as number | null) ?? null,
+          showMarks: !multi && !waiting(),
+          summary: multi
+            ? `${ps.length} part${ps.length === 1 ? '' : 's'} · ${ps.reduce((n, p) => n + p.marks, 0)} marks`
+            : '',
+        }
+      }
+      let swapping = false
+      function swap(mode: SwapMode) {
+        if (swapping) return
+        swapping = true
+        void options.onSwap(String(current.attrs.block_id), mode).finally(() => (swapping = false))
+      }
+      function act(action: QuestionAction) {
+        switch (action) {
+          case 'fill':
+          case 'like':
+            return swap('like')
+          case 'topic':
+            return swap('topic')
+          case 'addPart':
+            return addPart()
+          case 'lock':
+            return setLayout({ locked: current.attrs.locked !== true })
+          case 'key':
+            return setLayout({ in_key: current.attrs.in_key === false })
+          case 'up':
+          case 'down':
+            moveBlock(editor, pos(), current.nodeSize, action === 'up' ? -1 : 1)
+            return
+          case 'addBelow':
+            return options.onAddBelow(pos() + current.nodeSize)
+          case 'delete': {
+            const from = pos()
+            editor.chain().focus().deleteRange({ from, to: from + current.nodeSize }).run()
+            return options.onDeleted()
+          }
+        }
+      }
+
       function areaProps() {
         const l = layoutOf(current.attrs)
         return {
@@ -284,36 +311,25 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       const sync = () => {
         const ps = parts()
         const multi = ps.length > 0
-        const slot = current.attrs.slot as { kind?: string; placeholder?: boolean } | null
-        // Same rule as the "to write" count: anything in the stem or a part means it's written.
-        const waiting = !!slot?.placeholder && !hasContent(current.toJSON().content)
-        hint.hidden = !waiting
+        const slot = slotOf()
+        const isWaiting = waiting()
+        hint.hidden = !isWaiting
         const locked = current.attrs.locked === true
-        for (const b of [fillBtn, topicBtn]) {
-          b.hidden = !waiting
-          b.disabled = locked
-        }
-        lockBtn.hidden = !slot
-        lockBtn.textContent = locked ? 'Locked' : 'Lock'
-        lockBtn.setAttribute('aria-pressed', String(locked))
-        lockBtn.title = locked
-          ? 'Locked: kept when you regenerate the paper'
-          : 'Keep this question when you regenerate the paper'
-        dom.classList.toggle('placeholder-slot', waiting)
-        if (waiting) {
+        badgeHost.hidden = !locked
+        dom.classList.toggle('placeholder-slot', isWaiting)
+        if (isWaiting) {
           const kind = slot?.kind === 'mcq' ? 'multiple-choice' : slot?.kind === 'structured' ? 'structured' : 'short-answer'
           const marks = multi ? ps.reduce((n, p) => n + p.marks, 0) : (current.attrs.marks as number | null)
           hint.textContent = `Placeholder: write a ${marks ? `${marks}-mark ` : ''}${kind} question here, or delete it and add one.`
         }
         dom.classList.toggle('multipart', multi)
         // With parts the marks are the parts' sum and the question has no answer area of its own.
-        label.hidden = multi
         areaHost.hidden = multi
         marksEl.hidden = multi
-        totalEl.textContent = multi
-          ? `${ps.length} part${ps.length === 1 ? '' : 's'} · ${ps.reduce((n, p) => n + p.marks, 0)} marks`
-          : ''
-        addPartBtn.disabled = ps.length >= MAX_PARTS
+        const total = multi ? ps.reduce((n, p) => n + p.marks, 0) : ((current.attrs.marks as number | null) ?? null)
+        const f = facts()
+        dom.setAttribute('aria-label', blockLabel(place.current.number, total, f))
+        barState.set(barProps())
         // Parts are lettered by position: relabel after any change to the siblings.
         // (After ProseMirror has patched the parts' DOM, which happens once update() returns.)
         queueMicrotask(() =>
@@ -322,7 +338,6 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         const marks = current.attrs.marks as number | null
         marksEl.textContent =
           marks === null || marks === undefined || !marksBeside(tracker.current()) ? '' : `[${marks}]`
-        if (document.activeElement !== input) input.value = marks === null ? '' : String(marks)
       }
       sync()
       ready = true
@@ -342,10 +357,13 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         },
         destroy() {
           unsubscribe()
+          stopPlace()
           void unmount(area)
+          void unmount(bar)
+          void unmount(badge)
         },
-        // Clicks and typing in the toolbar are ours; the body is ProseMirror's.
-        stopEvent: (event) => bar.contains(event.target as globalThis.Node),
+        // Clicks and typing in the controls are ours; the body is ProseMirror's.
+        stopEvent: (event) => barHost.contains(event.target as globalThis.Node),
         ignoreMutation: (m) => !contentDOM.contains(m.target),
       }
     }

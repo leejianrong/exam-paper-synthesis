@@ -3,6 +3,7 @@
 // integration the plan flagged as a spike (Svelte 5 inside a ProseMirror node view).
 
 import { Node } from '@tiptap/core'
+import { NodeSelection, TextSelection } from '@tiptap/pm/state'
 import type { NodeViewRendererProps } from '@tiptap/core'
 import { mount, unmount } from 'svelte'
 import { writable } from 'svelte/store'
@@ -15,6 +16,7 @@ import { isGeneratedPosition } from './paperOps'
 import { layoutOf, type BlockLayout } from './layout'
 import { trackPlacement } from './sections'
 import type { SectionPlacement } from './doc'
+import { NOWHERE, trackPlace, type BlockPlace } from './blockPlace'
 
 export interface TemplatedQuestionOptions {
   /** Open the "add question" picker to insert after the block at `pos`. */
@@ -23,6 +25,8 @@ export interface TemplatedQuestionOptions {
   onNotice: (message: string) => void
   /** P8d: ask the server for another question in this block's place (the page saves first). */
   onSwap: (blockId: string, mode: SwapMode) => Promise<void>
+  /** A question was deleted from its menu or with Del (EXA-161: the page offers Undo). */
+  onDeleted: () => void
 }
 
 export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
@@ -33,7 +37,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
   draggable: false,
 
   addOptions() {
-    return { onAddBelow: () => {}, onNotice: () => {}, onSwap: async () => {} }
+    return { onAddBelow: () => {}, onNotice: () => {}, onSwap: async () => {}, onDeleted: () => {} }
   },
 
   addAttributes() {
@@ -63,12 +67,18 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
       const dom = document.createElement('div')
       dom.className = 'qblock'
       dom.setAttribute('data-block-id', String(node.attrs.block_id))
+      // A question is one focusable group (EXA-161): focusing it shows its controls.
+      dom.tabIndex = 0
+      dom.setAttribute('role', 'group')
+      dom.setAttribute('contenteditable', 'false') // an atom: keys on it are the block's, not typing
 
       const store = writable<Question>(node.attrs.question as Question)
       const layout = writable<BlockLayout>(layoutOf(node.attrs))
       const paperSlot = writable<PaperSlot>(slotOf(node.attrs))
       const placement = writable<SectionPlacement>('answer')
       const tracker = trackPlacement(editor, getPos, (p) => placement.set(p))
+      const place = writable<BlockPlace>(NOWHERE)
+      const stopPlace = trackPlace(editor, getPos, (p) => place.set(p))
       let current = node // the live node: attrs the inspector sets (remark) must survive edits here
       let latest = node.attrs.question as Question
       const store_value = () => latest
@@ -84,6 +94,8 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
           layout: { subscribe: layout.subscribe },
           paperSlot: { subscribe: paperSlot.subscribe },
           placement: { subscribe: placement.subscribe },
+          place: { subscribe: place.subscribe },
+          host: dom,
           ctx: {
             replace: (q: Question) => {
               const { tr } = editor.state
@@ -102,11 +114,13 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
               editor.view.dispatch(tr)
             },
             remove: () => {
+              const from = pos()
               editor
                 .chain()
                 .focus()
-                .deleteRange({ from: pos(), to: pos() + node.nodeSize })
+                .deleteRange({ from, to: from + current.nodeSize })
                 .run()
+              options.onDeleted()
             },
             swap: (mode: SwapMode) => options.onSwap(String(current.attrs.block_id), mode),
             setLocked: (locked: boolean) => {
@@ -114,8 +128,16 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
               tr.setNodeMarkup(pos(), undefined, { ...current.attrs, locked })
               editor.view.dispatch(tr)
             },
-            move: (dir: -1 | 1) => moveBlock(editor, pos(), node.nodeSize, dir),
-            addBelow: () => options.onAddBelow(pos() + node.nodeSize),
+            setInKey: (in_key: boolean) => {
+              const { tr } = editor.state
+              tr.setNodeMarkup(pos(), undefined, { ...current.attrs, in_key })
+              editor.view.dispatch(tr)
+            },
+            move: (dir: -1 | 1) => {
+              moveBlock(editor, pos(), current.nodeSize, dir)
+              refocus(dom)
+            },
+            addBelow: () => options.onAddBelow(pos() + current.nodeSize),
             // Tier 3 (ADR-0021): the block becomes teacher-owned text, one undo step.
             convert: async () => {
               const out = await convertToFreeform(store_value())
@@ -132,10 +154,10 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
               }
               const { tr, schema } = editor.state
               const from = pos()
-              tr.replaceWith(from, from + node.nodeSize, schema.nodeFromJSON(json))
+              tr.replaceWith(from, from + current.nodeSize, schema.nodeFromJSON(json))
               editor.view.dispatch(tr)
               if (out.dropped.length) {
-                options.onNotice(`Converted to free-form. Not included: ${out.dropped.join('; ')}.`)
+                options.onNotice(`Now your own text. Not included: ${out.dropped.join('; ')}.`)
               }
             },
           },
@@ -159,6 +181,7 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
         ignoreMutation: () => true,
         destroy() {
           tracker.destroy()
+          stopPlace()
           void unmount(component)
         },
       }
@@ -170,6 +193,8 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
 export interface PaperSlot {
   generated: boolean
   locked: boolean
+  /** In the answer key (P5's in_key). */
+  inKey: boolean
 }
 
 export function slotOf(attrs: Record<string, unknown>): PaperSlot {
@@ -178,17 +203,30 @@ export function slotOf(attrs: Record<string, unknown>): PaperSlot {
   return {
     generated: isGeneratedPosition({ type: 'templatedQuestion', attrs }),
     locked: attrs.locked === true,
+    inKey: attrs.in_key !== false,
   }
 }
 
-/** Swap a block with its previous/next sibling. */
+/** After a move ProseMirror redraws the block: keep keyboard focus on it (Alt+↑ again moves on). */
+export function refocus(dom: HTMLElement) {
+  const blockId = dom.getAttribute('data-block-id')
+  queueMicrotask(() => {
+    const target = dom.isConnected
+      ? dom
+      : document.querySelector<HTMLElement>(`[data-block-id="${blockId}"]`)
+    if (target && target.tabIndex >= 0) target.focus()
+  })
+}
+
+/** Swap a block with its previous/next sibling. A selection on or in the block moves with it,
+ *  so Alt+↑ pressed again keeps moving the same question (EXA-161). */
 export function moveBlock(
   editor: NodeViewRendererProps['editor'],
   pos: number,
   size: number,
   dir: -1 | 1,
 ) {
-  const { doc, tr } = editor.state
+  const { doc, tr, selection } = editor.state
   const $pos = doc.resolve(pos)
   const index = $pos.index()
   const parent = $pos.parent
@@ -196,13 +234,23 @@ export function moveBlock(
   if (target < 0 || target >= parent.childCount) return
   const node = parent.child(index)
   const sibling = parent.child(target)
+  let to: number
   if (dir === -1) {
-    const from = pos - sibling.nodeSize
-    tr.delete(pos, pos + size).insert(from, node)
+    to = pos - sibling.nodeSize
+    tr.delete(pos, pos + size).insert(to, node)
   } else {
+    to = pos + sibling.nodeSize
     tr.insert(pos + size + sibling.nodeSize, node).delete(pos, pos + size)
   }
-  editor.view.dispatch(tr)
+  if (selection.from >= pos && selection.to <= pos + size) {
+    const shift = to - pos
+    tr.setSelection(
+      selection instanceof NodeSelection
+        ? NodeSelection.create(tr.doc, selection.from + shift)
+        : TextSelection.create(tr.doc, selection.anchor + shift, selection.head + shift),
+    )
+  }
+  editor.view.dispatch(tr.scrollIntoView())
 }
 
 /** Build the node JSON for a freshly inserted question. */

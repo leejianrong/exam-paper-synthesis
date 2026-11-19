@@ -68,6 +68,7 @@
   import { Section, outline } from './sections'
   import { loadQuota, type Quota } from '../session'
   import { TemplatedQuestion, questionNode } from './templatedQuestion'
+  import { BlockShortcuts } from './shortcuts'
 
   export let id: string
 
@@ -85,6 +86,9 @@
   let busy = ''
   let actionError = ''
   let notice = ''
+  /** EXA-161: a question was just deleted; the toast offers the editor's undo. */
+  let deleted = false
+  let deletedTimer: ReturnType<typeof setTimeout> | undefined
   /** EXA-137: the export refused a paper with empty placeholders; ask before printing it. */
   let unfilled: { mode: ExportMode; questions: number[] } | null = null
   let quota: Quota | null = null
@@ -245,14 +249,17 @@
           CoverPage,
           BlankPage,
           BlockSelectionGuard,
+          BlockShortcuts,
           FreeformQuestion.configure({
             onAddBelow: (pos: number) => (pickerAt = pos),
             onSwap: swapBlock,
+            onDeleted: questionDeleted,
           }),
           TemplatedQuestion.configure({
             onAddBelow: (pos: number) => (pickerAt = pos),
             onNotice: (m: string) => (notice = m),
             onSwap: swapBlock,
+            onDeleted: questionDeleted,
           }),
         ],
         content: rec.document.content,
@@ -278,6 +285,7 @@
   })
 
   onDestroy(() => {
+    clearTimeout(deletedTimer)
     void autosaver?.flush()
     unsubscribe?.()
     editor?.destroy()
@@ -296,6 +304,18 @@
     if (!(state.selection instanceof NodeSelection)) return
     const sel = TextSelection.findFrom(state.doc.resolve(state.doc.content.size), -1, true)
     if (sel) ed.view.dispatch(state.tr.setSelection(sel))
+  }
+
+  function questionDeleted() {
+    deleted = true
+    clearTimeout(deletedTimer)
+    deletedTimer = setTimeout(() => (deleted = false), 8000)
+  }
+
+  function undoDelete() {
+    deleted = false
+    clearTimeout(deletedTimer)
+    editor?.chain().focus().undo().run()
   }
 
   function trackBlock(e: Event) {
@@ -735,6 +755,12 @@
   </p>
 {/if}
 
+{#if deleted}
+  <div class="toast" role="status">
+    Question deleted · <button on:click={undoDelete}>Undo</button>
+  </div>
+{/if}
+
 {#if loading}
   <p class="loading">Loading…</p>
 {:else if loadError}
@@ -1034,6 +1060,36 @@
     background: var(--wash);
     color: var(--ink-soft);
   }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: var(--s6);
+    z-index: 50;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: var(--s2) var(--s2) var(--s2) var(--s4);
+    background: var(--ink);
+    color: var(--on-accent);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow);
+    font-size: 13.5px;
+  }
+  .toast button {
+    font: inherit;
+    font-weight: 600;
+    padding: 4px var(--s2);
+    border: 0;
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--on-accent);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .toast button:hover {
+    background: color-mix(in srgb, var(--on-accent) 15%, transparent);
+  }
   .loading {
     text-align: center;
     color: var(--ink-faint);
@@ -1128,21 +1184,40 @@
     counter-reset: q var(--q-start, 0);
     font-family: var(--serif);
   }
+  /* A question block (EXA-161): nothing at rest, a faint wash on hover, a green edge and ring
+     when selected (QuestionBar sets .is-active). The ⋮⋮ handle sits in the left gutter. */
   .surface :global(.qblock) {
     counter-increment: q;
+    position: relative;
+    padding: var(--s3) var(--s3) var(--s3) var(--s2);
+    margin: 0 -14px var(--s2);
+    border: 1px solid transparent;
+    border-radius: var(--r-md);
+  }
+  .surface :global(.qblock:hover) {
+    background: color-mix(in srgb, var(--wash) 60%, transparent);
+  }
+  .surface :global(.qblock.is-active) {
+    border-color: var(--verify);
+    background: var(--page);
+    box-shadow: 0 0 0 3px var(--verify-soft);
+  }
+  .surface :global(.qblock:focus-visible) {
+    outline: none; /* .is-active is the focus ring */
+  }
+  .surface :global(.qblock.ProseMirror-selectednode) {
+    outline: none;
   }
   .surface :global(.ffblock) {
     display: grid;
     grid-template-columns: 2rem 1fr;
     gap: 0.25rem;
-    padding: 0.6rem 0.4rem;
-    border: 1px solid transparent;
-    border-radius: 8px;
   }
-  .surface :global(.ffblock:hover),
-  .surface :global(.ffblock:focus-within) {
-    border-color: var(--line);
-    background: var(--wash);
+  .surface :global(.ff-num) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
   .surface :global(.ff-num::before) {
     content: counter(q) '.';
@@ -1171,53 +1246,6 @@
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--mark);
-  }
-  .surface :global(.ff-bar) {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.3rem;
-    margin-top: 0.4rem;
-    opacity: 0;
-    transition: opacity 0.12s;
-    font-family: var(--sans);
-    font-size: 12px;
-  }
-  .surface :global(.ffblock:hover .ff-bar),
-  .surface :global(.ffblock:focus-within .ff-bar) {
-    opacity: 1;
-  }
-  .surface :global(.ff-spacer) {
-    flex: 1;
-  }
-  .surface :global(.ff-marks-input) {
-    width: 3.6rem;
-    font: inherit;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 0.15rem 0.3rem;
-    background: var(--paper);
-    color: var(--ink);
-  }
-  .surface :global(.ff-bar button) {
-    font: inherit;
-    border: 1px solid var(--line);
-    background: var(--paper);
-    color: var(--ink);
-    border-radius: 6px;
-    padding: 0.2rem 0.55rem;
-    cursor: pointer;
-  }
-  .surface :global(.ff-bar button.danger) {
-    color: var(--mark);
-  }
-  .surface :global(.ff-bar button:disabled) {
-    opacity: 0.5;
-    cursor: default;
-  }
-  .surface :global(.ff-bar button.ff-lock[aria-pressed='true']) {
-    background: var(--paper-sink);
-    font-weight: 600;
   }
   .surface :global(.doc-image-node) {
     margin: 0.5rem 0;

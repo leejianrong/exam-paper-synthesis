@@ -37,6 +37,7 @@
     triggerTitle,
     disabled = false,
     menuLabel,
+    onOpenChange,
   }: {
     items: MenuItem[]
     /** The trigger's accessible name when its content is an icon or not the whole story. */
@@ -52,6 +53,8 @@
     disabled?: boolean
     /** The menu's accessible name; defaults to the trigger's. */
     menuLabel?: string
+    /** Told when the menu opens or closes (e.g. a block keeps its toolbar while it's open). */
+    onOpenChange?: (open: boolean) => void
   } = $props()
 
   const uid = `menu-${Math.random().toString(36).slice(2, 9)}`
@@ -59,6 +62,15 @@
   let button: HTMLButtonElement | undefined = $state()
   let root: HTMLElement | undefined = $state()
   let rows: HTMLButtonElement[] = $state([])
+
+  /** "Alt+↑" as ARIA names keys ("Alt+ArrowUp"); the row's name stays its label. */
+  function ariaKeys(shortcut: string): string {
+    const names: Record<string, string> = { '↑': 'ArrowUp', '↓': 'ArrowDown', '↵': 'Enter', Del: 'Delete', Ctrl: 'Control' }
+    return shortcut
+      .split('+')
+      .map((k) => names[k] ?? k)
+      .join('+')
+  }
 
   function focusItem(i: number) {
     const n = items.length
@@ -72,6 +84,7 @@
 
   async function show(at: 'first' | 'last') {
     open = true
+    onOpenChange?.(true)
     await tick() // the rows mount
     focusItem(at === 'first' ? 0 : items.length - 1)
   }
@@ -79,7 +92,13 @@
   function close(refocus: boolean) {
     if (!open) return
     open = false
+    onOpenChange?.(false)
     if (refocus) button?.focus()
+  }
+
+  /** Open from elsewhere: a right-click, Shift+F10 or a drag handle (EXA-161). */
+  export function openMenu(at: 'first' | 'last' = 'first') {
+    if (!open) void show(at)
   }
 
   function onTriggerClick() {
@@ -189,11 +208,12 @@
             class:danger={item.danger}
             aria-disabled={item.disabled ? 'true' : undefined}
             title={item.hint}
+            aria-keyshortcuts={item.shortcut ? ariaKeys(item.shortcut) : undefined}
             onclick={() => choose(item)}
           >
             {#if item.icon}<Icon name={item.icon} />{/if}
             <span class="label">{item.label}</span>
-            {#if item.shortcut}<span class="k">{item.shortcut}</span>{/if}
+            {#if item.shortcut}<span class="k" aria-hidden="true">{item.shortcut}</span>{/if}
           </button>
         {/each}
       </div>

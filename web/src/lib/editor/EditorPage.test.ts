@@ -3,6 +3,7 @@ import { createEvent, fireEvent, render, screen, waitFor, within } from '@testin
 import EditorPage from './EditorPage.svelte'
 import { freeformDocNode, makeQuestion } from './fixtures'
 import { questionNode } from './templatedQuestion'
+import { chooseFromMenu, pillButton, selectBlock } from './blockTesting'
 
 // Driven through the real docsApi with fetch stubbed.
 const fetchMock = vi.fn()
@@ -56,6 +57,27 @@ describe('EditorPage', () => {
     expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*6 marks\s*$/)
     expect(screen.getByRole('status')).toHaveTextContent('Saved')
     expect(screen.getByRole('button', { name: 'Add question' })).toBeInTheDocument()
+  })
+
+  it('deleting a question offers Undo instead of a confirmation (EXA-161)', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => record([questionNode(makeQuestion({ id: 'a' }, 'Keep me.')), questionNode(makeQuestion({ id: 'b' }, 'Delete me.'))]),
+    })
+    render(EditorPage, { props: { id: 'd1' } })
+    const doomed = (await screen.findByText('Delete me.')).closest('.qblock') as HTMLElement
+    doomed.focus()
+    await fireEvent.keyDown(doomed, { key: 'Delete' })
+    await waitFor(() => expect(screen.queryByText('Delete me.')).toBeNull())
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    const toast = screen.getByText(/Question deleted/).closest('[role="status"]') as HTMLElement
+    expect(toast).toHaveTextContent('Question deleted · Undo')
+    expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*3 marks\s*$/)
+    await fireEvent.click(within(toast).getByRole('button', { name: 'Undo' }))
+    expect(await screen.findByText('Delete me.')).toBeInTheDocument()
+    expect(screen.getAllByTestId('question-block')).toHaveLength(2)
+    expect(screen.queryByText(/Question deleted/)).toBeNull()
   })
 
   it('says so when the paper does not exist', async () => {
@@ -134,6 +156,8 @@ describe('EditorPage', () => {
 
     it('the marks field updates the page bracket and the total', async () => {
       await load([freeformDocNode({ marks: 2 })])
+      // the marks field sits in the question's pill (EXA-161), shown when it is selected
+      await selectBlock(await waitFor(() => document.querySelector('.ffblock') as HTMLElement))
       const input = (await screen.findByLabelText('Marks')) as HTMLInputElement
       input.value = '5'
       await fireEvent.change(input)
@@ -148,7 +172,7 @@ describe('EditorPage', () => {
     it('"Add question → Free-form" inserts an empty block', async () => {
       await load([])
       await fireEvent.click(screen.getByRole('button', { name: 'Add question' }))
-      await fireEvent.click(screen.getByRole('tab', { name: 'Free-form' }))
+      await fireEvent.click(screen.getByRole('tab', { name: 'Write my own' }))
       await waitFor(() => expect(document.querySelectorAll('.ffblock')).toHaveLength(1))
       expect(screen.queryByRole('dialog', { name: 'Add question' })).not.toBeInTheDocument()
       expect(document.querySelectorAll('.entry.freeform')).toHaveLength(1)
@@ -257,6 +281,14 @@ describe('EditorPage convert to free-form (W2c)', () => {
     dropped,
   })
 
+  /** "Edit as my own text…" from the question's menu, then the confirmation (EXA-161). */
+  const convert = async () => {
+    await chooseFromMenu(screen.getByTestId('question-block'), 'Edit as my own text…')
+    const dialog = await screen.findByRole('alertdialog', { name: 'Edit as your own text?' })
+    expect(dialog).toHaveTextContent("won't be checked by the engine any more")
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Edit as my own text' }))
+  }
+
   const load = async (convert: () => unknown) => {
     fetchMock.mockImplementation(async (url: string) => {
       if (String(url).endsWith('/convert/freeform')) return convert()
@@ -273,7 +305,7 @@ describe('EditorPage convert to free-form (W2c)', () => {
 
   it('replaces the generated block with an editable free-form one (marks, text, answer)', async () => {
     await load(() => ({ ok: true, status: 200, json: async () => conversion() }))
-    await fireEvent.click(screen.getByRole('button', { name: 'Convert to free-form' }))
+    await convert()
 
     await waitFor(() => expect(document.querySelector('.ffblock')).toBeTruthy())
     expect(screen.queryByTestId('question-block')).toBeNull()
@@ -286,13 +318,13 @@ describe('EditorPage convert to free-form (W2c)', () => {
 
   it('names the figures it had to drop', async () => {
     await load(() => ({ ok: true, status: 200, json: async () => conversion(['figure (could not be drawn)']) }))
-    await fireEvent.click(screen.getByRole('button', { name: 'Convert to free-form' }))
+    await convert()
     expect(await screen.findByText(/Not included: figure \(could not be drawn\)/)).toBeInTheDocument()
   })
 
   it('leaves the block alone and says why when the conversion fails', async () => {
     await load(() => ({ ok: false, status: 500, text: async () => 'boom' }))
-    await fireEvent.click(screen.getByRole('button', { name: 'Convert to free-form' }))
+    await convert()
     expect(await screen.findByRole('alert')).toHaveTextContent('API 500')
     expect(screen.getByTestId('question-block')).toBeInTheDocument()
     expect(document.querySelector('.ffblock')).toBeNull()
@@ -300,7 +332,7 @@ describe('EditorPage convert to free-form (W2c)', () => {
 
   it('undo restores the generated block', async () => {
     await load(() => ({ ok: true, status: 200, json: async () => conversion() }))
-    await fireEvent.click(screen.getByRole('button', { name: 'Convert to free-form' }))
+    await convert()
     await waitFor(() => expect(document.querySelector('.ffblock')).toBeTruthy())
     await fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
     await waitFor(() => expect(screen.getByTestId('question-block')).toBeInTheDocument())
@@ -619,13 +651,14 @@ describe('multi-part free-form questions (P3)', () => {
   it('adds lettered parts, each with its own marks and answer area; the total is their sum', async () => {
     renderFreeform()
     await waitFor(() => expect(document.querySelector('.ff-body')).not.toBeNull())
-    const add = await screen.findByRole('button', { name: 'Add a lettered part' })
-    await fireEvent.click(add)
-    await fireEvent.click(add)
+    const ff = document.querySelector('.ffblock') as HTMLElement
+    await fireEvent.click(await pillButton(ff, 'Part'))
+    await fireEvent.click(await pillButton(ff, 'Part'))
     await waitFor(() => expect(labels()).toEqual(['(a)', '(b)']))
     expect(document.querySelectorAll('.ffpart [data-testid=answer-area]')).toHaveLength(2)
     // The question's own marks and answer area give way to the parts'.
     expect(document.querySelector('.ffblock > .ff-main > .ff-area')).toHaveProperty('hidden', true)
+    await selectBlock(ff)
     await waitFor(() => expect(screen.getByText('2 parts · 3 marks')).toBeInTheDocument())
     const inputs = screen.getAllByLabelText('Part marks') as HTMLInputElement[]
     inputs[0].value = '3'

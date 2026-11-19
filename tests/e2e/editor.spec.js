@@ -191,7 +191,7 @@ test('write a free-form question, set marks, write its answer, reload, preview a
 
   await addQuestion(page)
   await page.getByRole('button', { name: 'Add question' }).click()
-  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
+  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Write my own' }).click()
 
   // The caret is already in the new block: just type the question.
   const block = page.locator('.ffblock')
@@ -236,7 +236,7 @@ test('a multi-part free-form question: lettered parts with marks, answers, reloa
   await page.getByLabel('Paper title').fill('Multi-part Paper')
 
   await page.getByRole('button', { name: 'Add question' }).click()
-  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
+  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Write my own' }).click()
   const block = page.locator('.ffblock')
   await expect(block).toHaveCount(1)
   await page.keyboard.type('A tank is 40 cm by 25 cm by 30 cm.')
@@ -292,7 +292,7 @@ test('a free-form question with a PNG figure and an equation survives reload and
   await page.getByLabel('Paper title').fill('Figures Paper')
 
   await page.getByRole('button', { name: 'Add question' }).click()
-  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
+  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Write my own' }).click()
   await page.keyboard.type('Find the value of ')
   await expect(page.locator('.ffblock .ff-body')).toContainText('Find the value of')
 
@@ -448,7 +448,7 @@ test('typing "1. " makes a numbered list that still saves (editor-only attribute
   await newBlankPaper(page)
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   await page.getByRole('button', { name: 'Add question' }).click()
-  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
+  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Write my own' }).click()
   await page.keyboard.type('Which are prime?')
   await page.keyboard.press('Enter')
   await page.keyboard.type('1. Two')

@@ -11,7 +11,7 @@ import { API } from './ports.js'
  */
 async function addFreeform(page, text, marks) {
   await page.getByRole('button', { name: 'Add question' }).click()
-  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Free-form' }).click()
+  await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Write my own' }).click()
   await page.keyboard.type(text)
   const block = page.locator('.ffblock').last()
   await block.getByLabel('Marks').fill(String(marks))

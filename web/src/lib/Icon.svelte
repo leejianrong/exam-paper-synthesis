@@ -23,12 +23,24 @@
     download: ['M8 2.5v8', 'M4.5 7 8 10.5 11.5 7', 'M3 13.5h10'],
     signout: ['M6 2.5H3.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1H6', 'M10.5 11 13.5 8l-3-3', 'M13.5 8H6'],
     trash: ['M3 4.5h10', 'M6.5 4.5V3h3v1.5', 'M4.5 4.5l.6 8.5h5.8l.6-8.5'],
+    // the question bar and its menu (EXA-161)
+    lock: ['M5 7h6a1.5 1.5 0 0 1 1.5 1.5V12A1.5 1.5 0 0 1 11 13.5H5A1.5 1.5 0 0 1 3.5 12V8.5A1.5 1.5 0 0 1 5 7z', 'M5.5 7V5a2.5 2.5 0 0 1 5 0v2'],
+    unlock: ['M5 7h6a1.5 1.5 0 0 1 1.5 1.5V12A1.5 1.5 0 0 1 11 13.5H5A1.5 1.5 0 0 1 3.5 12V8.5A1.5 1.5 0 0 1 5 7z', 'M5.5 7V5a2.5 2.5 0 0 1 4.9-.7'],
+    topic: ['M3 4h10', 'M3 8h6', 'M3 12h8'],
+    easier: ['M8 3v10', 'M4 9l4 4 4-4'],
+    harder: ['M8 13V3', 'M4 7l4-4 4 4'],
+    names: ['M10.5 5.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z', 'M3 13.5a5 5 0 0 1 10 0'],
+    key: ['M7.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z', 'M7.5 8h6', 'M11.5 8v2.5'],
+    pen: ['m10.5 2.5 3 3L6 13H3v-3z'],
+    text: ['M3 4V3h10v1', 'M8 3v10', 'M6 13h4'],
+    part: ['M3 4h10', 'M3 8h4', 'M3 12h4', 'M11 9.5v5', 'M8.5 12h5'],
   }
   /** Drawn filled (dots), not stroked. */
   const DOTS: Record<string, Array<[number, number]>> = {
     more: [[3.5, 8], [8, 8], [12.5, 8]],
+    grip: [[6, 4], [10, 4], [6, 8], [10, 8], [6, 12], [10, 12]],
   }
-  export type IconName = keyof typeof P16 | 'more'
+  export type IconName = keyof typeof P16 | keyof typeof DOTS
 </script>
 
 <script lang="ts">
@@ -49,7 +61,7 @@
   focusable="false"
 >
   {#if DOTS[name]}
-    {#each DOTS[name] as [cx, cy] (cx)}<circle {cx} {cy} r="1" fill="currentColor" stroke="none" />{/each}
+    {#each DOTS[name] as [cx, cy] (`${cx},${cy}`)}<circle {cx} {cy} r="1" fill="currentColor" stroke="none" />{/each}
   {:else}
     {#each P16[name] ?? [] as d (d)}<path {d} />{/each}
   {/if}
