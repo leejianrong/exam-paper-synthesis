@@ -321,6 +321,35 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **A key on a selected block never replaces it (EXA-171).** With a question selected as a
+  block (by the arrow keys, or after a swap), a key that is not one of its shortcuts could take
+  the question's place, and Shift+Enter put a line break in place of any selected block. Now:
+  - A typed letter, digit or space on a selected question does nothing: there single keys are
+    commands (R, L, [, ]), so the other letters do nothing too rather than turning half a word
+    into text. The question's pill says once per selection "Press Enter to write below", then
+    fades.
+  - On a selected cover, section, blank page or figure a typed key starts a paragraph after
+    the block, as before.
+  - Enter and Shift+Enter on any selected top-level block, questions included, start a
+    paragraph after it. On a block selected below the top level (a part of a question, a
+    figure in its text) typing, Shift+Enter and pasted text do nothing; Enter there is
+    unchanged (nothing happens on a part).
+  - This holds however the text arrives: a key press (handled on keydown, ahead of the
+    editor's input rules and hard break), or `beforeinput` from dictation or a keyboard that
+    does not compose (on iOS the text is dropped on a question; Enter is left to ProseMirror's
+    own replay, so it adds one paragraph, not two).
+  - The exception is composition. An input method (IME) or a mobile keyboard that composes
+    words (Android's Gboard) cannot be stopped, so once composition starts the caret moves
+    into a new paragraph after the block and the composed text lands there, also on a
+    question. A dead key alone moves nothing; only the composition it starts does.
+  - Ctrl/Cmd+Enter with a block selected adds a question and changes nothing else (the
+    editor's Mod-Enter hard break no longer reaches the block); inside a question it is the
+    question's own.
+  - Unchanged: text selections, keys in a control inside a block (a select's type-ahead), the
+    block shortcuts, Alt+Enter on a section or cover, Del, a drop, a paste on a selected
+    top-level block (it lands after the block), and a pasted picture alone, which the image
+    upload inserts as a figure next to the selection, never over the block.
+
 - **Web dependencies (Dependabot #207, re-applied on main).** Minor and patch bumps: TipTap
   3.34, Svelte 5.58, eslint-plugin-svelte, svelte-eslint-parser, globals, tslib, @tsconfig/svelte and raised floors
   for the dev tools the minimatch fix already moved. No version goes down; `npm audit` is clean.

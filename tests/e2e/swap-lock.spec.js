@@ -95,3 +95,30 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   expect(lockedAfter[0].attrs.question.id).toBe(lockedBefore[0].attrs.question.id)
   expect(lockedAfter[0].attrs.question.question).toEqual(lockedBefore[0].attrs.question.question)
 })
+
+test('typing on a selected question does nothing; Shift+Enter starts a paragraph after it (EXA-171)', async ({ page }) => {
+  await page.goto('/')
+  await generateSinglePaper(page, 'Paper 2', 'P6')
+  const blocks = page.getByTestId('question-block')
+  await expect(blocks.nth(16)).toBeVisible()
+  const third = blocks.nth(2)
+  await questionMenu(third, 'Another topic')
+  await expect(page.getByText(/Swapped in a/)).toBeVisible()
+  // the swap leaves the swapped question selected, with the editor focused
+  await expect(page.locator('.ProseMirror-selectednode')).toHaveCount(1)
+  const stem = await third.locator('.qbody').textContent()
+  const paras = page.locator('.surface .ProseMirror > p').filter({ hasText: /\S/ })
+  await page.keyboard.type('a7 ')
+  await page.keyboard.insertText('typed')
+  expect(await blocks.count()).toBe(17)
+  expect(await third.locator('.qbody').textContent()).toBe(stem)
+  await expect(page.locator('.ProseMirror-selectednode')).toHaveCount(1)
+  await expect(paras).toHaveCount(0)
+  // the pill says how to write below it
+  await expect(questionHost(third).getByRole('status')).toHaveText('Press Enter to write below')
+  // Shift+Enter is no hard break over the question: like Enter, a paragraph after it
+  await page.keyboard.press('Shift+Enter')
+  await page.keyboard.type('After it')
+  await expect(paras).toHaveText(['After it'])
+  expect(await blocks.count()).toBe(17)
+})
