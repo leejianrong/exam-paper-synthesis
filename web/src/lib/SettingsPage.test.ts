@@ -134,6 +134,85 @@ describe('SettingsPage: new papers (EXA-169)', () => {
   })
 })
 
+describe('SettingsPage: saving in order (EXA-169 review)', () => {
+  /** A PUT /settings the test answers by hand. */
+  function deferred() {
+    let answer!: (r: Response) => void
+    const promise = new Promise<Response>((r) => (answer = r))
+    return { promise, answer }
+  }
+  const echo = (init: RequestInit) => ({ ...(get(settings) ?? DEFAULT_SETTINGS), ...JSON.parse(String(init.body)) })
+
+  it('a level clicked while the school name is saving is kept, and saved after it', async () => {
+    settings.set({ ...DEFAULT_SETTINGS })
+    const first = deferred()
+    fetchMock
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementation((_u: string, init: RequestInit) => reply(echo(init)))
+    render(SettingsPage)
+    const school = screen.getByRole('textbox', { name: 'School name' })
+    await fireEvent.input(school, { target: { value: 'Example Primary School' } })
+    await fireEvent.change(school) // leaving the field saves it...
+    await fireEvent.blur(school)
+    const p5 = screen.getByRole('radio', { name: 'P5' })
+    expect(p5).toBeEnabled() // ...and the click on P5 that left it is not swallowed
+    await fireEvent.click(p5)
+    expect(fetchMock).toHaveBeenCalledTimes(1) // the level waits for the school name
+    first.answer(new Response(JSON.stringify({ ...DEFAULT_SETTINGS, school_name: 'Example Primary School' })))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ default_level: 'P5' })
+    await waitFor(() =>
+      expect(get(settings)).toMatchObject({ school_name: 'Example Primary School', default_level: 'P5' }),
+    )
+    expect(school).toHaveValue('Example Primary School')
+    expect(screen.getByRole('status')).toHaveTextContent('New papers are P5.')
+  })
+
+  it('a failed school save keeps what was typed; Try again saves it and shows what was stored', async () => {
+    settings.set({ ...DEFAULT_SETTINGS })
+    fetchMock
+      .mockImplementationOnce(() => Promise.reject(new TypeError('Failed to fetch')))
+      .mockImplementation((_u: string, init: RequestInit) => reply(echo(init)))
+    render(SettingsPage)
+    const school = screen.getByRole('textbox', { name: 'School name' })
+    await fireEvent.focus(school)
+    await fireEvent.input(school, { target: { value: 'Example Primary School  ' } })
+    await fireEvent.change(school)
+    await fireEvent.blur(school)
+    expect(await screen.findByRole('alert')).toHaveTextContent("The setting wasn't saved")
+    expect(school).toHaveValue('Example Primary School  ') // not wiped
+    await fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(get(settings)?.school_name).toBe('Example Primary School'))
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ school_name: 'Example Primary School' })
+    await waitFor(() => expect(school).toHaveValue('Example Primary School'))
+  })
+
+  it('fills the school name when a failed first load is retried', async () => {
+    vi.useFakeTimers()
+    try {
+      fetchMock
+        .mockImplementationOnce(() => reply({ detail: 'down' }, 500))
+        .mockImplementation(() => reply({ ...DEFAULT_SETTINGS, school_name: 'Example Primary School' }))
+      render(SettingsPage)
+      await vi.advanceTimersByTimeAsync(0)
+      const school = screen.getByRole('textbox', { name: 'School name' })
+      expect(school).toHaveValue('') // the defaults, while the load is retried
+      await vi.advanceTimersByTimeAsync(4000)
+      expect(school).toHaveValue('Example Primary School')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("Marks shown repeats the paper panel's caveat about section headers", async () => {
+    settings.set({ ...DEFAULT_SETTINGS })
+    render(SettingsPage)
+    expect(screen.getByRole('combobox', { name: 'Marks shown' })).toHaveAccessibleDescription(
+      /multiple-choice and short-answer sections show marks in the section header/,
+    )
+  })
+})
+
 describe('ClassicOff', () => {
   it('offers to turn the Classic generator on', async () => {
     settings.set({ ...DEFAULT_SETTINGS })

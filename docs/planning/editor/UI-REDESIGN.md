@@ -823,8 +823,9 @@ moves nothing. The rule lives in the block selection guard,
   Postgres.
 - **Settings page.** A **New papers** group (`role="group"`, headed "New papers"): School name
   (saved when the field is left, or on Enter), Level (Not set / P5 / P6), Marks shown (the
-  shared `MarksShown.svelte`, so the labels are `layout.MARKS_SHOWN`'s; it gained `id` and
-  `disabled` props) and the existing Answer key style. Each field's description says it is for
+  shared `MarksShown.svelte`, so the labels are `layout.MARKS_SHOWN`'s; it gained an `id`
+  prop; the help repeats the paper panel's caveat that multiple-choice and short-answer sections
+  show marks in the section header) and the existing Answer key style. Each field's description says it is for
   papers made from now on. The Classic switch moves under its own "Classic generator" heading.
 - **Prefill, server-side.** `routes_documents._with_defaults` reads the account's settings once
   and hands plain values to the engine: `docs.with_key_style` as before, then
@@ -836,6 +837,11 @@ moves nothing. The rule lives in the block selection guard,
   account's, else P6. Covered: `POST /documents` (blank: marks and key only, as it has no cover;
   starter template: all), `POST /documents/generate` (single paper, and each paper of an exam
   set, which the New dialog makes as three such calls). The engine reads no settings.
+- **Saving.** Saves run one at a time in the order they were made (a promise chain), and no
+  control is disabled meanwhile, so a click that lands while the school name saves on blur is
+  kept and saved after it. The school field follows the stored value except while it has focus
+  or unsaved text: a failed save keeps what was typed, a save (also by Try again) shows what was
+  stored, and a late load (a failed first load retried) fills it.
 - **New dialog.** `NewWizard` takes `defaultLevel` (the list passes the settings store's): that
   level's "Generate at" card takes focus and carries a "Your default" chip (its accessible
   description), and a new exam set's folder is named "P5 exam set" after it. The dialog still

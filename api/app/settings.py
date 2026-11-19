@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import unicodedata
 from contextlib import closing
 from datetime import UTC, datetime
 from functools import lru_cache
@@ -75,8 +76,16 @@ def _valid(key: str, value: object) -> bool:
     return value in CHOICES.get(key, (value,))
 
 
+# Bidirectional formatting controls (Cf): they can reorder how the rest of a cover line reads.
+_BIDI_CONTROLS = frozenset(
+    "\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
+)
+
+
 def _has_control(text: str) -> bool:
-    return any(ord(c) < 32 or ord(c) == 127 for c in text)
+    """Whether ``text`` is more than one plain line: control characters (Cc, which includes
+    C1 such as U+0085), line and paragraph separators (Zl, Zp) or bidi controls."""
+    return any(unicodedata.category(c) in ("Cc", "Zl", "Zp") or c in _BIDI_CONTROLS for c in text)
 
 
 def check_patch(patch: dict) -> dict:

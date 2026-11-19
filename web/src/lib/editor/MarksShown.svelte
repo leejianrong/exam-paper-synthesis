@@ -16,12 +16,11 @@
   export let describedby: string | undefined = undefined
   /** For a `<label for>` outside the control (the Settings page, EXA-169). */
   export let id: string | undefined = undefined
-  export let disabled = false
 
   const PAPER_CHOICES: MarksPlacement[] = ['answer', 'question', 'both']
 </script>
 
-<select {id} aria-describedby={describedby} {value} {disabled} on:change>
+<select {id} aria-describedby={describedby} {value} on:change>
   {#if section}
     <option value="">{sectionMarksDefault(mode)}</option>
   {/if}

@@ -14,7 +14,6 @@
     type DefaultLevel,
   } from './settings'
 
-  let busy = false
   let error = ''
   let retry: (() => void) | null = null
   let saved = ''
@@ -23,20 +22,39 @@
     if ($settings === null) void loadSettings()
   })
 
-  async function save(patch: Parameters<typeof updateSettings>[0], done: string) {
-    busy = true
-    error = ''
-    retry = null
-    saved = ''
-    try {
-      await updateSettings(patch)
-      saved = done
-    } catch (e) {
-      error = errorText(e, "The setting wasn't saved")
-      retry = canRetry(e) ? () => void save(patch, done) : null
-    } finally {
-      busy = false
+  // Saves run one at a time, in the order they were made (EXA-169): a later change never
+  // overtakes an earlier one, and no control is disabled while one is in flight, so a click
+  // that lands as the school name saves on blur is kept, not lost.
+  let queue: Promise<unknown> = Promise.resolve()
+  let pending = 0
+  $: busy = pending > 0
+
+  /** Save a change; resolves true once stored. `onSaved` runs on success, also when the change
+   *  is stored by Try again after a failure. */
+  function save(
+    patch: Parameters<typeof updateSettings>[0],
+    done: string,
+    onSaved?: () => void,
+  ): Promise<boolean> {
+    const run = async (): Promise<boolean> => {
+      error = ''
+      retry = null
+      saved = ''
+      try {
+        await updateSettings(patch)
+        saved = done
+        onSaved?.()
+        return true
+      } catch (e) {
+        error = errorText(e, "The setting wasn't saved")
+        retry = canRetry(e) ? () => void save(patch, done, onSaved) : null
+        return false
+      }
     }
+    pending += 1
+    const next = queue.then(run).finally(() => (pending -= 1))
+    queue = next
+    return next
   }
 
   const toggleClassic = (on: boolean) =>
@@ -63,22 +81,32 @@
     { value: 'P6', label: 'P6' },
   ]
 
-  // The school name as typed; saved when the field is left (or on Enter).
-  let school: string | null = null
-  $: if ($settings && school === null) school = $settings.school_name
+  // The school name as typed; saved when the field is left (or on Enter). It follows the stored
+  // value (a late load, a save) except while the teacher is in the field or has unsaved text.
+  let school = ''
+  let schoolFocused = false
+  let schoolDirty = false
+  $: if ($settings && !schoolFocused && !schoolDirty) school = $settings.school_name
 
   async function saveSchool() {
-    if (!$settings || school === null) return
+    if (!$settings) return
     const name = school.trim()
     if (name === $settings.school_name) {
       school = name
+      schoolDirty = false
       return
     }
     await save(
       { school_name: name },
       name ? `New papers' covers will say ${name}.` : 'New papers have no school name.',
+      () => {
+        // stored (now or by Try again): show what was stored, unless typing went on since
+        if (school.trim() === name) {
+          schoolDirty = false
+          school = $settings?.school_name ?? name
+        }
+      },
     )
-    school = $settings?.school_name ?? name
   }
 
   const setLevel = (level: DefaultLevel) =>
@@ -121,6 +149,9 @@
           autocomplete="organization"
           aria-describedby="set-school-desc"
           bind:value={school}
+          on:input={() => (schoolDirty = true)}
+          on:focus={() => (schoolFocused = true)}
+          on:blur={() => (schoolFocused = false)}
           on:change={saveSchool}
         />
       </section>
@@ -140,7 +171,6 @@
                 name="default-level"
                 value={l.value}
                 checked={$settings.default_level === l.value}
-                disabled={busy}
                 on:change={() => setLevel(l.value)}
               />
               {l.label}
@@ -152,15 +182,15 @@
         <div class="text">
           <label for="set-marks" class="name">Marks shown</label>
           <p class="desc" id="set-marks-desc">
-            Where each question's marks print on papers you make from now on. Sections follow it
-            unless they set their own.
+            Where each question's marks print on papers you make from now on. Sections follow this
+            unless they set their own; multiple-choice and short-answer sections show marks in the
+            section header.
           </p>
         </div>
         <MarksShown
           id="set-marks"
           describedby="set-marks-desc"
           value={$settings.marks_placement}
-          disabled={busy}
           on:change={setPlacement}
         />
       </section>
@@ -181,7 +211,6 @@
                 name="answer-key-style"
                 value={s.value}
                 checked={$settings.answer_key_style === s.value}
-                disabled={busy}
                 on:change={() => setKeyStyle(s.value)}
               />
               {s.label}
@@ -205,7 +234,6 @@
         role="switch"
         class="switch"
         checked={$settings.classic_generator}
-        disabled={busy}
         on:change={(e) => toggleClassic(e.currentTarget.checked)}
       />
     </section>
@@ -306,10 +334,6 @@
     outline: 3px solid var(--verify);
     outline-offset: 1px;
   }
-  .seg label:has(input:disabled) {
-    cursor: progress;
-    opacity: 0.6;
-  }
   .name {
     font-weight: 600;
     color: var(--ink);
@@ -359,10 +383,6 @@
   .switch:focus-visible {
     outline: 3px solid var(--verify);
     outline-offset: 2px;
-  }
-  .switch:disabled {
-    opacity: 0.6;
-    cursor: progress;
   }
   .status {
     min-height: 1.2em;

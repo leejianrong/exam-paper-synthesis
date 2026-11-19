@@ -86,9 +86,19 @@ def test_new_paper_defaults_start_empty_and_are_checked(store):
     assert (got["default_level"], got["marks_placement"]) == ("P5", "both")
     assert store.get("alice") == got
     assert store.update("alice", {"school_name": "x" * 120})["school_name"] == "x" * 120
+    # ordinary non-ASCII text is fine: accents, CJK, Tamil, an apostrophe
+    for name in ("École Example", "示例小学", "எடுத்துக்காட்டு பள்ளி", "St. Example's"):
+        assert store.update("alice", {"school_name": name})["school_name"] == name
     for bad in (
         {"school_name": "x" * 121},
         {"school_name": "Line one\nLine two"},
+        {"school_name": "Example\u2028Primary"},  # line separator (Zl)
+        {"school_name": "Example\u2029Primary"},  # paragraph separator (Zp)
+        {"school_name": "Example\u0085Primary"},  # next line, a C1 control (Cc)
+        {"school_name": "Example\u009bPrimary"},  # another C1 control
+        {"school_name": "Example\u202ePrimary"},  # right-to-left override (bidi, Cf)
+        {"school_name": "Example\u2067Primary"},  # right-to-left isolate (bidi, Cf)
+        {"school_name": "Example\tPrimary"},
         {"school_name": None},
         {"default_level": "P4"},
         {"default_level": "p5"},
