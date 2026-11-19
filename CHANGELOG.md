@@ -10,6 +10,22 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **The answer key as a view (EXA-162, UI redesign S4).** The editor header has a **Paper |
+  Answer key** switch (also View > Paper / Answer key, the command palette and Ctrl+Alt+K;
+  an icon pair below 1200 px, in Menu > View on a phone). The answer key view shows the key
+  exactly as it prints: it is the server's own key HTML, the page the Answer key PDF is made
+  from, so screen and PDF can't drift. It redraws a moment after each edit, keeps the old key
+  on screen until the new one has drawn (the scroll position stays), says when it is loading,
+  and offers Try again if it fails. Switching to it with a question selected scrolls to that
+  question's row; each view keeps its own scroll position. The key options moved out of the
+  side panel into a strip above the key: **Style** (School key / Worked solutions) and
+  **Show** (the question, for worked solutions; marking scheme (M1, A1); marks and working for
+  1-mark questions, for the school key). Under the strip, **Not in the key** lists the
+  questions left out (from the question's ⋯ menu) with an Include button each, and **Your
+  answers** lists your own questions, marking the ones with no answer yet. Your own question's
+  answer is now written in **Edit answer…**, in its ⋯ menu (or from that list, or by clicking
+  its row in the key): a dialog with the question above the answer, one answer per part. The
+  old editable key under the paper is gone.
 - **A tidier papers list (EXA-166, UI redesign S8).** Each paper's actions sit behind one ⋯
   button (shown on hover or focus with a mouse, always on a touch screen; also Shift+F10, the
   Menu key or a right-click on the row outside its title link): **Open**, **Rename** (the title becomes a field: Enter

@@ -3,7 +3,7 @@ import { createEvent, fireEvent, render, screen, waitFor, within } from '@testin
 import EditorPage from './EditorPage.svelte'
 import { freeformDocNode, makeQuestion } from './fixtures'
 import { questionNode } from './templatedQuestion'
-import { chooseFromMenu, pillButton, selectBlock } from './blockTesting'
+import { chooseFromMenu, menuLabels, pillButton, selectBlock } from './blockTesting'
 
 // Driven through the real docsApi with fetch stubbed.
 const fetchMock = vi.fn()
@@ -12,6 +12,14 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock)
 })
 afterEach(() => vi.unstubAllGlobals())
+
+/** "Edit answer…" from an own question's ⋯ menu (EXA-162): the dialog, its editor made. */
+async function openAnswer(block: Element, n: number): Promise<HTMLElement> {
+  await chooseFromMenu(block, 'Edit answer…')
+  const dialog = await screen.findByRole('dialog', { name: `Answer to question ${n}` })
+  await waitFor(() => expect(dialog.querySelector('.ProseMirror')).not.toBeNull())
+  return dialog
+}
 
 /** Open the header's Export ▾ menu (EXA-160) and return the item with this name. */
 async function exportItem(name: string) {
@@ -34,7 +42,7 @@ const record = (content: unknown[]) => ({
 })
 
 describe('EditorPage', () => {
-  it('loads a paper: title, question blocks, answer key and total marks', async () => {
+  it('loads a paper: title, question blocks and total marks', async () => {
     const q1 = makeQuestion({ id: 'a' }, 'First question text.')
     const q2 = makeQuestion({ id: 'b' }, 'Second question text.')
     fetchMock.mockResolvedValue({
@@ -53,7 +61,9 @@ describe('EditorPage', () => {
     expect(screen.getByText('Second question text.')).toBeInTheDocument()
     expect(screen.getByText('Section A')).toBeInTheDocument()
     expect(screen.getAllByTestId('question-block')).toHaveLength(2)
-    expect(document.querySelectorAll('.entry')).toHaveLength(2)
+    // the answer key is a view of its own, not loaded until it is shown (EXA-162)
+    expect(screen.getByRole('button', { name: 'Paper' })).toHaveAttribute('aria-pressed', 'true')
+    expect(fetchMock.mock.calls.some(([u]) => /\/preview\//.test(String(u)))).toBe(false)
     expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*6 marks\s*$/)
     expect(screen.getByRole('status')).toHaveTextContent('Saved')
     expect(screen.getByRole('button', { name: 'Add question' })).toBeInTheDocument()
@@ -136,30 +146,31 @@ describe('EditorPage', () => {
     expect(await exportItem('Student paper (PDF)')).not.toHaveAttribute('aria-disabled')
   })
 
-  it('the answer-key style switches between the school key and worked solutions', async () => {
+  it('the answer key view: its style and options sit above the printed key (EXA-162)', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
-      fetchMock.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => record([questionNode(makeQuestion({ id: 'a' }, 'First.'))]),
-      })
+      fetchMock.mockImplementation(async (url: string) =>
+        /\/preview\/key$/.test(String(url))
+          ? { ok: true, status: 200, text: async () => '<p>PRINTED-KEY</p>' }
+          : { ok: true, status: 200, json: async () => record([questionNode(makeQuestion({ id: 'a' }, 'First.'))]) },
+      )
       render(EditorPage, { props: { id: 'd1' } })
       await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
+      await fireEvent.click(screen.getByRole('button', { name: 'Answer key' }))
+      const key = screen.getByRole('region', { name: 'Answer key' })
+      // the server's own key, as it prints
+      await waitFor(() => expect(key.querySelector('iframe')?.getAttribute('srcdoc')).toBe('<p>PRINTED-KEY</p>'))
       // a paper saved without key options keeps its worked solutions
-      const style = screen.getByLabelText('Answer key style') as HTMLSelectElement
-      expect(style.value).toBe('full')
-      expect(style.selectedOptions[0].textContent).toBe('Worked solutions')
-      expect(screen.getByLabelText('Answer key repeats each question')).toBeEnabled()
-      expect(screen.queryByLabelText("Answer key shows each question's marks")).toBeNull()
-      style.value = 'compact'
-      await fireEvent.change(style)
-      // the school key never repeats the question; its own options appear
-      await waitFor(() => expect(screen.queryByLabelText('Answer key repeats each question')).toBeNull())
-      expect(screen.getByLabelText("Answer key shows each question's marks")).not.toBeChecked()
-      // switching starts from the school key's own defaults: no 1-mark working
-      expect(screen.getByLabelText('Answer key shows the working for 1-mark questions')).not.toBeChecked()
-      await fireEvent.click(screen.getByLabelText("Answer key shows each question's marks"))
+      const styles = within(key).getByRole('radiogroup', { name: 'Answer key style' })
+      expect(within(styles).getByRole('radio', { name: 'Worked solutions' })).toBeChecked()
+      expect(within(key).getByRole('checkbox', { name: 'The question' })).toBeChecked()
+      expect(within(key).queryByRole('checkbox', { name: 'Marks' })).toBeNull()
+      await fireEvent.click(within(styles).getByRole('radio', { name: 'School key' }))
+      // the school key never repeats the question; its own options appear, from its defaults
+      await waitFor(() => expect(within(key).queryByRole('checkbox', { name: 'The question' })).toBeNull())
+      expect(within(key).getByRole('checkbox', { name: 'Marking scheme (M1, A1)' })).not.toBeChecked()
+      expect(within(key).getByRole('checkbox', { name: 'Working for 1-mark questions' })).not.toBeChecked()
+      await fireEvent.click(within(key).getByRole('checkbox', { name: 'Marks' }))
       await vi.advanceTimersByTimeAsync(1500)
       const puts = fetchMock.mock.calls.filter((c) => c[1]?.method === 'PUT')
       expect(puts.length).toBeGreaterThan(0)
@@ -169,9 +180,43 @@ describe('EditorPage', () => {
         one_mark_working: false,
         show_marks: true,
       })
+      // the options moved out of the side panel
+      expect(screen.getByRole('complementary', { name: 'Side panel' })).not.toHaveTextContent('Answer key')
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('"Leave out of answer key" from the ⋯ menu: the key view names it, redraws, and Include puts it back', async () => {
+    let keys = 0
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (/\/preview\/key$/.test(String(url))) return { ok: true, status: 200, text: async () => `<p>KEY ${++keys}</p>` }
+      if (init?.method === 'PUT') return { ok: true, status: 200, json: async () => ({ ...record([]), version: 5 }) }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => record([questionNode(makeQuestion({ id: 'a' }, 'First.')), questionNode(makeQuestion({ id: 'b' }, 'Second.'))]),
+      }
+    })
+    render(EditorPage, { props: { id: 'd1' } })
+    const second = (await screen.findByText('Second.')).closest('.qblock') as HTMLElement
+    await chooseFromMenu(second, 'Leave out of answer key')
+    await fireEvent.click(screen.getByRole('button', { name: 'Answer key' }))
+    const key = screen.getByRole('region', { name: 'Answer key' })
+    await waitFor(() => expect(key.querySelector('iframe')?.getAttribute('srcdoc')).toBe('<p>KEY 1</p>'))
+    // the edit was saved before the key was asked for
+    const put = fetchMock.mock.calls.findIndex((c) => c[1]?.method === 'PUT')
+    const get = fetchMock.mock.calls.findIndex(([u]) => /\/preview\/key$/.test(String(u)))
+    expect(put).toBeGreaterThan(-1)
+    expect(put).toBeLessThan(get)
+    expect(JSON.parse(fetchMock.mock.calls[put][1].body).document.content.content[1].attrs.in_key).toBe(false)
+    await fireEvent.click(within(key).getByRole('button', { name: 'Include question 2 in the answer key' }))
+    await waitFor(() => expect(within(key).queryByRole('button', { name: /Include question 2/ })).toBeNull())
+    // the key redraws after the edit
+    await waitFor(() => expect(key.querySelector('iframe')?.getAttribute('srcdoc')).toBe('<p>KEY 2</p>'), { timeout: 3000 })
+    // and the question's menu offers to leave it out again
+    await fireEvent.click(screen.getByRole('button', { name: 'Paper' }))
+    expect(await menuLabels(second)).toContain('Leave out of answer key')
   })
 
   describe('free-form questions (W2a)', () => {
@@ -194,9 +239,10 @@ describe('EditorPage', () => {
       expect(block).toHaveTextContent('Typed on the page.')
       expect(block.querySelector('.ff-area .marks')).toHaveTextContent('[4]')
       expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*7 marks\s*$/)
-      expect(document.querySelectorAll('.entry')).toHaveLength(2)
       expect(await exportItem('Answer key (PDF)')).not.toHaveAttribute('aria-disabled')
-      expect(document.querySelector('.entry.freeform .ProseMirror')).toHaveTextContent('Written answer')
+      await fireEvent.keyDown(screen.getByRole('menu', { name: 'Export' }), { key: 'Escape' })
+      const dialog = await openAnswer(block, 2)
+      expect(dialog.querySelector('.ProseMirror')).toHaveTextContent('Written answer')
     })
 
     it('the marks field updates the page bracket and the total', async () => {
@@ -220,18 +266,15 @@ describe('EditorPage', () => {
       await fireEvent.click(screen.getByRole('tab', { name: 'Write my own' }))
       await waitFor(() => expect(document.querySelectorAll('.ffblock')).toHaveLength(1))
       expect(screen.queryByRole('dialog', { name: 'Add question' })).not.toBeInTheDocument()
-      expect(document.querySelectorAll('.entry.freeform')).toHaveLength(1)
     })
 
-    it('an answer typed in the key is written back to the question node and saved', async () => {
+    it('an answer written in Edit answer… is written back to the question node and saved', async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true })
       try {
         await load([freeformDocNode({ id: 'ff_w', marks: 1 })])
-        const pm = (await waitFor(() => {
-          const p = document.querySelector('.entry.freeform .ProseMirror')
-          expect(p).toBeTruthy()
-          return p
-        })) as HTMLElement & { editor: import('@tiptap/core').Editor }
+        const block = await waitFor(() => document.querySelector('.ffblock') as HTMLElement)
+        const dialog = await openAnswer(block, 1)
+        const pm = dialog.querySelector('.ProseMirror') as HTMLElement & { editor: import('@tiptap/core').Editor }
         pm.editor.commands.setContent('<p>Final answer</p>')
         await vi.advanceTimersByTimeAsync(1500)
         const put = fetchMock.mock.calls.find((c) => c[1]?.method === 'PUT')
@@ -307,8 +350,9 @@ describe('EditorPage images and equations (W2b)', () => {
     await waitFor(() => expect(document.querySelector('.ffblock img.doc-image-img')).toBeTruthy())
     expect(document.querySelector('.ffblock .math-node')).toBeTruthy()
     expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*2 marks\s*$/)
-    // the key entry shows the same figure read-only
-    expect(document.querySelector('.entry.freeform .qtext img')).toBeTruthy()
+    // the answer dialog shows the same figure read-only, for reference
+    const dialog = await openAnswer(document.querySelector('.ffblock') as HTMLElement, 1)
+    expect(dialog.querySelector('.qtext img')).toBeTruthy()
   })
 })
 
@@ -357,7 +401,8 @@ describe('EditorPage convert to free-form (W2c)', () => {
     expect(document.querySelector('.ffblock')).toHaveTextContent('Converted question text.')
     expect(document.querySelector('.ffblock .ff-area .marks')).toHaveTextContent('[3]')
     expect(document.querySelector('.ffblock img.doc-image-img')).toBeTruthy()
-    expect(document.querySelector('.entry.freeform .ProseMirror')).toHaveTextContent('Answer: $40')
+    const dialog = await openAnswer(document.querySelector('.ffblock') as HTMLElement, 1)
+    expect(dialog.querySelector('.ProseMirror')).toHaveTextContent('Answer: $40')
     expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*3 marks\s*$/)
   })
 
@@ -677,8 +722,8 @@ describe('paper layout (P2)', () => {
     await waitFor(() => expect(field.value).toBe('16'))
     const surface = document.querySelector('.surface') as HTMLElement
     expect(surface.style.getPropertyValue('--q-start')).toBe('15')
-    const nums = Array.from(document.querySelectorAll('.entry .n')).map((n) => n.textContent)
-    expect(nums).toEqual(['16.', '17.'])
+    // the key view names the paper's own numbers
+    expect(screen.getByRole('button', { name: /Edit the answer to question 17/ })).toBeInTheDocument()
     await fireEvent.input(field, { target: { value: '' } })
     await waitFor(() => expect(surface.style.getPropertyValue('--q-start')).toBe('0'))
   })
@@ -755,13 +800,23 @@ describe('multi-part free-form questions (P3)', () => {
     expect(page).not.toHaveTextContent('first')
   })
 
-  it('the answer key has an entry per part, written back to that part', async () => {
+  it('Edit answer… has an answer per part, written back to that part', async () => {
     renderFreeform([para('Stem.'), part('first', 1), part('second', 2)] as never)
     await waitFor(() => expect(labels()).toEqual(['(a)', '(b)']))
-    const key = screen.getByRole('region', { name: 'Answer key' })
-    expect(key.querySelectorAll('.part')).toHaveLength(2)
-    expect(key.querySelector('[data-part=b] .marks')).toHaveTextContent('[2]')
-    expect(key.querySelectorAll('.entry.freeform > .head .marks')[0]).toHaveTextContent('[3]')
+    const dialog = await openAnswer(document.querySelector('.ffblock') as HTMLElement, 1)
+    expect(dialog).toHaveTextContent('Stem.')
+    await waitFor(() => expect(dialog.querySelectorAll('.ProseMirror')).toHaveLength(2))
+    expect(within(dialog).getByRole('textbox', { name: 'Answer to question 1 part (a)' })).toBeInTheDocument()
+    const b = within(dialog).getByRole('textbox', { name: 'Answer to question 1 part (b)' }) as HTMLElement & {
+      editor: import('@tiptap/core').Editor
+    }
+    b.editor.commands.setContent('<p>PART-B</p>', { emitUpdate: true })
+    const page = document.querySelector('.surface .ProseMirror') as HTMLElement & { editor: import('@tiptap/core').Editor }
+    await waitFor(() => {
+      const parts = JSON.stringify(page.editor.getJSON()).split('"type":"freeformPart"')
+      expect(parts[2]).toContain('PART-B')
+      expect(parts[1]).not.toContain('PART-B')
+    })
   })
 
   it('a question with no parts is exactly as before', async () => {

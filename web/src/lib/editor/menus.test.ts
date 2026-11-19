@@ -16,7 +16,7 @@ const fetchMock = vi.fn(async (url: string, init: RequestInit = {}) => {
   const hit = routes.find(([re, m]) => re.test(url) && m === method)
   const reply = hit ? await hit[2](init) : { status: 404, body: { detail: 'not found' } }
   const status = reply.status ?? 200
-  return { ok: status < 400, status, json: async () => reply.body, text: async () => '', blob: async () => new Blob(['%PDF']) }
+  return { ok: status < 400, status, json: async () => reply.body, text: async () => (typeof reply.body === 'string' ? reply.body : ''), blob: async () => new Blob(['%PDF']) }
 })
 
 const record = (content: unknown[], over: object = {}) => ({
@@ -111,7 +111,11 @@ describe('the menu row (EXA-163)', () => {
     expect(q).toHaveAttribute('aria-keyshortcuts', 'Control+Enter')
     await key({ key: 'Escape' }, insert)
     const view = await openMenu('View')
-    expect(within(view).getByRole('menuitem', { name: /Answer key/ })).toHaveAttribute('aria-keyshortcuts', 'Control+Alt+K')
+    // Paper and Answer key say which view is on (EXA-162)
+    expect(within(view).getByRole('menuitemcheckbox', { name: 'Paper' })).toHaveAttribute('aria-checked', 'true')
+    const answerKey = within(view).getByRole('menuitemcheckbox', { name: /Answer key/ })
+    expect(answerKey).toHaveAttribute('aria-keyshortcuts', 'Control+Alt+K')
+    expect(answerKey).toHaveAttribute('aria-checked', 'false')
     const panel = within(view).getByRole('menuitemcheckbox', { name: /Show side panel/ })
     expect(panel).toHaveAttribute('aria-checked', 'true')
     expect(panel).toHaveTextContent('Ctrl+\\')
@@ -354,10 +358,10 @@ describe('global shortcuts', () => {
     await key({ key: '/', metaKey: true }, page)
     const sheet = screen.getByRole('dialog', { name: 'Keyboard shortcuts' })
     expect(sheet).toHaveTextContent(/Find a command\s*⌘K/)
-    expect(sheet).toHaveTextContent(/Go to the answer key\s*⌥⌘K/)
+    expect(sheet).toHaveTextContent(/Switch to the answer key and back\s*⌥⌘K/)
     await key({ key: 'Escape' }, document.activeElement!)
     const view = await openMenu('View')
-    const k = within(view).getByRole('menuitem', { name: /Answer key/ })
+    const k = within(view).getByRole('menuitemcheckbox', { name: /Answer key/ })
     expect(k).toHaveTextContent('⌥⌘K')
     expect(k).toHaveAttribute('aria-keyshortcuts', 'Meta+Alt+K')
   })
@@ -372,15 +376,66 @@ describe('global shortcuts', () => {
     await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => /\/preview\/full$/.test(u))).toBe(true))
   })
 
-  it('Ctrl+Alt+K goes to the answer key, and again back to the paper', async () => {
+  it('Ctrl+Alt+K shows the answer key in place of the paper, and again goes back (EXA-162)', async () => {
     serve()
+    routes.push([/\/preview\/key$/, 'GET', () => ({ body: '<p>KEY</p>' })])
     const page = await open()
     page.focus()
     await key({ key: 'k', code: 'KeyK', ctrlKey: true, altKey: true }, page)
-    const wrap = document.querySelector('.keywrap') as HTMLElement
-    expect(document.activeElement).toBe(wrap)
-    await key({ key: 'k', code: 'KeyK', ctrlKey: true, altKey: true }, wrap)
-    expect(page.contains(document.activeElement)).toBe(true)
+    const keyView = screen.getByRole('region', { name: 'Answer key' })
+    await waitFor(() => expect(document.activeElement).toBe(keyView))
+    expect(screen.getByRole('button', { name: 'Answer key' })).toHaveAttribute('aria-pressed', 'true')
+    expect(page.closest('.page')).toHaveClass('hidden')
+    await key({ key: 'k', code: 'KeyK', ctrlKey: true, altKey: true }, keyView)
+    await waitFor(() => expect(page.contains(document.activeElement)).toBe(true))
+    expect(page.closest('.page')).not.toHaveClass('hidden')
+    expect(keyView.parentElement).toHaveClass('hidden')
+  })
+
+  it('adding from the key view shows the paper first: + Question, + Section, Ctrl+Enter (review of #242)', async () => {
+    serve()
+    routes.push([/\/preview\/key$/, 'GET', () => ({ body: '<p>KEY</p>' })])
+    const page = await open()
+    const toKey = async () => {
+      await fireEvent.click(screen.getByRole('button', { name: 'Answer key' }))
+      await waitFor(() => expect(page.closest('.page')).toHaveClass('hidden'))
+    }
+    await toKey()
+    await fireEvent.click(screen.getByRole('button', { name: 'Question' }))
+    await waitFor(() => expect(page.closest('.page')).not.toHaveClass('hidden'))
+    expect(screen.getByRole('button', { name: 'Paper' })).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByRole('dialog', { name: 'Add question' })).toBeInTheDocument()
+    await key({ key: 'Escape' }, screen.getByRole('dialog', { name: 'Add question' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add question' })).toBeNull())
+
+    await toKey()
+    await key({ key: 'Enter', ctrlKey: true }, screen.getByRole('region', { name: 'Answer key' }))
+    await waitFor(() => expect(page.closest('.page')).not.toHaveClass('hidden'))
+    expect(await screen.findByRole('dialog', { name: 'Add question' })).toBeInTheDocument()
+    await key({ key: 'Escape' }, screen.getByRole('dialog', { name: 'Add question' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add question' })).toBeNull())
+
+    await toKey()
+    await fireEvent.click(screen.getByRole('button', { name: 'Section' }))
+    await waitFor(() => expect(page.closest('.page')).not.toHaveClass('hidden'))
+    await waitFor(() => expect(page.querySelector('.section-block')).not.toBeNull())
+  })
+
+  it('a press inside the printed key closes an open menu, as anywhere else on the page (review of #242)', async () => {
+    serve([
+      { type: 'freeformQuestion', attrs: { block_id: 'ff1', marks: 1 }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Q' }] }] },
+    ])
+    routes.push([/\/preview\/key$/, 'GET', () => ({ body: '<p>KEY</p>' })])
+    await open()
+    await fireEvent.click(screen.getByRole('button', { name: 'Answer key' }))
+    const frame = await waitFor(() => {
+      const f = document.querySelector<HTMLIFrameElement>('.keyview iframe.ready')
+      expect(f).not.toBeNull()
+      return f!
+    })
+    await openMenu('Insert')
+    frame.contentDocument!.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    await waitFor(() => expect(screen.queryByRole('menu', { name: 'Insert' })).toBeNull())
   })
 
   it('Ctrl+M opens the equation editor only with the caret in text', async () => {

@@ -97,7 +97,7 @@ describe('at rest and selected', () => {
     expect(pill.getByLabelText('Marks')).toHaveValue(1)
     expect(pill.getByRole('button', { name: 'Part' })).toBeInTheDocument()
     expect(pill.queryByRole('button', { name: 'Lock' })).toBeNull() // not the generator's
-    expect(await menuLabels(mine)).toEqual(['Add a part', 'Leave out of answer key', 'Move down', 'Add question below', 'Delete'])
+    expect(await menuLabels(mine)).toEqual(['Add a part', 'Edit answer…', 'Leave out of answer key', 'Move down', 'Add question below', 'Delete'])
 
     const slot = document.querySelectorAll<HTMLElement>('.ffblock')[1]
     expect(slot).toHaveClass('placeholder-slot')

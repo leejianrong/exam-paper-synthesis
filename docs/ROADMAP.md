@@ -41,7 +41,9 @@ bar: nothing at rest, a pill when a question is selected, one ⋯ menu, block sh
 on delete; S5, EXA-163, the Paper / Insert / View / Help menus, a Ctrl+K command palette, a
 shortcut sheet and the editor-wide shortcuts, and a side panel you can hide; S8, EXA-166, the
 papers list: a ⋯ menu per paper and per folder, the New dialog leading with Exam set, en-SG and
-relative edit times, a title search, collapsible folders, and no exam-set ticks on folders).
+relative edit times, a title search, collapsible folders, and no exam-set ticks on folders; S4, EXA-162, the
+answer key as a view: a Paper | Answer key switch showing the key exactly as it prints, its
+options in a strip above it, and Edit answer… for your own questions).
 
 ---
 

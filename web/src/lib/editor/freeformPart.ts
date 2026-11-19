@@ -2,7 +2,7 @@
 // free-form question. It lives inside a `freeformQuestion`, after the question's body. Its
 // label is its position (never stored), so deleting (a) relabels (b) as (a). Each part has
 // its own marks, working space, Ans: line (unit) and written answer; the answer is edited in
-// the answer-key region, like a single-part question's.
+// the question's Edit answer dialog, like a single-part question's.
 
 import { Node } from '@tiptap/core'
 import type { NodeViewRendererProps } from '@tiptap/core'

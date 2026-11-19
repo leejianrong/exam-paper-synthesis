@@ -1,7 +1,8 @@
 <script lang="ts">
   // A modal dialog shell (EXA-163): the shortcut sheet, "What verified means", Move to folder and
   // the command palette. Esc or a click outside closes it, Tab stays inside, and focus goes back
-  // to where it was when the dialog opened. The first field (or the first button) takes focus.
+  // to where it was when the dialog opened. The first field (or the first button) takes focus,
+  // unless something in it is marked data-autofocus (the Edit answer dialog's answer).
   import { onDestroy, onMount, type Snippet } from 'svelte'
 
   let {
@@ -30,7 +31,9 @@
   const returnTo = document.activeElement as HTMLElement | null
 
   onMount(() => {
-    const first = box?.querySelector<HTMLElement>('input, select, textarea, button:not(.x)')
+    const first =
+      box?.querySelector<HTMLElement>('[data-autofocus]') ??
+      box?.querySelector<HTMLElement>('input, select, textarea, button:not(.x)')
     ;(first ?? box)?.focus()
   })
   onDestroy(() => {

@@ -2,7 +2,8 @@
   // The editor header's first row (EXA-160): back, folder / title, save state, the marks total,
   // Preview, the one primary action (Export ▾) and the account avatar. Paper settings live in the
   // side panel, never here. The Paper / Insert / View / Help menus (EXA-163) sit under the
-  // title, passed in as `menus`. Narrow windows drop the folder and the resting marks total (the panel shows it);
+  // title, passed in as `menus`. The Paper / Answer key switch (EXA-162) sits before the total;
+  // below 1200 px it is an icon pair. Narrow windows drop the folder and the resting marks total (the panel shows it);
   // Preview and Export always stay on screen. On a generated paper with placeholders still to
   // write, a quiet link beside the total says how many and opens the side panel's Paper tab.
   import type { Snippet } from 'svelte'
@@ -31,6 +32,8 @@
     onPreview,
     onExport,
     onRename,
+    view = 'paper',
+    onView = () => {},
     menus,
   }: {
     title: string
@@ -50,6 +53,9 @@
     onPreview: () => void
     onExport: (mode: ExportMode) => void
     onRename: () => void
+    /** What the page shows: the paper, or its answer key as it prints. */
+    view?: 'paper' | 'key'
+    onView?: (view: 'paper' | 'key') => void
     /** The menu row under the title. */
     menus?: Snippet
   } = $props()
@@ -88,6 +94,19 @@
       </span>
     </div>
     {#if menus}{@render menus()}{/if}
+  </div>
+  <div class="seg" role="group" aria-label="View">
+    <button
+      aria-pressed={view === 'paper'}
+      title="Paper"
+      onclick={() => onView('paper')}><Icon name="blankpage" /><span class="seg-txt">Paper</span></button
+    >
+    <button
+      aria-pressed={view === 'key'}
+      title="Answer key ({keyLabel(GLOBAL_KEYS.answerKey)})"
+      aria-keyshortcuts={ariaKeys(GLOBAL_KEYS.answerKey)}
+      onclick={() => onView('key')}><Icon name="key" /><span class="seg-txt">Answer key</span></button
+    >
   </div>
   <span class="total" class:off={!!offTarget} title={offTarget || undefined} data-testid="marks-total">
     {#if offTarget}<Icon name="alert" size={14} />{/if}<b>{marks}</b>{target === null ? '' : ` / ${target}`} marks
@@ -180,6 +199,42 @@
     color: var(--mark);
     font-weight: 600;
   }
+  /* Paper | Answer key: a two-way segmented control, the Settings page's pill */
+  .seg {
+    display: inline-flex;
+    flex: none;
+    padding: 2px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--wash);
+  }
+  .seg button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--ink-soft);
+    font: inherit;
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .seg button :global(svg) {
+    display: none;
+  }
+  .seg button:hover {
+    color: var(--ink);
+  }
+  .seg button[aria-pressed='true'] {
+    background: var(--page);
+    color: var(--ink);
+    font-weight: 600;
+    box-shadow: 0 0 0 1px var(--line);
+  }
   .total {
     display: inline-flex;
     align-items: center;
@@ -270,6 +325,22 @@
     .total:not(.off) {
       display: none;
     }
+    .seg button {
+      width: 32px;
+      padding: 0;
+      justify-content: center;
+    }
+    .seg button :global(svg) {
+      display: block;
+    }
+    .seg-txt {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
     .wide {
       position: absolute;
       width: 1px;
@@ -285,6 +356,10 @@
     }
   }
   @media (max-width: 599px) {
+    /* a phone keeps the title: the switch is in Menu > View there */
+    .seg {
+      display: none;
+    }
     .btn-txt {
       position: absolute;
       width: 1px;

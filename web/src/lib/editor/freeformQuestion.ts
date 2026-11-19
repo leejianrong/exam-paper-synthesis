@@ -1,8 +1,9 @@
 // The `freeformQuestion` TipTap node (W2a, ADR-0021): a question the teacher types straight
 // onto the page. Unlike the templated atom its body is editable content (paragraphs and
-// lists); `marks` and the written `answer` live in node attributes — the answer is edited
-// in the answer-key region, not on the page. Its controls (marks, parts, move, delete) are the
-// shared question bar (EXA-161), which never prints; `[n]` shows on the page as it prints.
+// lists); `marks` and the written `answer` live in node attributes — the answer is edited in
+// the Edit answer dialog (its ⋯ menu, or its row in the answer key view), not on the page. Its
+// controls (marks, parts, move, delete) are the shared question bar (EXA-161), which never
+// prints; `[n]` shows on the page as it prints.
 
 import { Node } from '@tiptap/core'
 import { Plugin } from '@tiptap/pm/state'
@@ -29,6 +30,8 @@ export interface FreeformQuestionOptions {
   onSwap: (blockId: string, mode: SwapMode) => Promise<void>
   /** The question was deleted from its menu or with Del (EXA-161: the page offers Undo). */
   onDeleted: () => void
+  /** Its menu's "Edit answer…": the page opens the answer for the key (EXA-162). */
+  onEditAnswer: (blockId: string) => void
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string) {
@@ -55,7 +58,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
   },
 
   addOptions() {
-    return { onAddBelow: () => {}, onSwap: async () => {}, onDeleted: () => {} }
+    return { onAddBelow: () => {}, onSwap: async () => {}, onDeleted: () => {}, onEditAnswer: () => {} }
   },
 
   addAttributes() {
@@ -296,6 +299,8 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
             return setLayout({ locked: current.attrs.locked !== true })
           case 'key':
             return setLayout({ in_key: current.attrs.in_key === false })
+          case 'answer':
+            return options.onEditAnswer(String(current.attrs.block_id))
           case 'up':
           case 'down':
             moveBlock(editor, from, current.nodeSize, action === 'up' ? -1 : 1)
