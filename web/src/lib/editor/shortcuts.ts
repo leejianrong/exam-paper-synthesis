@@ -1,6 +1,7 @@
 import { Extension } from '@tiptap/core'
 import { NodeSelection, Plugin, PluginKey } from '@tiptap/pm/state'
 import { isMac } from '../keys'
+import { SETTINGS_KEY } from './blockSettings'
 
 export { ariaKeys, isMac, keyLabel } from '../keys'
 
@@ -68,6 +69,7 @@ export const SHEET: Array<{ group: string; rows: Array<{ label: string; keys: st
       { label: 'Switch to the answer key and back', keys: [GLOBAL_KEYS.answerKey] },
       { label: 'Preview pages', keys: [GLOBAL_KEYS.preview] },
       { label: 'Show or hide the side panel', keys: [GLOBAL_KEYS.panel] },
+      { label: 'Edit the selected section or cover page', keys: [SETTINGS_KEY] },
       { label: 'Keyboard shortcuts', keys: [GLOBAL_KEYS.sheet] },
     ],
   },

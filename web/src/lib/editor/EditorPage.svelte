@@ -1,5 +1,6 @@
 <script lang="ts">
   import { BlockSelectionGuard, insertBlockSafely } from './blockSelection'
+  import { selectedSettingsBlock, settingsTransaction, settingsBlockPos, type SettingsBlock } from './blockSettings'
   import Icon from '../Icon.svelte'
   import Menu, { type MenuItem } from '../Menu.svelte'
   import ConfirmDialog from '../ConfirmDialog.svelte'
@@ -122,7 +123,9 @@
   let folderName: string | null = null
   let folderId: string | null = null
   let titleInput: HTMLInputElement
-  let panelTab: 'paper' | 'question' = 'paper'
+  let panelTab: 'paper' | 'selection' = 'paper'
+  /** The selected section or cover, whose settings the side panel shows (EXA-164). */
+  let settingsBlock: SettingsBlock | null = null
   let confirmRegen = false
   let innerWidth = 1440
   /** Below 1024 px the toolbar's tail (lists, equation, image) moves into its ⋯ menu. */
@@ -224,15 +227,35 @@
     document.getElementById('tab-paper')?.focus()
   }
 
-  /** Paper > Cover page…: go to the cover's first field, adding a cover first if there is none. */
+  /** Paper > Cover page…: go to the cover's first field in the side panel, adding a cover first
+   *  if there is none. */
   async function openCover() {
     if (!editor) return
     await toPaper()
     if (!coverPresent) editor.chain().insertContentAt(0, coverNode()).run()
+    await openBlockSettings(0)
+  }
+
+  /** A section's or the cover's Edit button, or Alt+Enter on it (EXA-164): select the block and
+   *  go to its first field in the side panel, showing the panel if it was hidden. */
+  async function openBlockSettings(pos: number) {
+    if (!editor) return
+    const { state } = editor
+    if (!state.doc.nodeAt(pos)) return
+    editor.view.dispatch(state.tr.setSelection(NodeSelection.create(state.doc, pos)))
+    if (!panelShown) await setPanel(true)
+    panelTab = 'selection'
     await nextTick()
-    const field = element.querySelector<HTMLElement>('.cover-block input, .cover-block select')
-    field?.scrollIntoView?.({ block: 'center' })
+    const field = document.querySelector<HTMLElement>('#tabpanel-selection :is(input, textarea, select)')
+    field?.scrollIntoView?.({ block: 'nearest' })
     field?.focus()
+  }
+
+  /** A change in the side panel's section or cover settings. */
+  function setSettingsAttrs(attrs: Record<string, unknown>) {
+    if (!editor || !settingsBlock) return
+    const pos = settingsBlockPos(editor.state.doc, settingsBlock)
+    if (pos !== null) editor.view.dispatch(settingsTransaction(editor.state, pos, attrs))
   }
 
   /** The header's Paper | Answer key switch, View > Paper / Answer key and Ctrl+Alt+K (EXA-162).
@@ -448,8 +471,8 @@
             onError: (m: string) => (actionError = m),
           }),
           PageBreak,
-          Section,
-          CoverPage,
+          Section.configure({ onEdit: (pos: number) => void openBlockSettings(pos) }),
+          CoverPage.configure({ onEdit: (pos: number) => void openBlockSettings(pos) }),
           BlankPage,
           BlockSelectionGuard,
           BlockShortcuts,
@@ -473,8 +496,9 @@
           if (answerFor && !numberedNodes(content).some((b) => b.attrs?.block_id === answerFor)) answerFor = null
           scheduleSave()
         },
-        onTransaction: ({ transaction }) => {
+        onTransaction: ({ editor: e, transaction }) => {
           tick += 1
+          settingsBlock = selectedSettingsBlock(e.state)
           // The toast's Undo undoes only the deletion it reports: any later change (or a
           // Ctrl+Z) closes it. The deletion itself comes before `questionDeleted`.
           if (deleted && transaction.docChanged) closeDeleted()
@@ -720,7 +744,7 @@
           label: 'Cover page…',
           icon: 'cover',
           hint: coverPresent ? 'Go to the cover page' : 'Add a cover page at the start and fill it in',
-          onSelect: () => void openCover(),
+          onSelect: openCover,
         },
         {
           label: regenInfo ? `Regenerate ${plural(regenInfo.unlocked, 'unlocked question')}…` : 'Regenerate unlocked questions…',
@@ -1217,6 +1241,7 @@
 {#if panelShown}
 <SidePanel
   bind:tab={panelTab}
+  context={settingsBlock}
   {blocks}
   {marks}
   {selectedId}
@@ -1231,7 +1256,10 @@
   on:regenerate={() => (confirmRegen = true)}
   on:remark={(e) => setRemark(e.detail.blockId, e.detail.remark)}
   on:review={(e) => setReviewed(e.detail.blockId, e.detail.reviewed)}
+  on:blockattrs={(e) => setSettingsAttrs(e.detail)}
+  on:done={() => editor?.view.focus()}
 />
+
 {/if}
 </div>
 
@@ -1732,74 +1760,107 @@
   .surface :global(.math-node.ProseMirror-selectednode) {
     background: var(--verify-soft);
   }
+  /* A section is a compact header and the cover a compact card; their settings edit in the side
+     panel (EXA-164). A click selects the block, Edit (or Alt+Enter) goes to its fields. */
   .surface :global(.section-block) {
     margin: 1.2rem 0 0.8rem;
-    padding-bottom: 0.5rem;
+    padding: 0.2rem 0 0.4rem;
     border-bottom: 1.5px solid var(--ink);
+    cursor: pointer;
   }
-  .surface :global(.section-row) {
+  .surface :global(.section-head),
+  .surface :global(.cover-head) {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 0.6rem;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem;
   }
-  .surface :global(.section-title-input) {
-    flex: 1 1 14rem;
-    font: inherit;
+  .surface :global(.section-title) {
+    margin: 0;
     font-size: 1.15rem;
     font-weight: 700;
-    border: 1px dashed transparent;
-    background: transparent;
-    color: var(--ink);
   }
-  .surface :global(.section-title-input:hover),
-  .surface :global(.section-title-input:focus) {
-    border-color: var(--line);
-  }
-  .surface :global(.section-field) {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 12px;
-    color: var(--ink-soft);
-  }
-  .surface :global(.section-field select),
-  .surface :global(.section-target-input) {
-    font: inherit;
-    font-size: 12.5px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--paper);
-    color: var(--ink);
-  }
-  .surface :global(.section-target-input) {
-    width: 4rem;
-  }
-  .surface :global(.section-instructions-input) {
-    display: block;
-    width: 100%;
-    margin-top: 0.4rem;
-    font: inherit;
-    font-size: 0.9rem;
-    font-style: italic;
-    border: 1px dashed transparent;
-    background: transparent;
-    color: var(--ink);
-    resize: vertical;
-  }
-  .surface :global(.section-instructions-input:hover),
-  .surface :global(.section-instructions-input:focus) {
-    border-color: var(--line);
+  .surface :global(.section-title.untitled) {
+    font-weight: 600;
+    color: var(--ink-faint);
   }
   .surface :global(.section-summary) {
-    margin: 0.3rem 0 0;
-    font-size: 0.85rem;
+    font-size: 12.5px;
     font-weight: 600;
     color: var(--ink-soft);
   }
   .surface :global(.section-summary[data-state='over']),
   .surface :global(.section-summary[data-state='under']) {
-    color: var(--mark, #b42318);
+    color: var(--mark);
+  }
+  .surface :global(.section-cues) {
+    font-size: 12px;
+    color: var(--ink-faint);
+  }
+  .surface :global(.section-instructions) {
+    margin: 0.3rem 0 0;
+    font-size: 0.9rem;
+    font-style: italic;
+    color: var(--ink-soft);
+  }
+  .surface :global(.cover-block) {
+    margin: 0 0 1.2rem;
+    padding: 0.6rem 0.9rem 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .surface :global(.cover-caption) {
+    margin: 0;
+    font-size: 12px;
+    color: var(--ink-faint);
+  }
+  .surface :global(.cover-lines) {
+    text-align: center;
+  }
+  .surface :global(.cover-line) {
+    margin: 0.15rem 0 0;
+    color: var(--ink-soft);
+  }
+  .surface :global(.cover-line:first-child) {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .surface :global(.cover-line.empty) {
+    font-size: inherit;
+    font-weight: 400;
+    color: var(--ink-faint);
+  }
+  /* Edit: quiet at rest, shown on hover, focus or when the block is selected; always on touch. */
+  .surface :global(.block-edit) {
+    margin-left: auto;
+    align-self: center;
+    height: 28px;
+    padding: 0 var(--s2);
+    border: 0;
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--ink-soft);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    opacity: 0;
+  }
+  .surface :global(.block-edit:hover) {
+    background: var(--wash);
+    color: var(--ink);
+  }
+  .surface :global(:is(.section-block, .cover-block):hover .block-edit),
+  .surface :global(.ProseMirror-selectednode .block-edit),
+  .surface :global(.block-edit:focus-visible) {
+    opacity: 1;
+  }
+  @media (hover: none) {
+    .surface :global(.block-edit) {
+      opacity: 1;
+    }
   }
   .surface :global(.ff-placeholder-hint) {
     margin: 0 0 0.3rem;
@@ -1839,11 +1900,6 @@
   .surface :global(.page-row .page-block-title) {
     margin: 0;
   }
-  .surface :global(.cover-grid) {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-    gap: 0.4rem 0.8rem;
-  }
   .surface :global(.page-field) {
     display: flex;
     flex-direction: column;
@@ -1851,15 +1907,8 @@
     font-size: 12px;
     color: var(--ink-soft);
   }
-  .surface :global(.page-field.inline) {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.4rem;
-    margin-top: 0.4rem;
-  }
-  .surface :global(.page-block input:not([type='checkbox'])),
-  .surface :global(.page-block select),
-  .surface :global(.cover-instructions-input) {
+  .surface :global(.page-block input),
+  .surface :global(.page-block select) {
     font: inherit;
     font-size: 13px;
     padding: 0.2rem 0.4rem;
@@ -1868,20 +1917,10 @@
     background: var(--paper);
     color: var(--ink);
   }
-  .surface :global(.cover-instructions-input) {
-    display: block;
-    width: 100%;
-    margin-top: 0.5rem;
-    resize: vertical;
-  }
   .surface :global(.blank-text-input) {
     flex: 1 1 14rem;
   }
-  .surface :global(.page-block-note) {
-    margin: 0.4rem 0 0;
-    font-size: 12px;
-    color: var(--ink-soft);
-  }
+
   .surface :global(.page-break-marker) {
     border-top: 2px dashed var(--line);
     text-align: center;
@@ -1893,6 +1932,10 @@
   .surface :global(.ProseMirror-selectednode) {
     outline: 2px solid var(--verify);
     border-radius: 6px;
+  }
+  .surface :global(.section-block.ProseMirror-selectednode) {
+    outline-offset: 4px;
+    border-radius: 0;
   }
   .plus {
     display: flex;

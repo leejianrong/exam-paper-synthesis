@@ -11,15 +11,21 @@
   // The editor's right side panel (EXA-160, evolved from the EXA-93 inspector). "Paper" holds
   // what applies to the whole paper: marks per section, layout (time, first question number,
   // marks shown) and, on a generated paper, Regenerate unlocked. The answer key options sit
-  // above the key itself, in the key view (EXA-162). "Question" holds the inspector for
-  // the block you are in; clicking into a question brings that tab forward.
+  // above the key itself, in the key view (EXA-162). The second tab follows the selection: the
+  // inspector for the question you are in, or the settings of a selected section or the cover
+  // (EXA-164); selecting a different one brings that tab forward.
   import { createEventDispatcher, tick } from 'svelte'
   import type { DocNode } from './doc'
   import Icon from '../Icon.svelte'
   import Inspector from './Inspector.svelte'
   import { summarise } from './inspector'
   import { paperSettings } from './paperSettings'
-  import { DEFAULT_PLACEMENT } from './layout'
+  import { paperPlacement } from './layout'
+  import { outline } from './sections'
+  import type { SettingsBlock } from './blockSettings'
+  import MarksShown from './MarksShown.svelte'
+  import SectionSettings from './SectionSettings.svelte'
+  import CoverSettings from './CoverSettings.svelte'
 
   export let blocks: DocNode[] = []
   export let marks = 0
@@ -30,7 +36,9 @@
   export let regen: { unlocked: number; locked: number } | null = null
   export let placeholdersLeft = 0
   export let busy = false
-  export let tab: 'paper' | 'question' = 'paper'
+  export let tab: 'paper' | 'selection' = 'paper'
+  /** A selected section or the cover: its settings show instead of a question's (EXA-164). */
+  export let context: SettingsBlock | null = null
 
   const dispatch = createEventDispatcher<{
     time: Event
@@ -39,25 +47,42 @@
     regenerate: void
     remark: { blockId: string; remark: string }
     review: { blockId: string; reviewed: boolean }
+    blockattrs: Record<string, unknown>
+    done: void
   }>()
 
   $: index = blocks.findIndex((b) => b.attrs?.block_id === selectedId)
-  $: questionLabel = index >= 0 ? `Question ${start + index}` : 'Question'
+  $: selectionLabel = !context
+    ? index >= 0
+      ? `Question ${start + index}`
+      : 'Question'
+    : context.kind === 'cover'
+      ? 'Cover page'
+      : String(context.attrs.title ?? '').trim() || `Section ${context.index + 1}`
   $: summary = summarise(blocks, marks)
 
-  // Selection decides what you see: entering a different question shows its tab.
+  // Selection decides what you see: selecting a different question, section or the cover shows
+  // its tab.
   let shownFor: string | null = null
-  $: showQuestion(index >= 0 ? selectedId : null)
-  function showQuestion(id: string | null) {
-    if (id !== null && id !== shownFor) tab = 'question'
-    shownFor = id
+  $: showSelection(
+    context
+      ? context.kind === 'cover'
+        ? 'cover'
+        : `section:${context.index}`
+      : index >= 0
+        ? `q:${selectedId}`
+        : null,
+  )
+  function showSelection(key: string | null) {
+    if (key !== null && key !== shownFor) tab = 'selection'
+    shownFor = key
   }
 
-  let tabEls: Record<'paper' | 'question', HTMLButtonElement | undefined> = { paper: undefined, question: undefined }
+  let tabEls: Record<'paper' | 'selection', HTMLButtonElement | undefined> = { paper: undefined, selection: undefined }
   async function onTabKey(e: KeyboardEvent) {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return
     e.preventDefault()
-    tab = e.key === 'Home' ? 'paper' : e.key === 'End' ? 'question' : tab === 'paper' ? 'question' : 'paper'
+    tab = e.key === 'Home' ? 'paper' : e.key === 'End' ? 'selection' : tab === 'paper' ? 'selection' : 'paper'
     await tick()
     tabEls[tab]?.focus()
   }
@@ -80,14 +105,14 @@
       on:keydown={onTabKey}>Paper</button
     >
     <button
-      bind:this={tabEls.question}
+      bind:this={tabEls.selection}
       role="tab"
-      id="tab-question"
-      aria-controls="tabpanel-question"
-      aria-selected={tab === 'question'}
-      tabindex={tab === 'question' ? 0 : -1}
-      on:click={() => (tab = 'question')}
-      on:keydown={onTabKey}>{questionLabel}</button
+      id="tab-selection"
+      aria-controls="tabpanel-selection"
+      aria-selected={tab === 'selection'}
+      tabindex={tab === 'selection' ? 0 : -1}
+      on:click={() => (tab = 'selection')}
+      on:keydown={onTabKey}>{selectionLabel}</button
     >
   </div>
 
@@ -150,16 +175,9 @@
       </label>
       <label class="field">
         <span>Marks shown</span>
-        <select
-          aria-label="Marks shown"
-          value={$paperSettings.marks_placement ?? DEFAULT_PLACEMENT}
-          on:change={(e) => dispatch('placement', e)}
-        >
-          <option value="answer">After the Ans: line</option>
-          <option value="question">Beside the question</option>
-          <option value="both">Both</option>
-        </select>
+        <MarksShown value={paperPlacement($paperSettings)} on:change={(e) => dispatch('placement', e)} />
       </label>
+      <p class="hint">Each section follows this unless it has its own.</p>
     </div>
 
     {#if regen || placeholdersLeft}
@@ -188,9 +206,22 @@
     {/if}
   </div>
 
-  <div class="pbody" role="tabpanel" id="tabpanel-question" aria-labelledby="tab-question" hidden={tab !== 'question'}>
-    <Inspector {blocks} {selectedId} {start} on:remark on:review />
+  <div class="pbody" role="tabpanel" id="tabpanel-selection" aria-labelledby="tab-selection" hidden={tab !== 'selection'}>
+    {#if context?.kind === 'section'}
+      <SectionSettings
+        attrs={context.attrs}
+        info={$outline[context.index]}
+        paper={paperPlacement($paperSettings)}
+        on:change={(e) => dispatch('blockattrs', e.detail)}
+        on:done
+      />
+    {:else if context?.kind === 'cover'}
+      <CoverSettings attrs={context.attrs} on:change={(e) => dispatch('blockattrs', e.detail)} on:done />
+    {:else}
+      <Inspector {blocks} {selectedId} {start} on:remark on:review />
+    {/if}
   </div>
+
 </aside>
 
 <style>
@@ -304,7 +335,7 @@
     color: var(--ink-soft);
   }
   .field input,
-  .field select {
+  .field :global(select) {
     height: 30px;
     padding: 0 var(--s2);
     border: 1px solid var(--line);
@@ -316,8 +347,60 @@
   .field input {
     width: 72px;
   }
-  .field select {
+  .field :global(select) {
     max-width: 160px;
+  }
+  .field + .hint {
+    margin: calc(-1 * var(--s1)) 0 var(--s2);
+  }
+  /* The section and cover settings (EXA-164): label above its control, full width. */
+  .pbody :global(.settings) {
+    display: grid;
+    gap: var(--s3);
+  }
+  .pbody :global(.settings .row) {
+    display: grid;
+    gap: var(--s1);
+  }
+  .pbody :global(.settings .row > span),
+  .pbody :global(.settings .check > span) {
+    color: var(--ink-soft);
+  }
+  .pbody :global(.settings :is(input:not([type='checkbox']), select, textarea)) {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 30px;
+    padding: var(--s1) var(--s2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--page);
+    color: var(--ink);
+    font: inherit;
+  }
+  .pbody :global(.settings textarea) {
+    resize: vertical;
+  }
+  .pbody :global(.settings input.num) {
+    width: 88px;
+  }
+  .pbody :global(.settings .check) {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+  }
+  .pbody :global(.settings .hint) {
+    margin: calc(-1 * var(--s2)) 0 0;
+    font-size: 12px;
+    color: var(--ink-faint);
+  }
+  .pbody :global(.settings .summary) {
+    margin: 0;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .pbody :global(.settings .summary[data-state='over']),
+  .pbody :global(.settings .summary[data-state='under']) {
+    color: var(--mark);
   }
   .btn {
     display: inline-flex;

@@ -43,7 +43,9 @@ shortcut sheet and the editor-wide shortcuts, and a side panel you can hide; S8,
 papers list: a ⋯ menu per paper and per folder, the New dialog leading with Exam set, en-SG and
 relative edit times, a title search, collapsible folders, and no exam-set ticks on folders; S4, EXA-162, the
 answer key as a view: a Paper | Answer key switch showing the key exactly as it prints, its
-options in a strip above it, and Edit answer… for your own questions).
+options in a strip above it, and Edit answer… for your own questions; S6, EXA-164, a section
+as a compact header and the cover as a compact card, their settings in the side panel, and one
+"Marks shown" control for the paper and each section).
 
 ---
 

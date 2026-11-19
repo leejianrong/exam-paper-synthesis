@@ -68,7 +68,8 @@ export const BlockSelectionGuard = Extension.create({
             return true
           },
           handleKeyDown(view, event) {
-            if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return false
+            // Alt+Enter on a selected section or cover opens its settings (EXA-164)
+            if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.isComposing) return false
             const sel = selectedTopBlock(view.state)
             if (!sel) return false
             view.dispatch(caretAfter(view.state, sel))

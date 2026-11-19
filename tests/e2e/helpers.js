@@ -82,6 +82,17 @@ export async function paperTab(page) {
 }
 
 /**
+ * A section's or the cover's settings (EXA-164): one click on its header or card on the page
+ * selects it, and the side panel's second tab shows its fields. Returns that tab panel.
+ */
+export async function blockSettings(page, block) {
+  await block.locator('.section-title, .cover-caption').click()
+  const panel = page.locator('#tabpanel-selection')
+  await expect(panel).toBeVisible()
+  return panel
+}
+
+/**
  * A question block's controls (EXA-161) show once it is selected: focus the block (the
  * node view around `[data-testid=question-block]`), then use its pill or its ⋯ menu.
  */

@@ -2,14 +2,15 @@
 // instructions, mode, marks target). Questions after it belong to it until the next one. The
 // range and marks beside the title are derived from the document, never typed, so they cannot
 // drift from the questions (the engine's `paper_outline` computes the same for the PDF).
+// On the page it is a compact header; its settings edit in the side panel (EXA-164).
 import { Node } from '@tiptap/core'
 import type { NodeViewRendererProps } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { derived, writable, type Readable } from 'svelte/store'
-import { get } from 'svelte/store'
-import type { SectionInfo, SectionMode, SectionPlacement } from './doc'
-import { DEFAULT_PLACEMENT, paperPlacement } from './layout'
+import { SECTION_PLACEMENTS, type SectionInfo, type SectionMode, type SectionPlacement } from './doc'
+import { DEFAULT_PLACEMENT, MARKS_SHOWN, paperPlacement } from './layout'
 import { paperSettings } from './paperSettings'
+import { editButton, isEditButton, settingsShortcut, type OpenSettings } from './blockSettings'
 
 /** Derived section figures, set by the page and read by the node views (outside its tree). */
 export const outline = writable<SectionInfo[]>([])
@@ -42,13 +43,6 @@ export function markingOn(attrs: { marking?: unknown; mode?: unknown }): boolean
   return attrs.mode === 'short' || attrs.mode === 'structured'
 }
 
-export const PLACEMENT_LABELS: Record<SectionPlacement, string> = {
-  none: 'In the header only',
-  question: 'Beside each question',
-  answer: 'After each Ans: line',
-  both: 'Beside the question and after Ans:',
-}
-
 /** Where the section's [n] print: its own choice, else none for MCQ and short-answer sections
  * (the header sentence gives the marks), else the paper-wide setting (engine mirror, EXA-139). */
 export function sectionPlacement(
@@ -56,8 +50,28 @@ export function sectionPlacement(
   paper: SectionPlacement,
 ): SectionPlacement {
   const chosen = attrs.marks_placement
-  if (typeof chosen === 'string' && chosen in PLACEMENT_LABELS) return chosen as SectionPlacement
+  if (SECTION_PLACEMENTS.includes(chosen as SectionPlacement)) return chosen as SectionPlacement
   return attrs.mode === 'mcq' || attrs.mode === 'short' ? 'none' : paper
+}
+
+const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)
+
+/** The name of a section's unset "Marks shown" choice (EXA-164). */
+export function sectionMarksDefault(mode: SectionMode | null): string {
+  return mode === 'mcq' || mode === 'short' ? `${MODE_LABELS[mode]} default` : 'Same as the paper'
+}
+
+/** The line under a section's "Marks shown": what its choice comes to, against the paper's. */
+export function sectionMarksNote(
+  attrs: { marks_placement?: unknown; mode?: unknown },
+  paper: SectionPlacement,
+): string {
+  const own = SECTION_PLACEMENTS.includes(attrs.marks_placement as SectionPlacement)
+  const mode = attrs.mode as SectionMode
+  if (own) return `Chosen for this section. The paper's: ${lower(MARKS_SHOWN[paper])}.`
+  if (mode === 'mcq' || mode === 'short')
+    return `${MODE_LABELS[mode]} keeps marks in the section header unless you choose.`
+  return `Follows the paper: ${lower(MARKS_SHOWN[paper])}.`
 }
 
 /** Each top-level block's effective marks placement, in document order: the placement of the
@@ -123,12 +137,39 @@ export function trackPlacement(
   return { refresh, current: () => last ?? state.paper, destroy }
 }
 
-export const Section = Node.create({
+export interface SectionOptions {
+  /** Opens the section's settings in the side panel (EXA-164). */
+  onEdit: OpenSettings | null
+}
+
+/** The n-th section of the document (0-based) for the section starting at `pos`, or -1. */
+export function sectionIndexAt(doc: PMNode, pos: number): number {
+  let idx = -1
+  let found = -1
+  doc.forEach((child, offset) => {
+    if (child.type.name !== 'section') return
+    idx += 1
+    if (offset === pos) found = idx
+  })
+  return found
+}
+
+/** The header's short cues: the mode and whether the marking margin is on. */
+export function sectionCues(attrs: { mode?: unknown; marking?: unknown }): string {
+  const mode = MODE_LABELS[attrs.mode as SectionMode] as string | undefined
+  return [mode, markingOn(attrs) && 'marking margin'].filter(Boolean).join(' · ')
+}
+
+export const Section = Node.create<SectionOptions>({
   name: 'section',
   group: 'block',
   atom: true,
   selectable: true,
   draggable: true,
+
+  addOptions() {
+    return { onEdit: null }
+  },
 
   onCreate() {
     publishBlocks(this.editor.state.doc)
@@ -161,116 +202,59 @@ export const Section = Node.create({
     return ['div', { 'data-section': '', ...HTMLAttributes }]
   },
 
+  addKeyboardShortcuts() {
+    return { 'Alt-Enter': () => settingsShortcut(this.editor, this.name, this.options.onEdit) }
+  },
+
   addNodeView() {
+    const options = this.options
     return ({ node, getPos, editor }: NodeViewRendererProps) => {
       let current = node
       const dom = document.createElement('div')
       dom.className = 'section-block'
       dom.setAttribute('data-section', '')
 
-      const setAttr = (attrs: Record<string, unknown>) => {
-        const pos = getPos()
-        if (typeof pos !== 'number') return
-        const { tr } = editor.state
-        tr.setNodeMarkup(pos, undefined, { ...current.attrs, ...attrs })
-        editor.view.dispatch(tr)
-      }
-
-      const field = (label: string, el: HTMLElement) => {
-        const wrap = document.createElement('label')
-        wrap.className = 'section-field'
-        wrap.append(label, el)
-        return wrap
-      }
-
-      const title = document.createElement('input')
-      title.className = 'section-title-input'
-      title.placeholder = 'Section title, e.g. Booklet A'
-      title.setAttribute('aria-label', 'Section title')
-      title.maxLength = 120
-      title.addEventListener('input', () => setAttr({ title: title.value }))
-
-      const mode = document.createElement('select')
-      mode.setAttribute('aria-label', 'Section mode')
-      mode.add(new Option('no mode', ''))
-      for (const [value, label] of Object.entries(MODE_LABELS)) mode.add(new Option(label, value))
-      mode.addEventListener('change', () => setAttr({ mode: mode.value || null }))
-
-      const target = document.createElement('input')
-      target.type = 'number'
-      target.min = '0'
-      target.max = '500'
-      target.className = 'section-target-input'
-      target.setAttribute('aria-label', 'Marks target')
-      target.addEventListener('input', () => {
-        const n = target.value === '' ? null : Math.max(0, Math.min(500, Math.round(+target.value)))
-        setAttr({ marks_target: n })
-      })
-
-      const marking = document.createElement('input')
-      marking.type = 'checkbox'
-      marking.setAttribute('aria-label', 'Marking margin')
-      marking.addEventListener('change', () => setAttr({ marking: marking.checked }))
-
-      const placement = document.createElement('select')
-      placement.setAttribute('aria-label', 'Marks shown')
-      placement.add(new Option('', ''))
-      for (const [value, label] of Object.entries(PLACEMENT_LABELS)) placement.add(new Option(label, value))
-      placement.addEventListener('change', () => setAttr({ marks_placement: placement.value || null }))
-
-      const instructions = document.createElement('textarea')
-      instructions.className = 'section-instructions-input'
-      instructions.rows = 2
-      instructions.maxLength = 1000
-      instructions.placeholder = 'Instructions for students (optional)'
-      instructions.setAttribute('aria-label', 'Section instructions')
-      instructions.addEventListener('input', () => setAttr({ instructions: instructions.value }))
-
-      const summary = document.createElement('p')
+      const title = document.createElement('h3')
+      title.className = 'section-title'
+      const summary = document.createElement('span')
       summary.className = 'section-summary'
-      summary.setAttribute('role', 'status')
-
-      const row = document.createElement('div')
-      row.className = 'section-row'
-      row.append(title, field('Mode', mode), field('Target marks', target), field('Marks shown', placement), field('Marking margin', marking))
-      dom.append(row, instructions, summary)
+      const cues = document.createElement('span')
+      cues.className = 'section-cues'
+      const head = document.createElement('div')
+      head.className = 'section-head'
+      head.append(title, summary, cues)
+      if (options.onEdit) {
+        head.append(
+          editButton('section settings', () => {
+            const pos = getPos()
+            if (typeof pos === 'number') options.onEdit?.(pos)
+          }),
+        )
+      }
+      const instructions = document.createElement('p')
+      instructions.className = 'section-instructions'
+      dom.append(head, instructions)
 
       const sync = () => {
         const a = current.attrs
-        // Never overwrite a field the author is typing in.
-        const set = (el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, v: string) => {
-          if (document.activeElement !== el && el.value !== v) el.value = v
-        }
-        set(title, String(a.title ?? ''))
-        set(mode, String(a.mode ?? ''))
-        set(target, a.marks_target === null || a.marks_target === undefined ? '' : String(a.marks_target))
-        set(instructions, String(a.instructions ?? ''))
-        marking.checked = markingOn(a)
-        // The unset choice is labelled with what it means for this section's mode.
-        const paper = get(paperSettings).marks_placement ?? DEFAULT_PLACEMENT
-        placement.options[0].text = `Default: ${PLACEMENT_LABELS[sectionPlacement({ mode: a.mode }, paper)].toLowerCase()}`
-        set(placement, String(a.marks_placement ?? ''))
-      }
-
-      const indexOfSelf = (): number => {
-        const pos = getPos()
-        if (typeof pos !== 'number') return -1
-        let idx = -1
-        editor.state.doc.forEach((child, offset) => {
-          if (child.type.name === 'section' && offset <= pos) idx += 1
-        })
-        return idx
+        const text = String(a.title ?? '').trim()
+        title.textContent = text || 'Untitled section'
+        title.classList.toggle('untitled', !text)
+        cues.textContent = sectionCues(a)
+        const instr = String(a.instructions ?? '').trim()
+        instructions.textContent = instr
+        instructions.hidden = !instr
       }
 
       const render = (all: SectionInfo[]) => {
-        const info = all[indexOfSelf()]
+        const pos = getPos()
+        const info = typeof pos === 'number' ? all[sectionIndexAt(editor.state.doc, pos)] : undefined
         summary.textContent = sectionSummary(info)
         summary.dataset.state = targetState(info)
       }
       const unsubscribe = (outline as Readable<SectionInfo[]>).subscribe(render)
 
       sync()
-      render([])
 
       return {
         dom,
@@ -280,10 +264,7 @@ export const Section = Node.create({
           sync()
           return true
         },
-        stopEvent: (event: Event) => {
-          const t = event.target as HTMLElement | null
-          return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')
-        },
+        stopEvent: isEditButton,
         ignoreMutation: () => true,
         destroy: unsubscribe,
       }
