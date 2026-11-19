@@ -5,7 +5,7 @@
   const lines = [92, 78, 85, 40, 0, 88, 70, 0, 94, 82, 60]
 </script>
 
-<div class="skeleton" role="status" aria-busy="true" data-testid="editor-skeleton">
+<div class="skeleton" role="status" data-testid="editor-skeleton">
   <span class="visually-hidden">Opening the paper…</span>
   <div class="sk-head" aria-hidden="true">
     <span class="skel" style:width="32px" style:height="24px"></span>

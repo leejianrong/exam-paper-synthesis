@@ -18,18 +18,20 @@ export class ApiError extends Error {
   }
 }
 
-/** Throw the `ApiError` for a failed response (its JSON `detail`, else the status text). */
+/** Throw the `ApiError` for a failed response. Only a JSON `detail` is the server's own words:
+ *  a body that isn't JSON (a proxy's error page) leaves the detail empty, so its status text
+ *  ("Payload Too Large") never reaches the screen. */
 export async function fail(res: Response): Promise<never> {
-  let detail: unknown
+  let detail: unknown = null
   try {
     const body = (await res.json()) as { detail?: unknown }
     detail = body.detail ?? body
   } catch {
-    detail = res.statusText
+    // not JSON: the status alone says what happened
   }
   const after = Number(res.headers?.get?.('retry-after'))
   const err = new ApiError(res.status, detail, Number.isFinite(after) && after > 0 ? after : null)
-  console.warn(`API ${res.status}`, detail)
+  console.warn(`API ${res.status}`, detail ?? res.statusText)
   throw err
 }
 
@@ -56,6 +58,9 @@ const MISSING: Record<string, string> = {
   'unknown paper template': "That paper template doesn't exist any more. Reload the page.",
 }
 
+/** FastAPI's own replies for a route it doesn't have: not words for a teacher. */
+const FRAMEWORK = new Set(['Not Found', 'Method Not Allowed'])
+
 /** A server detail written for people: a whole sentence, starting with a capital. */
 function sentence(detail: unknown): string | null {
   const text =
@@ -64,7 +69,7 @@ function sentence(detail: unknown): string | null {
       : detail && typeof detail === 'object' && typeof (detail as { message?: unknown }).message === 'string'
         ? (detail as { message: string }).message
         : null
-  return text && /^[A-Z]/.test(text) ? text : null
+  return text && /^[A-Z]/.test(text) && !FRAMEWORK.has(text) ? text : null
 }
 
 /** A short lowercase detail that still says what was wrong ("image is larger than 2 MB"). */
@@ -101,7 +106,20 @@ export function plainMessage(status: number, detail: unknown = null, retryAfter:
 /** Worth offering "Try again": the same request may well work in a moment. */
 export function canRetry(e: unknown): boolean {
   if (!(e instanceof ApiError)) return false
-  return e.status === 0 || e.status === 408 || e.status === 429 || e.status >= 500
+  if (e.status === 429) return e.retryAfter === null || e.retryAfter <= 60 // not "in 3 hours"
+  return e.status === 0 || e.status === 408 || e.status >= 500
+}
+
+/** The request may have done its work although no reply came back (a lost connection, a
+ *  gateway error): a create asked again could make a second copy. */
+export function mayHaveHappened(e: unknown): boolean {
+  return e instanceof ApiError && (e.status === 0 || e.status >= 500)
+}
+
+/** A failed create, which is never retried for the teacher: it may have been made anyway. */
+export function createFailedText(e: unknown, action: string): string {
+  const text = errorText(e, action)
+  return mayHaveHappened(e) ? `${text} Check Your papers before trying again.` : text
 }
 
 /** The text to show for a failure: what didn't happen (`action`, e.g. "Couldn't save"), then why. */

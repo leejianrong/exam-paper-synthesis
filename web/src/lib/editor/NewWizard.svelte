@@ -6,7 +6,7 @@
   // already made, Paper 2 first, EXA-153, so the set spreads its topics), says which failed (and keeps
   // what was made), then shows the folder. Escape goes back a step, or closes on the first;
   // focus stays in the dialog, and the list puts it back on the button that opened it.
-  import { errorText } from '../errors'
+  import { createFailedText, errorText } from '../errors'
   import { onMount, tick } from 'svelte'
   import {
     createDocument,
@@ -199,7 +199,7 @@
       busy = false
       onClose()
     } catch (e) {
-      error = msg(e)
+      error = createFailedText(e, "The paper wasn't made")
       busy = false
     }
   }

@@ -91,7 +91,7 @@
   } from './shortcuts'
 
   import ErrorNote from '../ErrorNote.svelte'
-  import { canRetry, errorText } from '../errors'
+  import { canRetry, createFailedText, errorText } from '../errors'
   import PaperUnavailable from './PaperUnavailable.svelte'
   import EditorSkeleton from './EditorSkeleton.svelte'
 
@@ -112,7 +112,6 @@
   let actionError = ''
   /** "Try again" for the failure in `actionError`, when the same request may work now. */
   let actionRetry: (() => void) | null = null
-  $: if (!actionError) actionRetry = null
   /** Why the last save failed (the bar says "Not saved"; the strip says why and retries). */
   let saveError: unknown = null
   let notice = ''
@@ -156,8 +155,14 @@
 
   /** Show a failed action in plain words (EXA-165), with Try again when it may work now. */
   function failed(e: unknown, action: string, retry?: () => void) {
-    actionError = errorText(e, action)
-    actionRetry = retry && canRetry(e) ? retry : null
+    showError(errorText(e, action), retry && canRetry(e) ? retry : null)
+  }
+
+  /** The one way to set (or clear, with '') the strip's error: its Try again goes with it, so
+   *  a retry never outlives the failure it was for. */
+  function showError(message: string, retry: (() => void) | null = null) {
+    actionError = message
+    actionRetry = retry
   }
 
   function readPanelShown(): boolean {
@@ -304,14 +309,15 @@
     const ed = editor
     if (!ed || busy) return
     busy = 'copy'
-    actionError = ''
+    showError('')
     try {
       await autosaver?.flush()
       const document = buildDocument(title, ed.getJSON() as DocJSON, $paperSettings)
       const rec = await copyDocument(id, { document, folder_id: folderId })
       navigate(`/docs/${rec.id}`)
     } catch (e) {
-      failed(e, "Couldn't make a copy", () => void makeCopy())
+      // no Try again: the copy may have been made although the reply was lost
+      showError(createFailedText(e, "Couldn't make a copy"))
     } finally {
       busy = ''
     }
@@ -427,6 +433,17 @@
   async function openPaper() {
     loading = true
     loadError = null
+    // a retry after a load that failed part way starts clean: no second editor or autosaver
+    unsubscribe?.()
+    autosaver?.dispose()
+    editor?.destroy()
+    unsubscribe = null
+    autosaver = null
+    editor = null
+    // An editor whose constructor threw leaves its page behind. Svelte renders nothing inside
+    // this element (TipTap owns it), so clearing it can't confuse the runtime.
+    // eslint-disable-next-line svelte/no-dom-manipulating
+    element?.replaceChildren()
     try {
       const rec = await getDocument(id)
       title = rec.document.title
@@ -468,7 +485,7 @@
           MathNode,
           ImageUpload.configure({
             upload: (f: File) => uploadAsset(f, f.name),
-            onError: (m: string) => (actionError = m),
+            onError: (m: string) => showError(m),
           }),
           PageBreak,
           Section,
@@ -643,10 +660,10 @@
     const files = Array.from(fileInput.files ?? [])
     fileInput.value = ''
     if (!editor) return
-    actionError = ''
+    showError('')
     await uploadAndInsert(editor, files, {
       upload: (f) => uploadAsset(f, f.name),
-      onError: (m) => (actionError = m),
+      onError: (m) => showError(m),
     })
   }
 
@@ -893,7 +910,7 @@
 
   async function download(mode: ExportMode, allowPlaceholders = false) {
     busy = `export-${mode}`
-    actionError = ''
+    showError('')
     unfilled = null
     try {
       await autosaver?.flush()
@@ -934,7 +951,7 @@
     const ed = editor
     if (!ed || !autosaver || busy) return
     busy = 'paper'
-    actionError = ''
+    showError('')
     opInFlight = true
     editedDuringOp = false
     ed.setEditable(false, false)
@@ -1006,7 +1023,7 @@
 
   async function preview(mode: ExportMode) {
     busy = 'preview'
-    actionError = ''
+    showError('')
     pageSummary = null
     readToken++
     try {
@@ -1163,7 +1180,7 @@
   <ErrorNote
     strip
     message={errorText(saveError, "Your latest changes aren't saved")}
-    onRetry={() => void autosaver?.flush()}
+    onRetry={canRetry(saveError) ? () => void autosaver?.flush() : null}
   />
 {/if}
 {#if actionError}<ErrorNote strip message={actionError} onRetry={actionRetry} />{/if}
@@ -1319,7 +1336,7 @@
     block={blocks[answerAt]}
     onAnswer={(answer) => answerFor && setAnswer(answerFor, answer)}
     onPartAnswer={(index, answer) => answerFor && setPartAnswer(answerFor, index, answer)}
-    onError={(m) => (actionError = m)}
+    onError={(m) => showError(m)}
     onClose={() => (answerFor = null)}
   />
 {/if}

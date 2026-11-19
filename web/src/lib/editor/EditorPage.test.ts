@@ -145,6 +145,21 @@ describe('EditorPage', () => {
       })
     }
 
+    const puts = () => fetchMock.mock.calls.filter(([, init]) => init?.method === 'PUT').length
+
+    /** A paper that didn't open must never be saved over: not when the page shows, and not
+     *  once the autosave debounce would have run (an empty editor saving would wipe it). */
+    async function noSaveFromAFailedLoad() {
+      expect(puts()).toBe(0)
+      vi.useFakeTimers()
+      try {
+        await vi.advanceTimersByTimeAsync(5000)
+      } finally {
+        vi.useRealTimers()
+      }
+      expect(puts()).toBe(0)
+    }
+
     it('shows a skeleton, not a live editor, while the paper loads', async () => {
       let answer: (v: unknown) => void = () => {}
       fetchMock.mockImplementation((url: string) =>
@@ -185,6 +200,7 @@ describe('EditorPage', () => {
       expect(within(page).getByRole('heading')).toHaveTextContent("This paper couldn't be opened")
       expect(page).toHaveTextContent('Something went wrong on our side.')
       expect(page).not.toHaveTextContent('boom')
+      await noSaveFromAFailedLoad()
       await fireEvent.click(within(page).getByRole('button', { name: 'Try again' }))
       await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
       expect(screen.queryByTestId('paper-unavailable')).toBeNull()
@@ -195,6 +211,7 @@ describe('EditorPage', () => {
       render(EditorPage, { props: { id: 'd1' } })
       expect(await screen.findByRole('heading', { name: "Can't reach the server" })).toBeInTheDocument()
       expect(screen.getByTestId('paper-unavailable')).not.toHaveTextContent('Failed to fetch')
+      await noSaveFromAFailedLoad()
       await fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
       await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
     })
@@ -219,6 +236,39 @@ describe('EditorPage', () => {
       await waitFor(() => expect(puts).toBe(2))
       await waitFor(() => expect(screen.queryByText('Not saved')).toBeNull())
       expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    it('a save the server refused (not a passing fault) offers no Try again', async () => {
+      fetchMock.mockImplementation(async (_url: string, init?: RequestInit) =>
+        init?.method === 'PUT' ? refuse(413, 'document is too large') : ok(),
+      )
+      render(EditorPage, { props: { id: 'd1' } })
+      const titleBox = await screen.findByLabelText('Paper title')
+      await waitFor(() => expect(titleBox).toHaveValue('Ratio Review'))
+      await fireEvent.input(titleBox, { target: { value: 'Renamed' } })
+      const alert = await screen.findByRole('alert', {}, { timeout: 3000 })
+      expect(alert).toHaveTextContent("Your latest changes aren't saved. Document is too large.")
+      expect(within(alert).queryByRole('button', { name: 'Try again' })).toBeNull()
+    })
+
+    it('a fault in the page itself is a plain sentence, never the raw script error', async () => {
+      // a reply without a document: reading its title throws a TypeError
+      loadWith(() => ({ ok: true, status: 200, json: async () => ({ id: 'd1', version: 1 }) }))
+      render(EditorPage, { props: { id: 'd1' } })
+      const page = await screen.findByTestId('paper-unavailable')
+      expect(within(page).getByRole('heading')).toHaveTextContent("This paper couldn't be opened")
+      expect(page).toHaveTextContent('Something unexpected went wrong while opening it.')
+      expect(page).not.toHaveTextContent(/undefined|TypeError|reading/)
+    })
+
+    it('a retry after a load that failed part way starts one editor, not a second', async () => {
+      // the first reply builds the autosaver, then the editor fails on content it can't read
+      loadWith(() => ok([{ type: 'templatedQuestion', attrs: { block_id: 'x', question: null } }]))
+      render(EditorPage, { props: { id: 'd1' } })
+      const page = await screen.findByTestId('paper-unavailable')
+      await fireEvent.click(within(page).getByRole('button', { name: 'Try again' }))
+      await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
+      expect(document.querySelectorAll('.surface .ProseMirror')).toHaveLength(1)
     })
   })
 
@@ -575,6 +625,30 @@ describe('EditorPage export allowance (W3c)', () => {
     expect(exports()).toBe(1)
     await fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Try again' }))
     await waitFor(() => expect(exports()).toBe(2))
+  })
+})
+
+describe('EditorPage action errors (EXA-165)', () => {
+  it("an image error after a failed export doesn't keep the export's Try again", async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (String(url).includes('/export/')) return { ok: false, status: 503, json: async () => ({ detail: 'export is busy' }) }
+      if (String(url).endsWith('/assets') && init?.method === 'POST') {
+        return { ok: false, status: 422, json: async () => ({ detail: 'only PNG and JPEG images are accepted' }) }
+      }
+      return { ok: true, status: 200, json: async () => record([]), text: async () => '' }
+    })
+    render(EditorPage, { props: { id: 'd1' } })
+    await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
+    await fireEvent.click(await exportItem('Student paper (PDF)'))
+    const first = await screen.findByRole('alert')
+    expect(first).toHaveTextContent("Couldn't export the PDF. The server is busy.")
+    expect(within(first).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+
+    const input = screen.getByLabelText('Choose image') as HTMLInputElement
+    await fireEvent.change(input, { target: { files: [new File(['x'], 'a.gif', { type: 'image/gif' })] } })
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("The image wasn't added."))
+    expect(within(screen.getByRole('alert')).queryByRole('button', { name: 'Try again' })).toBeNull()
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/export/'))).toHaveLength(1)
   })
 })
 

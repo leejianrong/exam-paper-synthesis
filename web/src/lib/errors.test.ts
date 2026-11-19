@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/svelte'
-import { ApiError, canRetry, errorText, fail, plainMessage, waitText } from './errors'
+import { ApiError, canRetry, createFailedText, errorText, fail, mayHaveHappened, plainMessage, waitText } from './errors'
 import { apiFetch } from './http'
 import ErrorNote from './ErrorNote.svelte'
 
@@ -59,10 +59,17 @@ describe('fail and apiFetch', () => {
     expect((err as Error).message).toBe('Too many requests. Try again in 45 seconds.')
   })
 
-  it('a body that is not JSON keeps the status text as the detail', async () => {
-    const err = (await fail(new Response('<html>', { status: 502, statusText: 'Bad Gateway' })).catch((e: unknown) => e)) as ApiError
-    expect(err.detail).toBe('Bad Gateway')
-    expect(err.message).toBe('Something went wrong on our side. Try again in a moment.')
+  it("a body that is not JSON leaves the detail empty: a proxy's status text never shows", async () => {
+    const err = (await fail(new Response('<html>', { status: 413, statusText: 'Payload Too Large' })).catch((e: unknown) => e)) as ApiError
+    expect(err.detail).toBeNull()
+    expect(err.message).toBe('That is too large to send.')
+    const gone = (await fail(new Response('nope', { status: 405, statusText: 'Method Not Allowed' })).catch((e: unknown) => e)) as ApiError
+    expect(gone.message).toBe('The server refused the request (error 405).')
+  })
+
+  it("FastAPI's own Not Found / Method Not Allowed are not sentences for people", () => {
+    expect(plainMessage(404, 'Not Found')).toBe("It doesn't exist any more or was deleted.")
+    expect(plainMessage(405, 'Method Not Allowed')).toBe('The server refused the request (error 405).')
   })
 
   it('apiFetch turns a network failure into ApiError(0)', async () => {
@@ -77,6 +84,11 @@ describe('canRetry and errorText', () => {
   it('offers Try again only when the same request may work now', () => {
     expect(canRetry(new ApiError(0, ''))).toBe(true)
     expect(canRetry(new ApiError(429, '', 5))).toBe(true)
+    expect(canRetry(new ApiError(429, '', 60))).toBe(true)
+    expect(canRetry(new ApiError(429, ''))).toBe(true)
+    // a wait of hours (the daily export allowance): Try again now would only fail again
+    expect(canRetry(new ApiError(429, '', 61))).toBe(false)
+    expect(canRetry(new ApiError(429, '', 3 * 3600))).toBe(false)
     expect(canRetry(new ApiError(500, ''))).toBe(true)
     expect(canRetry(new ApiError(503, ''))).toBe(true)
     for (const s of [401, 403, 404, 409, 413, 422]) expect(canRetry(new ApiError(s, ''))).toBe(false)
@@ -89,6 +101,22 @@ describe('canRetry and errorText', () => {
     )
     expect(errorText(new Error('Your latest changes are not saved yet.'))).toBe('Your latest changes are not saved yet.')
     expect(errorText('???', 'The paper wasn’t moved')).toBe('The paper wasn’t moved. Something unexpected went wrong. Try again.')
+  })
+})
+
+describe('a failed create (make a copy, a new paper)', () => {
+  it('says to check Your papers when the request may have gone through', () => {
+    expect(mayHaveHappened(new ApiError(0, ''))).toBe(true)
+    expect(mayHaveHappened(new ApiError(502, ''))).toBe(true)
+    expect(mayHaveHappened(new ApiError(504, ''))).toBe(true)
+    expect(mayHaveHappened(new ApiError(422, ''))).toBe(false)
+    expect(mayHaveHappened(new Error('x'))).toBe(false)
+    expect(createFailedText(new ApiError(0, ''), "Couldn't make a copy")).toBe(
+      "Couldn't make a copy. Can't reach the server. Check your internet connection. Check Your papers before trying again.",
+    )
+    expect(createFailedText(new ApiError(422, 'name too long'), "Couldn't make a copy")).toBe(
+      "Couldn't make a copy. Name too long.",
+    )
   })
 })
 

@@ -25,9 +25,12 @@
         ? 'It belongs to another account. Sign in with the account that made it, or go back to Your papers.'
         : status === 0
           ? "The paper couldn't be opened. Check your internet connection, then try again."
-          : errorText(error),
+          : error instanceof ApiError
+            ? errorText(error)
+            : 'Something unexpected went wrong while opening it. Try again, or go back to Your papers.',
   )
-  const retry = $derived(canRetry(error))
+  // a fault in the page itself (not an answer from the server) may not repeat: let it be tried
+  const retry = $derived(canRetry(error) || !(error instanceof ApiError))
 
   let h1: HTMLElement | undefined = $state()
   onMount(() => h1?.focus())

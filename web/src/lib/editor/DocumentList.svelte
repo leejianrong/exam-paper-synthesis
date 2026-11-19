@@ -30,7 +30,7 @@
   import AccountMenu from './AccountMenu.svelte'
   import { settings } from '../settings'
   import ErrorNote from '../ErrorNote.svelte'
-  import { canRetry, errorText } from '../errors'
+  import { canRetry, createFailedText, errorText } from '../errors'
 
   const COLLAPSED_KEY = 'exam.papers.collapsed'
 
@@ -206,7 +206,8 @@
       docs = [...docs.slice(0, at + 1), copy, ...docs.slice(at + 1)]
       announce = `Made “${titleOf(copy)}”.`
     } catch (e) {
-      failed(e, "Couldn't make a copy", () => void onCopy(d))
+      // no Try again: the copy may have been made although the reply was lost
+      error = createFailedText(e, "Couldn't make a copy")
     }
   }
 
@@ -372,7 +373,7 @@
   <p class="sr" role="status">{announce}</p>
 
   {#if !loaded}
-    <div class="loading" role="status" aria-busy="true" data-testid="list-skeleton">
+    <div class="loading" role="status" data-testid="list-skeleton">
       <span class="visually-hidden">Loading your papers…</span>
       <ul class="docs loose" aria-hidden="true">
         {#each [62, 48, 70, 55] as w, i (i)}
