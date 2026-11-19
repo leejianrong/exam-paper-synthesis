@@ -205,7 +205,8 @@ class Candidate:
     level: str
     marks: int
     kind: str  # "constructed" (single-part) or "multipart" (P8c: a stem with parts)
-    answer_type: str = ""
+    # every answer type the blueprint can give (EXA-155: BlueprintSpec.answer_types)
+    answer_types: tuple[str, ...] = ()
     rung: str = "easy"  # the blueprint's cognitive.difficulty: easy / medium / hard
 
 
@@ -236,7 +237,7 @@ def _pool() -> tuple[Candidate, ...]:
                 level=spec.syllabus.get("level", "P6"),
                 marks=spec.marks,
                 kind="multipart" if spec.is_multipart else "constructed",
-                answer_type=str((spec.answer or {}).get("type", "")),
+                answer_types=spec.answer_types,
                 rung=str(spec.cognitive.get("difficulty", "easy")),
             )
         )
@@ -250,13 +251,21 @@ def candidates(level: str) -> list[Candidate]:
 
 
 def _fits(c: Candidate, kind: str) -> bool:
-    if kind == "mcq":  # P8b: converted to multiple choice, so the answer must be convertible
-        # EXA-147: or the blueprint asks multiple choice itself (picture options)
-        return c.kind == "constructed" and c.answer_type in (*CONVERTIBLE, "choice")
+    if kind == "mcq":  # P8b: converted to multiple choice, so every answer it can give must be
+        # convertible (EXA-155: not just the main declared type), or the blueprint asks multiple
+        # choice itself (EXA-147: picture options)
+        types = c.answer_types
+        return c.kind == "constructed" and (
+            types == ("choice",) or (bool(types) and all(t in CONVERTIBLE for t in types))
+        )
     if kind == "multipart":  # P8c: only structured sections ask for these
         return c.kind == "multipart"
     # short-answer and (stand-in) structured slots take constructed-response questions.
-    return kind in ("short", "structured") and c.kind == "constructed" and c.answer_type != "choice"
+    return (
+        kind in ("short", "structured")
+        and c.kind == "constructed"
+        and "choice" not in c.answer_types
+    )
 
 
 def as_slot_question(obj: dict, kind: str, seed: int) -> dict:

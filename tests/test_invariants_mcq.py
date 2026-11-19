@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 import re
 from fractions import Fraction
 from pathlib import Path
@@ -33,8 +34,22 @@ BLUEPRINTS = sorted(
 SEEDS = range(1, 31)
 
 
+_PI_TERM = re.compile(r"^\\\((?:\\left\()?(\d+(?:\.\d+)?)\\pi(?: \+ (\d+(?:\.\d+)?))?")
+
+
+def _pi_terms(text: str) -> tuple[Fraction, Fraction] | None:
+    """An option in terms of π ("\\(\\left(7\\pi + 14\\right)\\ \\text{cm}\\)", EXA-155) read
+    back as (π coefficient, number); None for any other option."""
+    m = _PI_TERM.match(text)
+    return (Fraction(m[1]), Fraction(m[2] or 0)) if m else None
+
+
 def _value(text: str) -> Fraction | None:
-    """The number an option shows ("$344", "53 kg", "\\(\\frac{2}{11}\\)", "12.50")."""
+    """The number an option shows ("$344", "53 kg", "\\(\\frac{2}{11}\\)", "12.50"); an option
+    in terms of π is worth its value with π as a float (no two printed options tie)."""
+    terms = _pi_terms(text)
+    if terms is not None:
+        return terms[0] * Fraction(math.pi) + terms[1]
     if "frac" in text:
         num, den = text.split("{")[1].split("}")[0], text.split("{")[2].split("}")[0]
         return Fraction(int(num), int(den))
@@ -241,12 +256,16 @@ def test_an_option_shows_exactly_the_wrong_answer_its_reason_describes(code):
         if not convertible(obj):
             continue
         hooked = {why: v for v, why in mcq.common_wrong_answers(obj)}
+        # an answer in terms of π: the solver's slips are whole expressions (EXA-155)
+        hooked_text = {why: answer_text(e) for e, why in mcq.expression_wrong_answers(obj)}
         part = to_mcq(obj, seed)["question"]["parts"][0]
         reasons = dict(
             re.findall(r"\((\d)\) ([^;]+?)(?:;|\.$)", part["marking_scheme"][0]["description"])
         )
         for o in part["answer"]["options"]:
             why = reasons.get(o["label"])
+            if why in hooked_text:
+                assert o["text"] == hooked_text[why], (code, seed, o["text"], why)
             if why in hooked:
                 shown = _value(o["text"])
                 assert shown == hooked[why] or any(
@@ -295,11 +314,16 @@ def _correct_positions(code: str, seeds: range) -> list[int]:
 
 @pytest.mark.parametrize("code", [c for c in BLUEPRINTS if c not in EXTREME])
 def test_numeric_options_are_in_ascending_order(code):
+    """Numbers ascending; options in terms of π by coefficient, as real papers list them."""
     for seed in range(1, 41):
         obj = generate(code, seed)
         if not convertible(obj):
             continue
         texts = [o["text"] for o in to_mcq(obj, seed)["question"]["parts"][0]["answer"]["options"]]
+        terms = [_pi_terms(t) for t in texts]
+        if all(terms):  # in terms of π: by coefficient, the π part then the number (EXA-155)
+            assert terms == sorted(terms), (code, seed, texts)  # type: ignore[type-var]
+            continue
         values = [_value(t) for t in texts]
         assert values == sorted(values), (code, seed, texts)  # type: ignore[type-var]
 
@@ -363,3 +387,45 @@ def test_a_hooked_answer_is_not_mostly_the_smallest_or_largest(code):
     share = {p: positions.count(p) / len(positions) for p in (1, 2, 3, 4)}
     assert share[1] <= 0.4 and share[4] <= 0.4, share
     assert min(share.values()) >= 0.05, share
+
+
+# --- EXA-155: an answer in terms of π as multiple choice -------------------------------------
+
+
+@pytest.mark.parametrize("code", ["circles_medium", "circles_hard"])
+def test_an_answer_in_terms_of_pi_gets_four_options_in_terms_of_pi(code):
+    seen = 0
+    for seed in range(1, 200):
+        obj = generate(code, seed)
+        answer = obj["question"]["parts"][0]["answer"]
+        if answer["type"] != "expression":
+            continue
+        seen += 1
+        assert convertible(obj)
+        m = to_mcq(obj, seed)
+        texts = [o["text"] for o in m["question"]["parts"][0]["answer"]["options"]]
+        terms = [_pi_terms(t) for t in texts]
+        assert all(t is not None and t[0] > 0 for t in terms), (code, seed, texts)
+        assert all(t.endswith(r"\ \text{cm}\)") for t in texts), (code, seed, texts)
+        assert texts.count(answer_text(answer)) == 1, (code, seed, texts)
+        assert verify_snapshot(m) == [], (code, seed)
+    assert seen >= 10, (code, seen)
+
+
+def test_tampering_with_a_pi_option_is_caught():
+    obj = next(
+        o
+        for o in (generate("circles_medium", s) for s in range(1, 200))
+        if o["question"]["parts"][0]["answer"]["type"] == "expression"
+    )
+    m = to_mcq(obj, 3)
+    ans = m["question"]["parts"][0]["answer"]
+    moved = copy.deepcopy(m)
+    a = moved["question"]["parts"][0]["answer"]
+    a["correct"] = next(o["label"] for o in a["options"] if o["label"] != ans["correct"])
+    assert verify_snapshot(moved)
+    retext = copy.deepcopy(m)
+    a = retext["question"]["parts"][0]["answer"]
+    right = next(o for o in a["options"] if o["label"] == a["correct"])
+    right["text"] = right["text"].replace(r"\pi", r"\pi + 1", 1)
+    assert verify_snapshot(retext)

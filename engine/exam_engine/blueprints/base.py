@@ -176,6 +176,21 @@ class BlueprintSpec:
         """How many parts every question of this blueprint has (1 for single-part)."""
         return len(self.parts) or 1
 
+    @property
+    def answer_types(self) -> tuple[str, ...]:
+        """Every answer type this blueprint's questions can have (EXA-155): the YAML answer's
+        ``types`` list when it declares one (a solver that answers some questions in terms of
+        π), else its ``type``; over all parts for a multi-part blueprint. The paper generator
+        routes on it, so it must be honest: ``tests/test_answer_types.py`` sweeps every solver.
+        """
+        answers = [p.get("answer") or {} for p in self.parts] or [self.answer or {}]
+        out: list[str] = []
+        for a in answers:
+            for t in a.get("types") or [a.get("type")]:
+                if t and t not in out:
+                    out.append(str(t))
+        return tuple(out)
+
     @classmethod
     def from_dict(cls, data: dict) -> BlueprintSpec:
         known = {

@@ -64,7 +64,7 @@
   {#if part.answer?.type === 'choice'}<ChoiceOptions options={part.answer.options ?? []} />{/if}
 
   <p class="answer">
-    <span class="label">Answer</span> <span class="val">{fmtAnswer(part.answer)}</span>
+    <span class="label">Answer</span> <span class="val"><MathText text={fmtAnswer(part.answer)} /></span>
   </p>
 
   <div class="edit-row" role="group" aria-label="edit question">

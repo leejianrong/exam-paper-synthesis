@@ -8,6 +8,8 @@ order), which is what makes them comparable.
 * :func:`check_expression_consistency` — the load-gate checks.
 * :func:`to_latex` — the print form (KaTeX), unit included.
 * :func:`evaluate` / :func:`expressions_equal` — for solvers and invariant tests.
+* :func:`in_terms_of_pi` / :func:`pi_parts` — build / read ``aπ + b`` (EXA-155: π-terms
+  multiple choice).
 
 Limit (deliberate): one symbol per term, so ``πr²`` is not expressible, but
 ``42π`` and ``2n + 3`` are. No FastAPI/Pydantic (ADR-0016).
@@ -98,6 +100,32 @@ def to_latex(answer: dict) -> str:
         shown = rf"\left({body}\right)" if len(terms) > 1 else body
         return rf"{shown}\ {unit_latex(unit)}"
     return body
+
+
+def _coefficient(x: Fraction) -> int | float:
+    return int(x) if x.denominator == 1 else float(x)
+
+
+def in_terms_of_pi(pi: Fraction | int, constant: Fraction | int, unit: str) -> dict:
+    """The answer ``pi·π + constant`` (either part may be 0, not both) in canonical order."""
+    terms = [
+        {"coefficient": _coefficient(Fraction(c)), "symbol": sym}
+        for c, sym in ((pi, "π"), (constant, None))
+        if c != 0
+    ]
+    return {"type": "expression", "terms": terms, "unit": unit}
+
+
+def pi_parts(answer: dict) -> tuple[Fraction, Fraction] | None:
+    """``(π coefficient, constant)`` of an answer in terms of π, or ``None`` when it has
+    another symbol or a power of π."""
+    out = {"π": Fraction(0), None: Fraction(0)}
+    for t in answer["terms"]:
+        sym = t.get("symbol")
+        if sym not in out or (sym and (t.get("power") or 1) != 1):
+            return None
+        out[sym] += Fraction(str(t["coefficient"]))
+    return out["π"], out[None]
 
 
 def evaluate(answer: dict, values: dict[str, float] | None = None) -> float:

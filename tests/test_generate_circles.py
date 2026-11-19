@@ -10,8 +10,11 @@ from pathlib import Path
 import pytest
 from exam_engine import canonical, edits, generate
 from exam_engine.blueprints.registry import get_solver, load_blueprint
+from exam_engine.document import verify_snapshot
 from exam_engine.ladder import ladder_for, sibling
+from exam_engine.mcq import to_mcq
 from exam_engine.paper import candidates, generate_paper, min_rung
+from exam_engine.pipeline import build_from_params
 from exam_engine.render import render_answer_key_html, render_worksheet_html
 from exam_engine.schema import validate_object
 
@@ -83,13 +86,31 @@ def test_golden_fixtures(code):
     """Golden params -> expected answer (regression anchors; a person checks them)."""
     solver = get_solver(code)
     lines = [ln for ln in (GOLDEN / f"{code}.jsonl").read_text().splitlines() if ln.strip()]
-    assert len(lines) == 3
+    # 3 each; medium has 2 more for its perimeters in terms of π (EXA-155)
+    assert len(lines) == (5 if code == "circles_medium" else 3)
     for ln in lines:
         rec = json.loads(ln)
         solution = solver.solve(rec["params"])
         assert solution["answer"] == rec["expected"]["answer"]
         assert solver.validate(rec["params"], solution)["ok"] is True
         assert load_blueprint(code).marks == rec["expected"]["total_marks"]
+
+
+def test_pi_terms_multiple_choice_golden_fixtures():
+    """EXA-155: a medium perimeter in terms of π as a Booklet A multiple-choice question: the
+    four options exactly as printed, and which is correct (regression anchors; a person checks
+    them, see the PR)."""
+    lines = [ln for ln in (GOLDEN / "mcq" / "circles_medium.jsonl").read_text().splitlines() if ln]
+    assert len(lines) == 2
+    for ln in lines:
+        rec = json.loads(ln)
+        code = rec["code"]
+        obj = build_from_params(load_blueprint(code), get_solver(code), rec["seed"], rec["params"])
+        m = to_mcq(obj, rec["mcq_seed"])
+        answer = m["question"]["parts"][0]["answer"]
+        assert [o["text"] for o in answer["options"]] == rec["expected"]["options"]
+        assert answer["correct"] == rec["expected"]["correct"]
+        assert verify_snapshot(m) == []
 
 
 def test_ladder_is_wired():
@@ -112,8 +133,9 @@ def test_every_rung_fits_its_slots_under_difficulty_follows_marks():
         c = pool[code]
         assert c.topic == "Circles" and c.kind == "constructed"
         assert min_rung(c.marks) in ("easy", c.rung)
-    assert pool["circles_easy"].answer_type in ("integer", "decimal")  # Booklet A MCQ
-    assert pool["circles_medium"].answer_type in ("integer", "decimal")
+    # Booklet A multiple choice: every answer converts, a number or one in terms of π (EXA-155)
+    assert set(pool["circles_easy"].answer_types) <= {"integer", "decimal"}
+    assert set(pool["circles_medium"].answer_types) == {"integer", "decimal", "expression"}
     assert not any(c.topic == "Circles" for c in candidates("P5"))
 
 
@@ -130,3 +152,18 @@ def test_generated_p6_papers_draw_circles():
                 and b["attrs"]["question"]["blueprint_code"].startswith("circles_")
             )
     assert found >= 10, found
+
+
+def test_booklet_a_draws_perimeters_in_terms_of_pi_as_multiple_choice():
+    """EXA-155: real Booklet A papers ask a perimeter in terms of π with four π-term options;
+    the medium rung now does too (about 4 papers in 100), and each stays engine-proven."""
+    found = 0
+    for seed in range(1, 101):
+        doc, _ = generate_paper("p1_booklet_a", "P6", seed)
+        for b in doc["content"]["content"]:
+            q = (b.get("attrs") or {}).get("question") or {}
+            if (q.get("parameters") or {}).get("pi") == "terms":
+                assert q["question"]["parts"][0]["answer"]["type"] == "choice"
+                assert verify_snapshot(q) == []
+                found += 1
+    assert found >= 2, found

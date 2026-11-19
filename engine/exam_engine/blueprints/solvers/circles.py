@@ -5,6 +5,8 @@
 * medium (2 marks) — a composite: a square with a semicircle on one side, a rectangle with
                     a semicircle cut out, a quarter circle (perimeter or area of the whole
                     shaded figure, so the straight edges count only when they bound it).
+                    The quarter circle's and the square-and-semicircle's perimeters are
+                    sometimes asked "in terms of π" (EXA-155), as Booklet A does.
 * hard (3 marks)  — a shaded region made by quarter circles and semicircles inside a square
                     or rectangle: the leaf of two quarter circles, a quarter circle less a
                     semicircle (area, or perimeter "in terms of π" as an ``expression``
@@ -12,10 +14,12 @@
 
 π is stated in the stem: ``3.14`` (the usual choice in real papers) or ``22/7``, and the
 dimensions are drawn so the answer is whole or ends within 2 decimal places (22/7 only
-with lengths that are multiples of 7). The ``terms`` template asks for the answer in terms
-of π instead. Every shaded region is traced on the figure (``shaded[].arcs``) exactly as
-the question measures it, so the invariant test can recompute the answer from the figure
-by numerical integration. Exact ``Fraction`` arithmetic throughout (no LLM).
+with lengths that are multiples of 7). ``pi = "terms"`` asks for the answer in terms of π
+instead: an ``expression`` ``aπ + b``, whose common wrong answers are expressions too (so
+it converts to multiple choice, ``mcq.to_mcq``). Every shaded region is traced on the
+figure (``shaded[].arcs``) exactly as the question measures it, so the invariant test can
+recompute the answer from the figure by numerical integration. Exact ``Fraction``
+arithmetic throughout (no LLM).
 """
 
 from __future__ import annotations
@@ -24,13 +28,33 @@ import math
 import random
 from collections.abc import Callable
 from fractions import Fraction
+from typing import Any
 
+from ...expression import in_terms_of_pi
 from ..base import Slip, spread
 from ..registry import register
 from .geometry_area_common import AREA_UNIT, LEN_UNIT, _labels, _pt, format_measure
 
 PIS = ("3.14", "22/7")
 TERMS = "terms"  # the answer is left in terms of π
+# medium templates that are sometimes asked in terms of π (EXA-155), and how often
+MEDIUM_TERMS = ("quarter_circle_perimeter", "square_semicircle_perimeter")
+TERMS_SHARE = 0.3
+
+
+def _pi_len(pi_coef: Fraction | int, const: Fraction | int) -> dict:
+    """A perimeter ``pi_coef·π + const`` cm, as an ``expression`` answer."""
+    return in_terms_of_pi(Fraction(pi_coef), Fraction(const), LEN_UNIT)
+
+
+def _pi_text(pi_coef: Fraction | int, const: Fraction | int) -> str:
+    """``(5π + 20) cm`` as a worked step prints it."""
+    a = _n(Fraction(pi_coef))
+    return f"({a}π + {_n(Fraction(const))}) cm" if const else f"{a}π cm"
+
+
+def _pi_slips(slips: list[tuple[Fraction | int, Fraction | int, str]]) -> list:
+    return [(_pi_len(a, b), why) for a, b, why in slips]
 
 
 def pi_of(pi: str) -> Fraction:
@@ -292,8 +316,39 @@ def _square_semicircle(s: int) -> dict:
     }
 
 
+def _medium_square_semicircle_terms(s: int) -> dict:
+    """The square-and-semicircle's perimeter in terms of π: (s/2)π + 3s."""
+    h = Fraction(s, 2)
+    return {
+        **_square_semicircle(s),
+        "answer": _pi_len(h, 3 * s),
+        "text": f"The figure is made up of a square of side {s} cm and a semicircle. "
+        "The side of the square is the diameter of the semicircle. "
+        "Find the perimeter of the figure. Leave your answer in terms of π.",
+        "steps": [
+            f"Curved edge = ½ × π × {s} = {_n(h)}π cm.",
+            f"Straight edges = 3 × {s} = {3 * s} cm (the side inside the figure is not part of "
+            "its perimeter).",
+            f"Perimeter = {_pi_text(h, 3 * s)}.",
+        ],
+        "wrong": _pi_slips(
+            [
+                (h, 4 * s, "added the side inside the figure too"),
+                (h, 2 * s, "counted only two sides of the square"),
+                (h, 0, "the curved edge only (forgot the straight edges)"),
+                (h / 2, 3 * s, "halved twice: a quarter circle's curved edge"),
+                (s, 3 * s, "π × d: a whole circle's curved edge, not a semicircle's"),
+                (h * h / 2, 3 * s, "½ × π × r × r (the area) for the curved edge"),
+                (2 * s, 3 * s, "used the side as the radius of a whole circle"),
+            ]
+        ),
+    }
+
+
 def _medium_square_semicircle(g: dict, pi: str, *, area: bool) -> dict:
     s = g["s"]
+    if pi == TERMS:
+        return _medium_square_semicircle_terms(s)
     p = pi_of(pi)
     lead = (
         f"The figure is made up of a square of side {s} cm and a semicircle. "
@@ -344,8 +399,37 @@ def _medium_square_semicircle(g: dict, pi: str, *, area: bool) -> dict:
     }
 
 
+def _medium_quarter_perimeter_terms(r: int) -> dict:
+    """The quarter circle's perimeter in terms of π: (r/2)π + 2r."""
+    h = Fraction(r, 2)
+    return {
+        **_quarter_figure(r, shaded=True),
+        "answer": _pi_len(h, 2 * r),
+        "text": f"The figure shows a quarter circle with centre O and radius {r} cm. "
+        "Find the perimeter of the figure. Leave your answer in terms of π.",
+        "steps": [
+            f"Curved edge = ¼ × 2 × π × {r} = {_n(h)}π cm.",
+            f"The two radii = 2 × {r} = {2 * r} cm.",
+            f"Perimeter = {_pi_text(h, 2 * r)}.",
+        ],
+        "wrong": _pi_slips(
+            [
+                (h, 0, "the curved edge only (forgot the two straight edges)"),
+                (h, r, "added only one radius"),
+                (h, 3 * r, "counted an extra radius"),
+                (h / 2, 2 * r, "¼ × π × r: used the radius as the diameter"),
+                (r, 2 * r, "halved only once: a semicircle's curved edge"),
+                (h * h, 2 * r, "¼ × π × r × r (the area) for the curved edge"),
+                (2 * r, 2 * r, "the whole circle's circumference for the curved edge"),
+            ]
+        ),
+    }
+
+
 def _medium_quarter_perimeter(g: dict, pi: str) -> dict:
     r = g["r"]
+    if pi == TERMS:
+        return _medium_quarter_perimeter_terms(r)
     p = pi_of(pi)
     arc = p * r / 2
     exact = 2 * r + arc
@@ -462,6 +546,8 @@ MEDIUM: dict[str, Callable[[dict, str], dict]] = {
 
 def _medium_givens(template: str, pi: str, rng: random.Random) -> dict:
     sevens = pi == "22/7"
+    if pi == TERMS:  # even, so the π part is whole: (r/2)π, (s/2)π
+        return {"s" if template.startswith("square") else "r": 2 * rng.randint(3, 10)}
     if template == "square_semicircle_perimeter":
         return {"s": 7 * rng.randint(1, 3) if sevens else rng.randint(6, 20)}
     if template == "square_semicircle_area":  # radius s ÷ 2 must be whole (22/7: a 7s)
@@ -629,11 +715,7 @@ def _hard_quarter_semi_perimeter(g: dict, pi: str) -> dict:
     h = s // 2
     return {
         **_quarter_semi(s, area=False),
-        "answer": {
-            "type": "expression",
-            "terms": [{"coefficient": s, "symbol": "π"}, {"coefficient": s, "symbol": None}],
-            "unit": LEN_UNIT,
-        },
+        "answer": _pi_len(s, s),
         "text": _QS_LEAD.format(s=s) + "Find the perimeter of the shaded part. "
         "Leave your answer in terms of π.",
         "steps": [
@@ -642,7 +724,16 @@ def _hard_quarter_semi_perimeter(g: dict, pi: str) -> dict:
             f"The shaded part is bounded by the two curved edges and AD, so its perimeter = "
             f"{h}π + {h}π + {s} = ({s}π + {s}) cm.",
         ],
-        "wrong": [],  # no multiple-choice copy of an answer in terms of π
+        "wrong": _pi_slips(
+            [
+                (s, 0, "left out the straight edge AD"),
+                (s, 2 * s, "added AB too, which does not bound the shaded part"),
+                (h, s, "counted only one curved edge"),
+                (Fraction(s, 4) + h, s, "¼ × π × r for the quarter circle (halved twice)"),
+                (s + h, s, "used the diameter AB as the semicircle's radius"),
+                (Fraction(3 * s * s, 8), s, "π × r × r (the area) for the curved edges"),
+            ]
+        ),
     }
 
 
@@ -786,21 +877,21 @@ class _CirclesSolver:
         inter.update(zip(_step_keys(len(built["steps"])), built["steps"], strict=True))
         return {"answer": built["answer"], "intermediates": inter}
 
-    def distractors(self, params: dict, solution: dict) -> list[Slip]:
-        """Common wrong answers in the answer's own unit, best first (EXA-122)."""
-        built = self._build(params)
-        right = built["answer"].get("value")
-        slips: list[Slip] = [
-            (Fraction(v), why)
-            for v, why in built["wrong"]
-            if v > 0 and (right is None or Fraction(v) != Fraction(str(right)))
-        ]
-        if right is None:  # an "in terms of π" answer has no numeric options
-            return slips
+    def distractors(self, params: dict, solution: dict) -> list[tuple[Any, str]]:
+        """Common wrong answers in the answer's own unit, best first (EXA-122): numbers, or
+        for an answer in terms of π whole expressions (EXA-155; ``mcq`` builds its options as
+        a grid of their π parts and numbers, and places the answer itself)."""
         from ...mcq import hook_value_prints  # mcq imports the registry, which imports us
 
+        built = self._build(params)
         a = built["answer"]
-        return spread(slips, Fraction(str(right)), params, lambda v: hook_value_prints(v, a))
+        if a["type"] == "expression":
+            return list(built["wrong"])
+        right = Fraction(str(a["value"]))
+        slips: list[Slip] = [
+            (Fraction(v), why) for v, why in built["wrong"] if v > 0 and Fraction(v) != right
+        ]
+        return spread(slips, right, params, lambda v: hook_value_prints(v, a))
 
     def validate(self, params: dict, solution: dict) -> dict:
         built = self._build(params)
@@ -831,11 +922,20 @@ class _CirclesSolver:
 def _expected(params: dict) -> dict:
     """The answer from one closed formula per template (a second path to ``_build``)."""
     t, g, pi = params["template"], params["givens"], params["pi"]
-    if t == "quarter_semicircle_perimeter":
-        s = g["s"]
+    if pi == TERMS:  # aπ + b, written out term by term
+        n = g.get("s") or g["r"]
+        half = n // 2 if n % 2 == 0 else n / 2
+        pi_part, number = {
+            "quarter_semicircle_perimeter": (n, n),
+            "quarter_circle_perimeter": (half, 2 * n),  # ¼ × 2πr, and two radii
+            "square_semicircle_perimeter": (half, 3 * n),  # ½ × πd, and three sides
+        }[t]
         return {
             "type": "expression",
-            "terms": [{"coefficient": s, "symbol": "π"}, {"coefficient": s, "symbol": None}],
+            "terms": [
+                {"coefficient": pi_part, "symbol": "π"},
+                {"coefficient": number, "symbol": None},
+            ],
             "unit": LEN_UNIT,
         }
     p = pi_of(pi)
@@ -884,6 +984,8 @@ class CirclesMediumSolver(_CirclesSolver):
     def sample(self, schema: dict, rng: random.Random) -> dict:
         template = rng.choice(sorted(MEDIUM))
         pi = _pick_pi(rng)
+        if template in MEDIUM_TERMS and rng.random() < TERMS_SHARE:
+            pi = TERMS
         givens = _medium_givens(template, pi, rng)
         return self._out(template, pi, givens, MEDIUM[template](givens, pi))
 
