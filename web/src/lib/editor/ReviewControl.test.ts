@@ -57,7 +57,7 @@ describe('ReviewControl (ADR-0019: review is a deliberate act)', () => {
     await fireEvent.click(screen.getByRole('button', { name: /Mark as reviewed…/ }))
     await fireEvent.click(screen.getByLabelText(/I have checked/))
     await fireEvent.click(screen.getByRole('button', { name: 'Mark as reviewed' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('API 500: boom')
+    expect(await screen.findByRole('alert')).toHaveTextContent("The review mark wasn't changed. Something went wrong on our side.")
     expect(changed).not.toHaveBeenCalled()
   })
 

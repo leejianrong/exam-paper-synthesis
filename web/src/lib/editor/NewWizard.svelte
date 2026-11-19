@@ -6,6 +6,7 @@
   // already made, Paper 2 first, EXA-153, so the set spreads its topics), says which failed (and keeps
   // what was made), then shows the folder. Escape goes back a step, or closes on the first;
   // focus stays in the dialog, and the list puts it back on the button that opened it.
+  import { errorText } from '../errors'
   import { onMount, tick } from 'svelte'
   import {
     createDocument,
@@ -77,7 +78,7 @@
   let singleCode = ''
   let singleFolder: string = contextFolder?.id ?? ''
 
-  const msg = (e: unknown): string => (e instanceof Error ? e.message : String(e))
+  const msg = (e: unknown): string => errorText(e)
   const summaryOf = (r: DocumentRecord): DocumentSummary => ({
     id: r.id,
     title: r.title,
@@ -232,7 +233,7 @@
       }
       setFolderId = setWhere
     } catch (e) {
-      error = `The folder could not be made, so no paper was: ${msg(e)}`
+      error = errorText(e, "The folder wasn't made, so no paper was")
       busy = false
       return
     }

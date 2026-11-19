@@ -3,6 +3,7 @@
   // its controls, which show only when the block is selected: a pill with "Another like this",
   // Lock and a ⋯ menu of everything else (QuestionBar). Every edit replaces the block's frozen
   // snapshot with the child object the API returns (lineage intact).
+  import { errorText } from '../errors'
   import type { Readable } from 'svelte/store'
   import { editQuestion, setCosmetic, type EditOp } from '../api'
   import type { Question } from '../types'
@@ -95,7 +96,7 @@
       if (next) ctx.replace(next, from)
       editingNames = false
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e)
+      error = errorText(e, "The question wasn't changed")
     } finally {
       busy = false
     }

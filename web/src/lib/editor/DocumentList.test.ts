@@ -37,6 +37,7 @@ const TEMPLATES = {
 }
 
 import DocumentList from './DocumentList.svelte'
+import { ApiError } from '../errors'
 import { lastReport } from './paperReport'
 import { DEFAULT_SETTINGS, settings } from '../settings'
 
@@ -132,10 +133,34 @@ describe('DocumentList', () => {
     expect(createDocument).toHaveBeenCalledWith(undefined, undefined, null)
   })
 
-  it('shows API errors', async () => {
-    listDocuments.mockRejectedValue(new Error('API 401: authentication required'))
+  it('shows a skeleton while the papers load, then the list', async () => {
+    let answer: (v: unknown) => void = () => {}
+    listDocuments.mockReturnValue(new Promise((r) => (answer = r)))
     render(DocumentList)
-    expect(await screen.findByRole('alert')).toHaveTextContent('authentication required')
+    const skeleton = screen.getByTestId('list-skeleton')
+    expect(skeleton).toHaveAttribute('aria-busy', 'true')
+    expect(skeleton).toHaveTextContent('Loading your papers…')
+    answer([summary('d1', 'Ratio Review')])
+    expect(await screen.findByRole('link', { name: /Ratio Review/ })).toBeInTheDocument()
+    expect(screen.queryByTestId('list-skeleton')).toBeNull()
+  })
+
+  it("a list that didn't load says why in words, with Try again (EXA-165)", async () => {
+    listDocuments.mockRejectedValueOnce(new ApiError(500, 'boom')).mockResolvedValue([summary('d1', 'Ratio Review')])
+    render(DocumentList)
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("Couldn't load your papers. Something went wrong on our side.")
+    expect(alert).not.toHaveTextContent('500')
+    expect(screen.queryByText(/No papers yet/)).toBeNull()
+    await fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('link', { name: /Ratio Review/ })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it("offline says the server can't be reached", async () => {
+    listDocuments.mockRejectedValue(new ApiError(0, 'TypeError: Failed to fetch'))
+    render(DocumentList)
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load your papers. Can't reach the server.")
   })
 
   it('makes an exam set into a new folder and shows the folder, without exam-set ticks', async () => {

@@ -271,7 +271,7 @@ describe('NewWizard: Exam set', () => {
     await pick('Exam set')
     await pick('Next')
     await pick('Empty starters')
-    expect(await screen.findByRole('alert')).toHaveTextContent('The folder could not be made, so no paper was')
+    expect(await screen.findByRole('alert')).toHaveTextContent("The folder wasn't made, so no paper was.")
     expect(createDocument).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Empty starters' })).toBeInTheDocument()
   })

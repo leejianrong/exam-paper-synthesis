@@ -7,6 +7,7 @@
 import { Extension, Node } from '@tiptap/core'
 import type { Editor, NodeViewRendererProps } from '@tiptap/core'
 import { Plugin, NodeSelection } from '@tiptap/pm/state'
+import { errorText } from '../errors'
 import { assetUrl, imageFiles, uploadAsset, type AssetMeta } from './assets'
 import { mountMath } from './math'
 import { openMathEditor } from './mathEditor'
@@ -247,7 +248,7 @@ export async function uploadAndInsert(editor: Editor, files: File[], options: Im
       const meta = await options.upload(file)
       insertBlock(editor, { type: 'image', attrs: { asset_id: meta.id, alt: '', width_pct: 100 } })
     } catch (e) {
-      options.onError(e instanceof Error ? e.message : String(e))
+      options.onError(errorText(e, "The image wasn't added"))
     }
   }
 }

@@ -114,7 +114,7 @@ describe('templatedQuestion node view', () => {
     )
     const { editor: e } = make(two())
     await chooseFromMenu(screen.getAllByTestId('question-block')[0], 'Make harder')
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('API 422: nope'))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("The question wasn't changed. The server couldn't accept this"))
     expect(texts(e)).toEqual(['a', 'b'])
   })
 

@@ -10,6 +10,21 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Plain errors, a not-found page and loading skeletons (EXA-165, UI redesign S7).** Opening a
+  paper that doesn't exist (or was deleted) shows a page that says so, with **Back to Your
+  papers**, instead of an empty editor claiming "Saved". A paper of another account, a server
+  that can't be reached and a server failure each get their own page; the last two offer **Try
+  again**. Errors across the app are in plain words with no status codes or server text: one
+  helper (`web/src/lib/errors.ts`) words every failed request (signed out, no access, doesn't
+  exist, changed elsewhere, too large, the server's own reason, too many requests with how long
+  to wait, "Something went wrong on our side", "Can't reach the server") and says what didn't
+  happen first ("Couldn't load your papers.", "The question wasn't swapped."). **Try again**
+  appears where the same request may work in a moment: the papers list, opening a paper,
+  saving (the save chip says **Not saved**, where it used to promise "will retry", and the
+  strip under the header retries), exports and the preview, swap and regenerate,
+  listing folders, making a copy, generating questions, the question bank and the settings. The
+  papers list and the editor show grey skeletons while they load; with reduced motion they hold
+  still.
 - **The answer key as a view (EXA-162, UI redesign S4).** The editor header has a **Paper |
   Answer key** switch (also View > Paper / Answer key, the command palette and Ctrl+Alt+K;
   an icon pair below 1200 px, in Menu > View on a phone). The answer key view shows the key

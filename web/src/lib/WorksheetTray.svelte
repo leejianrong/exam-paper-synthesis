@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorText } from './errors'
   import { previewWorksheet, exportPdf, type ExportKind } from './api'
   import { worksheet, totalMarks } from './worksheet'
   import type { Question } from './types'
@@ -15,7 +16,7 @@
   let busy: 'preview' | ExportKind | null = null
   let exportError = ''
 
-  const message = (e: unknown): string => (e instanceof Error ? e.message : String(e))
+  const message = (e: unknown): string => errorText(e)
 
   // Filesystem-safe slug of the title, mirroring the API's _slug (default
   // "worksheet"); used to name the downloaded PDFs.

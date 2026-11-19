@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { generate, editQuestion, previewWorksheet, exportPdf } from './api'
+import { ApiError } from './errors'
 import type { Question } from './types'
 
 // A minimal canonical object; only `id` is read back by the SPA in these paths.
@@ -17,7 +18,7 @@ function errResponse(status: number, detail: string): Response {
   return {
     ok: false,
     status,
-    text: async () => detail,
+    json: async () => ({ detail }),
   } as unknown as Response
 }
 
@@ -78,9 +79,13 @@ describe('generate', () => {
     })
   })
 
-  it('throws "API <status>: <detail>" on a non-ok response', async () => {
+  it('throws an ApiError worded for people, keeping the status and detail', async () => {
     fetchMock.mockResolvedValue(errResponse(422, 'infeasible'))
-    await expect(generate('ratio_medium')).rejects.toThrow('API 422: infeasible')
+    const err = await generate('ratio_medium').catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(ApiError)
+    expect((err as ApiError).message).toBe('Infeasible.')
+    expect((err as ApiError).message).not.toContain('422')
+    expect(err).toMatchObject({ status: 422, detail: 'infeasible' })
   })
 
   it('honours the VITE_API base override', async () => {
@@ -125,7 +130,7 @@ describe('editQuestion', () => {
 
   it('throws on a non-ok response', async () => {
     fetchMock.mockResolvedValue(errResponse(400, 'bad op'))
-    await expect(editQuestion('regenerate', fakeQuestion)).rejects.toThrow('API 400: bad op')
+    await expect(editQuestion('regenerate', fakeQuestion)).rejects.toThrow('Bad op.')
   })
 })
 
@@ -147,9 +152,9 @@ describe('previewWorksheet', () => {
     expect(result).toBe('<main class="sheet worksheet"></main>')
   })
 
-  it('throws "API <status>: <detail>" on a non-ok response', async () => {
+  it('says what the server refused on a non-ok response', async () => {
     fetchMock.mockResolvedValue(errResponse(422, 'no questions to export'))
-    await expect(previewWorksheet('T', [])).rejects.toThrow('API 422: no questions to export')
+    await expect(previewWorksheet('T', [])).rejects.toThrow('No questions to export.')
   })
 })
 
@@ -181,10 +186,10 @@ describe('exportPdf', () => {
     expect(url).toBe('http://localhost:8000/export/answer-key')
   })
 
-  it('throws "API <status>: <detail>" on a non-ok response', async () => {
+  it('keeps an internal validation dump off the screen', async () => {
     fetchMock.mockResolvedValue(errResponse(422, 'invalid question'))
     await expect(exportPdf('worksheet', 'T', [fakeQuestion])).rejects.toThrow(
-      'API 422: invalid question',
+      "The server couldn't accept this, so nothing was changed.",
     )
   })
 })

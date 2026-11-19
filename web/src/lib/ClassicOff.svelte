@@ -1,5 +1,6 @@
 <script lang="ts">
   // #/classic while the setting is off (O1): say so, and offer the switch.
+  import { errorText } from './errors'
   import { updateSettings } from './settings'
 
   let error = ''
@@ -7,7 +8,7 @@
     try {
       await updateSettings({ classic_generator: true })
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e)
+      error = errorText(e, "The Classic generator wasn't turned on")
     }
   }
 </script>

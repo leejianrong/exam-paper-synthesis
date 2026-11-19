@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorText } from './lib/errors'
   import { generate, editQuestion, type EditOp } from './lib/api'
   import QuestionCard from './lib/QuestionCard.svelte'
   import WorksheetTray from './lib/WorksheetTray.svelte'
@@ -16,7 +17,7 @@
   let selectedDifficulty: Difficulty = 'medium'
   $: selectedCode = blueprintCode(selectedPrefix, selectedDifficulty)
 
-  const message = (e: unknown): string => (e instanceof Error ? e.message : String(e))
+  const message = (e: unknown): string => errorText(e)
   const titleCase = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 
   async function onGenerate() {

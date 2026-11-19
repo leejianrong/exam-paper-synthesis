@@ -3,6 +3,7 @@
   // or an array — and import into the owner's bank. Items arrive unreviewed; a duplicate id
   // is reported unless "Replace existing"; every item gets its own outcome and, when invalid,
   // the schema's path-pointed errors, so one bad item never blocks the rest.
+  import { errorText } from '../errors'
   import { createEventDispatcher } from 'svelte'
   import { importBank, type ImportResult } from '../api'
 
@@ -103,7 +104,7 @@
       done = true
       if (imported > 0) dispatch('done', { imported })
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e)
+      error = errorText(e, 'The import stopped')
     } finally {
       busy = false
     }

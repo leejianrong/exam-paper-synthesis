@@ -1,6 +1,7 @@
 <script lang="ts">
   // "Edit names" form (W1a tier-1 edit): fields are built from the blueprint's
   // cosmetic slots, so only names and curated items are ever editable here.
+  import { errorText } from '../errors'
   import { createEventDispatcher, onMount } from 'svelte'
   import { getEditableSlots, type EditableSlot } from '../api'
   import type { Question } from '../types'
@@ -28,7 +29,7 @@
       }
       values = values
     } catch (e) {
-      loadError = e instanceof Error ? e.message : String(e)
+      loadError = errorText(e, "Couldn't load the names to edit")
     } finally {
       loaded = true
     }

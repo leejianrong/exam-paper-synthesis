@@ -49,7 +49,7 @@ describe('AddQuestion picker', () => {
     fetchMock.mockResolvedValue({ ok: false, status: 500, text: async () => 'down' })
     render(AddQuestion, { props: {} })
     await fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('API 500: down')
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't generate questions. Something went wrong on our side.")
   })
 
   it('offers Free-form, and Escape closes', async () => {
@@ -139,7 +139,7 @@ describe('AddQuestion picker', () => {
       fetchMock.mockResolvedValue({ ok: false, status: 401, text: async () => 'authentication required' })
       render(AddQuestion, { props: {} })
       await fireEvent.click(screen.getByRole('tab', { name: 'From my bank' }))
-      expect(await screen.findByRole('alert')).toHaveTextContent('authentication required')
+      expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load your question bank. You're signed out.")
     })
 
     it('loads the bank once and keeps the templated tab usable', async () => {

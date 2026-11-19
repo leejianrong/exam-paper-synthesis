@@ -1,7 +1,7 @@
 # Editor and app UI redesign: research and proposal
 
 Cards: **EXA-159** (answer key clutter), **EXA-160** (editor top bars), **EXA-161** (per-question buttons), plus an app-wide pass the owner asked for.
-Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13) and S4 (EXA-162, section 14).
+Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14) and S7 (EXA-165, section 15).
 
 Research build: worktree off `origin/main` at `f54b92c`, API on :8100 (dev auth, throwaway stores), Vite on :5273. Papers generated with `POST /documents/generate` (P6, seed 11) and through the New dialog (an exam set in a folder).
 
@@ -554,4 +554,54 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
 - **Not built:** per-row hover actions inside the printed key (a ⋯ on each row). Rows are print
   markup inside an iframe; only the own-answer click is wired there. The exam-set key (S10) is
   still to come.
+
+---
+
+## 15. S7 as built (EXA-165)
+
+- **One wording.** `web/src/lib/errors.ts`: every failed request is an `ApiError` (status,
+  the server's `detail`, a 429's `Retry-After`) whose message is already plain language, so
+  each `catch` that showed `e.message` shows words without being touched. `fail(res)` replaced
+  the four copies of "throw `API ${status}: ${detail}`" (api.ts, docsApi.ts, assets.ts, the
+  bank import) and `docsApi`'s own `ApiError`. `http.reach` (and `apiFetch` on top of it) turns
+  a request that never reached the server into `ApiError(0)`. The status and detail go to the
+  console (`console.warn`), never on screen.
+- **The words.** 0: "Can't reach the server. Check your internet connection." 401: "You're
+  signed out…". 403: "You don't have access to this." 404: named where the server's detail
+  says what is missing ("This paper doesn't exist or was deleted."). 409: "This paper changed
+  in another tab or window. Reload…". 413 / 400 / 422: the server's short reason as a sentence
+  ("Image is larger than 2 MB."), but never a validation dump ("invalid question: …", a list
+  of schema errors), which becomes "The server couldn't accept this, so nothing was changed."
+  429: "Too many requests. Try again in N seconds/minutes/hours." from Retry-After. 503: "The
+  server is busy." Other 5xx: "Something went wrong on our side. Try again in a moment." A
+  detail the server wrote as a sentence for people (the export allowance, a swap that isn't
+  possible, empty placeholders) is shown as it is.
+- **What didn't happen, then why.** `errorText(e, action)` puts the action first: "Couldn't
+  load your papers.", "The question wasn't swapped.", "The setting wasn't saved.", "The image
+  wasn't added.", "Couldn't export the PDF.", "Couldn't open the preview.", "Couldn't list your
+  folders.", "Couldn't make a copy.", "Couldn't generate questions.", "Couldn't load your
+  question bank.", "The paper wasn't moved / deleted / renamed.", "The folder wasn't renamed /
+  deleted / made", "The review mark wasn't changed.", "The answer key didn't load / update."
+- **Try again** (`ErrorNote.svelte`, the answer key view's alert-and-retry pattern made shared:
+  alert icon, text, a secondary button) shows only when `canRetry`: unreachable, 408, 429 or
+  5xx. A 404, 409 or 422 won't change by asking again. Where: the papers list (in place of the
+  list), the paper templates, opening a paper, saving, exports, the preview, swap, regenerate,
+  listing folders, make a copy, generating questions, the question bank, a setting.
+- **Saving.** The chip said "Save failed — will retry", but nothing retried until the next
+  edit. It now says **Not saved**; the strip under the header gives the reason (the autosaver's
+  new `onError`) and Try again saves the kept change (`autosave.flush`).
+- **Opening a paper.** `PaperUnavailable.svelte` replaces the whole editor (header and desk
+  hidden; the old banner sat over a live, empty editor showing "Saved", because `.desk`'s own
+  `display` beat `.hidden`). 404: "This paper doesn't exist or was deleted", only Back to Your
+  papers. 403: "You don't have access to this paper". Unreachable: "Can't reach the server"
+  with Try again first. Other failures: "This paper couldn't be opened" with the reason, and
+  Try again when it can help. Try again runs the load again in place (`openPaper`); the
+  heading takes focus.
+- **Skeletons.** Grey bars (`.skel` in `app.css`, a slow sheen; still under
+  `prefers-reduced-motion`): four paper rows in the list box, and for the editor its header
+  and an A4 page (`EditorSkeleton.svelte`, which hides the real header too, so nothing claims
+  "Saved" before the paper is in). Each is a `role="status"` with hidden text ("Loading your
+  papers…", "Opening the paper…").
+- **Not changed:** the sign-in page's own messages (S12), the Classic page beyond the shared
+  wording, and the add-question picker's "Loading your bank…" line (a dialog, not a first load).
 

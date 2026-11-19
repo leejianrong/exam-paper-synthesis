@@ -85,7 +85,7 @@ describe('copyDocument (EXA-166)', () => {
       .mockResolvedValueOnce(ok(record('c1', 'Copy of Ratio quiz', 1)))
       .mockResolvedValueOnce(new Response(JSON.stringify({ detail: 'boom' }), { status: 500 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
-    await expect(copyDocument('d1')).rejects.toThrow('boom')
+    await expect(copyDocument('d1')).rejects.toMatchObject({ status: 500, detail: 'boom' })
     expect(sent(3)).toMatchObject({ method: 'DELETE' })
     expect(sent(3).url).toMatch(/\/documents\/c1$/)
   })

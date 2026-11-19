@@ -1,6 +1,7 @@
 <script lang="ts">
   // ADR-0019: review is a deliberate act. Marking a bank question reviewed asks you to confirm
   // you checked it (stem, answer, marking scheme); withdrawing a review is one click.
+  import { errorText } from '../errors'
   import { createEventDispatcher } from 'svelte'
   import { setBankReviewed } from '../api'
 
@@ -29,7 +30,7 @@
       checked = false
       dispatch('changed', { reviewed: next })
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e)
+      error = errorText(e, "The review mark wasn't changed")
     } finally {
       busy = false
     }

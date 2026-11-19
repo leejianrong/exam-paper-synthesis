@@ -65,7 +65,7 @@
     dirty: 'Unsaved changes',
     saving: 'Saving…',
     conflict: 'Conflict',
-    error: 'Save failed — will retry',
+    error: 'Not saved',
   }
 
   const exporting = $derived(busy.startsWith('export-'))

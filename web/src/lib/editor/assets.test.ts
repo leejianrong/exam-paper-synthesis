@@ -29,11 +29,11 @@ describe('assets client', () => {
       json: async () => ({ detail: 'only PNG and JPEG images are accepted' }),
     })
     await expect(uploadAsset(new Blob(['x']))).rejects.toThrow(
-      'Could not upload the image: only PNG and JPEG images are accepted',
+      'Only PNG and JPEG images are accepted.',
     )
   })
 
-  it('falls back to the status text when the error has no body', async () => {
+  it('says what happened in words when the error has no body', async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 500,
@@ -42,7 +42,7 @@ describe('assets client', () => {
         throw new Error('no json')
       },
     })
-    await expect(uploadAsset(new Blob(['x']))).rejects.toThrow('Server Error')
+    await expect(uploadAsset(new Blob(['x']))).rejects.toThrow('Something went wrong on our side.')
   })
 
   it('builds asset URLs and keeps only PNG/JPEG files', () => {

@@ -43,7 +43,9 @@ shortcut sheet and the editor-wide shortcuts, and a side panel you can hide; S8,
 papers list: a ⋯ menu per paper and per folder, the New dialog leading with Exam set, en-SG and
 relative edit times, a title search, collapsible folders, and no exam-set ticks on folders; S4, EXA-162, the
 answer key as a view: a Paper | Answer key switch showing the key exactly as it prints, its
-options in a strip above it, and Edit answer… for your own questions).
+options in a strip above it, and Edit answer… for your own questions; S7, EXA-165, the states:
+an unknown paper is a page of its own with the way back, errors in plain words with Try again,
+and loading skeletons for the papers list and the editor).
 
 ---
 
