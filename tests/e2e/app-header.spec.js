@@ -53,6 +53,34 @@ test('the header and the bank fit a phone without sideways scrolling', async ({ 
   }
 })
 
+test('at 320 px with the Classic tab on, the tabs scroll inside the header, not the page', async ({ page }) => {
+  // this run's private owner: the shared dev owner's setting is left alone
+  expect((await page.request.put(`${API}/settings`, { data: { classic_generator: true } })).ok()).toBeTruthy()
+  try {
+    await page.setViewportSize({ width: 320, height: 640 })
+    await page.goto('/#/bank')
+    const nav = page.getByRole('navigation', { name: 'Main' })
+    const classic = nav.getByRole('link', { name: 'Classic' })
+    await expect(classic).toBeAttached()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+    await expect(page.getByRole('button', { name: /^Account:/ })).toBeInViewport()
+    // the header itself never grows past the window; a tab out of sight scrolls into it
+    const box = await page.getByRole('banner').boundingBox()
+    expect(box.x + box.width).toBeLessThanOrEqual(320)
+    // no tab runs under the avatar: what doesn't fit is scrolled, not overlapped
+    const avatar = await page.getByRole('button', { name: /^Account:/ }).boundingBox()
+    const navBox = await nav.boundingBox()
+    expect(navBox.x + navBox.width).toBeLessThanOrEqual(avatar.x)
+    expect(await nav.evaluate((n) => getComputedStyle(n).overflowX)).toBe('auto')
+    await classic.focus()
+    await expect(classic).toBeInViewport()
+    await page.keyboard.press('Enter')
+    await expect(classic).toHaveAttribute('aria-current', 'page')
+  } finally {
+    await page.request.put(`${API}/settings`, { data: { classic_generator: false } })
+  }
+})
+
 test('import questions from a file on the bank page, then review one', async ({ page }) => {
   const base = JSON.parse(fs.readFileSync('tests/fixtures/sourced/psle_2023_ratio.json', 'utf8'))
   const stamp = Date.now().toString(36)

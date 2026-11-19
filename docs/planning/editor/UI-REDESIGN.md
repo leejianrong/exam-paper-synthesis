@@ -688,7 +688,9 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
   generator* is on, Classic, then the `AccountMenu` avatar (Settings, and outside the dev stub
   Download my data, Sign out, Delete my account). The tab for the current route has
   `aria-current="page"` (green underline); Settings is not a tab, so nothing is current there.
-  52 px high, one row, no horizontal scroll at 390 px.
+  52 px high, one row, no horizontal scroll at 390 px. The tabs scroll sideways inside the
+  header (`overflow-x: auto`) when they don't fit, so the page never does (checked at 320 px
+  with the Classic tab on).
 - **Removed as superseded:** the list's masthead (the `exam-paper-synthesis` wordmark, its
   "Settings" and "Classic generator" links and its own `AccountMenu`), Settings' "← Your
   papers" link, the Classic-off page's "Back to your papers", and the Classic page's glyph and
@@ -706,14 +708,20 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
   level · difficulty, a status chip (Reviewed in green, Unreviewed neutral with an amber dot,
   per 7.2 not red; Generated for generated ones), the source's origin and year, the question
   drawn by the engine (`FragmentView`), and for imported questions the existing
-  `ReviewControl` (confirmation tick before Mark as reviewed, one click to withdraw). Cards draw
+  `ReviewControl` (confirmation tick before Mark as reviewed, one click to withdraw). A review
+  says "Marked as reviewed." / "Review withdrawn." in the status line; when it takes the question
+  out of the filtered list, focus goes to the next card (the previous one at the end, the count
+  line when none is left). Cards draw
   20 at a time ("Show more (N left)", which moves focus to the first new card), since each is a
   server render.
 - **Import.** The one primary button, **Import questions from a file**, opens `BankImport` in a
   `Dialog` of that name: files or pasted JSON, *Replace existing questions with the same id*,
   per-item results (Imported / Replaced / Already in your bank / Not imported with the reasons).
-  A finished import reloads the list behind the dialog and announces "N questions imported.";
-  "Back to bank" closes. Its lead line is plain now ("Choose question files (.json), or paste
+  A finished import reloads the list behind the dialog. "N questions imported." is said in a
+  status line inside the dialog (outside an `aria-modal` dialog a screen reader may not read it)
+  and again on the page once it closes, adding "N are hidden by your filters" when the filters
+  hide what arrived. "Back to bank" closes. Loads carry a ticket: an older answer to
+  overlapping reloads is dropped. Its lead line is plain now ("Choose question files (.json), or paste
   what's in one…") in the picker too.
 - **States.** Loading: three skeleton cards (`.skel`) in a `role="status"` with hidden "Loading
   your question bank…". Error: `ErrorNote` "Couldn't load your question bank. …" with Try again

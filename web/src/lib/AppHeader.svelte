@@ -35,6 +35,7 @@
     border-bottom: 1px solid var(--line);
   }
   .brand {
+    flex: none;
     display: flex;
     align-items: center;
     gap: var(--s2);
@@ -56,6 +57,9 @@
     gap: 2px;
     align-self: stretch;
     min-width: 0;
+    /* on the narrowest phones the tabs scroll sideways inside the header, never the page */
+    overflow-x: auto;
+    scrollbar-width: none;
   }
   nav a {
     display: flex;
@@ -80,6 +84,7 @@
     outline-offset: -2px;
   }
   .account {
+    flex: none;
     margin-left: auto;
     display: flex;
     align-items: center;

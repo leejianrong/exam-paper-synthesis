@@ -111,6 +111,126 @@ describe('BankPage (EXA-167)', () => {
     expect(puts).toEqual([{ reviewed: true }, { reviewed: false }])
   })
 
+  it('a review that takes a question out of the filtered list keeps focus on the next one, and says so', async () => {
+    stub({
+      '/review': {},
+      '/bank': { items: [item('s1'), item('s2'), item('s3')] },
+    })
+    render(BankPage)
+    await waitFor(() => expect(cards()).toHaveLength(3))
+    await fireEvent.change(screen.getByLabelText('Review'), { target: { value: 'unreviewed' } })
+
+    // the middle one: the next card takes focus
+    const review = async (card: HTMLElement) => {
+      await fireEvent.click(within(card).getByRole('button', { name: 'Mark as reviewed…' }))
+      await fireEvent.click(within(card).getByLabelText(/I have checked this question/))
+      await fireEvent.click(within(card).getByRole('button', { name: 'Mark as reviewed' }))
+    }
+    await review(cards()[1])
+    await waitFor(() => expect(cards()).toHaveLength(2))
+    expect(screen.getByText('Marked as reviewed.')).toBeInTheDocument()
+    await waitFor(() => expect(cards()[1]).toHaveFocus())
+    expect(cards()[1]).toHaveTextContent('Unreviewed')
+    expect(screen.getByTestId('bank-count')).toHaveTextContent('2 of 3 questions')
+
+    // the last one: the card before it
+    await review(cards()[1])
+    await waitFor(() => expect(cards()).toHaveLength(1))
+    await waitFor(() => expect(cards()[0]).toHaveFocus())
+
+    // none left: the count line
+    await review(cards()[0])
+    await waitFor(() => expect(cards()).toHaveLength(0))
+    await waitFor(() => expect(screen.getByTestId('bank-count').parentElement).toHaveFocus())
+  })
+
+  it('withdrawing a review says so, and the question stays while it still matches', async () => {
+    stub({ '/review': {}, '/bank': { items: [item('s1', { reviewed: true }), item('s2')] } })
+    render(BankPage)
+    await waitFor(() => expect(cards()).toHaveLength(2))
+    await fireEvent.click(within(cards()[0]).getByRole('button', { name: 'Withdraw review' }))
+    await screen.findByText('Review withdrawn.')
+    expect(cards()).toHaveLength(2)
+    expect(within(cards()[0]).getByText('Unreviewed')).toBeInTheDocument()
+  })
+
+  it('searches by topic and by id as well as the question text', async () => {
+    stub({ '/bank': { items: [item('sourced:rosyth-q7'), item('s2', { topic: 'Geometry' })] } })
+    render(BankPage)
+    await waitFor(() => expect(cards()).toHaveLength(2))
+    await fireEvent.input(screen.getByLabelText('Search questions'), { target: { value: 'geometry' } })
+    expect(cards()).toHaveLength(1)
+    expect(cards()[0]).toHaveTextContent('Geometry')
+    await fireEvent.input(screen.getByLabelText('Search questions'), { target: { value: 'rosyth-q7' } })
+    expect(cards()).toHaveLength(1)
+    expect(cards()[0]).toHaveTextContent('Ratio')
+  })
+
+  it('an older answer to an overlapping reload never replaces a newer one', async () => {
+    // the first reload is slow and answers with the bank as it was; the second answers at once
+    let calls = 0
+    let releaseSlow: () => void = () => {}
+    const slow = new Promise<void>((r) => (releaseSlow = r))
+    const base = routeFetch(RENDER)
+    const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) })
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      const u = String(url)
+      if (u.includes('/bank/import'))
+        return json({ results: [{ index: 0, id: 'x', status: 'imported' }], imported: 1, replaced: 0, duplicate: 0, invalid: 0 })
+      if (u.endsWith('/bank')) {
+        calls += 1
+        if (calls === 1) return json({ items: [item('s1')] })
+        if (calls === 2) {
+          await slow
+          return json({ items: [item('s1'), item('s2')] })
+        }
+        return json({ items: [item('s1'), item('s2'), item('s3')] })
+      }
+      return base(url, init)
+    })
+    render(BankPage)
+    await waitFor(() => expect(cards()).toHaveLength(1))
+    await fireEvent.click(screen.getByRole('button', { name: 'Import questions from a file' }))
+    const dialog = screen.getByRole('dialog')
+    const importOnce = async () => {
+      await fireEvent.input(within(dialog).getByLabelText('Paste JSON'), { target: { value: '{"id":"x"}' } })
+      await fireEvent.click(within(dialog).getByRole('button', { name: 'Import' }))
+    }
+    await importOnce()
+    await waitFor(() => expect(calls).toBe(2))
+    await importOnce()
+    await waitFor(() => expect(cards()).toHaveLength(3))
+    releaseSlow()
+    await new Promise((r) => setTimeout(r, 20))
+    expect(cards()).toHaveLength(3)
+  })
+
+  it('says what an import did inside the dialog, and again once it closes, naming questions the filters hide', async () => {
+    let bank = [item('s1')]
+    stub({
+      '/bank/import': () => {
+        bank = [...bank, item('g1', { topic: 'Geometry' })]
+        return { results: [{ index: 0, id: 'g1', status: 'imported' }], imported: 1, replaced: 0, duplicate: 0, invalid: 0 }
+      },
+      '/bank': () => ({ items: bank }),
+    })
+    render(BankPage)
+    await waitFor(() => expect(cards()).toHaveLength(1))
+    await fireEvent.change(screen.getByLabelText('Topic'), { target: { value: 'Ratio' } })
+    await fireEvent.click(screen.getByRole('button', { name: 'Import questions from a file' }))
+    const dialog = screen.getByRole('dialog')
+    await fireEvent.input(within(dialog).getByLabelText('Paste JSON'), { target: { value: '{"id":"g1"}' } })
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Import' }))
+    const note = within(dialog).getByTestId('import-note')
+    expect(note).toHaveAttribute('role', 'status')
+    await waitFor(() => expect(note).toHaveTextContent('1 question imported. 1 is hidden by your filters.'))
+    expect(cards()).toHaveLength(1)
+
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Back to bank' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByText('1 question imported. 1 is hidden by your filters.')).toBeInTheDocument()
+  })
+
   it('imports from a file in a dialog, then lists what arrived', async () => {
     let bank = [item('s1')]
     stub({
@@ -130,10 +250,11 @@ describe('BankPage (EXA-167)', () => {
     await fireEvent.click(within(dialog).getByRole('button', { name: 'Import' }))
     await within(dialog).findByText('Imported')
     await waitFor(() => expect(cards()).toHaveLength(2))
-    expect(screen.getByText('1 question imported.')).toBeInTheDocument()
+    expect(within(dialog).getByTestId('import-note')).toHaveTextContent(/^1 question imported\.$/)
 
     await fireEvent.click(within(dialog).getByRole('button', { name: 'Back to bank' }))
     expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByText('1 question imported.')).toBeInTheDocument()
   })
 
   it('reports a duplicate and replaces it when asked', async () => {

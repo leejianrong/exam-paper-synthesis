@@ -20,30 +20,38 @@
   let items = $state<BankItem[]>([])
   let loaded = $state(false)
   let loadError = $state<unknown>(null)
-  let retrying = $state(false)
   let filters = $state<BankFilters>({ ...NO_FILTERS })
   let shownCount = $state(PAGE)
   let importing = $state(false)
   let announce = $state('')
+  /** What the last import did, said inside the dialog and again on the page once it closes. */
+  let importNote = $state('')
+  let countLine: HTMLElement | undefined = $state()
+  let latest = 0
 
-  async function load(): Promise<void> {
+  /** Load the bank; true when this answer is the one on screen (a newer load wins). */
+  async function load(): Promise<boolean> {
+    const ticket = ++latest
     try {
-      items = await listBank()
+      const got = await listBank()
+      if (ticket !== latest) return false
+      items = got
       loadError = null
+      return true
     } catch (e) {
+      if (ticket !== latest) return false
       // a failed reload after an import keeps the list on screen
       if (!loaded) loadError = e
       else announce = errorText(e, "Couldn't load your question bank")
+      return false
     } finally {
-      loaded = true
+      if (ticket === latest) loaded = true
     }
   }
 
-  async function retry(): Promise<void> {
-    retrying = true
+  function retry(): void {
     loaded = false
-    await load()
-    retrying = false
+    void load()
   }
 
   onMount(load)
@@ -73,13 +81,30 @@
     document.querySelectorAll<HTMLElement>('[data-testid="bank-question"]')[at]?.focus()
   }
 
-  function onReviewed(id: string, reviewed: boolean): void {
+  async function onReviewed(id: string, reviewed: boolean): Promise<void> {
+    const at = visible.findIndex((i) => i.id === id)
     items = items.map((i) => (i.id === id ? { ...i, reviewed, question: withReviewed(i.question, reviewed) } : i))
+    announce = reviewed ? 'Marked as reviewed.' : 'Review withdrawn.'
+    if (shown.some((i) => i.id === id)) return
+    // the filters no longer show it: keep the keyboard on the next question, or on the count
+    await tick()
+    const cards = document.querySelectorAll<HTMLElement>('[data-testid="bank-question"]')
+    ;(cards[at] ?? cards[at - 1] ?? countLine)?.focus()
   }
 
-  function onImported(imported: number): void {
-    announce = `${count(imported)} imported.`
-    void load()
+  async function onImported(imported: number): Promise<void> {
+    const before = new Set(items.map((i) => i.id))
+    importNote = `${count(imported)} imported.`
+    if (!(await load())) return
+    const added = items.filter((i) => !before.has(i.id))
+    const hidden = added.length - filterBank(added, filters).length
+    if (hidden > 0) importNote += ` ${hidden === 1 ? '1 is' : `${hidden} are`} hidden by your filters.`
+  }
+
+  function closeImport(): void {
+    importing = false
+    announce = importNote
+    importNote = ''
   }
 
   const titleCase = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
@@ -121,8 +146,7 @@
   {:else if loadError}
     <ErrorNote
       message={errorText(loadError, "Couldn't load your question bank")}
-      onRetry={canRetry(loadError) ? () => void retry() : null}
-      busy={retrying}
+      onRetry={canRetry(loadError) ? retry : null}
     />
   {:else if items.length === 0}
     <div class="empty">
@@ -181,7 +205,7 @@
       </select>
     </div>
 
-    <div class="count">
+    <div class="count" bind:this={countLine} tabindex="-1">
       <span data-testid="bank-count">{summary}</span>
       {#if filtered}<button class="quiet" onclick={clearFilters}>Clear filters</button>{/if}
     </div>
@@ -224,11 +248,13 @@
 </main>
 
 {#if importing}
-  <Dialog title="Import questions from a file" width="38rem" onClose={() => (importing = false)}>
+  <Dialog title="Import questions from a file" width="38rem" onClose={closeImport}>
     <BankImport
-      on:done={(e: CustomEvent<{ imported: number }>) => onImported(e.detail.imported)}
-      on:cancel={() => (importing = false)}
+      on:done={(e: CustomEvent<{ imported: number }>) => void onImported(e.detail.imported)}
+      on:cancel={closeImport}
     />
+    <!-- inside the modal, where a screen reader is listening -->
+    <p class="visually-hidden" role="status" data-testid="import-note">{importNote}</p>
   </Dialog>
 {/if}
 
@@ -332,6 +358,9 @@
     margin-bottom: var(--s2);
     color: var(--ink-faint);
     font-size: 12.5px;
+  }
+  .count:focus {
+    outline: none;
   }
   .quiet {
     height: 28px;
