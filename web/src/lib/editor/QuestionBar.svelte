@@ -144,7 +144,7 @@
 >
 
 {#if active}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div class="qpill" role="group" aria-label="Actions for {name}" onmousedown={keepFocus}>
     {#if onMarks}
       <label class="marks">
