@@ -238,11 +238,13 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         return !!slotOf()?.placeholder && !hasContent(current.toJSON().content)
       }
       function facts(): QuestionFacts {
-        const locked = current.attrs.locked === true
+        const locked = current.attrs.locked === true && waiting()
         return {
           kind: waiting() ? 'placeholder' : 'own',
           locked,
-          lockable: !!slotOf(),
+          // Only an empty placeholder is refilled by "Regenerate unlocked"; once written in it is
+          // yours and kept anyway, so a lock means nothing there.
+          lockable: waiting(),
           inKey: current.attrs.in_key !== false,
           ops: [],
           canEditNames: false,
@@ -315,7 +317,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
         const isWaiting = waiting()
         hint.hidden = !isWaiting
         const locked = current.attrs.locked === true
-        badgeHost.hidden = !locked
+        badgeHost.hidden = !(locked && isWaiting)
         dom.classList.toggle('placeholder-slot', isWaiting)
         if (isWaiting) {
           const kind = slot?.kind === 'mcq' ? 'multiple-choice' : slot?.kind === 'structured' ? 'structured' : 'short-answer'

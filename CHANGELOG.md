@@ -29,6 +29,9 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   instead of a confirmation. Questions are focusable groups named like "Question 6, 2 marks,
   locked". In Add question the tabs read **Generate** and **Write my own**. The shortcut
   handling lives in `web/src/lib/editor/shortcuts.ts` for the global shortcuts to come (S5).
+  A placeholder you have written in is yours: it shows no Lock, and it no longer counts as a
+  generated place, so a paper with nothing left to regenerate has no "Generated paper" group
+  (it showed "Locked 0 of 0" and a disabled "Regenerate 0 unlocked…").
 
 - **An editor header that fits (EXA-160, UI redesign S1).** The editor's top bar, which ran
   off the screen below 1400 px and hid Preview and the PDFs, is now one sticky header of two

@@ -63,6 +63,12 @@ describe('paper ops helpers (P8d)', () => {
     ).toBe(false)
   })
 
+  it('a placeholder you have written in is yours: nothing to regenerate or lock', () => {
+    const written = { ...placeholder('gq2'), content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Mine.' }] }] }
+    expect(hasGeneratedSlots({ type: 'doc', content: [written] })).toBe(false)
+    expect(regenerateCounts({ type: 'doc', content: [written] })).toEqual({ unlocked: 0, locked: 0 })
+  })
+
   it('counts what "Regenerate unlocked" would replace and keep', () => {
     const doc = {
       type: 'doc' as const,
@@ -208,6 +214,28 @@ describe('swap and lock in the editor (P8d)', () => {
     expect(screen.getByText(/Regenerated 1 question; kept 1/)).toBeInTheDocument()
     // focus waited out the operation (the button disabled, the page inert) and came back
     await waitFor(() => expect(regen).toHaveFocus())
+  })
+
+  it('a paper whose only generated places are written-in placeholders has no Generated paper group, and no Lock on them', async () => {
+    const written = {
+      ...placeholder('gq3'),
+      attrs: { ...placeholder('gq3').attrs, locked: true },
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'I wrote this one.' }] }],
+    }
+    serve([written], () => ({}))
+    await open()
+    await waitFor(() => expect(document.querySelector('.ffblock')).toHaveTextContent('I wrote this one.'))
+    expect(screen.queryByText('Generated paper')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Regenerate .*unlocked/ })).toBeNull()
+    const ff = document.querySelector('.ffblock') as HTMLElement
+    expect(ff).not.toHaveClass('placeholder-slot')
+    expect(ff.querySelector('.ff-badge')).toHaveProperty('hidden', true)
+    expect(ff).not.toHaveAccessibleName(/locked/)
+    await selectBlock(ff)
+    expect(within(ff).queryByRole('button', { name: 'Lock' })).toBeNull()
+    const labels = await menuLabels(ff)
+    expect(labels).not.toContain('Lock')
+    expect(labels).not.toContain('Unlock')
   })
 
   it('bank questions get no paper tools, and a paper of only those no "Regenerate unlocked"', async () => {
