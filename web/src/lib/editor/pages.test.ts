@@ -8,7 +8,9 @@ import {
   CoverPage,
   blankPageNode,
   coverNode,
+  coverLines,
   coverPlacementOk,
+
   hasCover,
 } from './pages'
 
@@ -98,23 +100,53 @@ describe('cover switches (EXA-140)', () => {
     ).toEqual({})
   })
 
-  it('shows each switch as a checkbox, off by default, that writes the attribute', () => {
+})
+
+describe('cover card (EXA-164)', () => {
+  it('leads with school and exam, then level · subject · paper, leaving out empty ones', () => {
+    expect(coverLines({ school: ' Pandan Primary ', exam: 'Prelim 2026', level: 'Primary 6', subject: 'Mathematics', paper: 'Paper 2' })).toEqual([
+      'Pandan Primary',
+      'Prelim 2026',
+      'Primary 6 · Mathematics · Paper 2',
+    ])
+    expect(coverLines({ school: '', exam: null, level: '', subject: 'Mathematics', paper: '' })).toEqual(['Mathematics'])
+    expect(coverLines({})).toEqual([])
+  })
+
+  it('is a compact card with no form; Edit and Alt+Enter open its settings', () => {
     const element = document.createElement('div')
     document.body.append(element)
+    const opened: number[] = []
     editor = new Editor({
       element,
-      extensions: [StarterKit, CoverPage, BlankPage],
-      content: { type: 'doc', content: [coverNode({ even_pages: true }), para('a')] },
+      extensions: [StarterKit, CoverPage.configure({ onEdit: (pos) => opened.push(pos) }), BlankPage],
+      content: { type: 'doc', content: [coverNode({ school: 'Pandan Primary', level: 'Primary 6' }), para('a')] },
     })
-    const box = (label: string) =>
-      element.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!
-    expect(box("Parent's signature line").checked).toBe(false)
-    expect(box('Pad to an even number of pages').checked).toBe(true)
-    box("Parent's signature line").click()
-    expect(editor.getJSON().content?.[0]?.attrs).toMatchObject({
-      parent_signature: true,
-      even_pages: true,
-    })
+    const card = element.querySelector('.cover-block')!
+    expect(card.querySelectorAll('input, textarea, select')).toHaveLength(0)
+    expect(Array.from(card.querySelectorAll('.cover-line')).map((p) => p.textContent)).toEqual([
+      'Pandan Primary',
+      'Primary 6 · Mathematics',
+    ])
+    card.querySelector<HTMLButtonElement>('button[aria-label="Edit cover page"]')!.click()
+    expect(opened).toEqual([0])
+
+    // An attribute set elsewhere (the side panel) shows on the card.
+    editor.view.dispatch(editor.state.tr.setNodeMarkup(0, undefined, { ...editor.state.doc.firstChild!.attrs, exam: 'Prelim' }))
+    expect(card.querySelectorAll('.cover-line')[1].textContent).toBe('Prelim')
+
+    editor.commands.setNodeSelection(0)
+    editor.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', altKey: true, bubbles: true }))
+    expect(opened).toEqual([0, 0])
+    element.remove()
+  })
+
+  it('an empty cover asks for the school and exam', () => {
+    const element = document.createElement('div')
+    document.body.append(element)
+    editor = new Editor({ element, extensions: [StarterKit, CoverPage, BlankPage], content: { type: 'doc', content: [coverNode({ subject: '' })] } })
+    expect(element.querySelector('.cover-line.empty')?.textContent).toBe('Add the school and exam')
+    expect(element.querySelector('.block-edit')).toBeNull() // no editor callback, no Edit button
     element.remove()
   })
 })

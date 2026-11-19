@@ -16,7 +16,7 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
   await expect(page.getByTestId('generate-report')).toContainText('Filled 17 of 17 questions')
   await expect(page.getByTestId('generate-report')).toContainText('Section B has 10 multi-part questions; 2 single-part questions stand in for the rest')
   await expect(page.locator('.cover-block')).toHaveCount(1)
-  await expect(page.locator('.cover-block').getByLabel('Cover level')).toHaveValue('Primary 6')
+  await expect(page.locator('.cover-block .cover-line').last()).toContainText('Primary 6 · Mathematics')
   await expect(page.locator('.section-block')).toHaveCount(2)
   await expect(page.locator('.section-block').nth(0).locator('.section-summary')).toHaveText(
     'Questions 1–5 · 10 / 10 marks',

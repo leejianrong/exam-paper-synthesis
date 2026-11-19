@@ -28,6 +28,25 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   papers first. The
   papers list and the editor show grey skeletons while they load; with reduced motion they hold
   still.
+- **Section and cover settings in the side panel (EXA-164, UI redesign S6).** On the page a
+  section is now a compact header (its title, "Questions 16–30 · 40 / 40 marks", the mode and
+  whether it has a marking margin, and its instructions; a generic title such as "Section A",
+  which the paper does not print, shows faint with "title not printed") and the cover a compact
+  card (school, exam, then level · subject · paper), with no form fields in the way. A click
+  selects one and the side panel's second tab shows its settings, named by the section's title
+  or "Cover page": every field the inline forms had (section title, instructions, mode, marks
+  target, marks shown, marking margin; the cover's school, exam, level, subject, paper, date,
+  instructions and its three switches). Its **Edit** button, or **Alt+Enter** with it selected,
+  goes straight to its first field and shows the side panel if it was hidden; Escape goes back
+  to the page. Paper > Cover page… lands on the cover's School field in the panel. **Marks
+  shown** is one control with one set of labels for the paper and each section (After the Ans:
+  line, Beside each question, Both; a section adds In the section header and its default, "Same
+  as the paper" or "Short answer default"), with a line under it saying what the section's
+  choice comes to; the paper's says that sections follow it unless they set their own, and that
+  multiple-choice and short-answer sections show marks in the section header. The settings are
+  disabled while a swap or regenerate runs. Alt+Enter on a selected section or cover no longer
+  types a new line after it.
+
 - **The answer key as a view (EXA-162, UI redesign S4).** The editor header has a **Paper |
   Answer key** switch (also View > Paper / Answer key, the command palette and Ctrl+Alt+K;
   an icon pair below 1200 px, in Menu > View on a phone). The answer key view shows the key

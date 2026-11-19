@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { settled, newFromTemplate, exportPdf, paperTab } from './helpers.js'
+import { settled, newFromTemplate, exportPdf, paperTab, blockSettings } from './helpers.js'
 import { API } from './ports.js'
 
 /**
@@ -14,14 +14,19 @@ test('start from the Paper 2 template, structure the paper, reload, preview and 
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
-  // The template is an ordinary paper: two sections with targets, and the paper time.
+  // The template is an ordinary paper: two sections with targets, and the paper time. On the
+  // page each section is a compact header; its settings are in the side panel (EXA-164).
   const sections = page.locator('.section-block')
   await expect(sections).toHaveCount(2)
-  await expect(sections.nth(0).getByLabel('Section title')).toHaveValue('Section A')
-  await expect(sections.nth(1).getByLabel('Section title')).toHaveValue('Section B')
-  await expect(sections.nth(1).getByLabel('Marks target')).toHaveValue('45')
+  await expect(sections.nth(0).locator('.section-title')).toHaveText('Section A')
+  await expect(sections.nth(1).locator('.section-title')).toHaveText('Section B')
+  await expect(sections.locator('input, select, textarea')).toHaveCount(0)
   await expect(page.getByLabel('Paper time in minutes')).toHaveValue('90')
   await expect(sections.nth(0).locator('.section-summary')).toHaveText('No questions yet')
+  let panel = await blockSettings(page, sections.nth(1))
+  await expect(page.getByRole('tab', { name: 'Section B' })).toHaveAttribute('aria-selected', 'true')
+  await expect(panel.getByLabel('Title')).toHaveValue('Section B')
+  await expect(panel.getByLabel('Marks target')).toHaveValue('45')
 
   // A question appended at the end lands in Section B; the summary is derived, not typed.
   await page.getByRole('button', { name: 'Add question' }).click()
@@ -36,24 +41,30 @@ test('start from the Paper 2 template, structure the paper, reload, preview and 
   await expect(summaryB).toHaveAttribute('data-state', 'under')
 
   // Edit a section and the paper time; a target equal to the marks clears the warning.
-  await sections.nth(1).getByLabel('Marks target').fill('3')
+  panel = await blockSettings(page, sections.nth(1))
+  await panel.getByLabel('Marks target').fill('3')
   await expect(summaryB).toHaveText('Question 1 · 3 / 3 marks')
   await expect(summaryB).toHaveAttribute('data-state', 'ok')
-  await sections.nth(0).getByLabel('Section title').fill('Part One')
+  panel = await blockSettings(page, sections.nth(0))
+  await panel.getByLabel('Title').fill('Part One')
+  await expect(sections.nth(0).locator('.section-title')).toHaveText('Part One')
+  await expect(page.getByRole('tab', { name: 'Part One' })).toHaveAttribute('aria-selected', 'true')
   await paperTab(page)
   await page.getByLabel('Paper time in minutes').fill('75')
 
-  // The toolbar adds a section too.
+  // The toolbar adds a section too: right after the selected one (Part One), never over it.
   await page.getByRole('button', { name: 'Section', exact: true }).click()
   await expect(sections).toHaveCount(3)
+  await expect(sections.nth(1).locator('.section-title')).toHaveText('Untitled section')
 
   await settled(page)
   await page.reload()
   await expect(sections).toHaveCount(3)
-  await expect(sections.nth(0).getByLabel('Section title')).toHaveValue('Part One')
-  await expect(sections.nth(1).getByLabel('Marks target')).toHaveValue('3')
+  await expect(sections.nth(0).locator('.section-title')).toHaveText('Part One')
   await expect(page.getByLabel('Paper time in minutes')).toHaveValue('75')
-  await expect(sections.nth(1).locator('.section-summary')).toHaveText('Question 1 · 3 / 3 marks')
+  panel = await blockSettings(page, sections.nth(2))
+  await expect(panel.getByLabel('Marks target')).toHaveValue('3')
+  await expect(sections.nth(2).locator('.section-summary')).toHaveText('Question 1 · 3 / 3 marks')
 
   const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
   // Only a teacher's own title prints; generic labels and empty titles do not (EXA-139).
@@ -82,7 +93,9 @@ test('the marking margin follows the section mode and can be switched per sectio
   // Booklet B is short-answer: the margin is on by default, and the student paper prints it.
   // A question added at the end lands in its last (2-mark) section.
   const section = page.locator('.section-block').last()
-  await expect(section.getByLabel('Marking margin')).toBeChecked()
+  await expect(section.locator('.section-cues')).toContainText('marking margin')
+  let panel = await blockSettings(page, section)
+  await expect(panel.getByLabel('Marking margin')).toBeChecked()
   await page.getByRole('button', { name: 'Add question' }).click()
   await page.getByRole('dialog', { name: 'Add question' }).getByRole('tab', { name: 'Write my own' }).click()
   await page.keyboard.type('Ann has 12 sweets and gives away 5. How many are left?')
@@ -98,7 +111,11 @@ test('the marking margin follows the section mode and can be switched per sectio
   // The editing page shows the question as it prints (EXA-152): no [2] in this section yet.
   const ff = page.locator('.ffblock')
   await expect(ff.locator('.ff-area .marks')).toHaveCount(0)
-  await section.getByLabel('Marks shown').selectOption('answer')
+  // One "Marks shown" vocabulary: the section's default names what it comes to.
+  panel = await blockSettings(page, section)
+  const shown = panel.getByLabel('Marks shown')
+  await expect(shown.locator('option').first()).toHaveText('Short answer default')
+  await shown.selectOption('answer')
   await expect(ff.locator('.ff-area .marks')).toHaveText('[2]')
   await settled(page)
   expect(await preview()).toMatch(/<span class="ans-blank"><\/span><span class="marks">\[2\]<\/span>/)
@@ -116,21 +133,26 @@ test('the marking margin follows the section mode and can be switched per sectio
 
   // Booklet B's first section is short-answer too (EXA-139): switch its margin off as well,
   // so only the section under test decides whether a tally prints.
-  await page.locator('.section-block').first().getByLabel('Marking margin').uncheck()
+  panel = await blockSettings(page, page.locator('.section-block').first())
+  await panel.getByLabel('Marking margin').uncheck()
   // Switch it off: no margin. Change the mode to multiple choice: still off. Choose it on: margin.
-  await section.getByLabel('Marking margin').uncheck()
+  panel = await blockSettings(page, section)
+  await panel.getByLabel('Marking margin').uncheck()
   await settled(page)
   expect(await preview()).not.toContain('question marked')
   expect(await preview()).not.toMatch(/<main [^>]*data-tally/)
-  await section.getByLabel('Mode').selectOption('mcq')
-  await expect(section.getByLabel('Marking margin')).not.toBeChecked()
-  await section.getByLabel('Marking margin').check()
+  await panel.getByLabel('Mode').selectOption('mcq')
+  await expect(panel.getByLabel('Marking margin')).not.toBeChecked()
+  await panel.getByLabel('Marking margin').check()
+  await expect(section.locator('.section-cues')).toHaveText('title not printed · Multiple choice · marking margin')
   await settled(page)
   expect(await preview()).toContain('question marked')
 
   await page.reload()
-  await expect(page.locator('.section-block').last().getByLabel('Marking margin')).toBeChecked()
-  await expect(page.locator('.section-block').last().getByLabel('Marks shown')).toHaveValue('answer')
+  panel = await blockSettings(page, page.locator('.section-block').last())
+  await expect(panel.getByLabel('Marking margin')).toBeChecked()
+  await expect(panel.getByLabel('Marks shown')).toHaveValue('answer')
+
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     exportPdf(page, 'Student paper (PDF)'),

@@ -1,11 +1,13 @@
 // The P7 page blocks: `coverPage` (the paper's cover, always the first block) and `blankPage`
-// (a page of its own: "intentionally left blank" or rough work). Both are atoms edited through
-// small forms in their node views. The cover's time, total and examiner's table are derived by
-// the engine when it prints, so the editor never asks for them.
+// (a page of its own: "intentionally left blank" or rough work). Both are atoms. The blank page
+// is edited through a small form in its node view; the cover shows as a compact card and its
+// fields edit in the side panel (EXA-164, `CoverSettings.svelte`). The cover's time, total and
+// examiner's table are derived by the engine when it prints, so the editor never asks for them.
 import { Node } from '@tiptap/core'
 import type { NodeViewRendererProps } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { editButton, isEditButton, settingsShortcut, type OpenSettings } from './blockSettings'
 
 export type BlankKind = 'blank' | 'rough'
 
@@ -77,19 +79,36 @@ function formView(props: NodeViewRendererProps) {
   }
 }
 
-function labelled(label: string, el: HTMLElement, cls = 'page-field') {
+function labelled(label: string, el: HTMLElement) {
   const wrap = document.createElement('label')
-  wrap.className = cls
+  wrap.className = 'page-field'
   wrap.append(label, el)
   return wrap
 }
 
-export const CoverPage = Node.create({
+export interface CoverOptions {
+  /** Opens the cover's settings in the side panel (EXA-164). */
+  onEdit: OpenSettings | null
+}
+
+/** The cover card's lines, as the printed cover leads with them: school, exam, then level,
+ *  subject and paper on one line. Empty lines are left out. */
+export function coverLines(a: Record<string, unknown>): string[] {
+  const text = (k: string) => (typeof a[k] === 'string' ? (a[k] as string).trim() : '')
+  const meta = ['level', 'subject', 'paper'].map(text).filter(Boolean).join(' · ')
+  return [text('school'), text('exam'), meta].filter(Boolean)
+}
+
+export const CoverPage = Node.create<CoverOptions>({
   name: 'coverPage',
   group: 'block',
   atom: true,
   selectable: true,
   draggable: false, // it always stays first
+
+  addOptions() {
+    return { onEdit: null }
+  },
 
   addAttributes() {
     return {
@@ -114,6 +133,10 @@ export const CoverPage = Node.create({
     return ['div', { 'data-cover-page': '', ...HTMLAttributes }]
   },
 
+  addKeyboardShortcuts() {
+    return { 'Alt-Enter': () => settingsShortcut(this.editor, this.name, this.options.onEdit) }
+  },
+
   addProseMirrorPlugins() {
     // A cover anywhere but first would be refused by the server: refuse it here instead.
     return [
@@ -125,87 +148,53 @@ export const CoverPage = Node.create({
   },
 
   addNodeView() {
+    const options = this.options
     return (props: NodeViewRendererProps) => {
-      const view = formView(props)
+      let current = props.node
       const dom = document.createElement('div')
-      dom.className = 'page-block cover-block'
+      dom.className = 'cover-block'
       dom.setAttribute('data-cover-page', '')
 
-      const heading = document.createElement('p')
-      heading.className = 'page-block-title'
-      heading.textContent = 'Cover page'
-
-      const grid = document.createElement('div')
-      grid.className = 'cover-grid'
-      const inputs = new Map<string, HTMLInputElement>()
-      for (const f of COVER_FIELDS) {
-        const input = document.createElement('input')
-        input.placeholder = f.placeholder
-        input.maxLength = f.max
-        input.setAttribute('aria-label', `Cover ${f.label.toLowerCase()}`)
-        input.addEventListener('input', () =>
-          view.setAttr({ [f.key]: f.key === 'date' ? input.value || null : input.value }),
+      const caption = document.createElement('p')
+      caption.className = 'cover-caption'
+      caption.textContent = 'Cover page'
+      const head = document.createElement('div')
+      head.className = 'cover-head'
+      head.append(caption)
+      if (options.onEdit) {
+        head.append(
+          editButton('cover page', () => {
+            const pos = props.getPos()
+            if (typeof pos === 'number') options.onEdit?.(pos)
+          }),
         )
-        inputs.set(f.key, input)
-        grid.append(labelled(f.label, input))
       }
-
-      const instructions = document.createElement('textarea')
-      instructions.className = 'cover-instructions-input'
-      instructions.rows = 3
-      instructions.maxLength = 2000
-      instructions.placeholder =
-        'Instructions to candidates, one per line (optional). Write NOT in capitals to print it bold and underlined.'
-      instructions.setAttribute('aria-label', 'Cover instructions')
-      instructions.addEventListener('input', () =>
-        view.setAttr({ instructions: instructions.value || null }),
-      )
-
-      const table = document.createElement('input')
-      table.type = 'checkbox'
-      table.setAttribute('aria-label', "For examiner's use table")
-      table.addEventListener('change', () => view.setAttr({ examiner_table: table.checked }))
-      // EXA-140: off unless chosen, so both store an explicit true/false once touched.
-      const switches = COVER_SWITCHES.map((sw) => {
-        const box = document.createElement('input')
-        box.type = 'checkbox'
-        box.setAttribute('aria-label', sw.label)
-        box.addEventListener('change', () => view.setAttr({ [sw.key]: box.checked }))
-        return { ...sw, box }
-      })
-
-      const note = document.createElement('p')
-      note.className = 'page-block-note'
-      note.textContent =
-        'Time, question count, total marks, the examiner’s table and the page count come from the paper. The cover replaces the paper’s header and is left out of the answer key.'
-
-      dom.append(
-        heading,
-        grid,
-        instructions,
-        labelled("For examiner's use table", table, 'page-field inline'),
-        ...switches.map((sw) => labelled(sw.label, sw.box, 'page-field inline')),
-        note,
-      )
+      const body = document.createElement('div')
+      body.className = 'cover-lines'
+      dom.append(head, body)
 
       const sync = () => {
-        const a = view.node.attrs
-        for (const [key, input] of inputs) view.set(input, String(a[key] ?? ''))
-        view.set(instructions, String(a.instructions ?? ''))
-        table.checked = a.examiner_table !== false
-        for (const sw of switches) sw.box.checked = a[sw.key] === true
+        const lines = coverLines(current.attrs)
+        body.replaceChildren(
+          ...(lines.length ? lines : ['Add the school and exam']).map((t) => {
+            const p = document.createElement('p')
+            p.className = lines.length ? 'cover-line' : 'cover-line empty'
+            p.textContent = t
+            return p
+          }),
+        )
       }
       sync()
 
       return {
         dom,
         update(next: PMNode) {
-          if (next.type !== view.node.type) return false
-          view.setNode(next)
+          if (next.type !== current.type) return false
+          current = next
           sync()
           return true
         },
-        stopEvent: isFormTarget,
+        stopEvent: isEditButton,
         ignoreMutation: () => true,
       }
     }
