@@ -17,8 +17,14 @@ from documents import make_doc, question_block
 from exam_engine import canonical, generate, palette
 from exam_engine.blueprints.registry import content_dir
 from exam_engine.diagram import render_svg
-from exam_engine.paper import generate_paper
-from exam_engine.render import fragment_css, render_document_html, render_question_fragment
+from exam_engine.document import with_key_style
+from exam_engine.paper import generate_paper, generate_set
+from exam_engine.render import (
+    fragment_css,
+    render_document_html,
+    render_question_fragment,
+    render_set_key_html,
+)
 
 SOURCED = Path(__file__).parent / "fixtures" / "sourced"
 CODES = sorted(p.stem for p in (content_dir() / "blueprints").glob("*.yaml"))
@@ -116,6 +122,17 @@ def test_a_paper_of_every_question_and_figure_is_monochrome(mode):
 def test_a_generated_paper_is_monochrome(template, mode):
     doc, _ = generate_paper(template, "P6", 3)
     assert non_grey_colours(render_document_html(doc["title"], doc, mode=mode)) == []
+
+
+@pytest.mark.parametrize("style", ["school", "worked"])
+def test_an_exam_set_key_is_monochrome(style):
+    """EXA-168: the whole set's key, in either key style."""
+    docs = [
+        with_key_style(d, style)
+        for d, _ in generate_set(["p1_booklet_a", "p1_booklet_b", "p2"], "P6", 3)
+    ]
+    html = render_set_key_html("Set", [(d["title"], d) for d in docs])
+    assert non_grey_colours(html) == []
 
 
 def test_the_editor_fragment_and_its_stylesheet_are_monochrome():

@@ -37,6 +37,9 @@ export interface DocumentRecord {
   updated_at: string
   /** O2: the folder the paper is filed in (null = unfiled). */
   folder_id?: string | null
+  /** O3: which exam-set paper this is, derived by the server from the cover (EXA-168 reads it
+   *  to offer a folder's set key). */
+  paper_part?: 'booklet_a' | 'booklet_b' | 'paper_2' | null
   document: PaperDocument
 }
 

@@ -19,7 +19,7 @@ from jsonschema import Draft202012Validator
 
 from .blueprints.base import validate_params
 from .blueprints.registry import get_solver, load_blueprint
-from .errors import UnknownBlueprint
+from .errors import ExamSetError, UnknownBlueprint
 from .schema import validate_object
 
 # 1.16.0 (EXA-159): + key_options.show_marks and key_options.one_mark_working (school key).
@@ -312,6 +312,41 @@ def paper_part(doc: dict) -> str | None:
         cover = None
     from_cover = _part_of(((cover or {}).get("attrs") or {}).get("paper"))
     return from_cover or _part_of(doc.get("title"))
+
+
+# The three papers of an exam set in exam order, with the names a set key heads them by.
+SET_PARTS = ("booklet_a", "booklet_b", "paper_2")
+SET_PART_NAMES = {"booklet_a": "Booklet A", "booklet_b": "Booklet B", "paper_2": "Paper 2"}
+
+
+def _listed(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " or " + names[-1]
+
+
+def exam_set_order(parts: list[str | None]) -> list[int]:
+    """Which of these papers (given by their :func:`paper_part`) form one exam set, in exam
+    order (EXA-168): the indices of Booklet A, Booklet B and Paper 2. Papers that are none of
+    the three are left out. Raises :class:`ExamSetError` when a part is missing or held twice,
+    since then there is no one set to print."""
+    doubled = [p for p in SET_PARTS if parts.count(p) > 1]
+    if doubled:
+        names = [SET_PART_NAMES[p] for p in doubled]
+        raise ExamSetError(
+            "ambiguous_set",
+            f"This folder has more than one {_listed(names).replace(' or ', ' and ')}. "
+            "Keep one of each in the folder to make the set's answer key.",
+            doubled,
+        )
+    missing = [p for p in SET_PARTS if p not in parts]
+    if missing:
+        names = [SET_PART_NAMES[p] for p in missing]
+        raise ExamSetError(
+            "incomplete_set",
+            f"This folder has no {_listed(names)}. "
+            "A set's answer key needs Booklet A, Booklet B and Paper 2.",
+            missing,
+        )
+    return [parts.index(p) for p in SET_PARTS]
 
 
 def total_marks(doc: dict) -> int:

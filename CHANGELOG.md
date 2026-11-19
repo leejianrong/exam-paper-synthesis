@@ -10,6 +10,16 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **One answer key for a whole exam set (EXA-168, UI redesign S10).** A folder that holds an exam
+  set (one Booklet A, one Booklet B and one Paper 2) has **Download the set’s answer key** in its
+  ⋯ menu on Your papers: one PDF with the school, level, subject and exam from the covers at the
+  top once, then each paper under its heading ("Paper 1 Booklet A", "Paper 1 Booklet B",
+  "Paper 2") in its own key style and options, numbered as the paper numbers it (Booklet B from
+  16). Paper 1's booklets flow on; Paper 2 starts a new page; the page numbers run through the
+  set. While the set is incomplete or holds a paper twice the item is greyed out and says why
+  ("This folder has no Booklet B."). Empty generator placeholders are named, with **Download
+  anyway**. The API is `POST /folders/{id}/key` (PDF, one export from the allowance) and
+  `GET /folders/{id}/key/preview` (HTML).
 - **Plain errors, a not-found page and loading skeletons (EXA-165, UI redesign S7).** Opening a
   paper that doesn't exist (or was deleted) shows a page that says so, with **Back to Your
   papers**, instead of an empty editor claiming "Saved" (the server answers "not found" for

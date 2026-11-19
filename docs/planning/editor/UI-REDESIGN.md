@@ -1,7 +1,7 @@
 # Editor and app UI redesign: research and proposal
 
 Cards: **EXA-159** (answer key clutter), **EXA-160** (editor top bars), **EXA-161** (per-question buttons), plus an app-wide pass the owner asked for.
-Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14), S7 (EXA-165, section 15) and S6 (EXA-164, section 16).
+Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14), S7 (EXA-165, section 15), S6 (EXA-164, section 16) and S10 (EXA-168, section 18).
 
 Research build: worktree off `origin/main` at `f54b92c`, API on :8100 (dev auth, throwaway stores), Vite on :5273. Papers generated with `POST /documents/generate` (P6, seed 11) and through the New dialog (an exam set in a folder).
 
@@ -176,7 +176,7 @@ Options, kept short and placed **in the key view itself** (see 4.3), not in the 
 - **Show:** Marking scheme (M1, A1) ☐ · Marks per question ☐ · Working for 1-mark questions ☐
 - (Worked solutions only) Repeat the question ☑
 
-Later slice: **Exam-set key.** From a folder that holds a complete exam set (the list already detects a complete set), export one key covering Booklet A, Booklet B and Paper 2 with booklet headings, the way schools issue it.
+Later slice (built as S10, section 18): **Exam-set key.** From a folder that holds a complete exam set (the list already detects a complete set), export one key covering Booklet A, Booklet B and Paper 2 with booklet headings, the way schools issue it.
 
 Schema impact: `settings.key_options.layout` already exists (`full` | `compact`). The default flips to `compact` for new and generated papers. Papers that already have a saved setting keep it. `show_scheme` defaults to false for new papers. A new optional `show_marks` and `one_mark_working` came in document schema 1.16.0. No change to verification.
 
@@ -676,3 +676,48 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
 - **Not changed:** a generated paper with no text in it still opens with the cover node-selected
   (there is nowhere for `startWithTextCursor` to put a caret; this predates S6). The panel shows
   the Paper tab until you click something, and typing still goes after the cover (EXA-129).
+
+---
+
+## 18. S10 as built (EXA-168)
+
+- **Where.** A folder's ⋯ menu on Your papers has **Download the set’s answer key** when the folder
+  holds any paper of an exam set. With one Booklet A, one Booklet B and one Paper 2 it downloads
+  one PDF ("<folder name> answer key.pdf"); otherwise it is greyed out with the reason on a
+  second line ("This folder has no Booklet B.", "This folder has more than one Booklet A.").
+  Folders with no set paper don't offer it. Other papers in the folder (a spare worksheet) are
+  ignored. A search doesn't change it: the status counts every paper in the folder. `Menu`
+  items gained an optional `note` line for this.
+- **Which papers, in what order.** By the server-derived `paper_part` (the cover's paper line,
+  the title as fallback), the list summary's field the web reads again (`folders.setKeyStatus`).
+  The engine's `document.exam_set_order` is the rule, applied again by the API, which answers
+  409 `incomplete_set` / `ambiguous_set` with the same sentence; a doubled part is reported
+  before a missing one. A paper with no questions is a 422. Empty generator placeholders are a
+  409 `unfilled_placeholders` naming the paper and questions ("Paper 2 question 1 is still
+  empty…"), and the list offers **Download anyway** (`allow_placeholders=true`), as the editor's
+  exports do.
+- **The key.** `render.render_set_key_html(title, [(title, doc), …])`: the cover lines (school,
+  level, subject, exam; each from the first cover that fills it) head the first page once, or
+  the folder name when every cover is empty. Then each paper, under "Paper 1 Booklet A",
+  "Paper 1 Booklet B" or "Paper 2", is exactly its own key minus its cover lines and paper name:
+  its style (school key or worked solutions), its options, its left-out questions, its numbers
+  (Booklet B from 16; worked solutions get explicit numbers so Paper 2 restarts at 1). Paper 1's
+  two booklets flow on; Paper 2 starts a new page (`break-before: page`), since it is a separate
+  sitting. Like every key, it is not paginated by the script: Chromium's `@page key` counter
+  numbers the pages through the whole set.
+- **API.** `POST /folders/{id}/key` (PDF) and `GET /folders/{id}/key/preview` (HTML, free),
+  owner-scoped (another owner's folder is a 404). The PDF spends one export from the allowance
+  (429 with Retry-After when used up), after every refusal above, and a failed render is
+  refunded. No store change: the folder is checked with `list_folders` and the papers read with
+  `list` + `get`, so both backends behave alike (`tests/test_api_set_key.py` runs on Postgres in
+  CI).
+- **Tests.** `tests/test_set_key.py`: the invariant (each paper's part of the set key is its own
+  key, every in-key question once, in order, under its heading) over P5 and P6 sets of eight
+  seeds, the title block, mixed styles and left-out questions, the set rule, and a PDF read back
+  for page numbers 1…n and Paper 2 starting a page. `test_monochrome_print.py` covers the set key
+  in both styles. e2e `tests/e2e/set-key.spec.js` downloads the key of a generated set from the
+  folder menu.
+- **Measured** on the P6 set of seed 11 with the school key: 5 pages (Paper 1 on pages 1–2,
+  Paper 2 on 3–5).
+- **Not built:** an Export menu item in the editor for a paper that belongs to a complete set
+  (the editor doesn't load the folder's other papers; the folder menu is one click away).

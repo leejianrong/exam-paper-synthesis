@@ -47,7 +47,8 @@ options in a strip above it, and Edit answer… for your own questions; S6, EXA-
 as a compact header and the cover as a compact card, their settings in the side panel, and one
 "Marks shown" control for the paper and each section; S7, EXA-165, the
 states: an unknown paper is a page of its own with the way back, errors in plain words with Try again,
-and loading skeletons for the papers list and the editor).
+and loading skeletons for the papers list and the editor; S10, EXA-168, one answer-key PDF for a
+folder's whole exam set, from the folder's ⋯ menu, with booklet headings).
 
 ---
 

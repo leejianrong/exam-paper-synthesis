@@ -87,6 +87,22 @@ export async function exportDocument(id: string, mode: ExportMode, allowPlacehol
   return res.blob()
 }
 
+/** EXA-168: the answer key for a folder's whole exam set, as one PDF. A set with empty
+ *  placeholders is refused (`setKeyUnfilled`) unless `allowPlaceholders` says to print anyway. */
+export async function exportSetKey(folderId: string, allowPlaceholders = false): Promise<Blob> {
+  const query = allowPlaceholders ? '?allow_placeholders=true' : ''
+  const res = await apiFetch(`${BASE}/folders/${folderId}/key${query}`, { method: 'POST' })
+  if (!res.ok) return fail(res)
+  return res.blob()
+}
+
+/** The set key's 409 for empty placeholders (its message names the papers and questions). */
+export function setKeyUnfilled(e: unknown): boolean {
+  if (!(e instanceof ApiError) || e.status !== 409) return false
+  const d = e.detail as { code?: unknown } | null
+  return !!d && d.code === 'unfilled_placeholders'
+}
+
 /** A paper template (P8a, engine content): the starter buttons and the generate dialog. */
 export interface PaperTemplateInfo {
   code: string

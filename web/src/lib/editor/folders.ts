@@ -63,3 +63,27 @@ export function titleMatches(title: string, query: string): boolean {
     .filter(Boolean)
     .every((w) => t.includes(w))
 }
+
+/** EXA-168: can this folder's papers print one answer key for the whole set? */
+export type SetKeyStatus = { ready: true } | { ready: false; reason: string }
+
+const listed = (names: string[]): string =>
+  names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`
+
+/**
+ * Whether a folder holds one complete exam set: one Booklet A, one Booklet B and one Paper 2, by
+ * the server's `paper_part` (other papers in the folder don't matter). Null when the folder holds
+ * no part of a set, so its menu doesn't offer a set key at all. The same rule and words as the
+ * engine's `document.exam_set_order`, which the server applies again.
+ */
+export function setKeyStatus(docs: DocumentSummary[]): SetKeyStatus | null {
+  const count = (k: PaperPart) => docs.filter((d) => d.paper_part === k).length
+  if (PARTS.every((p) => count(p.key) === 0)) return null
+  const doubled = PARTS.filter((p) => count(p.key) > 1).map((p) => p.label)
+  if (doubled.length) {
+    return { ready: false, reason: `This folder has more than one ${doubled.join(' and ')}.` }
+  }
+  const missing = PARTS.filter((p) => count(p.key) === 0).map((p) => p.label)
+  if (missing.length) return { ready: false, reason: `This folder has no ${listed(missing)}.` }
+  return { ready: true }
+}

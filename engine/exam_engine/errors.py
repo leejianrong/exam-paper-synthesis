@@ -97,3 +97,15 @@ class ParamsInvalid(EngineError):
         self.code = code
         self.checks = checks
         super().__init__(f"parameters invalid for blueprint {code!r}: {checks}")
+
+
+class ExamSetError(EngineError):
+    """The papers given are not one complete exam set (EXA-168): a part is missing
+    (``code == "incomplete_set"``) or held twice (``"ambiguous_set"``). ``message`` is a whole
+    sentence for the teacher."""
+
+    def __init__(self, code: str, message: str, parts: list[str]):
+        self.code = code
+        self.message = message
+        self.parts = parts  # the missing parts, or the doubled ones
+        super().__init__(message)
