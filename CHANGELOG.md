@@ -10,6 +10,15 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Defaults for new papers (EXA-169, UI redesign S11).** Settings has a **New papers** group:
+  the school name, the level (Not set, P5 or P6), **Marks shown** (the editor's own control and
+  labels) and the answer key style. Each paper made from then on starts with them: the school
+  name and level on the cover, the marks placement in the paper's settings, the key style as
+  before. The server writes them, so the blank paper, an empty starter, a generated paper and
+  every paper of an exam set all get them, from any client. The New dialog offers your level
+  first (focused and marked "Your default") and names a new exam set's folder after it; the
+  other level is still one click away, and a level asked for explicitly wins. Left empty,
+  nothing changes; papers you already have are never touched.
 - **Sign-in page and one product name (EXA-170, UI redesign S12).** The sign-in page shows the
   product name, **Exam papers**, and what it is for ("Singapore P5–P6 maths papers with answer
   keys you can trust"), then one button per configured provider in that provider's wording and

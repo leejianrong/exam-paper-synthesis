@@ -56,6 +56,7 @@ from .document import (
     DOCUMENT_SCHEMA_VERSION,
     _part_of,
     new_key_options,
+    paper_placement,
     unfilled_placeholder_numbers,
 )
 from .mcq import CONVERTIBLE, to_mcq
@@ -182,15 +183,37 @@ def standard_paper_marks() -> dict[str, int]:
     return out
 
 
-def template_document(code: str) -> dict:
-    """The empty starter paper for a template (P4): the cover page (level left for the
-    teacher, as an empty template has none), its sections and time, no questions."""
+def template_document(code: str, level: str | None = None) -> dict:
+    """The empty starter paper for a template (P4): the cover page, its sections and time, no
+    questions. The cover states ``level`` when given (the teacher's default, EXA-169), else
+    leaves it blank."""
+    if level is not None and level not in LEVELS:
+        raise ValueError(f"level must be one of {LEVELS}, not {level!r}")
     t = paper_template(code)
     return _empty_doc(
         t["title"],
         _settings(t),
-        [*_cover_blocks(t, None), *(_section_node(s) for s in t["sections"])],
+        [*_cover_blocks(t, level), *(_section_node(s) for s in t["sections"])],
     )
+
+
+def with_paper_defaults(doc: dict, school: str = "", marks_placement: str | None = None) -> dict:
+    """``doc`` (a new paper) with the teacher's defaults for new papers (EXA-169): ``school``
+    on its cover's school field when it has a cover and the field is empty, and the paper-wide
+    ``marks_placement`` when the paper would not print that already. An empty or absent value
+    leaves the paper as it is. The caller (the API) reads the account's settings; nothing here
+    does."""
+    if marks_placement is not None and marks_placement not in ("question", "answer", "both"):
+        raise ValueError(f"unknown marks placement {marks_placement!r}")
+    out = copy.deepcopy(doc)
+    blocks = out["content"]["content"]
+    if school and blocks and blocks[0]["type"] == "coverPage":
+        attrs = blocks[0].setdefault("attrs", {})
+        if not attrs.get("school"):
+            attrs["school"] = school
+    if marks_placement and marks_placement != paper_placement(out):
+        out["settings"] = {**(out.get("settings") or {}), "marks_placement": marks_placement}
+    return out
 
 
 # ---------------------------------------------------------------------------

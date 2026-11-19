@@ -105,9 +105,13 @@ def _resolver(assets: AssetStore, owner: str):
     return resolve
 
 
-def _key_style(settings: SettingsStore, owner: str) -> str:
-    """The answer key a new paper starts with: the account's choice (EXA-159)."""
-    return str(settings.get(owner)["answer_key_style"])
+def _with_defaults(document: dict, prefs: dict) -> dict:
+    """A new paper with the account's new-paper defaults (EXA-159, EXA-169): the key style,
+    the cover's school name and where marks print. The engine is handed plain values."""
+    document = docs.with_key_style(document, str(prefs["answer_key_style"]))
+    return paper.with_paper_defaults(
+        document, str(prefs["school_name"]), str(prefs["marks_placement"])
+    )
 
 
 @router.post("", status_code=201)
@@ -117,16 +121,17 @@ def create_document(
     store: Store,
     settings: Settings,
 ) -> dict:
+    prefs = settings.get(owner)
     if req.template:
         try:
-            document = paper.template_document(req.template)
+            document = paper.template_document(req.template, prefs["default_level"] or None)
         except paper.UnknownPaperTemplate:
             raise HTTPException(status_code=404, detail="unknown paper template") from None
         if req.title:
             document["title"] = req.title
     else:
         document = docs.empty_document(req.title or "Untitled paper")
-    document = docs.with_key_style(document, _key_style(settings, owner))
+    document = _with_defaults(document, prefs)
     return _store_new(store, owner, _valid_or_422(document), 0, req.folder_id)
 
 
@@ -141,11 +146,14 @@ def generate_paper(
     is pure; the seed — the only entropy — is chosen here, as for POST /generate) and stores
     it as a new document. The response is the document record plus the fill ``report``."""
     seed = req.seed if req.seed is not None else random.randrange(1, _SEED_CEIL)
+    prefs = settings.get(owner)
+    # the level asked for, else the account's default (EXA-169), else P6 as before
+    level = req.level or str(prefs["default_level"]) or "P6"
     try:
-        document, report = paper.generate_paper(req.template, req.level, seed, req.set_topics)
+        document, report = paper.generate_paper(req.template, level, seed, req.set_topics)
     except paper.UnknownPaperTemplate:
         raise HTTPException(status_code=404, detail="unknown paper template") from None
-    document = docs.with_key_style(document, _key_style(settings, owner))
+    document = _with_defaults(document, prefs)
     stamp = datetime.now(UTC).isoformat()
     for node in document["content"]["content"]:
         if node["type"] == "templatedQuestion":

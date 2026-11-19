@@ -3,31 +3,93 @@
   import { onMount } from 'svelte'
   import ErrorNote from './ErrorNote.svelte'
   import { canRetry, errorText } from './errors'
-  import { loadSettings, settings, updateSettings, type AnswerKeyStyle } from './settings'
+  import MarksShown from './editor/MarksShown.svelte'
+  import { MARKS_SHOWN, type MarksPlacement } from './editor/layout'
+  import {
+    loadSettings,
+    settings,
+    updateSettings,
+    SCHOOL_NAME_MAX,
+    type AnswerKeyStyle,
+    type DefaultLevel,
+  } from './settings'
 
-  let busy = false
-  let error = ''
-  let retry: (() => void) | null = null
   let saved = ''
 
   onMount(() => {
     if ($settings === null) void loadSettings()
   })
 
-  async function save(patch: Parameters<typeof updateSettings>[0], done: string) {
-    busy = true
-    error = ''
-    retry = null
-    saved = ''
-    try {
-      await updateSettings(patch)
-      saved = done
-    } catch (e) {
-      error = errorText(e, "The setting wasn't saved")
-      retry = canRetry(e) ? () => void save(patch, done) : null
-    } finally {
-      busy = false
+  // Saves run one at a time, in the order they were made (EXA-169): a later change never
+  // overtakes an earlier one, and no control is disabled while one is in flight, so a click
+  // that lands as the school name saves on blur is kept, not lost.
+  let queue: Promise<unknown> = Promise.resolve()
+  let pending = 0
+  $: busy = pending > 0
+
+  type Patch = Parameters<typeof updateSettings>[0]
+  type Failure = { patch: Patch; done: string; onSaved?: () => void; message: string; retryable: boolean }
+  // Unsaved changes, one per setting, oldest first. A save of another setting never clears one,
+  // so the alert stays while anything is unsaved. A newer edit of the same setting supersedes it:
+  // a new save, or going back to the stored value (`supersede`). `edits` counts each setting's
+  // edits, so a failure is recorded only for that setting's latest edit.
+  let failures = new Map<string, Failure>()
+  const edits: Record<string, number> = {}
+  $: failed = [...failures.values()]
+  $: error = failed.map((f) => f.message).join(' ')
+  $: retry = failed.some((f) => f.retryable) ? retryFailed : null
+
+  const WHAT: Record<string, string> = {
+    school_name: "The school name wasn't saved",
+    default_level: "The level wasn't saved",
+    marks_placement: "Marks shown wasn't saved",
+    answer_key_style: "The answer key style wasn't saved",
+  }
+
+  /** Save a change; resolves true once stored. `onSaved` runs on success, also when the change
+   *  is stored by Try again after a failure. */
+  function save(patch: Patch, done: string, onSaved?: () => void): Promise<boolean> {
+    const key = Object.keys(patch).join(',')
+    const edit = supersede(key)
+    const run = async (): Promise<boolean> => {
+      saved = ''
+      try {
+        await updateSettings(patch)
+        saved = done
+        failures.delete(key)
+        failures = failures
+        onSaved?.()
+        return true
+      } catch (e) {
+        if (edits[key] !== edit) return false // a newer edit of this setting replaces it
+        failures.delete(key) // re-added last: the newest failure is retried last
+        failures.set(key, {
+          patch,
+          done,
+          onSaved,
+          message: errorText(e, WHAT[key] ?? "The setting wasn't saved"),
+          retryable: canRetry(e),
+        })
+        failures = failures
+        return false
+      }
     }
+    pending += 1
+    const next = queue.then(run).finally(() => (pending -= 1))
+    queue = next
+    return next
+  }
+
+  /** A new edit of `key`: its earlier failure no longer stands. Returns the edit's number. */
+  function supersede(key: string): number {
+    edits[key] = (edits[key] ?? 0) + 1
+    if (failures.delete(key)) failures = failures
+    return edits[key]
+  }
+
+  /** Try again: re-send every unsaved change that can be retried, in the order it was made. */
+  function retryFailed() {
+    for (const f of [...failures.values()]) if (f.retryable) void save(f.patch, f.done, f.onSaved)
   }
 
   const toggleClassic = (on: boolean) =>
@@ -45,6 +107,55 @@
         ? 'New papers get the school key.'
         : 'New papers get worked solutions.',
     )
+
+  // EXA-169: the rest of what a new paper starts with. The API writes them into each paper it
+  // makes, so they reach papers made from now on only.
+  const LEVELS: { value: DefaultLevel; label: string }[] = [
+    { value: '', label: 'Not set' },
+    { value: 'P5', label: 'P5' },
+    { value: 'P6', label: 'P6' },
+  ]
+
+  // The school name as typed; saved when the field is left (or on Enter). It follows the stored
+  // value (a late load, a save) except while the teacher is in the field or has unsaved text.
+  let school = ''
+  let schoolFocused = false
+  let schoolDirty = false
+  $: if ($settings && !schoolFocused && !schoolDirty) school = $settings.school_name
+
+  async function saveSchool() {
+    if (!$settings) return
+    const name = school.trim()
+    if (name === $settings.school_name) {
+      // back to what is stored: nothing to save, and an earlier failed edit no longer stands
+      supersede('school_name')
+      school = name
+      schoolDirty = false
+      return
+    }
+    await save(
+      { school_name: name },
+      name ? `New papers' covers will say ${name}.` : 'New papers have no school name.',
+      () => {
+        // stored (now or by Try again): show what was stored, unless typing went on since
+        if (school.trim() === name) {
+          schoolDirty = false
+          school = $settings?.school_name ?? name
+        }
+      },
+    )
+  }
+
+  const setLevel = (level: DefaultLevel) =>
+    save(
+      { default_level: level },
+      level ? `New papers are ${level}.` : 'New papers have no level set.',
+    )
+
+  function setPlacement(e: Event) {
+    const value = (e.currentTarget as HTMLSelectElement).value as MarksPlacement
+    void save({ marks_placement: value }, `Marks shown on new papers: ${MARKS_SHOWN[value]}.`)
+  }
 </script>
 
 <main>
@@ -54,31 +165,98 @@
   {#if $settings === null}
     <p class="muted">Loading your settings…</p>
   {:else}
-    <section class="row">
-      <div class="text">
-        <span id="set-key-style" class="name">Answer key style</span>
-        <p class="desc">
-          The answer key a new paper starts with. The school key gives the answers and short
-          working only, as schools print it. Worked solutions repeat each question with its full
-          solution and marking scheme. Papers you already have keep their own.
-        </p>
-      </div>
-      <div class="seg" role="radiogroup" aria-labelledby="set-key-style">
-        {#each KEY_STYLES as s (s.value)}
-          <label class:on={$settings.answer_key_style === s.value}>
-            <input
-              type="radio"
-              name="answer-key-style"
-              value={s.value}
-              checked={$settings.answer_key_style === s.value}
-              disabled={busy}
-              on:change={() => setKeyStyle(s.value)}
-            />
-            {s.label}
-          </label>
-        {/each}
-      </div>
-    </section>
+    <h2 id="set-new-papers">New papers</h2>
+    <p class="lede group-lede">
+      What a new paper starts with. You can still change any of it in the paper itself.
+    </p>
+    <div role="group" aria-labelledby="set-new-papers">
+      <section class="row">
+        <div class="text">
+          <label for="set-school" class="name">School name</label>
+          <p class="desc" id="set-school-desc">
+            Printed on the cover of papers you make from now on. Leave it empty to type it in each
+            paper.
+          </p>
+        </div>
+        <input
+          id="set-school"
+          class="text-input"
+          type="text"
+          maxlength={SCHOOL_NAME_MAX}
+          autocomplete="organization"
+          aria-describedby="set-school-desc"
+          bind:value={school}
+          on:input={() => (schoolDirty = true)}
+          on:focus={() => (schoolFocused = true)}
+          on:blur={() => (schoolFocused = false)}
+          on:change={saveSchool}
+        />
+      </section>
+      <section class="row">
+        <div class="text">
+          <span id="set-level" class="name">Level</span>
+          <p class="desc">
+            Stated on the cover of papers you make from now on, and the level the New dialog
+            offers first. You can still generate at the other level.
+          </p>
+        </div>
+        <div class="seg" role="radiogroup" aria-labelledby="set-level">
+          {#each LEVELS as l (l.value)}
+            <label class:on={$settings.default_level === l.value}>
+              <input
+                type="radio"
+                name="default-level"
+                value={l.value}
+                checked={$settings.default_level === l.value}
+                on:change={() => setLevel(l.value)}
+              />
+              {l.label}
+            </label>
+          {/each}
+        </div>
+      </section>
+      <section class="row">
+        <div class="text">
+          <label for="set-marks" class="name">Marks shown</label>
+          <p class="desc" id="set-marks-desc">
+            Where each question's marks print on papers you make from now on. Sections follow this
+            unless they set their own; multiple-choice and short-answer sections show marks in the
+            section header.
+          </p>
+        </div>
+        <MarksShown
+          id="set-marks"
+          describedby="set-marks-desc"
+          value={$settings.marks_placement}
+          on:change={setPlacement}
+        />
+      </section>
+      <section class="row">
+        <div class="text">
+          <span id="set-key-style" class="name">Answer key style</span>
+          <p class="desc">
+            The answer key a new paper starts with. The school key gives the answers and short
+            working only, as schools print it. Worked solutions repeat each question with its full
+            solution and marking scheme. Papers you already have keep their own.
+          </p>
+        </div>
+        <div class="seg" role="radiogroup" aria-labelledby="set-key-style">
+          {#each KEY_STYLES as s (s.value)}
+            <label class:on={$settings.answer_key_style === s.value}>
+              <input
+                type="radio"
+                name="answer-key-style"
+                value={s.value}
+                checked={$settings.answer_key_style === s.value}
+                on:change={() => setKeyStyle(s.value)}
+              />
+              {s.label}
+            </label>
+          {/each}
+        </div>
+      </section>
+    </div>
+    <h2>Classic generator</h2>
     <section class="row">
       <div class="text">
         <label for="set-classic" class="name">Show the Classic generator</label>
@@ -93,7 +271,6 @@
         role="switch"
         class="switch"
         checked={$settings.classic_generator}
-        disabled={busy}
         on:change={(e) => toggleClassic(e.currentTarget.checked)}
       />
     </section>
@@ -114,6 +291,32 @@
   h1 {
     font-family: var(--serif);
     margin: 0.6rem 0 0.2rem;
+  }
+  h2 {
+    font-size: 17px;
+    margin: 2rem 0 0.3rem;
+  }
+  .group-lede {
+    font-size: 14px;
+    margin-bottom: 0.9rem;
+  }
+  .text-input,
+  .row :global(select) {
+    flex: none;
+    width: 16rem;
+    max-width: 100%;
+    font: inherit;
+    font-size: 14px;
+    padding: 0.4rem 0.55rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .text-input:focus-visible,
+  .row :global(select:focus-visible) {
+    outline: 3px solid var(--verify);
+    outline-offset: 1px;
   }
   .lede,
   .muted {
@@ -168,10 +371,6 @@
     outline: 3px solid var(--verify);
     outline-offset: 1px;
   }
-  .seg label:has(input:disabled) {
-    cursor: progress;
-    opacity: 0.6;
-  }
   .name {
     font-weight: 600;
     color: var(--ink);
@@ -222,17 +421,15 @@
     outline: 3px solid var(--verify);
     outline-offset: 2px;
   }
-  .switch:disabled {
-    opacity: 0.6;
-    cursor: progress;
-  }
   .status {
     min-height: 1.2em;
     font-size: 13px;
     color: var(--ink-soft);
   }
   @media (max-width: 560px) {
-    .row:has(.seg) {
+    .row:has(.seg),
+    .row:has(.text-input),
+    .row:has(:global(select)) {
       flex-wrap: wrap;
     }
   }

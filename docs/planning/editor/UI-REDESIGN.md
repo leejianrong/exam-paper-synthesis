@@ -1,7 +1,7 @@
 # Editor and app UI redesign: research and proposal
 
 Cards: **EXA-159** (answer key clutter), **EXA-160** (editor top bars), **EXA-161** (per-question buttons), plus an app-wide pass the owner asked for.
-Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14), S7 (EXA-165, section 15), S6 (EXA-164, section 16), S9 (EXA-167, section 17) and S12 (EXA-170, section 19).
+Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14), S7 (EXA-165, section 15), S6 (EXA-164, section 16), S9 (EXA-167, section 17), S12 (EXA-170, section 19) and S11 (EXA-169, section 20).
 
 Research build: worktree off `origin/main` at `f54b92c`, API on :8100 (dev auth, throwaway stores), Vite on :5273. Papers generated with `POST /documents/generate` (P6, seed 11) and through the New dialog (an exam set in a folder).
 
@@ -825,3 +825,48 @@ moves nothing. The rule lives in the block selection guard,
   their keyboard order and no sideways scroll at 390 px.
 - **Not in S12:** Google's guidance asks for Roboto on its button; the app keeps its one
   typeface (Inter, EXA-94). A signed-out-by-expiry note ("You're signed out…") on this page.
+
+---
+
+## 20. S11 as built (EXA-169)
+
+- **Settings keys.** `school_name` (text, empty by default, trimmed, at most 120 characters and
+  one line: the cover's own `school` limit; no control characters, line or paragraph
+  separators, or bidi embeddings, overrides and isolates, while the marks U+200E, U+200F and
+  U+061C that pasted Hebrew and Arabic names carry are allowed), `default_level` (`""`, `P5`, `P6`; empty by
+  default) and `marks_placement` (`answer`, `question`, `both`; `answer` by default, what an
+  absent paper setting already meant). Checked by `settings.check_patch` (422 with the reason);
+  a stored value that is no longer allowed reads as the default. Same contract on SQLite and
+  Postgres.
+- **Settings page.** A **New papers** group (`role="group"`, headed "New papers"): School name
+  (saved when the field is left, or on Enter), Level (Not set / P5 / P6), Marks shown (the
+  shared `MarksShown.svelte`, so the labels are `layout.MARKS_SHOWN`'s; it gained an `id`
+  prop; the help repeats the paper panel's caveat that multiple-choice and short-answer sections
+  show marks in the section header) and the existing Answer key style. Each field's description says it is for
+  papers made from now on. The Classic switch moves under its own "Classic generator" heading.
+- **Prefill, server-side.** `routes_documents._with_defaults` reads the account's settings once
+  and hands plain values to the engine: `docs.with_key_style` as before, then
+  `paper.with_paper_defaults(doc, school, marks_placement)`, which writes the school into an
+  empty cover `school` field and `settings.marks_placement` when it differs from what the paper
+  prints already (so the defaults change nothing in a new paper's JSON). The level goes in where
+  the paper is made: `paper.template_document(code, level)` states it on a starter's cover, and
+  `POST /documents/generate` takes `level` as optional now, using the request's, else the
+  account's, else P6. Covered: `POST /documents` (blank: marks and key only, as it has no cover;
+  starter template: all), `POST /documents/generate` (single paper, and each paper of an exam
+  set, which the New dialog makes as three such calls). The engine reads no settings.
+- **Saving.** Saves run one at a time in the order they were made (a promise chain), and no
+  control is disabled meanwhile, so a click that lands while the school name saves on blur is
+  kept and saved after it. The school field follows the stored value except while it has focus
+  or unsaved text: a failed save keeps what was typed, a save (also by Try again) shows what was
+  stored, and a late load (a failed first load retried) fills it. A failed save is kept per
+  setting: saving another setting doesn't clear its alert (the status line may still say what
+  did save). A newer edit of the same setting supersedes it at once: a new save of it, or
+  putting the field back to the stored value (which also clears a refused, non-retryable one).
+  A per-setting edit count means a failure is recorded only for that setting's latest edit, and
+  Try again re-sends every unsaved change in the order it was made.
+- **New dialog.** `NewWizard` takes `defaultLevel` (the list passes the settings store's): that
+  level's "Generate at" card takes focus and carries a "Your default" chip (its accessible
+  description), and a new exam set's folder is named "P5 exam set" after it. The dialog still
+  sends the level the teacher clicks, which beats the default.
+- **Not changed:** saved papers (nothing rewrites them); the blank paper still has no cover;
+  the editor's own controls.

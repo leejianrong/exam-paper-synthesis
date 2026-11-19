@@ -292,6 +292,49 @@ describe('NewWizard: Exam set', () => {
   })
 })
 
+describe('NewWizard: the default level from Settings (EXA-169)', () => {
+  it('without one, P6 takes focus and nothing is marked, as before', async () => {
+    open()
+    await pick('Exam set')
+    expect(screen.getByRole('textbox', { name: 'Folder name' })).toHaveValue('P6 exam set')
+    await pick('Next')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Generate at P6' })).toHaveFocus())
+    expect(screen.queryByText('Your default')).toBeNull()
+  })
+
+  it('preselects the default level for an exam set; the other level is still one click', async () => {
+    createFolder.mockResolvedValue(folder('fs', 'P5 exam set'))
+    generatePaper.mockImplementation(async (code: string, _level: string, fid: string) => ({
+      ...record(`g-${code}`, fid),
+      report: { topics: {} },
+    }))
+    open({ defaultLevel: 'P5' })
+    await pick('Exam set')
+    expect(screen.getByRole('textbox', { name: 'Folder name' })).toHaveValue('P5 exam set')
+    await pick('Next')
+    const p5 = screen.getByRole('button', { name: 'Generate at P5' })
+    await waitFor(() => expect(p5).toHaveFocus())
+    expect(p5).toHaveAccessibleDescription('Your default')
+    expect(screen.getByRole('button', { name: 'Generate at P6' })).not.toHaveAccessibleDescription()
+    // the teacher changes it here: the request says the level, which beats the default
+    await pick('Generate at P6')
+    await waitFor(() => expect(props.onShowFolder).toHaveBeenCalledWith('fs'))
+    expect(generatePaper.mock.calls.map((c) => c[1])).toEqual(['P6', 'P6', 'P6'])
+  })
+
+  it('preselects the default level for a single paper', async () => {
+    generatePaper.mockResolvedValue({ ...record('s5'), report: {} })
+    open({ defaultLevel: 'P5' })
+    await pick('Single paper')
+    await pick('Paper 2')
+    const p5 = screen.getByRole('button', { name: 'Generate at P5' })
+    await waitFor(() => expect(p5).toHaveFocus())
+    expect(p5).toHaveAccessibleDescription('Your default')
+    await fireEvent.click(p5)
+    await waitFor(() => expect(generatePaper).toHaveBeenCalledWith('p2', 'P5', null))
+  })
+})
+
 describe('NewWizard: Single paper', () => {
   it('generates the chosen paper at a level into the chosen folder, with the report', async () => {
     const report = { template: 'p1_booklet_b', level: 'P6', filled: 13 }

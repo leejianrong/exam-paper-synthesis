@@ -49,7 +49,9 @@ as a compact header and the cover as a compact card, their settings in the side 
 states: an unknown paper is a page of its own with the way back, errors in plain words with Try again,
 and loading skeletons for the papers list and the editor; S9, EXA-167, one app header on every
 screen but the editor (Papers, Question bank, Classic when on, the avatar menu) and the question
-bank as its own page with filters, search, review and "Import questions from a file"; S12,
+bank as its own page with filters, search, review and "Import questions from a file"; S11,
+EXA-169, new-paper defaults in Settings (school name, level, marks shown, key style) written
+into every new paper by the server, the default level offered first in the New dialog; S12,
 EXA-170, the sign-in page: the product name "Exam papers" and what it is for, a "Sign in with …"
 button with its mark for each configured provider, sign-in failures in plain words, the dev stub
 marked as development only, and "Exam papers" as the tab title instead of the repo name).
