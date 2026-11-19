@@ -9,6 +9,7 @@ const fetchMock = vi.fn()
 beforeEach(() => {
   fetchMock.mockReset()
   vi.stubGlobal('fetch', fetchMock)
+  session.set({ status: 'anon' })
   vi.spyOn(console, 'warn').mockImplementation(() => {})
 })
 afterEach(() => {
@@ -60,6 +61,36 @@ describe('LoginPage', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
+  it('Try again after an unanswered session check signs a teacher with a good cookie straight back in', async () => {
+    session.set({ status: 'anon', unreachable: true })
+    fetchMock.mockRejectedValueOnce(new Error('down')) // the providers, while the server restarts
+    render(LoginPage)
+    await screen.findByRole('alert')
+    fetchMock.mockImplementation(async (url: string) =>
+      String(url).endsWith('/auth/me')
+        ? ok({ id: 'u1', email: null, name: 'Ann', dev: false })
+        : ok({ providers: [{ name: 'google', label: 'Google' }], dev: false }),
+    )
+    await fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await vi.waitFor(() => expect(get(session).status).toBe('user'))
+    expect(fetchMock.mock.calls.map((c) => String(c[0]).replace(/^.*\/auth/, ''))).toEqual(['/providers', '/me'])
+  })
+
+  it('Try again when nobody is signed in reloads the providers only, and focuses the first button', async () => {
+    session.set({ status: 'anon' })
+    fetchMock.mockRejectedValueOnce(new Error('down'))
+    render(LoginPage)
+    await screen.findByRole('alert')
+    providers([
+      { name: 'google', label: 'Google' },
+      { name: 'github', label: 'GitHub' },
+    ])
+    await fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    const google = await screen.findByRole('link', { name: 'Sign in with Google' })
+    await vi.waitFor(() => expect(google).toHaveFocus())
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).endsWith('/auth/me'))).toBe(false)
+  })
+
   it('explains a failed sign-in from the error code the API sends back', async () => {
     providers([{ name: 'google', label: 'Google' }])
     render(LoginPage, { props: { error: 'denied' } })
@@ -74,6 +105,24 @@ describe('LoginPage', () => {
     fetchMock.mockResolvedValue(ok({ id: 'local', email: null, name: 'Local development', dev: true }))
     await fireEvent.click(screen.getByRole('button', { name: 'Continue without signing in' }))
     await vi.waitFor(() => expect(get(session).status).toBe('user'))
+  })
+
+  it('the dev button waits while it asks, and says so when the server still says no', async () => {
+    providers([], true)
+    render(LoginPage)
+    const go = await screen.findByRole('button', { name: 'Continue without signing in' })
+    let answer!: (v: unknown) => void
+    fetchMock.mockReturnValueOnce(new Promise((r) => (answer = r)))
+    await fireEvent.click(go)
+    expect(screen.getByRole('button', { name: 'Continuing…' })).toBeDisabled()
+    answer({ ok: false, status: 401, json: async () => ({}) })
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Couldn't continue. The server doesn't let you in without signing in any more.",
+    )
+    expect(screen.getByRole('button', { name: 'Continue without signing in' })).toBeEnabled()
+    fetchMock.mockRejectedValueOnce(new Error('down'))
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue without signing in' }))
+    await vi.waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("Couldn't continue. Can't reach the server."))
   })
 
   it('with the dev stub and no provider, offers only the stub', async () => {

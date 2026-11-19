@@ -42,6 +42,8 @@ test("shows each configured provider's button, in keyboard order, at phone width
   await expect(google).toBeVisible()
   await expect(page.getByRole('link', { name: /GitHub/ })).toHaveCount(0)
   await expect(page.getByText('Development only')).toHaveCount(0)
+  // Google's light button border, shared by all three
+  await expect(google).toHaveCSS('border-top-color', 'rgb(116, 119, 117)')
 
   await page.keyboard.press('Tab')
   await expect(google).toBeFocused()

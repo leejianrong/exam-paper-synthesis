@@ -3,11 +3,12 @@
   // provider the server is configured for (no passwords). Each button follows its provider's
   // wording ("Sign in with Google") and carries its mark. With the local development stub on
   // (EXAM_DEV_AUTH=1) a clearly marked panel lets a developer in without signing in.
-  import { onMount } from 'svelte'
+  import { onMount, tick } from 'svelte'
+  import { get } from 'svelte/store'
   import ErrorNote from '../ErrorNote.svelte'
   import Icon from '../Icon.svelte'
-  import { canRetry, errorText, signInErrorText } from '../errors'
-  import { loadProviders, loadSession, loginUrl, type ProviderInfo } from '../session'
+  import { canRetry, errorText, plainMessage, signInErrorText } from '../errors'
+  import { loadProviders, loadSession, loginUrl, session, type ProviderInfo } from '../session'
   import ProviderMark from './ProviderMark.svelte'
 
   /** The API's sign-in error code from `#/login?error=…`, or ''. */
@@ -17,11 +18,20 @@
   let dev = $state(false)
   let loading = $state(true)
   let loadError = $state<unknown>(null)
+  let devBusy = $state(false)
+  let devError = $state('')
+  let heading: HTMLElement | undefined = $state()
+  let list: HTMLElement | undefined = $state()
 
-  async function load(): Promise<void> {
+  /** `retry`: the teacher pressed Try again. */
+  async function load(retry = false): Promise<void> {
     loading = true
     loadError = null
     try {
+      // The server didn't answer who is signed in (a restart, a dropped connection): ask again
+      // first, so a teacher whose session is still good goes straight back to their papers.
+      const was = get(session)
+      if (retry && was.status === 'anon' && was.unreachable && (await loadSession()).status === 'user') return
       const info = await loadProviders()
       providers = info.providers
       dev = info.dev
@@ -30,9 +40,25 @@
     } finally {
       loading = false
     }
+    if (retry && !loadError) {
+      await tick()
+      ;(list?.querySelector('a') ?? heading)?.focus()
+    }
   }
 
-  onMount(load)
+  async function continueDev(): Promise<void> {
+    devBusy = true
+    devError = ''
+    const now = await loadSession()
+    devBusy = false
+    if (now.status === 'anon') {
+      devError = `Couldn't continue. ${
+        now.unreachable ? plainMessage(0) : "The server doesn't let you in without signing in any more."
+      }`
+    }
+  }
+
+  onMount(() => void load())
 </script>
 
 <main class="signin">
@@ -46,17 +72,17 @@
     {#if error}<ErrorNote message={signInErrorText(error)} />{/if}
 
     <section aria-labelledby="signin-h">
-      <h2 id="signin-h" class="visually-hidden">Sign in</h2>
+      <h2 id="signin-h" class="visually-hidden" tabindex="-1" bind:this={heading}>Sign in</h2>
       {#if loading}
         <div class="skel button" role="status"><span class="visually-hidden">Loading the ways to sign in…</span></div>
       {:else if loadError}
         <ErrorNote
           message={errorText(loadError, "Couldn't load the ways to sign in")}
-          onRetry={canRetry(loadError) ? load : null}
+          onRetry={canRetry(loadError) ? () => void load(true) : null}
         />
       {:else}
         {#if providers.length}
-          <ul class="providers">
+          <ul class="providers" bind:this={list}>
             {#each providers as p (p.name)}
               <li>
                 <a class="provider" href={loginUrl(p.name)}>
@@ -74,7 +100,10 @@
           <div class="dev">
             <p class="devtag">Development only</p>
             <p>This server lets anyone in without an account (<code>EXAM_DEV_AUTH=1</code>). Never turn it on in production.</p>
-            <button type="button" class="devgo" onclick={() => void loadSession()}>Continue without signing in</button>
+            {#if devError}<ErrorNote message={devError} />{/if}
+            <button type="button" class="devgo" disabled={devBusy} onclick={() => void continueDev()}>
+              {devBusy ? 'Continuing…' : 'Continue without signing in'}
+            </button>
           </div>
         {/if}
       {/if}
@@ -136,7 +165,7 @@
     gap: var(--s3);
     min-height: 44px;
     padding: 0 var(--s4);
-    border: 1px solid var(--line);
+    border: 1px solid var(--rule-strong);
     border-radius: var(--r-sm);
     background: var(--page);
     color: var(--ink);
@@ -150,7 +179,6 @@
   }
   .provider:hover {
     background: var(--wash);
-    border-color: var(--ink-faint);
   }
   .skel.button {
     height: 44px;
@@ -194,8 +222,12 @@
     font-weight: 600;
     cursor: pointer;
   }
-  .devgo:hover {
+  .devgo:hover:not(:disabled) {
     background: var(--desk);
+  }
+  .devgo:disabled {
+    color: var(--ink-faint);
+    cursor: default;
   }
   @media (max-width: 480px) {
     .signin {

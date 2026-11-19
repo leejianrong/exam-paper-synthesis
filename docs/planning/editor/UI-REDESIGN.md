@@ -746,9 +746,10 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
 - **Provider buttons.** One per provider the server is configured for (`GET /auth/providers`,
   unchanged), in each provider's own wording: "Sign in with Google", "Sign in with Microsoft",
   "Sign in with GitHub". Each carries its mark as inline SVG in the provider's brand colours
-  (`ProviderMark.svelte`; no outside request, so the CSP is untouched). All three use the light
-  button every provider's guidance allows: white, a grey rule, dark text, mark at the left,
-  44 px high. They stay links to `/auth/{provider}/login`. A provider with no mark gets the
+  (`ProviderMark.svelte`; no outside request, so the CSP is untouched). All three use a light
+  button: white, dark text, mark at the left, 44 px high, with Google's light-button border
+  `#747775` (a new token, `--rule-strong`). That is Google's spec exactly; Microsoft's light
+  button asks for `#8C8C8C`, so ours is a shade darker; GitHub sets no button style. They stay links to `/auth/{provider}/login`. A provider with no mark gets the
   same button without one.
 - **Errors in the EXA-165 voice.** `errors.ts` `signInErrorText(code)` words the codes the API
   sends back in `#/login?error=…`: `denied` "Sign-in was cancelled. Choose an account to sign
@@ -758,11 +759,17 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
   "That way of signing in isn't available on this server.", anything else "Sign-in didn't work.
   Try again." Shown in the shared `ErrorNote`. When the providers can't be loaded the page says
   "Couldn't load the ways to sign in." with the plain reason from `errorText` and Try again
-  when `canRetry`. No "please", no apology. While loading, a skeleton button.
+  when `canRetry`. `loadSession` now tells an unanswered `/auth/me` (no connection, or a 5xx
+  while the server restarts: `{status: 'anon', unreachable: true}`) from a real 401, so Try
+  again asks `/auth/me` first in that case and a teacher whose cookie is still good goes
+  straight back to their papers; only a real "nobody" reloads the providers. After a
+  successful Try again, focus goes to the first provider button (or the hidden "Sign in"
+  heading when there is none). No "please", no apology. While loading, a skeleton button.
 - **The dev stub** (`EXAM_DEV_AUTH=1`, reported as `dev` by `/auth/providers`) is a dashed
   grey panel under the buttons, headed "Development only", naming the variable and saying never
   to turn it on in production, with a secondary button "Continue without signing in" (it asks
-  `/auth/me` again, which the stub answers). With the stub on and no provider configured the
+  `/auth/me` again, which the stub answers). It reads "Continuing…" and is disabled while it
+  waits; if the answer is still "nobody", an `ErrorNote` says "Couldn't continue." and why. With the stub on and no provider configured the
   panel is all there is; "Sign-in isn't set up on this server yet." shows only when neither
   exists.
 - **Branding.** One product name, "Exam papers", as in the app header: the SPA's `<title>`
