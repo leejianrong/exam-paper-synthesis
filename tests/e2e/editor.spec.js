@@ -1,5 +1,15 @@
 import { test, expect } from '@playwright/test'
-import { settled, newBlankPaper, exportPdf, questionHost, questionMenu, selectQuestion } from './helpers.js'
+import {
+  settled,
+  newBlankPaper,
+  editAnswer,
+  exportPdf,
+  questionHost,
+  questionMenu,
+  selectQuestion,
+  showKey,
+  showPaper,
+} from './helpers.js'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -61,9 +71,10 @@ test('build a paper, edit questions, reload, preview and export', async ({ page 
   await blocks.nth(1).getByRole('button', { name: 'Apply' }).click()
   await expect(blocks.nth(1)).toContainText('Zainab')
 
-  // Answer key lists both questions.
-  const key = page.getByRole('region', { name: 'Answer key' })
-  await expect(key.locator('.entry')).toHaveCount(2)
+  // The answer key view shows both questions, as the key prints (EXA-162).
+  const key = await showKey(page)
+  await expect(key.locator('th[scope=row]')).toHaveText(['Q1', 'Q2'])
+  await showPaper(page)
 
   // Autosave settles, and everything survives a reload.
   await settled(page)
@@ -149,9 +160,10 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
   await page.keyboard.press('Escape')
   await expect(block.locator('li.option').first()).toBeVisible()
 
-  // The key region uses the engine key markup for it.
-  const key = page.getByRole('region', { name: 'Answer key' })
-  await expect(key.locator('.solution').first()).toBeVisible()
+  // The key view prints it with the engine's own key markup.
+  const key = await showKey(page)
+  await expect(key.locator('th[scope=row]')).toHaveText(['Q1'])
+  await showPaper(page)
 
   // Add the table question too. The page draws its own numbers with a CSS counter, and
   // counters cross the shadow boundary, so an embedded question must not advance it itself
@@ -205,17 +217,18 @@ test('write a free-form question, set marks, write its answer, reload, preview a
   await block.getByLabel('Marks').press('Enter')
   await expect(block.locator('.ff-area .marks')).toHaveText('[3]')
 
-  // The answer is written in the key region (entry 2: numbering is shared).
-  const entry = page.getByRole('region', { name: 'Answer key' }).locator('.entry.freeform')
-  await expect(entry).toContainText('2.')
-  await entry.locator('.answer').click()
+  // The answer is written in Edit answer… (question 2: numbering is shared).
+  const dialog = await editAnswer(page, block)
+  await expect(dialog).toHaveAccessibleName('Answer to question 2')
   await page.keyboard.type('12 - 5 = 7. Ann has 7 sweets left.')
+  await dialog.getByRole('button', { name: 'Done' }).click()
 
   await settled(page)
   await page.reload()
   await expect(page.locator('.ffblock')).toContainText('How many are left?')
   await expect(page.locator('.ffblock .ff-area .marks')).toHaveText('[3]')
-  await expect(page.locator('.entry.freeform .answer')).toContainText('Ann has 7 sweets left.')
+  const printed = await showKey(page)
+  await expect(printed.locator('body')).toContainText('Ann has 7 sweets left.')
 
   const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
   const key = await (await page.request.get(`${API}/documents/${id}/preview/key`)).text()
@@ -255,12 +268,12 @@ test('a multi-part free-form question: lettered parts with marks, answers, reloa
   await marks.nth(0).press('Enter')
   await expect(page.getByTestId('marks-total')).toHaveText('3 marks')
 
-  // Each part has its own answer in the key region.
-  const key = page.getByRole('region', { name: 'Answer key' })
-  await key.locator('[data-part=a] .answer').click()
+  // Each part has its own answer in Edit answer….
+  const dialog = await editAnswer(page, block)
   await page.keyboard.type('30 000 cm3')
-  await key.locator('[data-part=b] .answer').click()
+  await dialog.getByRole('textbox', { name: 'Answer to question 1 part (b)' }).click()
   await page.keyboard.type('30 l')
+  await dialog.getByRole('button', { name: 'Done' }).click()
 
   await settled(page)
   await page.reload()
@@ -375,11 +388,13 @@ test('convert a generated question to free-form: text, answer and its figure as 
   // answer (editable in the key), never in the question a pupil sees.
   await expect(ff.locator('.ff-body img.doc-image-img')).toHaveCount(0)
   await expect(ff.locator('.ff-area .marks')).toHaveText(/\[\d+\]/)
-  const entry = page.getByRole('region', { name: 'Answer key' }).locator('.entry.freeform')
-  await expect(entry.locator('.answer')).toContainText('Answer:')
-  const img = entry.locator('img')
+  await ff.locator('.ff-body p').first().click()
+  const dialog = await editAnswer(page, ff)
+  await expect(dialog.locator('.answer')).toContainText('Answer:')
+  const img = dialog.locator('.answer img')
   await expect(img).toBeVisible()
   await expect.poll(() => img.evaluate((e) => e.naturalWidth)).toBeGreaterThan(100)
+  await dialog.getByRole('button', { name: 'Done' }).click()
   if (original) await expect(ff.locator('.ff-body')).toContainText(original.slice(0, 20))
 
   // Now it is the teacher's text: edit it freely.
@@ -457,10 +472,10 @@ test('typing "1. " makes a numbered list that still saves (editor-only attribute
   await page.keyboard.press('Enter')
   await page.keyboard.type('1. Two')
   await expect(page.locator('.ffblock .ff-body ol')).toBeVisible()
-  const entry = page.getByRole('region', { name: 'Answer key' }).locator('.entry.freeform')
-  await entry.locator('.answer').click()
+  const dialog = await editAnswer(page, page.locator('.ffblock'))
   await page.keyboard.type('7. Seven')
-  await expect(entry.locator('.answer ol')).toBeVisible()
+  await expect(dialog.locator('.answer ol')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Done' }).click()
   await settled(page)
 })
 

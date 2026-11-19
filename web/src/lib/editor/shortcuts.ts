@@ -65,7 +65,7 @@ export const SHEET: Array<{ group: string; rows: Array<{ label: string; keys: st
     rows: [
       { label: 'Find a command', keys: [GLOBAL_KEYS.palette] },
       { label: 'Add a question', keys: [GLOBAL_KEYS.addQuestion] },
-      { label: 'Go to the answer key', keys: [GLOBAL_KEYS.answerKey] },
+      { label: 'Switch to the answer key and back', keys: [GLOBAL_KEYS.answerKey] },
       { label: 'Preview pages', keys: [GLOBAL_KEYS.preview] },
       { label: 'Show or hide the side panel', keys: [GLOBAL_KEYS.panel] },
       { label: 'Keyboard shortcuts', keys: [GLOBAL_KEYS.sheet] },

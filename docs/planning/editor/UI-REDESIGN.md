@@ -1,7 +1,7 @@
 # Editor and app UI redesign: research and proposal
 
 Cards: **EXA-159** (answer key clutter), **EXA-160** (editor top bars), **EXA-161** (per-question buttons), plus an app-wide pass the owner asked for.
-Status: approved by the owner on 2026-11-19 (section 10). S2 (EXA-159, the school key by default) is built.
+Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12) and S4 (EXA-162, section 13).
 
 Research build: worktree off `origin/main` at `f54b92c`, API on :8100 (dev auth, throwaway stores), Vite on :5273. Papers generated with `POST /documents/generate` (P6, seed 11) and through the New dialog (an exam set in a folder).
 
@@ -438,8 +438,8 @@ Step 2 sources: the popular-editor patterns in section 2 come from product knowl
   open menus, the pointer moving onto another name opens it) over the existing `Menu.svelte`,
   which gained checkbox rows and Mac labels. Below 900 px it folds into one "Menu" button.
 - Paper > Cover page… goes to the cover's first field, adding a cover first if there is none (S6
-  moves its fields to the panel). View > Answer key scrolls to the key under the paper until S4
-  makes it a view. "Send feedback" is left out: there is no feedback address or page yet. View > Show working space outlines is not built.
+  moves its fields to the panel). View > Answer key scrolled to the key under the paper until S4
+  made it a view (section 13). "Send feedback" is left out: there is no feedback address or page yet. View > Show working space outlines is not built.
 - Make a copy has no API of its own: the browser creates a paper ("Copy of …", same folder) and
   saves this paper's content and settings into it, then opens it.
 - The side panel's visibility is kept in `localStorage` (`exam.editor.sidePanel`), wrapped in
@@ -458,4 +458,44 @@ Step 2 sources: the popular-editor patterns in section 2 come from product knowl
 
 Ctrl+Enter and Ctrl+M never fire from a form field (the title, a marks box, a dialog). With a
 dialog open no global shortcut runs, though Ctrl+P is still kept from printing the screen.
+
+---
+
+## 13. S4 as built (EXA-162)
+
+- **One renderer.** The key view is `KeyView.svelte`: the paper's `GET /documents/{id}/preview/key`
+  (the HTML the Answer key PDF is made from) in a `srcdoc` iframe at the print width (178 mm),
+  inside an A4 sheet with the print margins. There is no web-side key renderer any more: the old
+  `AnswerKey.svelte` and `FragmentView`'s CSS mirror of the key options are deleted. The key is
+  not paginated (Chromium numbers its pages), so the view is one continuous sheet.
+- **Refresh.** The view loads only while it is shown. Any change to the paper's content, settings
+  or title makes it stale; it saves pending edits (`autosave.flush`) and asks again 600 ms after
+  the last change, or at once when the view opens. The new key loads in a hidden iframe and
+  replaces the old one once drawn, and the sheet's height follows the key's own (a
+  `ResizeObserver` in the frame, for KaTeX and fonts), so the page keeps its scroll position.
+  While a swap or regenerate runs it waits. A failed load says so with Try again and keeps the
+  last key on screen; it never retries on its own.
+- **Scroll.** Each view keeps its own scroll position. Switching to the key with a question
+  selected scrolls to that question's row: `keyRows.ts` finds it by its printed label (`Q16` in a
+  table row or a grid column head) or, for worked solutions, by its place among the questions in
+  the key.
+- **Options strip** above the key: Style (School key / Worked solutions, radios styled as the
+  Settings page's segmented control) and Show (the question, worked solutions only; marking
+  scheme (M1, A1); marks and working for 1-mark questions, the school key only). Same
+  `setKeyLayout` defaults as before; the side panel's Answer key group is gone.
+- **Left out of the key.** The question ⋯ menu's Leave out of / Include in answer key (EXA-161)
+  is the way out. The printed key can't show a left-out row struck through (it isn't in the
+  print), so a line under the strip, "Not in the key", lists them with an Include button each.
+- **Answers you write.** The old key region was also where a teacher's own question got its
+  answer. That moved to **Edit answer…** in the question's ⋯ menu (`AnswerDialog.svelte`: the
+  question for reference, then one answer editor, or one per part). The key view lists your own
+  questions under "Your answers" (those without an answer marked "to write"), and clicking an own
+  question's row in the printed key opens its answer too.
+- **Header.** The Paper | Answer key switch sits before the marks total (an icon pair below
+  1200 px). Below 600 px it hides so the title keeps its room; Menu > View still switches. In the
+  key view the toolbar keeps only + Question, + Section, undo and redo. Keys pressed inside the
+  printed key reach the editor's shortcuts (Ctrl+Alt+K back, Ctrl+P, Ctrl+K).
+- **Not built:** per-row hover actions inside the printed key (a ⋯ on each row). Rows are print
+  markup inside an iframe; only the own-answer click is wired there. The exam-set key (S10) is
+  still to come.
 

@@ -107,3 +107,27 @@ export async function questionMenu(block, name) {
   await host.getByRole('button', { name: /^More actions/ }).click()
   await host.getByRole('menuitem', { name, exact: true }).click()
 }
+
+/**
+ * EXA-162: a teacher's own question has its answer written in the Edit answer dialog, from the
+ * question's ⋯ menu (`block` is its `.ffblock`, with the caret in it so its pill shows).
+ */
+export async function editAnswer(page, block) {
+  await block.getByRole('button', { name: /^More actions/ }).click()
+  await block.getByRole('menuitem', { name: 'Edit answer…', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: /^Answer to question \d+$/ })
+  await expect(dialog.locator('.ProseMirror').first()).toBeFocused()
+  return dialog
+}
+
+/** EXA-162: the header's Paper | Answer key switch; the key view's printed key, once drawn. */
+export async function showKey(page) {
+  await page.getByRole('group', { name: 'View' }).getByRole('button', { name: 'Answer key' }).click()
+  await expect(page.locator('.keyview iframe.ready')).toBeVisible()
+  return page.frameLocator('.keyview iframe.ready')
+}
+
+export async function showPaper(page) {
+  await page.getByRole('group', { name: 'View' }).getByRole('button', { name: 'Paper' }).click()
+  await expect(page.locator('.page')).toBeVisible()
+}

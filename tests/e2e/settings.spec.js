@@ -46,7 +46,9 @@ test('the answer key style in Settings is the key new papers start with', async 
     await page.getByRole('link', { name: '← Your papers' }).click()
     await newBlankPaper(page)
     await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
-    await expect(page.getByLabel('Answer key style')).toHaveValue('full')
+    await page.getByRole('group', { name: 'View' }).getByRole('button', { name: 'Answer key' }).click()
+    const style = page.getByRole('radiogroup', { name: 'Answer key style' })
+    await expect(style.getByRole('radio', { name: 'Worked solutions' })).toBeChecked()
   } finally {
     await page.request.put(`${API}/settings`, { data: { answer_key_style: 'school' } })
   }

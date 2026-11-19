@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The editable answer for one free-form question, in the answer-key region. A compact
+  // The editable answer for one free-form question, in the Edit answer dialog. A compact
   // TipTap instance restricted to the answer schema (paragraphs, lists, bold/italic/
   // underline). Created lazily — on first sight or focus — so a 200-question paper does
   // not spin up 200 editors; until then it shows the saved answer as plain markup.
@@ -16,6 +16,8 @@
 
   export let value: DocJSON
   export let label = 'Answer'
+  /** Put the caret in it once it opens (the Edit answer dialog). */
+  export let autofocus = false
 
   const dispatch = createEventDispatcher<{ change: { answer: DocJSON }; error: string }>()
 
@@ -70,7 +72,8 @@
         }),
       ],
       content: value,
-      editorProps: { attributes: { 'aria-label': label, role: 'textbox' } },
+      // data-autofocus: the dialog around it gives it the first focus
+      editorProps: { attributes: { 'aria-label': label, role: 'textbox', ...(autofocus ? { 'data-autofocus': '' } : {}) } },
       onUpdate: ({ editor: e }) => {
         const answer = normalizeAnswer(e.getJSON() as DocJSON)
         if (!same(answer, normalizeAnswer(value))) dispatch('change', { answer })
@@ -108,6 +111,7 @@
   }
 
   onMount(() => {
+    if (autofocus) return create(true)
     if (typeof IntersectionObserver === 'undefined') {
       create()
       return

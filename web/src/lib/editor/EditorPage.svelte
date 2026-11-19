@@ -23,14 +23,17 @@
     type MarksPlacement,
   } from './layout'
   // The WYSIWYG page (W1c): an A4-width column of rich text and question blocks, a "+"
-  // to add questions, the answer key below, autosave, and the export/preview menu.
+  // to add questions, autosave, and the export/preview menu. The header's Paper | Answer key
+  // switch shows the key, as it prints, in place of the page (EXA-162).
   import { onDestroy, onMount, tick as nextTick } from 'svelte'
   import { Editor } from '@tiptap/core'
   import StarterKit from '@tiptap/starter-kit'
   import { NodeSelection, TextSelection } from '@tiptap/pm/state'
   import type { Question } from '../types'
   import AddQuestion from './AddQuestion.svelte'
-  import AnswerKey from './AnswerKey.svelte'
+  import AnswerDialog from './AnswerDialog.svelte'
+  import KeyView from './KeyView.svelte'
+  import { answerWritten, keyNumbers } from './keyRows'
   import { withReviewed } from './inspector'
   import { createAutosaver, type Autosaver } from './autosave'
   import {
@@ -66,7 +69,7 @@
   import { ImageBlock, ImageUpload, MathNode, uploadAndInsert } from './media'
   import { PageBreak } from './pageBreak'
   import { BlankPage, CoverPage, blankPageNode, coverNode } from './pages'
-  import { lastReport, reportSummary, unfilledPlaceholders } from './paperReport'
+  import { isUnfilledPlaceholder, lastReport, reportSummary, unfilledPlaceholders } from './paperReport'
   import {
     applyServerContent,
     goToQuestion,
@@ -138,7 +141,9 @@
   let moveError = ''
   let confirmDelete = false
   let deleteError = ''
-  let keyEl: HTMLElement
+  let keyView: KeyView | undefined
+  /** "Edit answer…": the own question whose answer is open. */
+  let answerFor: string | null = null
 
   function readPanelShown(): boolean {
     try {
@@ -229,25 +234,27 @@
     field?.focus()
   }
 
-  /** View > Paper / Answer key. The key sits under the paper for now (S4 makes it a view). */
+  /** The header's Paper | Answer key switch, View > Paper / Answer key and Ctrl+Alt+K (EXA-162).
+   *  Each view keeps its own scroll position; switching to the key with a question selected
+   *  goes to that question's row instead. */
   let view: 'paper' | 'key' = 'paper'
-  function showView(to: 'paper' | 'key') {
+  const viewScroll: Record<'paper' | 'key', number> = { paper: 0, key: 0 }
+  async function showView(to: 'paper' | 'key') {
+    if (to === view) return
+    viewScroll[view] = window.scrollY
     view = to
+    await nextTick()
     if (to === 'key') {
-      keyEl?.scrollIntoView?.({ block: 'start' })
-      keyEl?.focus({ preventScroll: true })
+      document.querySelector<HTMLElement>('.keyview')?.focus({ preventScroll: true })
+      const at = selectedId ? blocks.findIndex((b) => b.attrs?.block_id === selectedId) : -1
+      if (at < 0 || !keyView?.scrollToQuestion(start + at, barH)) window.scrollTo?.({ top: viewScroll.key })
     } else {
       editor?.view.focus()
-      window.scrollTo?.({ top: 0 })
+      window.scrollTo?.({ top: viewScroll.paper })
     }
   }
 
-  /** Ctrl+Alt+K: to the key, or back to the paper when the key is already on screen. */
-  function toggleView() {
-    // at the key: focus is in it, or it was the last view asked for and is still on screen
-    const onScreen = !!keyEl && keyEl.getBoundingClientRect().top < window.innerHeight
-    showView(keyEl?.contains(document.activeElement) || (view === 'key' && onScreen) ? 'paper' : 'key')
-  }
+  const toggleView = () => void showView(view === 'key' ? 'paper' : 'key')
 
   async function openMove() {
     moveError = ''
@@ -331,8 +338,7 @@
     scheduleSave()
   }
 
-  function setKeyLayout(e: Event) {
-    const layout = (e.currentTarget as HTMLSelectElement).value as KeyLayout
+  function setKeyLayout(layout: KeyLayout) {
     // each style starts from its own defaults: the school key bare, worked solutions with M/A lines
     const defaults =
       layout === 'compact'
@@ -344,6 +350,29 @@
 
   const setInKey = (blockId: string, included: boolean) =>
     setBlockAttrs(blockId, ['templatedQuestion', 'freeformQuestion'], { in_key: included })
+
+  // What the key view names: the numbers it prints, the questions left out, and the teacher's
+  // own questions (their answers are written for the key).
+  $: keyNums = keyNumbers(blocks, start)
+  // any edit to the paper, its settings or its title makes the key on screen out of date
+  $: keyRevision = [content, $paperSettings, title]
+  $: leftOut = blocks.flatMap((b, i) =>
+    b.attrs?.in_key === false ? [{ n: start + i, blockId: String(b.attrs?.block_id) }] : [],
+  )
+  $: ownAnswers = blocks.flatMap((b, i) =>
+    b.type === 'freeformQuestion' && b.attrs?.in_key !== false && !isUnfilledPlaceholder(b)
+      ? [{ n: start + i, blockId: String(b.attrs?.block_id), written: answerWritten(b) }]
+      : [],
+  )
+  $: answerAt = answerFor === null ? -1 : blocks.findIndex((b) => b.attrs?.block_id === answerFor)
+
+  /** The key view's key: the paper as saved, so pending edits are saved first. */
+  async function loadKey(): Promise<string> {
+    await autosaver?.flush()
+    if (status === 'conflict') throw new Error('this paper changed in another tab or window. Reload to get the latest version.')
+    if (status === 'error') throw new Error('your latest changes are not saved yet.')
+    return previewDocument(id, 'key')
+  }
 
   function setTime(e: Event) {
     const raw = (e.target as HTMLInputElement).value
@@ -432,6 +461,7 @@
             onAddBelow: (pos: number) => (pickerAt = pos),
             onSwap: swapBlock,
             onDeleted: questionDeleted,
+            onEditAnswer: (blockId: string) => (answerFor = blockId),
           }),
           TemplatedQuestion.configure({
             onAddBelow: (pos: number) => (pickerAt = pos),
@@ -443,6 +473,8 @@
         content: rec.document.content,
         onUpdate: ({ editor: e }) => {
           content = e.getJSON() as DocJSON
+          // the question went (deleted, undone): its open answer closes
+          if (answerFor && !numberedNodes(content).some((b) => b.attrs?.block_id === answerFor)) answerFor = null
           scheduleSave()
         },
         onTransaction: ({ transaction }) => {
@@ -740,8 +772,14 @@
     {
       label: 'View',
       items: [
-        { label: 'Paper', icon: 'blankpage', onSelect: () => showView('paper') },
-        { label: 'Answer key', icon: 'key', shortcut: GLOBAL_KEYS.answerKey, onSelect: () => showView('key') },
+        { label: 'Paper', icon: 'blankpage', checked: view === 'paper', onSelect: () => void showView('paper') },
+        {
+          label: 'Answer key',
+          icon: 'key',
+          shortcut: GLOBAL_KEYS.answerKey,
+          checked: view === 'key',
+          onSelect: () => void showView('key'),
+        },
         {
           label: 'Preview pages',
           icon: 'eye',
@@ -967,6 +1005,8 @@
     onPreview={() => preview('full')}
     onExport={(mode) => download(mode)}
     onRename={rename}
+    {view}
+    onView={(v) => void showView(v)}
   >
     {#snippet menus()}<MenuBar menus={barMenus} compact={compactMenus} />{/snippet}
   </EditorBar>
@@ -1004,6 +1044,7 @@
       title="Redo (Ctrl+Y)"
       on:click={() => editor?.chain().focus().redo().run()}><Icon name="redo" /></button
     >
+    {#if view === 'paper'}
     <span class="sep"></span>
     <Menu items={styleItems} label="Text style: {styleName}" menuLabel="Text style" triggerClass="styleselect">
       {#snippet trigger()}<span class="style-name">{styleName}</span><Icon name="down" />{/snippet}
@@ -1059,6 +1100,7 @@
         ><Icon name="image" /></button
       >
     {/if}
+    {/if}
     <input
       bind:this={fileInput}
       type="file"
@@ -1068,7 +1110,7 @@
       aria-label="Choose image"
       on:change={onPickImages}
     />
-    {#if narrow}
+    {#if narrow && view === 'paper'}
       <span class="tail">
         <Menu items={moreItems} label="More tools" align="end" triggerClass="icon-btn" triggerTitle="More tools">
           {#snippet trigger()}<Icon name="more" />{/snippet}
@@ -1117,7 +1159,7 @@
   aria-busy={busy === 'paper'}
 >
 <div class="main">
-  <div class="page">
+  <div class="page" class:hidden={view !== 'paper'}>
     <input
       class="title"
       aria-label="Paper title"
@@ -1142,16 +1184,24 @@
     </button>
   </div>
 
-  <div class="keywrap" bind:this={keyEl} tabindex="-1">
-  <AnswerKey
-    {blocks}
-    {start}
-    options={keyOpts}
-    on:include={(e) => setInKey(e.detail.blockId, e.detail.included)}
-    on:answer={(e) => setAnswer(e.detail.blockId, e.detail.answer)}
-    on:partanswer={(e) => setPartAnswer(e.detail.blockId, e.detail.index, e.detail.answer)}
-    on:error={(e) => (actionError = e.detail)}
-  />
+  <div class:hidden={view !== 'key'}>
+    <KeyView
+      bind:this={keyView}
+      active={view === 'key' && !loading && !loadError}
+      revision={keyRevision}
+      paused={busy === 'paper'}
+      load={loadKey}
+      empty={blocks.length === 0}
+      options={keyOpts}
+      numbers={keyNums}
+      {leftOut}
+      own={ownAnswers}
+      onStyle={setKeyLayout}
+      onOption={setKeyOption}
+      onInclude={(blockId) => setInKey(blockId, true)}
+      onEditAnswer={(blockId) => (answerFor = blockId)}
+      onKey={onGlobalKey}
+    />
   </div>
 </div>
 {#if panelShown}
@@ -1171,63 +1221,7 @@
   on:regenerate={() => (confirmRegen = true)}
   on:remark={(e) => setRemark(e.detail.blockId, e.detail.remark)}
   on:review={(e) => setReviewed(e.detail.blockId, e.detail.reviewed)}
->
-  <!-- EXA-160: a temporary home for the key options until S4 moves them to the key view. -->
-  <svelte:fragment slot="key">
-  <fieldset class="keyopts">
-    <legend>Answer key</legend>
-    <select
-      aria-label="Answer key style"
-      title="School key: an answer grid for multiple choice, then a table of short working with Ans:, as schools print it. Worked solutions: each question with its full solution."
-      value={keyOpts.layout}
-      on:change={setKeyLayout}
-    >
-      <option value="compact">School key</option>
-      <option value="full">Worked solutions</option>
-    </select>
-    {#if keyOpts.layout === 'full'}
-      <label>
-        <input
-          type="checkbox"
-          aria-label="Answer key repeats each question"
-          checked={keyOpts.show_question}
-          on:change={(e) => setKeyOption('show_question', e.currentTarget.checked)}
-        />
-        question
-      </label>
-    {/if}
-    <label>
-      <input
-        type="checkbox"
-        aria-label="Answer key shows the marking scheme (M1, A1)"
-        checked={keyOpts.show_scheme}
-        on:change={(e) => setKeyOption('show_scheme', e.currentTarget.checked)}
-      />
-      M1/A1
-    </label>
-    {#if keyOpts.layout === 'compact'}
-      <label>
-        <input
-          type="checkbox"
-          aria-label="Answer key shows each question's marks"
-          checked={keyOpts.show_marks}
-          on:change={(e) => setKeyOption('show_marks', e.currentTarget.checked)}
-        />
-        marks
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          aria-label="Answer key shows the working for 1-mark questions"
-          checked={keyOpts.one_mark_working}
-          on:change={(e) => setKeyOption('one_mark_working', e.currentTarget.checked)}
-        />
-        1-mark working
-      </label>
-    {/if}
-  </fieldset>
-  </svelte:fragment>
-</SidePanel>
+/>
 {/if}
 </div>
 
@@ -1277,6 +1271,17 @@
 
 {#if sheetOpen}
   <ShortcutSheet onClose={() => (sheetOpen = false)} />
+{/if}
+
+{#if answerFor !== null && answerAt >= 0}
+  <AnswerDialog
+    number={start + answerAt}
+    block={blocks[answerAt]}
+    onAnswer={(answer) => answerFor && setAnswer(answerFor, answer)}
+    onPartAnswer={(index, answer) => answerFor && setPartAnswer(answerFor, index, answer)}
+    onError={(m) => (actionError = m)}
+    onClose={() => (answerFor = null)}
+  />
 {/if}
 
 {#if verifiedOpen}
@@ -1528,10 +1533,6 @@
   .desk.nopanel > .main {
     grid-column: 2;
     grid-row: auto;
-  }
-  .keywrap {
-    scroll-margin-top: calc(var(--bar-h, 0px) + 1rem);
-    outline: none;
   }
   .verified p {
     margin: 0 0 var(--s3);

@@ -46,6 +46,20 @@ describe('EditorBar (EXA-160)', () => {
     expect(total).toHaveTextContent('Section B: 47 of 45 marks')
   })
 
+  it('the Paper | Answer key switch says which view is on and asks for the other (EXA-162)', async () => {
+    const onView = vi.fn()
+    setup({ view: 'key', onView })
+    const group = screen.getByRole('group', { name: 'View' })
+    const paper = screen.getByRole('button', { name: 'Paper' })
+    const key = screen.getByRole('button', { name: 'Answer key' })
+    expect(group).toContainElement(key)
+    expect(paper).toHaveAttribute('aria-pressed', 'false')
+    expect(key).toHaveAttribute('aria-pressed', 'true')
+    expect(key).toHaveAttribute('aria-keyshortcuts', 'Control+Alt+K')
+    await fireEvent.click(paper)
+    expect(onView).toHaveBeenCalledWith('paper')
+  })
+
   it('has no target to show when sections have none', () => {
     setup({ target: null, marks: 12 })
     expect(screen.getByTestId('marks-total')).toHaveTextContent(/^\s*12 marks\s*$/)

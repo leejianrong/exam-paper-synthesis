@@ -10,8 +10,8 @@
 <script lang="ts">
   // The editor's right side panel (EXA-160, evolved from the EXA-93 inspector). "Paper" holds
   // what applies to the whole paper: marks per section, layout (time, first question number,
-  // marks shown), the answer key options (a temporary home until S4 moves them to the key
-  // view) and, on a generated paper, Regenerate unlocked. "Question" holds the inspector for
+  // marks shown) and, on a generated paper, Regenerate unlocked. The answer key options sit
+  // above the key itself, in the key view (EXA-162). "Question" holds the inspector for
   // the block you are in; clicking into a question brings that tab forward.
   import { createEventDispatcher, tick } from 'svelte'
   import type { DocNode } from './doc'
@@ -160,11 +160,6 @@
           <option value="both">Both</option>
         </select>
       </label>
-    </div>
-
-    <div class="pgroup">
-      <h3>Answer key</h3>
-      <slot name="key" />
     </div>
 
     {#if regen || placeholdersLeft}
@@ -323,37 +318,6 @@
   }
   .field select {
     max-width: 160px;
-  }
-  /* the answer key controls arrive as they were in the top bar; lay them out as a stack here */
-  .pgroup :global(.keyopts) {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--s2);
-    margin: 0;
-    padding: 0;
-    border: 0;
-  }
-  .pgroup :global(.keyopts legend) {
-    display: none;
-  }
-  .pgroup :global(.keyopts select) {
-    height: 30px;
-    padding: 0 var(--s2);
-    border: 1px solid var(--line);
-    border-radius: var(--r-sm);
-    background: var(--page);
-    font: inherit;
-  }
-  .pgroup :global(.keyopts label) {
-    display: flex;
-    align-items: center;
-    gap: var(--s2);
-    color: var(--ink-soft);
-  }
-  .pgroup :global(.keyopts input[type='checkbox']) {
-    accent-color: var(--verify);
-    margin: 0;
   }
   .btn {
     display: inline-flex;

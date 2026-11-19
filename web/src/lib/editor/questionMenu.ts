@@ -17,6 +17,7 @@ export type QuestionAction =
   | 'addPart'
   | 'lock'
   | 'key'
+  | 'answer' // a teacher's own question: write its answer for the key (EXA-162)
   | 'up'
   | 'down'
   | 'addBelow'
@@ -95,6 +96,7 @@ export function menuGroups(f: QuestionFacts): QuestionRow[][] {
         : { action: 'lock', label: 'Lock', icon: 'lock', shortcut: BLOCK_KEYS.lock, hint: 'Keep this question when you regenerate the paper' },
     )
   }
+  if (f.kind === 'own') keep.push({ action: 'answer', label: 'Edit answer…', icon: 'pen', hint: 'Write the answer that prints in the answer key' })
   keep.push({ action: 'key', label: f.inKey ? 'Leave out of answer key' : 'Include in answer key', icon: 'key' })
 
   const place: QuestionRow[] = []

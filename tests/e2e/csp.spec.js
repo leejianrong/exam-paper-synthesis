@@ -64,6 +64,12 @@ test('editor, KaTeX preview, PDF export and the classic tray work under the poli
   expect(await frame.locator('html').evaluate(() => typeof window.katex?.renderToString)).toBe('function')
   await page.getByRole('button', { name: 'Close preview' }).click()
 
+  // The answer key view (EXA-162): the same printed HTML in a srcdoc iframe, typeset in place.
+  await page.getByRole('group', { name: 'View' }).getByRole('button', { name: 'Answer key' }).click()
+  const key = page.frameLocator('.keyview iframe.ready')
+  await expect(key.locator('html[data-katex-rendered="true"]')).toBeAttached()
+  await page.getByRole('group', { name: 'View' }).getByRole('button', { name: 'Paper' }).click()
+
   // PDF export (Chromium renders it server-side; the download must still arrive).
   const [download] = await Promise.all([
     page.waitForEvent('download'),

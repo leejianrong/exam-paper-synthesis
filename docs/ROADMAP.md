@@ -39,7 +39,9 @@ editor header that fits: two rows, one Export menu, an avatar menu, and Time / f
 marks shown / Regenerate unlocked in a Paper / Question side panel; S3, EXA-161, the question
 bar: nothing at rest, a pill when a question is selected, one ⋯ menu, block shortcuts and undo
 on delete; S5, EXA-163, the Paper / Insert / View / Help menus, a Ctrl+K command palette, a
-shortcut sheet and the editor-wide shortcuts, and a side panel you can hide).
+shortcut sheet and the editor-wide shortcuts, and a side panel you can hide; S4, EXA-162, the
+answer key as a view: a Paper | Answer key switch showing the key exactly as it prints, its
+options in a strip above it, and Edit answer… for your own questions).
 
 ---
 
