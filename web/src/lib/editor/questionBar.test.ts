@@ -297,7 +297,50 @@ describe('a reply that arrives late (review)', () => {
   })
 })
 
+describe('a reply after the block got another question (re-review)', () => {
+  it('Make harder, then Regenerate unlocked refills the block: the reply is dropped', async () => {
+    const { answer } = slowFetch()
+    const { editor: e, onNotice } = make([gq('a', 'First.'), gq('b', 'Second.')])
+    await tick()
+    qblock('Second.').focus()
+    await fireEvent.keyDown(qblock('Second.'), { key: ']' })
+    // the server refilled block b (same block_id, a new question), as paper_swap does
+    let at = -1
+    e.state.doc.forEach((n, off) => {
+      if (n.attrs.block_id === 'b') at = off
+    })
+    const live = e.state.doc.nodeAt(at)!
+    e.view.dispatch(
+      e.state.tr.setNodeMarkup(at, undefined, {
+        ...live.attrs,
+        question: makeQuestion({ id: 'regen:1' }, 'Regenerated text.'),
+      }),
+    )
+    answer(makeQuestion({ id: 'b:v2' }, 'Harder text.'))
+    await waitFor(() =>
+      expect(onNotice).toHaveBeenCalledWith('That question changed before the edit arrived, so the edit was dropped.'),
+    )
+    expect(questionId(e, 'b')).toBe('regen:1')
+    expect(screen.queryByText('Harder text.')).toBeNull()
+  })
+})
+
 describe('while a block is busy (review)', () => {
+  it('Delete on the block selected in the editor waits too (re-review)', async () => {
+    slowFetch()
+    const { editor: e, onDeleted } = make([gq('a', 'First.'), gq('b', 'Second.')])
+    await tick()
+    qblock('First.').focus()
+    await fireEvent.keyDown(qblock('First.'), { key: '[' })
+    e.commands.setNodeSelection(0)
+    e.view.focus()
+    await fireEvent.keyDown(e.view.dom, { key: 'Delete' })
+    await fireEvent.keyDown(e.view.dom, { key: 'Backspace' })
+    await tick()
+    expect(ids(e)).toEqual(['a', 'b'])
+    expect(onDeleted).not.toHaveBeenCalled()
+  })
+
   it('every menu row is disabled, Delete included, and the shortcuts wait', async () => {
     const { answer } = slowFetch()
     const { editor: e, onSwap, onDeleted } = make([gq('a', 'First.'), gq('b', 'Second.')])

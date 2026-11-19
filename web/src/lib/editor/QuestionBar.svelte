@@ -78,7 +78,12 @@
       void openMenu()
       return true
     }
-    if (busy) return false // while an edit or swap is out, nothing else starts
+    if (busy) {
+      // while an edit or swap is out, nothing else starts: swallow the key, or Delete would
+      // fall through to ProseMirror and delete the selected block anyway (EXA-161 re-review)
+      e.preventDefault()
+      return true
+    }
     const row = rowForShortcut(facts, key)
     if (!row) return false
     e.preventDefault()
