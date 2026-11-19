@@ -58,7 +58,11 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 - **Multiple choice in terms of π (EXA-155).** A perimeter left "in terms of π" can now be a
   Booklet A question: four options such as (6π + 24) cm, printed like the answer key and listed
   by the π part then the number, whose wrong options are real slips with reasons (the radius
-  used as the diameter, a missed straight edge, π × r × r for the curved edge, halved twice).
+  used as the diameter, a missed or an extra straight edge, π × r × r for the curved edge,
+  halved twice). The options are a 2 × 2 grid of two π parts (the right one and a slip) and two
+  numbers (the right one and a slip), so every part is in exactly two options and the answer is
+  not the one that shares a part with all the others; the answer is in each place about a
+  quarter of the time.
   The 2-mark circles rung now sometimes asks a quarter circle's or a square-and-semicircle's
   perimeter in terms of π. A blueprint now lists every answer type it can give, and the paper
   generator only puts it in a multiple-choice slot when all of them convert (the 3-mark circles

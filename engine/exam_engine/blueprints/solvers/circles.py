@@ -30,8 +30,8 @@ from collections.abc import Callable
 from fractions import Fraction
 from typing import Any
 
-from ...expression import in_terms_of_pi, pi_parts
-from ..base import spread
+from ...expression import in_terms_of_pi
+from ..base import Slip, spread
 from ..registry import register
 from .geometry_area_common import AREA_UNIT, LEN_UNIT, _labels, _pt, format_measure
 
@@ -416,6 +416,7 @@ def _medium_quarter_perimeter_terms(r: int) -> dict:
             [
                 (h, 0, "the curved edge only (forgot the two straight edges)"),
                 (h, r, "added only one radius"),
+                (h, 3 * r, "counted an extra radius"),
                 (h / 2, 2 * r, "¼ × π × r: used the radius as the diameter"),
                 (r, 2 * r, "halved only once: a semicircle's curved edge"),
                 (h * h, 2 * r, "¼ × π × r × r (the area) for the curved edge"),
@@ -878,20 +879,18 @@ class _CirclesSolver:
 
     def distractors(self, params: dict, solution: dict) -> list[tuple[Any, str]]:
         """Common wrong answers in the answer's own unit, best first (EXA-122): numbers, or
-        for an answer in terms of π whole expressions, balanced by coefficient (EXA-155)."""
-        # mcq imports the registry, which imports us
-        from ...mcq import hook_value_prints, pi_key_prints
+        for an answer in terms of π whole expressions (EXA-155; ``mcq`` builds its options as
+        a grid of their π parts and numbers, and places the answer itself)."""
+        from ...mcq import hook_value_prints  # mcq imports the registry, which imports us
 
         built = self._build(params)
         a = built["answer"]
         if a["type"] == "expression":
-            k = pi_parts(a)
-            assert k is not None
-            return spread(
-                list(built["wrong"]), k, params, lambda v: pi_key_prints(v, k), key=pi_parts
-            )
+            return list(built["wrong"])
         right = Fraction(str(a["value"]))
-        slips = [(Fraction(v), why) for v, why in built["wrong"] if v > 0 and Fraction(v) != right]
+        slips: list[Slip] = [
+            (Fraction(v), why) for v, why in built["wrong"] if v > 0 and Fraction(v) != right
+        ]
         return spread(slips, right, params, lambda v: hook_value_prints(v, a))
 
     def validate(self, params: dict, solution: dict) -> dict:

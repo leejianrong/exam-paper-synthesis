@@ -412,9 +412,11 @@ in generation (the engine stays deterministic).
 - **Marks and rungs.** 1 / 2 / 3 marks are exactly what "difficulty follows marks" asks of
   each rung, so the easy rung fills 1-mark slots (Booklet A MCQ too), the medium 2-mark slots
   (Booklet A MCQ, Booklet B, Paper 2 Section A) and the hard one a Section B stand-in.
-  "In terms of π" is only on the hard rung: the multiple-choice copy needs numeric options,
-  and a 2-mark medium is a Booklet A MCQ candidate (real papers do ask 2-mark MCQs in terms of
-  π; that needs expression options in `mcq.py`).
+  "In terms of π" was first only on the hard rung, since the multiple-choice copy needed
+  numeric options. EXA-155 added expression options in `mcq.py`, so the medium rung now asks
+  some perimeters in terms of π too, as real 2-mark MCQs do. Their options are a 2 × 2 grid
+  (two π parts × two numbers, each a real slip or the answer's own), so the answer is not
+  the option that shares a part with all the others.
 - **Effect** (100 seeds per template, P6): a circle question in every generated paper part:
   Booklet A 1.27 a paper (easy 68, medium 59 per 100, all as MCQ), Booklet B 1.44 (easy 44,
   medium 100), Paper 2 1.18 (medium 69, hard 49); about 3.9 a full set against the real 2,

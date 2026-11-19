@@ -19,11 +19,15 @@ picks the last wrong option so the answer's place in that order varies. A solver
 is an extreme of the options ("which is the greatest?") opts out with ``mcq_ascending = False``
 and gets a seeded order instead.
 
-An answer "in terms of π" (an ``expression`` ``aπ + b``, EXA-155) converts too: its wrong
-options are expression slips (the solver's hook gives them, with reasons: the radius used for
-the diameter, a missed straight edge, π × r × r for 2 × π × r, halved twice), printed by the
-same LaTeX path as the answer key, and listed by coefficient (the π part, then the number), as
-real papers list them.
+An answer "in terms of π" (an ``expression`` ``aπ + b``, EXA-155) converts too, as a 2 × 2
+grid: the right π part ``a`` and one wrong ``a'`` (the radius used for the diameter, π × r × r,
+halved twice), times the right number ``b`` and one wrong ``b'`` (a missed or an extra straight
+edge), so the options are ``aπ + b``, ``aπ + b'``, ``a'π + b`` and ``a'π + b'``. Every π part
+and every number is in exactly two options, so the answer is not the one that shares a part
+with all the others. The seed picks which side of ``a`` and of ``b`` the wrong ones lie, which
+places the answer evenly in the options, printed by the same LaTeX path as the answer key and
+listed by coefficient (the π part, then the number), as real papers list them. A pure-π answer
+whose number cannot be varied gets four π parts instead.
 
 Pure and deterministic: the same ``(obj, seed)`` gives the same options in the same order.
 ``document.verify_snapshot`` re-solves the blueprint and checks the correct option's text
@@ -47,9 +51,6 @@ from .units import printed_unit
 LABELS = ("1", "2", "3", "4")  # PSLE Booklet A numbers its options (1)–(4)
 NUMERIC = ("integer", "decimal", "quantity")
 CONVERTIBLE = (*NUMERIC, "fraction", "expression")  # an expression: in terms of π only
-# π as the give-away guard weighs an option in terms of π: rational, so "exactly between" is
-# exact arithmetic, and close enough that no two printed options tie by accident.
-_PI = Fraction(355, 113)
 
 _OPS = {
     ast.Add: operator.add,
@@ -213,8 +214,7 @@ def common_wrong_answers(obj: dict) -> list[tuple[Fraction, str]]:
 
 def pi_key_prints(k: tuple[Fraction, Fraction], answer: tuple[Fraction, Fraction]) -> bool:
     """Whether an option ``(π coefficient, constant)`` is fair against the answer's: a π part
-    (within 20 times of the answer's), no negative number, and not the answer itself.
-    ``blueprints.base.spread`` uses it to balance only the slips that will print."""
+    (within 20 times of the answer's), no negative number, and not the answer itself."""
     return k != answer and k[1] >= 0 and answer[0] / 20 <= k[0] <= answer[0] * 20 and k[0] > 0
 
 
@@ -242,31 +242,44 @@ def expression_wrong_answers(obj: dict) -> list[tuple[dict, str]]:
     ]
 
 
-def expression_candidates(obj: dict) -> list[tuple[dict, str]]:
-    """Candidate wrong answers to an answer ``aπ + b``, best first: the solver's slips, then
-    generic ones (the π part doubled or halved, the number left out or doubled, the two
-    swapped), then near misses in the π part, so never short."""
+def pi_grid_sides(obj: dict) -> tuple[list[tuple[Fraction, str]], list[tuple[Fraction, str]]]:
+    """For an answer ``aπ + b``: the wrong π parts and the wrong numbers, each ``(value, why)``,
+    best first, unique, never the right one. The solver's slips that change one part only come
+    first, then generic ones (the π part doubled or halved, or a near miss; the number left out or
+    doubled).
+    A π part is positive and within 20 times of ``a``, a number is not negative, so every
+    option of the grid prints (:func:`pi_key_prints`)."""
     answer = obj["question"]["parts"][0]["answer"]
-    unit = answer.get("unit") or ""
     k = pi_parts(answer)
     assert k is not None
     a, b = k
-    out = list(expression_wrong_answers(obj))
+    pis: list[tuple[Fraction, str]] = []
+    numbers: list[tuple[Fraction, str]] = []
+    for e, why in expression_wrong_answers(obj):
+        ea, eb = pi_parts(e) or k  # a printing slip is always in terms of π
+        if eb == b and ea != a:
+            pis.append((ea, why))
+        elif ea == a and eb != b:
+            numbers.append((eb, why))
+    pis += [(2 * a, "doubled the π part"), (a / 2, "halved the π part")]
     step = Fraction(1) if a.denominator == 1 else Fraction(1, 2)
-    generic = [
-        (2 * a, b, "doubled the π part"),
-        (a / 2, b, "halved the π part"),
-        (a, Fraction(0), "left out the number part"),
-        (a, 2 * b, "doubled the number part"),
-        (b, a, "swapped the π part and the number"),
-    ]
-    generic += [(a + n * step, b, "a near miss") for n in range(1, 40)]
-    generic += [(a - n * step, b, "a near miss") for n in range(1, 40)]
-    for pa, pb, why in generic:
-        e = in_terms_of_pi(pa, pb, unit)
-        if pa > 0 and expression_slip_prints(e, answer):
-            out.append((e, why))
-    return out
+    pis += [(a + sign * n * step, "a near miss") for n in (1, 2, 3) for sign in (1, -1)]
+    if b:
+        numbers += [(Fraction(0), "left out the number part"), (2 * b, "doubled the number part")]
+
+    def unique(side: list[tuple[Fraction, str]], fair) -> list[tuple[Fraction, str]]:
+        seen: set[Fraction] = set()
+        out = []
+        for v, why in side:
+            if v not in seen and fair(v):
+                seen.add(v)
+                out.append((v, why))
+        return out
+
+    return (
+        unique(pis, lambda v: pi_key_prints((v, b), k)),
+        unique(numbers, lambda v: pi_key_prints((a, v), k)),
+    )
 
 
 def hook_value_prints(v: Fraction, answer_obj: dict) -> bool:
@@ -389,8 +402,7 @@ def _ascending(obj: dict) -> bool:
     return _solver_flag(obj, "mcq_ascending", True)
 
 
-# An option as to_mcq weighs it: (order key, value for the give-away guard, text, reason). The
-# order key is the number itself, or (π coefficient, constant) for an answer in terms of π.
+# A numeric option as to_mcq weighs it: (order key, value for the give-away guard, text, reason).
 _Option = tuple[Any, Fraction, str, str]
 
 
@@ -419,20 +431,36 @@ def _number_options(obj: dict, answer: dict) -> tuple[Fraction, list[_Option]]:
     return _value(answer), out
 
 
-def _pi_weight(k: tuple[Fraction, Fraction]) -> Fraction:
-    return k[0] * _PI + k[1]
-
-
-def _expression_options(obj: dict, answer: dict) -> tuple[tuple, list[_Option]]:
-    """An answer in terms of π: its ``(π coefficient, constant)`` and candidate options."""
+def _pi_options(obj: dict, answer: dict, rng: random.Random) -> list[tuple[dict, str]]:
+    """The three wrong options to an answer ``aπ + b`` with their reasons (see the module
+    docstring): the 2 × 2 grid, the seed picking the side of ``a`` and of ``b`` each wrong part
+    lies on (any side the candidates allow, so the answer's place varies), the best candidate
+    there. A pure-π answer with no wrong number gets three wrong π parts, as many below ``a`` as
+    the seed picks."""
     k = pi_parts(answer)
     assert k is not None
-    out: list[_Option] = []
-    for e, reason in expression_candidates(obj):
-        ek = pi_parts(e)
-        assert ek is not None
-        out.append((ek, _pi_weight(ek), answer_text(e), reason))
-    return k, out
+    a, b = k
+    unit = answer.get("unit") or ""
+    pis, numbers = pi_grid_sides(obj)
+    if not numbers:  # aπ alone, no number to vary: four π parts, the answer anywhere
+        below = [p for p in pis if p[0] < a]
+        above = [p for p in pis if p[0] > a]
+        n = rng.choice([n for n in range(4) if n <= len(below) and 3 - n <= len(above)])
+        return [(in_terms_of_pi(v, b, unit), why) for v, why in below[:n] + above[: 3 - n]]
+    sides = [
+        (p, q)
+        for p in (True, False)
+        for q in (True, False)
+        if any((v < a) == p for v, _ in pis) and any((v < b) == q for v, _ in numbers)
+    ]
+    p_below, q_below = rng.choice(sides)
+    pa, pwhy = next(x for x in pis if (x[0] < a) == p_below)
+    nb, nwhy = next(x for x in numbers if (x[0] < b) == q_below)
+    return [
+        (in_terms_of_pi(a, nb, unit), nwhy),
+        (in_terms_of_pi(pa, b, unit), pwhy),
+        (in_terms_of_pi(pa, nb, unit), f"{pwhy}, and {nwhy}"),
+    ]
 
 
 def to_mcq(obj: dict, seed: int) -> dict:
@@ -447,15 +475,15 @@ def to_mcq(obj: dict, seed: int) -> dict:
     part = out["question"]["parts"][0]
     answer = part["answer"]
     correct_text = answer_text(answer)
-    value: Any
-    if answer["type"] == "expression":
-        value, candidates = _expression_options(obj, answer)
-        weight = _pi_weight(value)
-    else:
-        value, candidates = _number_options(obj, answer)
-        weight = value
-
     rng = random.Random(f"mcq|{obj['id']}|{seed}")
+    if answer["type"] == "expression":  # in terms of π: the 2 × 2 grid
+        wrong = _pi_options(obj, answer, rng)
+        keys = {answer_text(e): pi_parts(e) or (0, 0) for e, _ in [(answer, ""), *wrong]}
+        texts = sorted(keys, key=lambda t: keys[t])  # by the π part, then the number
+        return _with_options(out, texts, correct_text, {answer_text(e): w for e, w in wrong})
+
+    value, candidates = _number_options(obj, answer)
+    weight = value
     ascending = _ascending(obj)
     texts = [correct_text]
     why: dict[str, str] = {}
@@ -486,11 +514,17 @@ def to_mcq(obj: dict, seed: int) -> dict:
 
     if ascending:
         # as real papers list numeric options (about 36 of 40 in the 2025 prelims): every
-        # option here is a number in the answer's own unit and form, or an expression in terms
-        # of π listed by coefficient (the π part, then the number)
+        # option here is a number in the answer's own unit and form
         texts = [t for _, t in sorted(zip([value, *chosen], texts, strict=True))]
     else:
         rng.shuffle(texts)
+    return _with_options(out, texts, correct_text, why)
+
+
+def _with_options(out: dict, texts: list[str], correct_text: str, why: dict[str, str]) -> dict:
+    """``out`` with its only part answered by the options ``texts`` in print order, and a
+    marking scheme naming why each wrong one is tempting."""
+    part = out["question"]["parts"][0]
     options = [{"label": label, "text": text} for label, text in zip(LABELS, texts, strict=True)]
     correct = LABELS[texts.index(correct_text)]
     part["answer"] = {"type": "choice", "options": options, "correct": correct}
