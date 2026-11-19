@@ -29,9 +29,12 @@
 
   type Patch = Parameters<typeof updateSettings>[0]
   type Failure = { patch: Patch; done: string; onSaved?: () => void; message: string; retryable: boolean }
-  // Unsaved changes, one per setting, oldest first. Only a later save of the same setting clears
-  // its failure, so the alert stays while anything is unsaved, whatever else saves meanwhile.
+  // Unsaved changes, one per setting, oldest first. A save of another setting never clears one,
+  // so the alert stays while anything is unsaved. A newer edit of the same setting supersedes it:
+  // a new save, or going back to the stored value (`supersede`). `edits` counts each setting's
+  // edits, so a failure is recorded only for that setting's latest edit.
   let failures = new Map<string, Failure>()
+  const edits: Record<string, number> = {}
   $: failed = [...failures.values()]
   $: error = failed.map((f) => f.message).join(' ')
   $: retry = failed.some((f) => f.retryable) ? retryFailed : null
@@ -47,6 +50,7 @@
    *  is stored by Try again after a failure. */
   function save(patch: Patch, done: string, onSaved?: () => void): Promise<boolean> {
     const key = Object.keys(patch).join(',')
+    const edit = supersede(key)
     const run = async (): Promise<boolean> => {
       saved = ''
       try {
@@ -57,6 +61,7 @@
         onSaved?.()
         return true
       } catch (e) {
+        if (edits[key] !== edit) return false // a newer edit of this setting replaces it
         failures.delete(key) // re-added last: the newest failure is retried last
         failures.set(key, {
           patch,
@@ -73,6 +78,13 @@
     const next = queue.then(run).finally(() => (pending -= 1))
     queue = next
     return next
+  }
+
+  /** A new edit of `key`: its earlier failure no longer stands. Returns the edit's number. */
+  function supersede(key: string): number {
+    edits[key] = (edits[key] ?? 0) + 1
+    if (failures.delete(key)) failures = failures
+    return edits[key]
   }
 
   /** Try again: re-send every unsaved change that can be retried, in the order it was made. */
@@ -115,6 +127,8 @@
     if (!$settings) return
     const name = school.trim()
     if (name === $settings.school_name) {
+      // back to what is stored: nothing to save, and an earlier failed edit no longer stands
+      supersede('school_name')
       school = name
       schoolDirty = false
       return

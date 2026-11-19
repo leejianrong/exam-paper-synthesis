@@ -236,6 +236,82 @@ describe('SettingsPage: saving in order (EXA-169 review)', () => {
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
   })
 
+  /** Type `value` into the school field and leave it (which saves it). */
+  async function typeSchool(value: string) {
+    const school = screen.getByRole('textbox', { name: 'School name' })
+    await fireEvent.focus(school)
+    await fireEvent.input(school, { target: { value } })
+    await fireEvent.change(school)
+    await fireEvent.blur(school)
+    return school
+  }
+
+  it('going back to the stored school name drops its failure: Try again sends nothing stale', async () => {
+    settings.set({ ...DEFAULT_SETTINGS, school_name: 'Old Example School' })
+    fetchMock
+      .mockImplementationOnce(() => Promise.reject(new TypeError('Failed to fetch')))
+      .mockImplementation((_u: string, init: RequestInit) => reply(echo(init)))
+    render(SettingsPage)
+    await typeSchool('Exampel School')
+    expect(await screen.findByRole('alert')).toHaveTextContent("The school name wasn't saved")
+    const school = await typeSchool('Old Example School') // reverted
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(1) // nothing re-sent
+    expect(school).toHaveValue('Old Example School')
+    expect(get(settings)?.school_name).toBe('Old Example School')
+  })
+
+  it('going back to the stored school name clears a refused (422) save', async () => {
+    settings.set({ ...DEFAULT_SETTINGS, school_name: 'Old Example School' })
+    fetchMock.mockImplementationOnce(() => reply({ detail: "'school_name' must be one line of text" }, 422))
+    render(SettingsPage)
+    await typeSchool('Bad Example School')
+    expect(await screen.findByRole('alert')).toHaveTextContent("The school name wasn't saved")
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull() // not retryable
+    await typeSchool('Old Example School')
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('a newer school name drops the old failure as soon as it is made, and saves', async () => {
+    settings.set({ ...DEFAULT_SETTINGS })
+    const second = deferred()
+    fetchMock
+      .mockImplementationOnce(() => Promise.reject(new TypeError('Failed to fetch')))
+      .mockImplementationOnce(() => second.promise)
+    render(SettingsPage)
+    await typeSchool('Exampel School')
+    expect(await screen.findByRole('alert')).toHaveTextContent("The school name wasn't saved")
+    const school = await typeSchool('Example Primary School')
+    // superseded while the new name is still on its way: no Try again that would send the old one
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+    second.answer(new Response(JSON.stringify({ ...DEFAULT_SETTINGS, school_name: 'Example Primary School' })))
+    await waitFor(() => expect(get(settings)?.school_name).toBe('Example Primary School'))
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+    expect(fetchMock.mock.calls.map((c) => JSON.parse(c[1].body))).toEqual([
+      { school_name: 'Exampel School' },
+      { school_name: 'Example Primary School' },
+    ])
+    expect(school).toHaveValue('Example Primary School')
+  })
+
+  it('an older edit that fails after a newer one was made leaves no failure behind', async () => {
+    settings.set({ ...DEFAULT_SETTINGS })
+    let fail!: (e: Error) => void
+    fetchMock
+      .mockImplementationOnce(() => new Promise((_r, reject) => (fail = reject)))
+      .mockImplementation((_u: string, init: RequestInit) => reply(echo(init)))
+    render(SettingsPage)
+    await typeSchool('Exampel School') // in flight
+    await typeSchool('Example Primary School') // queued behind it
+    fail(new TypeError('Failed to fetch'))
+    await waitFor(() => expect(get(settings)?.school_name).toBe('Example Primary School'))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
   it('fills the school name when a failed first load is retried', async () => {
     vi.useFakeTimers()
     try {

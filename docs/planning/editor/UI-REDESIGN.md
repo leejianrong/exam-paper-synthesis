@@ -845,8 +845,10 @@ moves nothing. The rule lives in the block selection guard,
   or unsaved text: a failed save keeps what was typed, a save (also by Try again) shows what was
   stored, and a late load (a failed first load retried) fills it. A failed save is kept per
   setting: saving another setting doesn't clear its alert (the status line may still say what
-  did save), only its own later success does, and Try again re-sends every unsaved change in the
-  order it was made.
+  did save). A newer edit of the same setting supersedes it at once: a new save of it, or
+  putting the field back to the stored value (which also clears a refused, non-retryable one).
+  A per-setting edit count means a failure is recorded only for that setting's latest edit, and
+  Try again re-sends every unsaved change in the order it was made.
 - **New dialog.** `NewWizard` takes `defaultLevel` (the list passes the settings store's): that
   level's "Generate at" card takes focus and carries a "Your default" chip (its accessible
   description), and a new exam set's folder is named "P5 exam set" after it. The dialog still
