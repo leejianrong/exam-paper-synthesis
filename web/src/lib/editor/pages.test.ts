@@ -34,11 +34,11 @@ describe('cover page (P7)', () => {
   it('can be added as the first block', () => {
     const e = make([para('Question one')])
     expect(hasCover(e.state.doc)).toBe(false)
-    e.chain().insertContentAt(0, coverNode({ school: 'Pandan Primary' })).run()
+    e.chain().insertContentAt(0, coverNode({ school: 'Example Primary' })).run()
     expect(hasCover(e.state.doc)).toBe(true)
     expect(e.getJSON().content?.[0]).toMatchObject({
       type: 'coverPage',
-      attrs: { school: 'Pandan Primary', subject: 'Mathematics' },
+      attrs: { school: 'Example Primary', subject: 'Mathematics' },
     })
   })
 
@@ -73,7 +73,7 @@ describe('cover page (P7)', () => {
       cleanNode({
         type: 'coverPage',
         attrs: {
-          school: ' Pandan ',
+          school: ' Example Primary ',
           exam: '',
           level: null,
           subject: 'Mathematics',
@@ -83,7 +83,7 @@ describe('cover page (P7)', () => {
           examiner_table: null,
         },
       }).attrs,
-    ).toEqual({ school: 'Pandan', subject: 'Mathematics', paper: 'Paper 1', instructions: 'Answer all.' })
+    ).toEqual({ school: 'Example Primary', subject: 'Mathematics', paper: 'Paper 1', instructions: 'Answer all.' })
     expect(cleanNode({ type: 'coverPage', attrs: { examiner_table: false } }).attrs).toEqual({
       examiner_table: false,
     })
@@ -104,8 +104,8 @@ describe('cover switches (EXA-140)', () => {
 
 describe('cover card (EXA-164)', () => {
   it('leads with school and exam, then level · subject · paper, leaving out empty ones', () => {
-    expect(coverLines({ school: ' Pandan Primary ', exam: 'Prelim 2026', level: 'Primary 6', subject: 'Mathematics', paper: 'Paper 2' })).toEqual([
-      'Pandan Primary',
+    expect(coverLines({ school: ' Example Primary ', exam: 'Prelim 2026', level: 'Primary 6', subject: 'Mathematics', paper: 'Paper 2' })).toEqual([
+      'Example Primary',
       'Prelim 2026',
       'Primary 6 · Mathematics · Paper 2',
     ])
@@ -120,12 +120,12 @@ describe('cover card (EXA-164)', () => {
     editor = new Editor({
       element,
       extensions: [StarterKit, CoverPage.configure({ onEdit: (pos) => opened.push(pos) }), BlankPage],
-      content: { type: 'doc', content: [coverNode({ school: 'Pandan Primary', level: 'Primary 6' }), para('a')] },
+      content: { type: 'doc', content: [coverNode({ school: 'Example Primary', level: 'Primary 6' }), para('a')] },
     })
     const card = element.querySelector('.cover-block')!
     expect(card.querySelectorAll('input, textarea, select')).toHaveLength(0)
     expect(Array.from(card.querySelectorAll('.cover-line')).map((p) => p.textContent)).toEqual([
-      'Pandan Primary',
+      'Example Primary',
       'Primary 6 · Mathematics',
     ])
     card.querySelector<HTMLButtonElement>('button[aria-label="Edit cover page"]')!.click()

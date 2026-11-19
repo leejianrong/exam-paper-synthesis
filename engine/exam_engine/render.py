@@ -1112,7 +1112,7 @@ def _end_text(doc: dict) -> str:
 
 
 def _foot_tag(doc: dict) -> str:
-    """The small left-hand footer tag, e.g. "Pandan Primary · 2025 Preliminary Examination ·
+    """The small left-hand footer tag, e.g. "Example Primary · 2025 Preliminary Examination ·
     Paper 2" — only when the cover names the school or the exam (EXA-138)."""
     cover = cover_page(doc)
     attrs = (cover or {}).get("attrs") or {}

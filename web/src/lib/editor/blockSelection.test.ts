@@ -45,12 +45,12 @@ describe('a selected block is never replaced (EXA-129)', () => {
   })
 
   it('typing with the cover selected starts a paragraph after it', () => {
-    const e = make([coverNode({ school: 'Pandan' }), para('Q1')])
+    const e = make([coverNode({ school: 'Example Primary' }), para('Q1')])
     selectCover(e)
     const handled = e.view.someProp('handleTextInput', (f) => f(e.view, 0, 1, 'M', () => e.state.tr))
     expect(handled).toBe(true)
     const json = e.getJSON().content ?? []
-    expect(json[0]).toMatchObject({ type: 'coverPage', attrs: { school: 'Pandan' } })
+    expect(json[0]).toMatchObject({ type: 'coverPage', attrs: { school: 'Example Primary' } })
     expect(json[1]).toMatchObject({ type: 'paragraph', content: [{ type: 'text', text: 'M' }] })
     expect(e.state.selection.from).toBe(e.state.doc.child(0).nodeSize + 2) // caret after the M
   })
@@ -122,7 +122,7 @@ describe('typing on a selected question never replaces it (EXA-171)', () => {
       content: {
         type: 'doc',
         content: [
-          coverNode({ school: 'Pandan' }),
+          coverNode({ school: 'Example Primary' }),
           { type: 'templatedQuestion' },
           { type: 'freeformQuestion', content: [{ type: 'freeformPart', content: [para('(a)')] }, { type: 'freeformPart', content: [para('(b)')] }] },
           para('Last'),
@@ -191,7 +191,7 @@ describe('typing on a selected question never replaces it (EXA-171)', () => {
     select(e, 0)
     expect(press(e, '7').defaultPrevented).toBe(true)
     const json = e.getJSON().content ?? []
-    expect(json[0]).toMatchObject({ type: 'coverPage', attrs: { school: 'Pandan' } })
+    expect(json[0]).toMatchObject({ type: 'coverPage', attrs: { school: 'Example Primary' } })
     expect(json[1]).toMatchObject({ type: 'paragraph', content: [{ type: 'text', text: '7' }] })
     expect(json[2].type).toBe('templatedQuestion')
   })
@@ -305,7 +305,7 @@ describe('typing on a selected question never replaces it (EXA-171)', () => {
     select(e, 0)
     expect(press(e, 'Enter', { shiftKey: true }).defaultPrevented).toBe(true)
     expect(types(e)).toEqual(['coverPage', 'paragraph', 'templatedQuestion', 'paragraph', 'freeformQuestion', 'paragraph'])
-    expect((e.getJSON().content ?? [])[0]).toMatchObject({ type: 'coverPage', attrs: { school: 'Pandan' } })
+    expect((e.getJSON().content ?? [])[0]).toMatchObject({ type: 'coverPage', attrs: { school: 'Example Primary' } })
   })
 
   it('Shift+Enter on a selected section or blank page, too; on a selected part nothing', () => {

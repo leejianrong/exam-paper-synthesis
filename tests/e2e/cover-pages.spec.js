@@ -43,10 +43,10 @@ test('a starter template comes with its cover; fill it, add a blank page, reload
   await expect(panel.getByLabel('Paper', { exact: true })).toHaveValue('Paper 2')
   await expect(panel.getByLabel('Level')).toHaveValue('')
   await expect(panel.getByLabel('Instructions')).toHaveValue(/approved calculator is expected/)
-  await panel.getByLabel('School').fill('Pandan Primary School')
+  await panel.getByLabel('School').fill('Example Primary School')
   await panel.getByLabel('Level').fill('Primary 6')
   await panel.getByLabel('Instructions').fill('Answer all questions.\nShow your working.')
-  await expect(cover.locator('.cover-line').first()).toHaveText('Pandan Primary School')
+  await expect(cover.locator('.cover-line').first()).toHaveText('Example Primary School')
   await expect(cover.locator('.cover-line').last()).toHaveText('Primary 6 · Mathematics · Paper 2')
 
   // The template has a blank back of the cover (EXA-140). A blank page lands where the cursor
@@ -61,17 +61,17 @@ test('a starter template comes with its cover; fill it, add a blank page, reload
   await settled(page)
   await page.reload()
   await expect(cover).toHaveCount(1)
-  await expect(cover.locator('.cover-line').first()).toHaveText('Pandan Primary School')
+  await expect(cover.locator('.cover-line').first()).toHaveText('Example Primary School')
   // Paper > Cover page… lands on the cover's first field, in the panel
   await (await headerMenu(page, 'Paper')).getByRole('menuitem', { name: 'Cover page…' }).click()
   panel = page.locator('#tabpanel-selection')
   await expect(panel.getByLabel('School')).toBeFocused()
-  await expect(panel.getByLabel('School')).toHaveValue('Pandan Primary School')
+  await expect(panel.getByLabel('School')).toHaveValue('Example Primary School')
   await expect(blank).toHaveCount(2)
   await expect(page.locator('.blank-block[data-kind="rough"]')).toHaveCount(1)
 
   const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
-  expect(student).toContain('<p class="cover-school">Pandan Primary School</p>')
+  expect(student).toContain('<p class="cover-school">Example Primary School</p>')
   expect(student).toContain('<p class="cover-level">Primary 6</p><p class="cover-subject">Mathematics</p>')
   expect(student).toContain('<li>Answer all questions.</li><li>Show your working.</li>')
   expect(student).toContain('Time: 1 h 30 min')

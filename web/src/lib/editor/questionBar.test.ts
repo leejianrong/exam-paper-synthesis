@@ -290,6 +290,115 @@ describe('a key typed on a selected question (EXA-171)', () => {
   })
 })
 
+describe('[ and ] on layouts that need AltGr or ⌥ (EXA-172)', () => {
+  const altGr = { ctrlKey: true, altKey: true, modifierAltGraph: true } as KeyboardEventInit
+  function selected() {
+    const child = makeQuestion({ id: 'a:v2' }, 'Changed text.')
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ question: child }) })
+    vi.stubGlobal('fetch', fetchMock)
+    const made = make([gq('a', 'First.'), gq('b', 'Second.')], { guard: true })
+    made.editor.commands.setNodeSelection(0)
+    made.editor.view.focus()
+    const press = (key: string, init: KeyboardEventInit = {}) => {
+      const ev = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init })
+      made.editor.view.dom.dispatchEvent(ev)
+      return ev
+    }
+    return { ...made, fetchMock, press }
+  }
+  const edits = (f: ReturnType<typeof vi.fn>) => f.mock.calls.map((c) => String(c[0]).split('/').pop())
+
+  it('AltGr+[ on a German Windows keyboard makes the selected question easier', async () => {
+    const { fetchMock, press } = selected()
+    await tick()
+    expect(press('[', altGr).defaultPrevented).toBe(true)
+    await waitFor(() => expect(edits(fetchMock)).toEqual(['make-easier']))
+  })
+
+  it('AltGr+] makes it harder', async () => {
+    const { fetchMock, press } = selected()
+    await tick()
+    expect(press(']', altGr).defaultPrevented).toBe(true)
+    await waitFor(() => expect(edits(fetchMock)).toEqual(['make-harder']))
+  })
+
+  it('⌥[ on a German Mac makes it easier', async () => {
+    const platform = vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel')
+    try {
+      const { fetchMock, press } = selected()
+      await tick()
+      expect(press('[', { altKey: true }).defaultPrevented).toBe(true)
+      await waitFor(() => expect(edits(fetchMock)).toEqual(['make-easier']))
+    } finally {
+      platform.mockRestore()
+    }
+  })
+
+  it('Ctrl+[ and Cmd+[ are not the shortcut, and pass through untouched', async () => {
+    const { editor: e, fetchMock, press } = selected()
+    await tick()
+    const before = e.getJSON()
+    expect(press('[', { ctrlKey: true }).defaultPrevented).toBe(false)
+    expect(press(']', { metaKey: true }).defaultPrevented).toBe(false)
+    await tick()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(e.getJSON()).toEqual(before)
+    // …while the same key with AltGr is
+    expect(press('[', altGr).defaultPrevented).toBe(true)
+    await waitFor(() => expect(edits(fetchMock)).toEqual(['make-easier']))
+  })
+
+  it('the keypad - types nothing and sends no edit; the main-row - makes it easier', async () => {
+    const { editor: e, fetchMock, press } = selected()
+    await tick()
+    const before = e.getJSON()
+    expect(press('-', { code: 'NumpadSubtract' }).defaultPrevented).toBe(true) // dropped by the guard
+    await tick()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(e.getJSON()).toEqual(before)
+    press('-', { code: 'Minus' })
+    await waitFor(() => expect(edits(fetchMock)).toEqual(['make-easier']))
+  })
+
+  it('another AltGr character on a selected question is still dropped, with the hint', async () => {
+    const { editor: e, fetchMock, press } = selected()
+    await tick()
+    const before = e.getJSON()
+    expect(press('@', { ...altGr, code: 'KeyQ' }).defaultPrevented).toBe(true) // German AltGr+Q
+    expect(press('{', { ...altGr, code: 'Digit7' }).defaultPrevented).toBe(true)
+    await waitFor(() => expect(within(qblock('First.')).getByRole('status')).toHaveTextContent('Press Enter to write below'))
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(e.getJSON()).toEqual(before)
+    // only [ and ] (and - =) of the AltGr characters are shortcuts
+    press(']', altGr)
+    await waitFor(() => expect(edits(fetchMock)).toEqual(['make-harder']))
+  })
+
+  it('with the caret in text an AltGr [ is left to the editor to type', async () => {
+    const child = makeQuestion({ id: 'a:v2' }, 'Changed text.')
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ question: child }) })
+    vi.stubGlobal('fetch', fetchMock)
+    const { editor: e, onSwap } = make([own('o1', 'Words.'), gq('a', 'First.')], { guard: true })
+    await tick()
+    e.commands.setTextSelection(3)
+    e.view.focus()
+    const press = () => {
+      const ev = new KeyboardEvent('keydown', { key: '[', bubbles: true, cancelable: true, ...altGr })
+      e.view.dom.dispatchEvent(ev)
+      return ev
+    }
+    expect(press().defaultPrevented).toBe(false)
+    await tick()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(onSwap).not.toHaveBeenCalled()
+    expect(e.state.selection.from).toBe(3)
+    // the generated question after it, selected, takes the same key
+    e.commands.setNodeSelection(e.state.doc.child(0).nodeSize)
+    expect(press().defaultPrevented).toBe(true)
+    await waitFor(() => expect(edits(fetchMock)).toEqual(['make-easier']))
+  })
+})
+
 /** A fetch that answers only when told to (a slow /edit). */
 function slowFetch() {
   let answer: (q: unknown) => void = () => {}
@@ -307,7 +416,7 @@ const questionId = (e: Editor, id: string) => (attrsOf(e, id).question as { id: 
 describe('a reply that arrives late (review)', () => {
   it('Make harder, then the question is deleted: the reply touches nothing else', async () => {
     const { answer } = slowFetch()
-    const { editor: e, onNotice } = make([coverNode({ school: 'Pandan' }), gq('a', 'First.'), gq('b', 'Second.')])
+    const { editor: e, onNotice } = make([coverNode({ school: 'Example Primary' }), gq('a', 'First.'), gq('b', 'Second.')])
     await tick()
     const before = JSON.stringify(e.getJSON().content?.slice(0, 2))
     qblock('Second.').focus()
