@@ -10,6 +10,23 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **An editor header that fits (EXA-160, UI redesign S1).** The editor's top bar, which ran
+  off the screen below 1400 px and hid Preview and the PDFs, is now one sticky header of two
+  rows. Row one: back, the folder / title breadcrumb, the save state, the marks total in neutral
+  ink (red with an icon only when a section is off its target), Preview, one green **Export ▾**
+  menu (student paper, answer key, paper and key together, and the exports left today as its
+  footer) and an account avatar menu that replaces the account chip on every screen. Row two is
+  the formatting toolbar: + Question, + Section, undo/redo, a text style menu, B I U, lists,
+  equation (it now says why it is unavailable) and image; cover page, blank page and page break
+  sit in its ⋯ for now. Time, first question number, marks shown and Regenerate unlocked moved
+  to a right side panel with a Paper tab (marks per section, question count, layout, the answer
+  key options for now, the generated paper's lock count) and a Question tab (the inspector,
+  brought forward when you click a question). Regenerate unlocked asks first and names what it
+  replaces and keeps. No horizontal scroll at any width from 768 px; below 1200 px the total
+  moves to the panel and below 1024 px the toolbar's tail moves into ⋯. A reusable `Menu`
+  component (WAI-ARIA menu button: arrows, Home/End, type-ahead, Esc returns focus) serves the
+  header and toolbar and is ready for the question and app menus to come.
+
 - **The school key by default (EXA-159).** New, template and generated papers start with the
   answer key schools issue: a header block from the cover (school, level, subject, exam; an
   empty line left out), an answer grid for Booklet A, then ruled tables with the solver's short

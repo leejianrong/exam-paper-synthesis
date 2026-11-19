@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { settled, newFromTemplate } from './helpers.js'
+import { settled, newFromTemplate, exportPdf, paperTab } from './helpers.js'
 import { API } from './ports.js'
 
 /**
@@ -40,6 +40,7 @@ test('start from the Paper 2 template, structure the paper, reload, preview and 
   await expect(summaryB).toHaveText('Question 1 · 3 / 3 marks')
   await expect(summaryB).toHaveAttribute('data-state', 'ok')
   await sections.nth(0).getByLabel('Section title').fill('Part One')
+  await paperTab(page)
   await page.getByLabel('Paper time in minutes').fill('75')
 
   // The toolbar adds a section too.
@@ -67,7 +68,7 @@ test('start from the Paper 2 template, structure the paper, reload, preview and 
 
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Student PDF' }).click(),
+    exportPdf(page, 'Student paper (PDF)'),
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })
@@ -132,7 +133,7 @@ test('the marking margin follows the section mode and can be switched per sectio
   await expect(page.locator('.section-block').last().getByLabel('Marks shown')).toHaveValue('answer')
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Student PDF' }).click(),
+    exportPdf(page, 'Student paper (PDF)'),
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })

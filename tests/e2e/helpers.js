@@ -11,7 +11,7 @@ import { API } from './ports.js'
  * and skipped if the edit was already saved), then wait for "Saved" again.
  */
 export async function settled(page) {
-  const chip = page.locator('.bar .chip')
+  const chip = page.locator('.ehead .saved')
   await chip.filter({ hasNotText: 'Saved' }).waitFor({ timeout: 3000 }).catch(() => {})
   await expect(chip).toHaveText('Saved', { timeout: 15_000 })
 }
@@ -58,4 +58,22 @@ export async function generateSinglePaper(page, label, level) {
   await dialog.getByRole('button', { name: 'Single paper', exact: true }).click()
   await dialog.getByRole('button', { name: label, exact: true }).click()
   await dialog.getByRole('button', { name: `Generate at ${level}`, exact: true }).click()
+}
+
+/** EXA-160: choose a PDF from the editor header's Export ▾ menu. */
+export async function exportPdf(page, item) {
+  await page.getByRole('button', { name: 'Export', exact: true }).click()
+  await page.getByRole('menuitem', { name: item, exact: true }).click()
+}
+
+/** EXA-160: the formatting toolbar's ⋯ menu (cover page, blank page, page break for now). */
+export async function moreTools(page) {
+  await page.getByRole('button', { name: 'More tools', exact: true }).click()
+  return page.getByRole('menu', { name: 'More tools' })
+}
+
+/** EXA-160: paper settings live on the side panel's Paper tab (a question you click brings its
+ *  own tab forward). */
+export async function paperTab(page) {
+  await page.getByRole('tab', { name: 'Paper', exact: true }).click()
 }

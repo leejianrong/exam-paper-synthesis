@@ -34,7 +34,9 @@ From the P7–P8 acceptance run: **Organise and create** (O1 settings, O2 folder
 [`planning/editor/ORGANIZE-SHAPING.md`](planning/editor/ORGANIZE-SHAPING.md).
 The editor and app UI redesign (EXA-159–170) is planned in
 [`planning/editor/UI-REDESIGN.md`](planning/editor/UI-REDESIGN.md) (approved 2026-11-19; done: S2,
-EXA-159, the school key by default with an account setting for the key style).
+EXA-159, the school key by default with an account setting for the key style; S1, EXA-160, an
+editor header that fits: two rows, one Export menu, an avatar menu, and Time / first question /
+marks shown / Regenerate unlocked in a Paper / Question side panel).
 
 ---
 

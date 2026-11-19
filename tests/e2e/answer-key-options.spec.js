@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { settled, newBlankPaper } from './helpers.js'
+import { settled, newBlankPaper, paperTab, exportPdf } from './helpers.js'
 import { API } from './ports.js'
 
 /**
@@ -38,7 +38,9 @@ test('a new paper has the school key; marks, worked solutions and leaving questi
   await entries.nth(1).locator('.answer').click()
   await page.keyboard.type('ANSWER-TWO')
 
-  // The school key by default: no question text, no marks, no M1/A1.
+  // The school key by default: no question text, no marks, no M1/A1. (The key options sit on
+  // the side panel's Paper tab for now, EXA-160.)
+  await paperTab(page)
   const style = page.getByLabel('Answer key style')
   await expect(style).toHaveValue('compact')
   await expect(style.locator('option:checked')).toHaveText('School key')
@@ -96,7 +98,7 @@ test('a new paper has the school key; marks, worked solutions and leaving questi
 
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: /Answer key\s*PDF/ }).click(),
+    exportPdf(page, 'Answer key (PDF)'),
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })

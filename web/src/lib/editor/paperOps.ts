@@ -6,6 +6,7 @@ import { NodeSelection, Selection } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/core'
 import { cleanNode, type DocJSON, type DocNode } from './doc'
 import type { RegenerateReport, SwapReport } from './docsApi'
+import { isUnfilledPlaceholder } from './paperReport'
 
 /** A question "Regenerate unlocked" may refill, and that therefore shows swap and Lock: a
  *  generated (not bank) templated question, with or without a slot, or a generator placeholder.
@@ -22,6 +23,17 @@ export function isGeneratedPosition(n: DocNode): boolean {
 /** Does the paper have anything "Regenerate unlocked" would refill? */
 export function hasGeneratedSlots(doc: DocJSON): boolean {
   return (doc.content ?? []).some(isGeneratedPosition)
+}
+
+/** What "Regenerate unlocked" would do (EXA-160's confirmation): the generated questions and
+ *  empty placeholders it refills, and the locked ones it keeps. Your own questions, a
+ *  placeholder you have written in among them, are never touched (`paper_swap._refillable`). */
+export function regenerateCounts(doc: DocJSON): { unlocked: number; locked: number } {
+  const slots = (doc.content ?? []).filter(
+    (n) => isUnfilledPlaceholder(n) || (n.type === 'templatedQuestion' && isGeneratedPosition(n)),
+  )
+  const locked = slots.filter((n) => n.attrs?.locked === true).length
+  return { unlocked: slots.length - locked, locked }
 }
 
 /** JSON with object keys sorted: the editor and the server order a node's attributes differently. */

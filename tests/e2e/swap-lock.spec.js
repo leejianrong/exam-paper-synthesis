@@ -56,7 +56,12 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   const lockedBlock = (doc) => doc.document.content.content.filter((n) => n.attrs && n.attrs.locked === true)
   const lockedBefore = lockedBlock(await api())
   expect(lockedBefore).toHaveLength(1)
-  await page.getByRole('button', { name: 'Regenerate unlocked' }).click()
+  // EXA-160: in the side panel, confirmed in a dialog that names what happens.
+  await page.getByRole('tab', { name: 'Paper', exact: true }).click()
+  await page.getByRole('button', { name: /^Regenerate 16 unlocked/ }).click()
+  const confirm = page.getByRole('alertdialog', { name: 'Regenerate unlocked questions?' })
+  await expect(confirm).toContainText('Replaces 16 unlocked questions. 1 locked question stays.')
+  await confirm.getByRole('button', { name: 'Regenerate', exact: true }).click()
   await expect(page.getByText(/Regenerated 1[67] questions; kept 1/)).toBeVisible()
   await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
   await expect.poll(() => textOf(blocks.nth(0))).toBe(lockedStem)

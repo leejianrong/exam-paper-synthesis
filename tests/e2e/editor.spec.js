@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { settled, newBlankPaper } from './helpers.js'
+import { settled, newBlankPaper, exportPdf } from './helpers.js'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -89,7 +89,7 @@ test('build a paper, edit questions, reload, preview and export', async ({ page 
   // PDF export downloads a real .pdf.
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Student PDF' }).click(),
+    exportPdf(page, 'Student paper (PDF)'),
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })
@@ -99,7 +99,7 @@ test('the documents list shows, opens and deletes a paper', async ({ page }) => 
   await newBlankPaper(page)
   await page.getByLabel('Paper title').fill('Throwaway')
   await settled(page)
-  await page.getByRole('link', { name: '← Papers' }).click()
+  await page.getByRole('link', { name: 'Back to papers' }).click()
   const row = page.locator('li.doc', { hasText: 'Throwaway' })
   await expect(row).toBeVisible()
   await row.getByRole('button', { name: 'Delete' }).click()
@@ -140,7 +140,7 @@ test('insert questions from my bank (MCQ and table) into a paper', async ({ page
   await expect(block.getByText('Unreviewed')).toHaveCount(0)
   await centre(block)
   await block.click({ position: { x: 12, y: 60 } })
-  const inspector = page.getByRole('complementary', { name: 'Inspector' })
+  const inspector = page.getByRole('complementary', { name: 'Side panel' })
   await expect(inspector).toContainText('From my bank')
   await expect(inspector).toContainText('not yet reviewed')
   await expect(block.getByRole('button', { name: 'Make harder' })).toHaveCount(0)
@@ -223,7 +223,7 @@ test('write a free-form question, set marks, write its answer, reload, preview a
 
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Answer key PDF' }).click(),
+    exportPdf(page, 'Answer key (PDF)'),
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })
@@ -250,7 +250,7 @@ test('a multi-part free-form question: lettered parts with marks, answers, reloa
   const marks = block.getByLabel('Part marks')
   await marks.nth(0).fill('2')
   await marks.nth(0).press('Enter')
-  await expect(page.locator('.bar .total')).toHaveText('3 marks')
+  await expect(page.getByTestId('marks-total')).toHaveText('3 marks')
 
   // Each part has its own answer in the key region.
   const key = page.getByRole('region', { name: 'Answer key' })
@@ -262,7 +262,7 @@ test('a multi-part free-form question: lettered parts with marks, answers, reloa
   await settled(page)
   await page.reload()
   await expect(block.locator('.ffp-label')).toHaveText(['(a)', '(b)'])
-  await expect(page.locator('.bar .total')).toHaveText('3 marks')
+  await expect(page.getByTestId('marks-total')).toHaveText('3 marks')
 
   const student = await (await page.request.get(`${API}/documents/${id}/preview/student`)).text()
   const answerKey = await (await page.request.get(`${API}/documents/${id}/preview/key`)).text()
@@ -276,7 +276,7 @@ test('a multi-part free-form question: lettered parts with marks, answers, reloa
 
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Student PDF' }).click(),
+    exportPdf(page, 'Student paper (PDF)'),
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })
@@ -328,7 +328,7 @@ test('a free-form question with a PNG figure and an equation survives reload and
   expect(student).toContain('\\(\\frac{3}{4} \\times 8\\)')
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Student PDF' }).click(),
+    exportPdf(page, 'Student paper (PDF)'),
   ])
   expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 })
@@ -527,7 +527,7 @@ test('reviewing a bank question is a deliberate act: confirm to mark, one click 
   const block = page.getByTestId('question-block')
   await centre(block)
   await block.click({ position: { x: 12, y: 60 } })
-  const inspector = page.getByRole('complementary', { name: 'Inspector' })
+  const inspector = page.getByRole('complementary', { name: 'Side panel' })
   await expect(inspector).toContainText('reviewed by you')
   await inspector.getByRole('button', { name: 'Withdraw review' }).click()
   await expect(inspector).toContainText('not yet reviewed')
@@ -538,5 +538,5 @@ test('reviewing a bank question is a deliberate act: confirm to mark, one click 
   await page.reload()
   await centre(page.getByTestId('question-block'))
   await page.getByTestId('question-block').click({ position: { x: 12, y: 60 } })
-  await expect(page.getByRole('complementary', { name: 'Inspector' })).toContainText('not yet reviewed')
+  await expect(page.getByRole('complementary', { name: 'Side panel' })).toContainText('not yet reviewed')
 })
