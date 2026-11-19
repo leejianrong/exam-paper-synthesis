@@ -76,10 +76,10 @@ def _valid(key: str, value: object) -> bool:
     return value in CHOICES.get(key, (value,))
 
 
-# Bidirectional formatting controls (Cf): they can reorder how the rest of a cover line reads.
-_BIDI_CONTROLS = frozenset(
-    "\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
-)
+# Bidi embedding, override and isolate controls (Cf): they can reorder how the rest of a cover
+# line reads. The marks U+200E, U+200F and U+061C are allowed: pasted Hebrew and Arabic names
+# often carry them, and they affect only the characters next to them.
+_BIDI_CONTROLS = frozenset("\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069")
 
 
 def _has_control(text: str) -> bool:

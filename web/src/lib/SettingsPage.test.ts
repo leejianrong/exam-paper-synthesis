@@ -179,12 +179,61 @@ describe('SettingsPage: saving in order (EXA-169 review)', () => {
     await fireEvent.input(school, { target: { value: 'Example Primary School  ' } })
     await fireEvent.change(school)
     await fireEvent.blur(school)
-    expect(await screen.findByRole('alert')).toHaveTextContent("The setting wasn't saved")
+    expect(await screen.findByRole('alert')).toHaveTextContent("The school name wasn't saved")
     expect(school).toHaveValue('Example Primary School  ') // not wiped
     await fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     await waitFor(() => expect(get(settings)?.school_name).toBe('Example Primary School'))
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ school_name: 'Example Primary School' })
     await waitFor(() => expect(school).toHaveValue('Example Primary School'))
+  })
+
+  it("a later save of another setting doesn't hide that the school name wasn't saved", async () => {
+    settings.set({ ...DEFAULT_SETTINGS })
+    fetchMock
+      .mockImplementationOnce(() => Promise.reject(new TypeError('Failed to fetch'))) // school
+      .mockImplementation((_u: string, init: RequestInit) => reply(echo(init)))
+    render(SettingsPage)
+    const school = screen.getByRole('textbox', { name: 'School name' })
+    await fireEvent.input(school, { target: { value: 'Example Primary School' } })
+    await fireEvent.change(school)
+    await fireEvent.blur(school)
+    await fireEvent.click(screen.getByRole('radio', { name: 'P5' }))
+    await waitFor(() => expect(get(settings)?.default_level).toBe('P5'))
+    expect(screen.getByRole('status')).toHaveTextContent('New papers are P5.')
+    // the school name is still unsaved: the alert and Try again stay
+    expect(screen.getByRole('alert')).toHaveTextContent("The school name wasn't saved")
+    expect(get(settings)?.school_name).toBe('')
+    await fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(get(settings)?.school_name).toBe('Example Primary School'))
+    expect(fetchMock.mock.calls.map((c) => JSON.parse(c[1].body))).toEqual([
+      { school_name: 'Example Primary School' },
+      { default_level: 'P5' },
+      { school_name: 'Example Primary School' },
+    ])
+    expect(get(settings)?.default_level).toBe('P5')
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+    expect(screen.getByRole('status')).toHaveTextContent("New papers' covers will say Example Primary School.")
+  })
+
+  it('Try again re-sends every unsaved change, in order, and only their own success clears them', async () => {
+    settings.set({ ...DEFAULT_SETTINGS })
+    fetchMock
+      .mockImplementationOnce(() => Promise.reject(new TypeError('Failed to fetch'))) // level
+      .mockImplementationOnce(() => Promise.reject(new TypeError('Failed to fetch'))) // marks
+      .mockImplementation((_u: string, init: RequestInit) => reply(echo(init)))
+    render(SettingsPage)
+    await fireEvent.click(screen.getByRole('radio', { name: 'P6' }))
+    await fireEvent.change(screen.getByRole('combobox', { name: 'Marks shown' }), { target: { value: 'both' } })
+    const alert = await screen.findByRole('alert')
+    await waitFor(() => expect(alert).toHaveTextContent("Marks shown wasn't saved"))
+    expect(alert).toHaveTextContent("The level wasn't saved")
+    await fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(get(settings)).toMatchObject({ default_level: 'P6', marks_placement: 'both' }))
+    expect(fetchMock.mock.calls.slice(2).map((c) => JSON.parse(c[1].body))).toEqual([
+      { default_level: 'P6' },
+      { marks_placement: 'both' },
+    ])
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
   })
 
   it('fills the school name when a failed first load is retried', async () => {

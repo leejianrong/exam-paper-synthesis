@@ -14,8 +14,6 @@
     type DefaultLevel,
   } from './settings'
 
-  let error = ''
-  let retry: (() => void) | null = null
   let saved = ''
 
   onMount(() => {
@@ -29,25 +27,45 @@
   let pending = 0
   $: busy = pending > 0
 
+  type Patch = Parameters<typeof updateSettings>[0]
+  type Failure = { patch: Patch; done: string; onSaved?: () => void; message: string; retryable: boolean }
+  // Unsaved changes, one per setting, oldest first. Only a later save of the same setting clears
+  // its failure, so the alert stays while anything is unsaved, whatever else saves meanwhile.
+  let failures = new Map<string, Failure>()
+  $: failed = [...failures.values()]
+  $: error = failed.map((f) => f.message).join(' ')
+  $: retry = failed.some((f) => f.retryable) ? retryFailed : null
+
+  const WHAT: Record<string, string> = {
+    school_name: "The school name wasn't saved",
+    default_level: "The level wasn't saved",
+    marks_placement: "Marks shown wasn't saved",
+    answer_key_style: "The answer key style wasn't saved",
+  }
+
   /** Save a change; resolves true once stored. `onSaved` runs on success, also when the change
    *  is stored by Try again after a failure. */
-  function save(
-    patch: Parameters<typeof updateSettings>[0],
-    done: string,
-    onSaved?: () => void,
-  ): Promise<boolean> {
+  function save(patch: Patch, done: string, onSaved?: () => void): Promise<boolean> {
+    const key = Object.keys(patch).join(',')
     const run = async (): Promise<boolean> => {
-      error = ''
-      retry = null
       saved = ''
       try {
         await updateSettings(patch)
         saved = done
+        failures.delete(key)
+        failures = failures
         onSaved?.()
         return true
       } catch (e) {
-        error = errorText(e, "The setting wasn't saved")
-        retry = canRetry(e) ? () => void save(patch, done, onSaved) : null
+        failures.delete(key) // re-added last: the newest failure is retried last
+        failures.set(key, {
+          patch,
+          done,
+          onSaved,
+          message: errorText(e, WHAT[key] ?? "The setting wasn't saved"),
+          retryable: canRetry(e),
+        })
+        failures = failures
         return false
       }
     }
@@ -55,6 +73,11 @@
     const next = queue.then(run).finally(() => (pending -= 1))
     queue = next
     return next
+  }
+
+  /** Try again: re-send every unsaved change that can be retried, in the order it was made. */
+  function retryFailed() {
+    for (const f of [...failures.values()]) if (f.retryable) void save(f.patch, f.done, f.onSaved)
   }
 
   const toggleClassic = (on: boolean) =>

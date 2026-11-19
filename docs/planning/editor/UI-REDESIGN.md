@@ -816,7 +816,9 @@ moves nothing. The rule lives in the block selection guard,
 ## 20. S11 as built (EXA-169)
 
 - **Settings keys.** `school_name` (text, empty by default, trimmed, at most 120 characters and
-  one line: the cover's own `school` limit), `default_level` (`""`, `P5`, `P6`; empty by
+  one line: the cover's own `school` limit; no control characters, line or paragraph
+  separators, or bidi embeddings, overrides and isolates, while the marks U+200E, U+200F and
+  U+061C that pasted Hebrew and Arabic names carry are allowed), `default_level` (`""`, `P5`, `P6`; empty by
   default) and `marks_placement` (`answer`, `question`, `both`; `answer` by default, what an
   absent paper setting already meant). Checked by `settings.check_patch` (422 with the reason);
   a stored value that is no longer allowed reads as the default. Same contract on SQLite and
@@ -841,7 +843,10 @@ moves nothing. The rule lives in the block selection guard,
   control is disabled meanwhile, so a click that lands while the school name saves on blur is
   kept and saved after it. The school field follows the stored value except while it has focus
   or unsaved text: a failed save keeps what was typed, a save (also by Try again) shows what was
-  stored, and a late load (a failed first load retried) fills it.
+  stored, and a late load (a failed first load retried) fills it. A failed save is kept per
+  setting: saving another setting doesn't clear its alert (the status line may still say what
+  did save), only its own later success does, and Try again re-sends every unsaved change in the
+  order it was made.
 - **New dialog.** `NewWizard` takes `defaultLevel` (the list passes the settings store's): that
   level's "Generate at" card takes focus and carries a "Your default" chip (its accessible
   description), and a new exam set's folder is named "P5 exam set" after it. The dialog still
