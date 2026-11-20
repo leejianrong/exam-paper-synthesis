@@ -359,12 +359,13 @@ class _Filler:
 
     def pick_multipart(self, max_marks: int) -> Candidate | None:
         """An unused multi-part blueprint of at most ``max_marks``, least-used topic first
-        (seeded ties), the same way :meth:`pick` chooses."""
+        (seeded ties), the same way :meth:`pick` chooses. It never leaves fewer marks than a
+        stand-in takes (EXA-117: eleven multi-part questions of 44 marks left a 1-mark gap)."""
         options = [
             c
             for c in self.pool
             if c.code not in self.used
-            and c.marks <= max_marks
+            and (c.marks == max_marks or c.marks <= max_marks - _STAND_IN_MIN_MARKS)
             and _fits(c, "multipart")
             and self.topics.get(c.topic, 0) < TOPIC_CAP
         ]

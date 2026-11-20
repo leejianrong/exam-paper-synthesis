@@ -35,7 +35,12 @@ CODES = {
     "lcm_packs_structured": ("Whole Numbers", [1, 2]),
     "age_difference_structured": ("Ratio", [1, 2]),
     "equal_number_amount_structured": ("Money", [2, 2]),
+    # EXA-117: the P5 ones
+    "tap_tank_structured": ("Volume", [2, 2]),
+    "savings_structured": ("Money", [2, 2]),
+    "garden_path_structured": ("Geometry (Area & Perimeter)", [2, 2]),
 }
+P5 = {"tap_tank_structured", "savings_structured", "garden_path_structured"}
 SEEDS = range(1, 151)
 
 
@@ -64,7 +69,8 @@ def test_spec_says_it_is_multipart(code):
     topic, marks = CODES[code]
     assert spec.is_multipart and spec.part_count == len(marks)
     assert [p["marks"] for p in spec.parts] == marks and spec.marks == sum(marks)
-    assert spec.syllabus["topic"] == topic and spec.syllabus["level"] == "P6"
+    assert spec.syllabus["topic"] == topic
+    assert spec.syllabus["level"] == ("P5" if code in P5 else "P6")
 
 
 def test_single_part_blueprints_are_unchanged():

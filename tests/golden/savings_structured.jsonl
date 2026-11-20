@@ -1,0 +1,3 @@
+{"params": {"names": ["Ben", "Ethan"], "save": [180, 400], "start": [6120, 2600], "weeks": 4}, "expected": {"answers": [{"type": "decimal", "value": 68.4, "dp": 2, "unit": "$"}, {"type": "integer", "value": 16}], "marks": [2, 2], "total_marks": 4}}
+{"params": {"names": ["Chloe", "Kavya"], "save": [130, 190], "start": [1650, 1350], "weeks": 7}, "expected": {"answers": [{"type": "decimal", "value": 25.6, "dp": 2, "unit": "$"}, {"type": "integer", "value": 5}], "marks": [2, 2], "total_marks": 4}}
+{"params": {"names": ["Faridah", "Jia En"], "save": [250, 470], "start": [3240, 600], "weeks": 10}, "expected": {"answers": [{"type": "decimal", "value": 57.4, "dp": 2, "unit": "$"}, {"type": "integer", "value": 12}], "marks": [2, 2], "total_marks": 4}}

@@ -258,9 +258,21 @@ def test_generated_papers_keep_every_rule(code, level):
                             assert n["attrs"]["slot"]["stand_in"] is True, where
                             assert _marks(n) >= 2, where
                 assert [_marks(n) for n in nodes] == sorted(_marks(n) for n in nodes), where
-                # every multi-part blueprint the level allows is used before any stand-in
-                # (today's eight fit in any P6 Section B: 33 marks of 45, 8 of 12 slots)
-                assert sorted(multipart) == sorted(MULTIPART[level]), where
+                # every multi-part blueprint the level allows is used before any stand-in,
+                # unless the section has no room for it: its topic already has two multi-part
+                # questions, its marks would pass the target or leave a gap of 1 mark (less
+                # than a stand-in takes), or every slot is taken (EXA-117: twelve at P6 no
+                # longer all fit)
+                mp_marks = sum(META[c]["marks"] for c in multipart)
+                mp_topics = Counter(META[c]["topic"] for c in multipart)
+                left = tsec["marks_target"] - mp_marks
+                for c in set(MULTIPART[level]) - set(multipart):
+                    m = META[c]["marks"]
+                    assert (
+                        mp_topics[META[c]["topic"]] >= 2
+                        or not (m == left or m <= left - 2)
+                        or len(multipart) >= sum(x["count"] for x in tsec["slots"])
+                    ), (where, "multi-part left out", c)
                 rep = next(s for s in report["sections"] if s["title"] == sec["title"])
                 assert rep["multipart"] == len(multipart), where
                 assert rep["stand_ins"] == rep["filled"] - len(multipart), where
@@ -508,7 +520,10 @@ def test_what_todays_content_fills():
     assert fill("p2", "P6") == (17, 0)  # Section B: 10 multi-part + 2 single-part stand-ins
     _, r = generate_paper("p2", "P6", 1)
     assert [(s["multipart"], s["stand_ins"]) for s in r["sections"]] == [(0, 0), (10, 2)]
-    assert fill("p2", "P5") == (21, 1)  # Section B: 16 stand-ins, 1 placeholder
+    # Section B: the 3 P5 multi-part questions (EXA-117) + 12 stand-ins, no placeholder
+    assert fill("p2", "P5") == (20, 0)
+    _, r = generate_paper("p2", "P5", 1)
+    assert [(s["multipart"], s["stand_ins"]) for s in r["sections"]] == [(0, 0), (3, 12)]
 
 
 def test_unknown_template_and_level_are_refused():
