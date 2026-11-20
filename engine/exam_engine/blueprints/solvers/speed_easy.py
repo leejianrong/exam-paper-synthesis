@@ -47,6 +47,10 @@ class SpeedEasySolver:
         time = rng.randint(_TIME_MIN, _TIME_MAX)
         return {"name": name, "speed": speed, "time": time}
 
+    def number_problem(self, params: dict) -> str | None:
+        """Any speed and time in range make a question (EXA-89)."""
+        return None
+
     def solve(self, params: dict) -> dict:
         speed = params["speed"]
         time = params["time"]

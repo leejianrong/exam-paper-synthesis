@@ -28,8 +28,8 @@ shaping: true
 | **V7** | CLI + sourced-object interchange | `mathgen` generates/exports headlessly; a sourced past-paper object loads, validates, and renders through the same path | A1, A9 | R6.3, R7.5–R7.6 |
 
 **Not sliced (deferred):** **R6.4** — pull an alternative from the internal bank
-on swap (Nice-to-have, ADR-0015 open item). Add a slice V8 if it is promoted to
-Must-have.
+on swap (Nice-to-have, ADR-0015 open item). Since done outside the slices, on top of the
+editor's P8d swap (EXA-33: "Swap from your bank…").
 
 ---
 

@@ -90,7 +90,8 @@ def merge_changes(code: str, params: dict, changes: Mapping[str, object]) -> dic
             raise EditNotApplicable(
                 OP,
                 f"parameter {key!r} is a {role!r} parameter — it changes the maths, so it "
-                "cannot be edited cosmetically (use regenerate / make-harder / make-easier)",
+                "cannot be edited cosmetically (use set-numbers, regenerate, make-harder or "
+                "make-easier)",
             )
         current = params[key]
         if isinstance(current, list):

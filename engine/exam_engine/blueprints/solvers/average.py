@@ -83,6 +83,21 @@ class AverageEasySolver:
                 break
         return {"name": rng.choice(NAME_POOL), "values": values, "template": template}
 
+    def number_problem(self, params: dict) -> str | None:
+        """Why a teacher's numbers don't make this question (EXA-89), else ``None``."""
+        values = params["values"]
+        lo, hi, unit = EASY_TEMPLATES[params["template"]]
+        if not all(lo <= v <= hi for v in values):
+            return f"Each number must be from {_money(lo, unit)} to {_money(hi, unit)}."
+        if len(set(values)) == 1:
+            return "The numbers must not all be the same."
+        if sum(values) % len(values):
+            return (
+                f"The total ({_money(sum(values), unit)}) must divide exactly by "
+                f"{len(values)}, so the average is a whole number."
+            )
+        return None
+
     def solve(self, params: dict) -> dict:
         values, template = params["values"], params["template"]
         unit = EASY_TEMPLATES[template][2]

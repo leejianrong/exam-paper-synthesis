@@ -5,10 +5,11 @@
   // snapshot with the child object the API returns (lineage intact).
   import { errorText } from '../errors'
   import type { Readable } from 'svelte/store'
-  import { editQuestion, setCosmetic, type EditOp } from '../api'
+  import { editQuestion, setCosmetic, setNumbers, type EditOp } from '../api'
   import type { Question } from '../types'
   import { confirmAction } from '../confirm'
   import NamesPopover from './NamesPopover.svelte'
+  import NumbersPopover from './NumbersPopover.svelte'
   import FragmentView from './FragmentView.svelte'
   import QuestionBody from './QuestionBody.svelte'
   import AnswerArea from './AnswerArea.svelte'
@@ -31,7 +32,9 @@
   export let host: HTMLElement
   export let ctx: {
     /** An edit's reply; `from` is the question the edit started from (dropped if it changed). */
-    replace: (q: Question, from: string) => void
+    replace: (q: Question, from: string, patch?: { locked?: boolean }) => void
+    /** A line for the page's notice bar. */
+    notice: (message: string) => void
     remove: () => void
     move: (dir: -1 | 1) => void
     addBelow: () => void
@@ -86,15 +89,27 @@
   let busy = false
   let error = ''
   let editingNames = false
+  let editingNumbers = false
 
-  async function run(fn: () => Promise<Question | void>) {
+  // The teacher's own numbers would vanish on "Regenerate unlocked" or a swap, so the edit
+  // locks the question (in the same step, so Undo unlocks it too).
+  async function editNumbers(changes: Record<string, number | number[]>) {
+    const lock = generated && !locked
+    await run(() => setNumbers(q, changes), lock ? { locked: true } : undefined)
+    if (lock && !error) ctx.notice('Numbers changed. The question is now locked, so "Regenerate unlocked" keeps it.')
+  }
+
+  async function run(fn: () => Promise<Question | void>, patch?: { locked?: boolean }) {
     busy = true
     error = ''
     const from = q.id
     try {
       const next = await fn()
-      if (next) ctx.replace(next, from)
+      if (next) ctx.replace(next, from, patch)
+      // a closing form would drop focus to the page: give it back to the block
+      if (editingNames || editingNumbers) host.focus()
       editingNames = false
+      editingNumbers = false
     } catch (e) {
       error = errorText(e, "The question wasn't changed")
     } finally {
@@ -116,6 +131,7 @@
       case 'like':
       case 'topic':
       case 'own':
+      case 'bank':
         return run(() => ctx.swap(action))
       case 'regenerate':
         return run(() => editQuestion('regenerate', q))
@@ -125,6 +141,13 @@
         return run(() => editQuestion('make-harder', q))
       case 'names':
         editingNames = !editingNames
+        editingNumbers = false
+        error = ''
+        return
+      case 'numbers':
+        editingNumbers = !editingNumbers
+        editingNames = false
+        error = ''
         return
       case 'lock':
         return ctx.setLocked(!locked)
@@ -178,7 +201,20 @@
       />
     {/if}
 
-    {#if error}
+    {#if editingNumbers}
+      <NumbersPopover
+        {q}
+        {busy}
+        {error}
+        on:apply={(e) => editNumbers(e.detail.changes)}
+        on:close={() => {
+          editingNumbers = false
+          error = ''
+        }}
+      />
+    {/if}
+
+    {#if error && !editingNumbers}
       <p class="error" role="alert">{error}</p>
     {/if}
   </div>

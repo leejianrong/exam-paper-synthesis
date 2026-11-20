@@ -41,11 +41,11 @@ parameter_schema:                       # ADR-0014: sampled params validate agai
 # never enters solve()); number|choice drive the maths and are not cosmetically editable.
 param_roles:
   name: { role: name }
-  n1:   { role: number }
-  d1:   { role: number }
-  n2:   { role: number }
-  d2:   { role: number }
-  left: { role: number }
+  n1:   { role: number, edit: free, label: "Bag fraction, top" }
+  d1:   { role: number, edit: free, label: "Bag fraction, bottom" }
+  n2:   { role: number, edit: free, label: "Shoes fraction, top" }
+  d2:   { role: number, edit: free, label: "Shoes fraction, bottom" }
+  left: { role: number, edit: free, label: "Money left ($)" }
 story_templates:
   - stem: null
     text: >

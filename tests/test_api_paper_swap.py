@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import pytest
+from app.bankstore import open_owner_bank
 from app.main import app
 from app.ops import strip_document_hints
 from exam_engine.document import paper_outline, validate_document
 from fastapi.testclient import TestClient
+from test_paper_swap_bank import bank_obj
 
 client = TestClient(app)
 ALICE = {"X-Dev-Owner": "alice"}
@@ -163,3 +165,102 @@ def test_only_a_missing_block_is_a_404(monkeypatch):
     monkeypatch.setattr(paper_swap, "swap_question", boom)
     with pytest.raises(KeyError):
         _swap(rec, q["attrs"]["block_id"], "like")
+
+
+# --- EXA-33: swap from the owner's bank -------------------------------------------------
+
+
+def _bank(monkeypatch, tmp_path, owner, *objs):
+    monkeypatch.setenv("EXAM_BANK_PATH", str(tmp_path / "bank.sqlite3"))
+    bank = open_owner_bank(owner)
+    for obj in objs:
+        bank.add(obj)
+    bank.close()
+
+
+def _short_2(rec):
+    return next(
+        n for n in _questions(rec) if n["attrs"].get("slot") == {"marks": 2, "kind": "short"}
+    )
+
+
+def _options(rec, block_id, headers=ALICE):
+    return client.get(
+        f"/documents/{rec['id']}/swap/bank", params={"block_id": block_id}, headers=headers
+    )
+
+
+def test_bank_options_are_the_owners_own_fitting_questions(monkeypatch, tmp_path):
+    mine = bank_obj("standin_chart_line", "alice-2")
+    too_big = bank_obj("standin_chart_bar", "alice-3")
+    _bank(monkeypatch, tmp_path, "alice", mine, too_big)
+    _bank(monkeypatch, tmp_path, "bob", bank_obj("standin_chart_pie", "bob-2"))
+    rec = _paper()
+    q = _short_2(rec)
+    resp = _options(rec, q["attrs"]["block_id"])
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert [i["id"] for i in items] == [mine["id"]]
+    assert items[0]["reviewed"] is False and items[0]["topic"] == "Statistics"
+    assert _options(rec, q["attrs"]["block_id"], headers=BOB).status_code == 404  # her paper
+    assert _options(rec, "nope").status_code == 404
+
+
+def test_swap_from_the_bank_saves_the_bank_snapshot(monkeypatch, tmp_path):
+    obj = bank_obj("standin_chart_line", "alice-2")
+    _bank(monkeypatch, tmp_path, "alice", obj)
+    rec = _paper()
+    q = _short_2(rec)
+    resp = _swap(rec, q["attrs"]["block_id"], "bank", bank_id=obj["id"])
+    assert resp.status_code == 200, resp.text
+    out = resp.json()
+    assert out["version"] == rec["version"] + 1
+    assert out["report"]["bank_id"] == obj["id"] and out["report"]["mode"] == "bank"
+    new = next(n for n in _questions(out) if n["attrs"]["block_id"] == q["attrs"]["block_id"])
+    assert new["attrs"]["question"]["id"] == obj["id"]
+    assert new["attrs"]["question"]["source_type"] == "sourced"
+    stored = client.get(f"/documents/{rec['id']}", headers=ALICE).json()
+    assert validate_document(strip_document_hints(stored["document"])) == []
+    assert [s["marks"] for s in paper_outline(stored["document"])] == [10, 45]
+    # now in the paper: not offered again, and a second copy is refused
+    other = next(
+        n
+        for n in _questions(out)
+        if n["attrs"].get("slot") == {"marks": 2, "kind": "short"}
+        and n["attrs"]["block_id"] != q["attrs"]["block_id"]
+    )
+    assert _options(out, other["attrs"]["block_id"]).json()["items"] == []
+    again = _swap(out, other["attrs"]["block_id"], "bank", bank_id=obj["id"])
+    assert again.status_code == 422 and "already in this paper" in again.json()["detail"]
+
+
+def test_bank_swap_never_reaches_another_owners_bank(monkeypatch, tmp_path):
+    theirs = bank_obj("standin_chart_line", "bob-2")
+    _bank(monkeypatch, tmp_path, "bob", theirs)
+    rec = _paper()
+    q = _short_2(rec)
+    resp = _swap(rec, q["attrs"]["block_id"], "bank", bank_id=theirs["id"])
+    assert resp.status_code == 404
+    assert _swap(rec, q["attrs"]["block_id"], "bank").status_code == 422  # no bank_id
+    assert client.get(f"/documents/{rec['id']}", headers=ALICE).json()["version"] == rec["version"]
+
+
+def test_bank_swap_refuses_a_misfit_a_locked_question_and_a_stale_version(monkeypatch, tmp_path):
+    fits, big = bank_obj("standin_chart_line", "a"), bank_obj("standin_chart_bar", "b")
+    _bank(monkeypatch, tmp_path, "alice", fits, big)
+    rec = _paper()
+    q = _short_2(rec)
+    bid = q["attrs"]["block_id"]
+    misfit = _swap(rec, bid, "bank", bank_id=big["id"])
+    assert misfit.status_code == 422 and "2-mark" in misfit.json()["detail"]
+    stale = _swap({**rec, "version": rec["version"] - 1}, bid, "bank", bank_id=fits["id"])
+    assert stale.status_code == 409
+    q["attrs"]["locked"] = True
+    saved = client.put(
+        f"/documents/{rec['id']}",
+        json={"document": strip_document_hints(rec["document"]), "base_version": rec["version"]},
+        headers=ALICE,
+    ).json()
+    locked = _swap(saved, bid, "bank", bank_id=fits["id"])
+    assert locked.status_code == 422 and "locked" in locked.json()["detail"]
+    assert _options(saved, bid).status_code == 422

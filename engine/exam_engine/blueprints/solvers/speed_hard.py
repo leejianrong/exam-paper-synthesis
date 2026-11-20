@@ -51,6 +51,16 @@ class SpeedHardSolver:
         gap = (s1 + s2) * t_meet  # exact: gap / (s1+s2) recovers t_meet
         return {"name1": name1, "name2": name2, "s1": s1, "s2": s2, "gap": gap}
 
+    def number_problem(self, params: dict) -> str | None:
+        """Why a teacher's numbers don't meet after whole hours (EXA-89), else ``None``."""
+        s1, s2, gap = params["s1"], params["s2"], params["gap"]
+        if gap % (s1 + s2):
+            return (
+                f"The distance ({gap} km) must divide exactly by the combined speed "
+                f"({s1 + s2} km/h), so they meet after a whole number of hours."
+            )
+        return None
+
     def solve(self, params: dict) -> dict:
         s1, s2 = params["s1"], params["s2"]
         gap = params["gap"]

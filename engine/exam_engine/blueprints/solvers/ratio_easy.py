@@ -50,6 +50,20 @@ class RatioEasySolver:
         total = sum(ratio) * unit_value  # exact by construction; stays in [6, 2000]
         return {"names": names, "ratio": ratio, "total": total}
 
+    def number_problem(self, params: dict) -> str | None:
+        """Why a teacher's numbers don't share evenly (EXA-89), else ``None``."""
+        ratio, total = params["ratio"], params["total"]
+        if len(set(ratio)) == 1:
+            return "The ratio terms must not all be the same."
+        units = sum(ratio)
+        if total % units:
+            shown = " : ".join(map(str, ratio))
+            return (
+                f"The amount must be a multiple of {units}: ${total} can't be shared "
+                f"in the ratio {shown} in whole dollars."
+            )
+        return None
+
     def solve(self, params: dict) -> dict:
         ratio = params["ratio"]
         total = params["total"]
