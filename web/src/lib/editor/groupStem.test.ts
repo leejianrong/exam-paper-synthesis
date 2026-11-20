@@ -207,6 +207,6 @@ describe('saving', () => {
     expect(a.attrs).toEqual({ block_id: 'gs_same', count: 2 })
     expect(b.attrs?.block_id).not.toBe('gs_same')
     expect(b.attrs?.count).toBe(2)
-    expect(doc.schema_version).toBe('1.17.0')
+    expect(doc.schema_version).toBe('1.18.0')
   })
 })

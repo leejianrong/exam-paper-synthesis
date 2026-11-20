@@ -183,7 +183,7 @@
     "group_stem": {
       "type": "object", "additionalProperties": false,
       "required": ["type", "attrs", "content"],
-      "$comment": "A shared stem (1.17.0, EXA-90): text, images and equations that the next `count` questions all refer to (\"Use the table below to answer Questions 12 and 13.\"). Top level only; the questions stay ordinary top-level blocks with their own numbers, marks and answers. The members are the next `count` questions, rich text between them allowed; a section, blank page or another stem ends the group early. The lead sentence is derived from the members' numbers, never stored.",
+      "$comment": "A shared stem (1.18.0, EXA-90): text, images and equations that the next `count` questions all refer to (\"Use the table below to answer Questions 12 and 13.\"). Top level only; the questions stay ordinary top-level blocks with their own numbers, marks and answers. The members are the next `count` questions, rich text between them allowed; a section, blank page or another stem ends the group early. The lead sentence is derived from the members' numbers, never stored.",
       "properties": {
         "type": { "const": "groupStem" },
         "attrs": {
@@ -292,7 +292,8 @@
             "in_key": { "type": "boolean", "description": "false leaves this question out of the answer key (1.7.0); absent = included." },
             "slot": { "$ref": "#/$defs/slot" },
             "locked": { "type": "boolean", "description": "true keeps this question when the paper is regenerated, and blocks swapping it (1.11.0, P8d); absent = unlocked." },
-            "remark": { "$ref": "#/$defs/remark" }
+            "remark": { "$ref": "#/$defs/remark" },
+            "bank_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 200, "description": "The question-bank id this teacher's question was saved as or inserted from (1.17.0, EXA-90): saving it again updates that bank question. Never printed." }
           }
         },
         "content": {

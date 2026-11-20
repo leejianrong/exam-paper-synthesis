@@ -21,7 +21,7 @@ so the editor has to keep it honest (below). We chose B.
 
 ## The rules
 
-- `groupStem` (document schema **1.17.0**): `attrs` `block_id`, `count` (1–20); `content` is
+- `groupStem` (document schema **1.18.0**): `attrs` `block_id`, `count` (1–20); `content` is
   text blocks (paragraphs with inline equations, lists, images). At most 40 per paper.
 - Its questions are the next `count` question blocks after it. Rich text between them stays in
   the group. A section, blank page, cover or another stem ends the group early, so a stem never

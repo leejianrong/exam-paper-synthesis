@@ -175,7 +175,7 @@ its [n] by the effective placement of its section, live (EXA-152).
 
 The Ans: line is right-aligned and short (55 mm): "Ans: $ ____ cm² [2]", parts "Ans: (a) ____".
 
-### Shared stems (EXA-90, document schema 1.17.0)
+### Shared stems (EXA-90, document schema 1.18.0)
 
 A `groupStem` block holds text, figures and equations that the next `count` questions all refer
 to; it prints "Use the information below to answer Questions 12 and 13." (derived from the

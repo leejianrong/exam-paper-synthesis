@@ -20,6 +20,7 @@ export type QuestionAction =
   | 'lock'
   | 'key'
   | 'answer' // a teacher's own question: write its answer for the key (EXA-162)
+  | 'save' // a teacher's own question: keep a copy in their question bank (EXA-90)
   | 'up'
   | 'down'
   | 'addBelow'
@@ -103,7 +104,12 @@ export function menuGroups(f: QuestionFacts): QuestionRow[][] {
         : { action: 'lock', label: 'Lock', icon: 'lock', shortcut: BLOCK_KEYS.lock, hint: 'Keep this question when you regenerate the paper' },
     )
   }
-  if (f.kind === 'own') keep.push({ action: 'answer', label: 'Edit answer…', icon: 'pen', hint: 'Write the answer that prints in the answer key' })
+  if (f.kind === 'own') {
+    keep.push(
+      { action: 'answer', label: 'Edit answer…', icon: 'pen', hint: 'Write the answer that prints in the answer key' },
+      { action: 'save', label: 'Save to your bank…', icon: 'copy', hint: 'Keep a copy in your question bank to use in other papers' },
+    )
+  }
   keep.push({ action: 'key', label: f.inKey ? 'Leave out of answer key' : 'Include in answer key', icon: 'key' })
 
   const place: QuestionRow[] = []
