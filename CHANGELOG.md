@@ -21,7 +21,9 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   uploaded images are embedded as they are. Inline maths becomes a Word equation (a small
   LaTeX reader covering what the papers use; anything else stays as the LaTeX typed). The
   marking strip, tally boxes and page footers are left out: Word paginates the document
-  itself. A Word export counts against the export allowance like a PDF. API:
+  itself, but a question's text and figure are kept with its working space. Characters Word
+  cannot hold (a pasted vertical tab) are dropped, and a picture Word cannot read prints
+  "[image unavailable]". A Word export counts against the export allowance like a PDF. API:
   `POST /documents/{id}/export/docx?mode=student|key` (`api/app/docx_export.py`,
   `docx_math.py`; new api dependency `python-docx`, MIT).
 

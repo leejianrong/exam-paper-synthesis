@@ -20,11 +20,13 @@ import io
 import re
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from typing import Any
 
 from docx import Document
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING, WD_TAB_ALIGNMENT
+from docx.image.exceptions import UnrecognizedImageError
 from docx.shared import Inches, Mm, Pt, RGBColor
 from docx.text.paragraph import Paragraph
 from exam_engine import diagram
@@ -76,6 +78,20 @@ _FIGURE_SCALE = 2  # html_to_png_many's device scale: PNG pixels per CSS pixel
 _MATH = re.compile(r"\\\((.+?)\\\)|\\\[(.+?)\\\]", re.DOTALL)
 _TAGGED = re.compile(r"(<b>.*?</b>|<sup>.*?</sup>)")
 _BLACK = RGBColor(0, 0, 0)
+# Characters XML 1.0 cannot hold (a vertical tab pasted from Word, other C0 controls, U+FFFE/F,
+# lone surrogates): the schema and the PDF let them through, python-docx refuses them.
+_NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff\ud800-\udfff]")
+
+
+def _xml_safe(value: Any) -> Any:
+    """``value`` with every string stripped of what XML cannot hold (tab and newline stay)."""
+    if isinstance(value, str):
+        return _NOT_XML.sub("", value)
+    if isinstance(value, dict):
+        return {k: _xml_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_xml_safe(v) for v in value]
+    return value
 
 
 class _Writer:
@@ -112,6 +128,8 @@ class _Writer:
             styles[name].font.name = "Arial"
         props = self.word.core_properties
         props.title, props.author, props.comments = self.title, "", ""
+        props.created = props.modified = datetime.now(UTC).replace(tzinfo=None)
+        props.last_modified_by = ""
 
     # -- paragraphs ---------------------------------------------------------------------------
 
@@ -125,6 +143,7 @@ class _Writer:
             fmt.page_break_before, self.break_next = True, False
         if self.indent and self.target is self.word:
             fmt.left_indent = _INDENT
+            fmt.keep_with_next = True  # a question's lines stay with what follows them
         if self.number:
             fmt.first_line_indent = -_INDENT
             p.add_run(f"{self.number}\t").bold = True
@@ -249,7 +268,11 @@ class _Writer:
             p.add_run("[image unavailable]")
             return
         width = int(_TEXT_WIDTH * int(attrs.get("width_pct") or 100) / 100)
-        p.add_run().add_picture(io.BytesIO(found[1]), width=width)
+        run = p.add_run()
+        try:
+            _alt(run.add_picture(io.BytesIO(found[1]), width=width), attrs.get("alt") or "")
+        except UnrecognizedImageError:  # e.g. a JPEG with neither a JFIF nor an EXIF header
+            run.text = "[image unavailable]"
 
     def figure(self, svg: str) -> None:
         self.figures.append((self.para().add_run(), svg))
@@ -264,13 +287,14 @@ class _Writer:
                 continue
             px = int.from_bytes(png[16:20], "big")  # the PNG header's width
             width = min(int(Inches(px / _FIGURE_SCALE / 96)), int(_TEXT_WIDTH))
-            run.add_picture(io.BytesIO(png), width=width)
+            _alt(run.add_picture(io.BytesIO(png), width=width), "Figure")
 
     # -- the student paper's pieces -----------------------------------------------------------
 
     def space(self, mm: int) -> None:
         fmt = self.para().paragraph_format
         fmt.line_spacing_rule, fmt.line_spacing = WD_LINE_SPACING.EXACTLY, Mm(mm)
+        fmt.keep_with_next = None  # the page may break after the working space
 
     def answer_line(self, layout: Layout, unit: str | None, label: str, marks: int | None) -> None:
         before, after = unit_parts(layout.ans_unit if layout.ans_unit is not None else unit or "")
@@ -280,6 +304,7 @@ class _Writer:
         self.text(p, f"{before} ________________ {after}".strip(), escaped=True)
         if marks is not None and layout.placement in ("answer", "both"):
             p.add_run(f"   [{marks}]")
+        p.paragraph_format.keep_with_next = None
 
     def work_area(self, layout: Layout, marks: int | None, unit: str | None, label: str) -> None:
         mm = layout.space_mm if layout.space_mm is not None else default_space_mm(marks)
@@ -442,6 +467,12 @@ class _Writer:
     def start_question(self, number: int) -> None:
         self.number, self.indent = f"{number}.", True
 
+    def end_question(self) -> None:
+        """The next question may start a new page."""
+        self.indent = False
+        if self.last is not None:
+            self.last.paragraph_format.keep_with_next = None
+
     def cover(self, attrs: dict, marks: int) -> None:
         def text(key: str) -> str:
             return str(attrs.get(key) or "").strip()
@@ -512,6 +543,7 @@ class _Writer:
         if not (sentence or instructions or info["count"]):
             return
         p = self.para()
+        p.paragraph_format.keep_with_next = True  # the header stays with its first question
         self.text(p, sentence, escaped=True)
         if instructions:
             p.add_run((" " if sentence else "") + instructions)
@@ -563,7 +595,7 @@ class _Writer:
                     self.freeform(node, layout, None, mcq=mcq)
                 else:
                     self.templated(node["attrs"]["question"], layout, None)
-                self.indent = False
+                self.end_question()
                 if i == last_q:
                     p = self.para()
                     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -590,7 +622,7 @@ class _Writer:
                 self.freeform(node, layout, key)
             else:
                 self.templated(node["attrs"]["question"], layout, key)
-            self.indent = False
+            self.end_question()
 
     # -- the school key (EXA-142) -------------------------------------------------------------
 
@@ -725,6 +757,10 @@ class _Writer:
                     self.text(p, _scheme_text(part, mark), escaped=True)
 
 
+def _alt(shape: Any, text: str) -> None:
+    shape._inline.docPr.set("descr", text)  # the picture's alt text, read aloud by Word
+
+
 def build_docx(
     title: str,
     doc: dict,
@@ -737,7 +773,7 @@ def build_docx(
     the figures' SVGs into PNGs (one call for the whole document, never when there are none)."""
     if mode not in ("student", "key"):
         raise ValueError(f"unknown docx mode {mode!r}")
-    w = _Writer(title, doc, assets)
+    w = _Writer(_xml_safe(title), _xml_safe(doc), assets)
     if mode == "student":
         w.student()
     else:

@@ -23,7 +23,7 @@ from docx import Document
 from exam_engine import generate
 from exam_engine.mcq import to_mcq
 from fastapi.testclient import TestClient
-from images import png
+from images import jpeg, png
 from test_export_api import requires_chromium
 
 client = TestClient(app)
@@ -291,3 +291,54 @@ def test_every_generated_paper_builds(template, style):
         for mode in ("student", "key"):
             data = build_docx("P", doc, mode=mode, rasterise=lambda s: [png() for _ in s])
             assert Document(io.BytesIO(data)).paragraphs
+
+
+def test_text_xml_cannot_hold_is_dropped_not_fatal(raster):
+    """A vertical tab pasted from Word (and other C0 controls) passes the schema and the PDF."""
+    bad = "Line\x0bone\x0c\x01\x1f\ufffe end"
+    block = freeform_block(bad, marks=2, answer=f"Ans\x0b{bad}")
+    block["content"].append({"type": "paragraph", "content": [math_node("\\frac{1\x0b}{2}")]})
+    doc_id = _create(make_doc(block, title="Paste\x0b test"))
+    for mode in ("student", "key"):
+        resp = _export(doc_id, mode)
+        assert resp.status_code == 200, resp.text
+        assert "Lineone end" in _all_text(resp.content)
+
+
+def test_a_jpeg_without_a_jfif_header_prints_as_unavailable(raster):
+    adobe = b"\xff\xee\x00\x0eAdobe\x00\x64\x00\x00\x00\x00\x01"
+    data = jpeg().replace(b"\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00", adobe)
+    asset = client.post("/assets", content=data, headers=ALICE)
+    assert asset.status_code == 201, asset.text  # the upload gate takes it
+    block = freeform_block("See the photo.", marks=1)
+    block["content"].append(image_node(asset.json()["id"]))
+    resp = _export(_create(make_doc(block)), "student")
+    assert resp.status_code == 200
+    assert "[image unavailable]" in _all_text(resp.content)
+
+
+def test_deeply_nested_latex_falls_back_to_text():
+    from app import docx_math
+
+    for latex in ("{" * 3000 + "x" + "}" * 3000, r"\frac" * 3000 + "12"):
+        with pytest.raises(docx_math.Unsupported):
+            docx_math.omath(latex)
+    assert docx_math.omath(r"\frac{\frac{1}{2}}{3}") is not None
+
+
+def test_a_question_keeps_together_and_the_file_says_what_it_is(raster):
+    from datetime import UTC, datetime, timedelta
+
+    doc_id = _create(_paper(_asset()))
+    word = Document(io.BytesIO(_export(doc_id, "student").content))
+    paras = word.paragraphs
+    stem = next(p for p in paras if p.text.startswith("1.\t"))
+    assert stem.paragraph_format.keep_with_next  # the stem stays with its options
+    last_option = [p for p in paras if re.match(r"^\(\d\)\t", p.text)][-1]
+    assert not last_option.paragraph_format.keep_with_next  # the next question may break
+    assert not any(p.paragraph_format.keep_with_next for p in paras if p.text.startswith("Ans:"))
+    props = word.core_properties
+    assert props.title == "Docx paper"
+    assert abs(datetime.now(UTC) - props.created) < timedelta(days=1)
+    xml = zipfile.ZipFile(io.BytesIO(_export(doc_id, "student").content)).read("word/document.xml")
+    assert b'descr="A figure"' in xml and b'descr="Figure"' in xml  # the image's alt, a figure's

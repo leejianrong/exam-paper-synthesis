@@ -45,6 +45,7 @@ _SYMBOLS = {
     r"\:": " ",
     r"\quad": "  ",
 }
+_MAX_DEPTH = 40  # groups inside groups; papers never come close
 _IGNORED = {r"\left", r"\right", r"\displaystyle"}  # sizing only: the bracket that follows prints
 
 
@@ -74,6 +75,7 @@ class _Parser:
     def __init__(self, latex: str) -> None:
         self.toks = _TOKEN.findall(latex)
         self.i = 0
+        self.depth = 0
 
     def peek(self) -> str | None:
         return self.toks[self.i] if self.i < len(self.toks) else None
@@ -113,6 +115,16 @@ class _Parser:
         return self.atom()
 
     def atom(self) -> list[BaseOxmlElement]:
+        """One item; every nesting (a group, a command's argument) passes through here."""
+        self.depth += 1
+        if self.depth > _MAX_DEPTH:
+            raise Unsupported("nested too deeply")
+        try:
+            return self._atom()
+        finally:
+            self.depth -= 1
+
+    def _atom(self) -> list[BaseOxmlElement]:
         tok = self.take()
         if tok == "{":
             return self.seq(closing=True)
@@ -149,4 +161,7 @@ class _Parser:
 
 def omath(latex: str) -> BaseOxmlElement:
     """An ``<m:oMath>`` for ``latex``, or :class:`Unsupported`."""
-    return _el("m:oMath", *_Parser(latex).seq())
+    try:
+        return _el("m:oMath", *_Parser(latex).seq())
+    except RecursionError:  # a belt to the depth cap's braces
+        raise Unsupported("nested too deeply") from None
