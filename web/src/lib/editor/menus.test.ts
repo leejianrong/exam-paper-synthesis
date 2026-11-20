@@ -90,6 +90,7 @@ describe('the menu row (EXA-163)', () => {
     expect(labels(await openMenu('Insert'))).toEqual([
       'Question…',
       'Section',
+      'Shared stem',
       'Cover page',
       'Blank or rough-work page',
       'Page break',

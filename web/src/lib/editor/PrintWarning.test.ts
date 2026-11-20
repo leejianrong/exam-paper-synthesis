@@ -25,3 +25,19 @@ describe('PrintWarning (EXA-137: empty placeholders never print by accident)', (
     expect(screen.getByRole('button', { name: 'Fill it' })).toBeInTheDocument()
   })
 })
+
+describe('PrintWarning: a shared stem with no questions (EXA-90)', () => {
+  it('names the stem and offers Print anyway, no Fill', () => {
+    render(PrintWarning, { props: { questions: [], stems: 1 } })
+    const dialog = screen.getByRole('alertdialog', { name: 'A shared stem has no questions' })
+    expect(dialog).toHaveTextContent('no questions after it')
+    expect(screen.queryByRole('button', { name: /^Fill/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Print anyway' })).toBeInTheDocument()
+  })
+
+  it('says both when there are empty questions too', () => {
+    render(PrintWarning, { props: { questions: [3], stems: 2 } })
+    const dialog = screen.getByRole('alertdialog', { name: 'A question is still empty' })
+    expect(dialog).toHaveTextContent('2 shared stems have no questions after them')
+  })
+})
