@@ -33,8 +33,8 @@ parameter_schema:                       # ADR-0014: sampled params validate agai
 # never enters solve()); number|choice drive the maths and are not cosmetically editable.
 param_roles:
   names: { role: name }
-  ratio: { role: number }
-  total: { role: number }
+  ratio: { role: number, edit: free, label: "Ratio", sep: ":" }
+  total: { role: number, edit: free, label: "Amount shared ($)" }
 story_templates:
   - stem: null
     text: >

@@ -15,6 +15,7 @@ export type QuestionAction =
   | 'easier'
   | 'harder'
   | 'names'
+  | 'numbers'
   | 'addPart'
   | 'lock'
   | 'key'
@@ -89,6 +90,7 @@ export function menuGroups(f: QuestionFacts): QuestionRow[][] {
   if (f.ops.includes('make-easier')) change.push({ action: 'easier', label: 'Make easier', icon: 'easier', shortcut: BLOCK_KEYS.easier })
   if (f.ops.includes('make-harder')) change.push({ action: 'harder', label: 'Make harder', icon: 'harder', shortcut: BLOCK_KEYS.harder })
   if (f.canEditNames) change.push({ action: 'names', label: 'Edit names…', icon: 'names' })
+  if (f.ops.includes('set-numbers')) change.push({ action: 'numbers', label: 'Edit numbers…', icon: 'digits', hint: 'Change the numbers; the engine works out the answer again' })
   for (const op of ['change-to-decimals', 'toggle-diagram', 'toggle-bar-view'] as EditOp[]) {
     if (f.ops.includes(op)) change.push({ action: `op:${op}`, label: f.opLabels?.[op] ?? OP_DEFAULT[op] ?? op })
   }

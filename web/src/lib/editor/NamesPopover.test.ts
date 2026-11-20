@@ -47,6 +47,16 @@ describe('NamesPopover', () => {
     expect(apply.mock.calls[0][0].detail.changes).toEqual({ name: 'Ben', context: 'desk' })
   })
 
+  it('focuses the first name once drawn, and Escape closes (EXA-89)', async () => {
+    fetchMock.mockResolvedValue(slotsResponse([{ key: 'names', role: 'name', count: 3, max_length: 24 }]))
+    const close = vi.fn()
+    render(NamesPopover, { props: { q: makeQuestion() }, events: { close } })
+    const first = await screen.findByLabelText('Name 1')
+    await waitFor(() => expect(first).toHaveFocus())
+    await fireEvent.keyDown(first, { key: 'Escape' })
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+
   it('says so and disables Apply when a blueprint has nothing to rename', async () => {
     fetchMock.mockResolvedValue(slotsResponse([]))
     render(NamesPopover, { props: { q: makeQuestion({ blueprint_code: 'geometry_angle_easy' }) } })

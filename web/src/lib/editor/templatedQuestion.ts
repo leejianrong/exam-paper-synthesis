@@ -108,16 +108,18 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
             // An edit's reply: it may arrive after the block was moved or deleted.
             // A swap or "Regenerate unlocked" keeps the block_id, so also check the block still
             // holds the question the edit started from (EXA-161 re-review).
-            replace: (q: Question, from: string) =>
+            // `patch`: other attrs set in the same step, so one Undo reverts both (EXA-89 locks)
+            replace: (q: Question, from: string, patch: Record<string, unknown> = {}) =>
               withBlock(({ pos, node: live }) => {
                 if ((live.attrs.question as Question | null)?.id !== from) {
                   options.onNotice('That question changed before the edit arrived, so the edit was dropped.')
                   return
                 }
                 editor.view.dispatch(
-                  editor.state.tr.setNodeMarkup(pos, undefined, { ...live.attrs, question: q }),
+                  editor.state.tr.setNodeMarkup(pos, undefined, { ...live.attrs, ...patch, question: q }),
                 )
               }, true),
+            notice: (message: string) => options.onNotice(message),
             setLayout: (patch: Partial<BlockLayout>) => setAttrs(patch),
             remove: () =>
               withBlock(({ pos, node: live }) => {

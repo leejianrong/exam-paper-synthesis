@@ -98,17 +98,26 @@ def _parse_sets(pairs: list[str]) -> dict:
     return changes
 
 
+def _whole_numbers(value: str | list[str]) -> int | list[int]:
+    try:
+        return [int(v) for v in value] if isinstance(value, list) else int(value)
+    except ValueError:
+        raise SystemExit(f"mathgen: set-numbers takes whole numbers, got {value!r}") from None
+
+
 def cmd_edit(args: argparse.Namespace) -> int:
     obj = canonical.load(_read_object(args.source))
     if not edits.applicable(args.op, obj):
-        available = sorted(edits.available_ops(obj) | {"set-cosmetic"})
+        available = sorted(edits.available_ops(obj) | {"set-cosmetic", "set-numbers"})
         _err(
             f"edit {args.op!r} is not available for {obj['blueprint_code']!r}; "
             f"available: {', '.join(available)}"
         )
         return 2
 
-    changes = _parse_sets(args.set) if args.op == "set-cosmetic" else None
+    changes = _parse_sets(args.set) if args.op in ("set-cosmetic", "set-numbers") else None
+    if args.op == "set-numbers" and changes:
+        changes = {k: _whole_numbers(v) for k, v in changes.items()}
     try:
         child = edits.apply(args.op, obj, seed=args.seed, changes=changes)
     except (EditNotApplicable, ParamsInvalid) as e:

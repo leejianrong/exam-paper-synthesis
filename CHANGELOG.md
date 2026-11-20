@@ -20,6 +20,20 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   like an import, and is never marked verified. Canonical schema **1.15.0** (`freeform` block,
   `provenance.created_by: "teacher"`), document schema **1.17.0** (`bank_id` on a free-form
   question), `POST /bank/own`, `GET /bank/topics`, ADR-0023.
+- **Edit numbers (EXA-89, tier-2 edits).** A generated question's ⋯ menu has **Edit numbers…**
+  for eleven blueprints (Ratio easy/medium, Percentage easy/medium/hard, Speed easy/medium/hard,
+  Fractions medium/hard, Average easy): change the amount shared, the ratio terms, a
+  percentage, a speed or the listed scores, and the engine solves the question again, so the
+  answer, the working, the bar model and the key stay engine-proven. Names and items are kept.
+  Numbers that don't make a question of that kind are refused with the reason inline ("The
+  amount must be a multiple of 12: $301 can't be shared in the ratio 9 : 3 in whole dollars.").
+  The edited question is locked (and a notice says so), so **Regenerate unlocked** or a swap
+  doesn't throw your numbers away; one Undo reverts both. Engine: number roles marked `edit: free` (with a label) in the
+  blueprint YAML, the solver's `number_problem` hook, `exam_engine/numbers.py` and the
+  `set-numbers` edit op; API: `POST /edit/set-numbers`, the free numbers listed by
+  `GET /blueprints/{code}/params`; CLI: `mathgen edit set-numbers --set total=140`. Not offered on
+  a multiple-choice copy, a multi-part question or a decimals view.
+
 - **Swap from your bank (EXA-33, R6.4).** A generated question, or an empty placeholder, has
   **Swap from your bank…** in its ⋯ menu. It lists the questions in your own bank that fit
   that place: the same marks and kind of answer (multiple choice in Booklet A, a single

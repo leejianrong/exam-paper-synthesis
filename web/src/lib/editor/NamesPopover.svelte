@@ -5,6 +5,7 @@
   import { createEventDispatcher, onMount } from 'svelte'
   import { getEditableSlots, type EditableSlot } from '../api'
   import type { Question } from '../types'
+  import { formKeys } from './formKeys'
 
   export let q: Question
   export let busy = false
@@ -57,7 +58,12 @@
   }
 </script>
 
-<form class="names" on:submit|preventDefault={submit} aria-label="Edit names">
+<form
+  class="names"
+  on:submit|preventDefault={submit}
+  aria-label="Edit names"
+  use:formKeys={() => dispatch('close')}
+>
   {#if !loaded}
     <p class="hint">Loading…</p>
   {:else if loadError}
