@@ -44,6 +44,10 @@ class Solver(Protocol):
     # Optional: mcq_ascending = False  (EXA-141) the multiple-choice copy keeps a seeded option
     #   order instead of ascending order, for a question whose answer is an extreme of the
     #   options ("which is the greatest?"), where ascending order would give it away.
+    # Optional: def number_problem(self, params) -> str | None  (EXA-89) why a teacher's own
+    #   numbers don't make a good question of this kind, as a sentence ("$125 can't be shared
+    #   ..."), or None. Required for a blueprint with `edit: free` number roles: set-numbers
+    #   runs it before solving, and `validate` stays the final gate.
     # Optional: mcq_whole = True  (EXA-148) every option is a whole number, even in a unit that
     #   allows 1 dp (rental for whole hours: never "3.5 h").
 
@@ -280,4 +284,8 @@ def check_param_roles(code: str, spec: BlueprintSpec) -> list[str]:
         role = entry.get("role") if isinstance(entry, dict) else None
         if role not in PARAM_ROLES:
             errors.append(f"{code}: parameter {key!r} has invalid role {role!r}")
+        elif "edit" in entry and (
+            role != "number" or entry["edit"] != "free" or not entry.get("label")
+        ):
+            errors.append(f"{code}: only a number parameter may be `edit: free`, with a label")
     return errors

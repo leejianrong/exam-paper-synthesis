@@ -55,6 +55,25 @@ class FractionsHardSolver:
         left = k * (d1 - n1) * (d2 - n2)
         return {"name": name, "n1": n1, "d1": d1, "n2": n2, "d2": d2, "left": left}
 
+    def number_problem(self, params: dict) -> str | None:
+        """Why a teacher's numbers don't give whole dollars (EXA-89), else ``None``."""
+        for n, d in ((params["n1"], params["d1"]), (params["n2"], params["d2"])):
+            if not 0 < n < d:
+                return f"The fraction {n}/{d} must be less than 1 (top smaller than bottom)."
+        left, n1, d1, n2, d2 = (params[k] for k in ("left", "n1", "d1", "n2", "d2"))
+        if left * d2 % (d2 - n2):
+            return (
+                "The money before buying the shoes would not be a whole number of dollars "
+                f"(${left} is {d2 - n2}/{d2} of it)."
+            )
+        before = left * d2 // (d2 - n2)
+        if before * d1 % (d1 - n1):
+            return (
+                "The money at first would not be a whole number of dollars "
+                f"(${before} is {d1 - n1}/{d1} of it)."
+            )
+        return None
+
     def solve(self, params: dict) -> dict:
         n1, d1 = params["n1"], params["d1"]
         n2, d2 = params["n2"], params["d2"]

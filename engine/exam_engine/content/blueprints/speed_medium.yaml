@@ -37,10 +37,10 @@ parameter_schema:                       # ADR-0014: sampled params validate agai
 # never enters solve()); number|choice drive the maths and are not cosmetically editable.
 param_roles:
   name: { role: name }
-  d1:   { role: number }
-  t1:   { role: number }
-  d2:   { role: number }
-  t2:   { role: number }
+  d1:   { role: number, edit: free, label: "First distance (km)" }
+  t1:   { role: number, edit: free, label: "First time (h)" }
+  d2:   { role: number, edit: free, label: "Second distance (km)" }
+  t2:   { role: number, edit: free, label: "Second time (h)" }
 story_templates:
   - stem: null
     text: >

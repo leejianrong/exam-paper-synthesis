@@ -10,7 +10,8 @@ Two flavours of transform:
   * resample ops (regenerate / make-harder / make-easier) re-run the pipeline on
     a target blueprint + fresh seed;
   * representation ops (change-to-decimals / toggle-diagram / toggle-bar-view)
-    rebuild the object in place from the same integer parameters.
+    rebuild the object in place from the same integer parameters;
+  * form ops (set-cosmetic / set-numbers) re-solve from changed parameters.
 """
 
 from __future__ import annotations
@@ -18,11 +19,11 @@ from __future__ import annotations
 import copy
 from collections.abc import Mapping
 
-from . import canonical, cosmetic
+from . import canonical, cosmetic, numbers
 from .blueprints.registry import get_solver, load_blueprint
 from .canonical import _fill
 from .diagram import WORKED_MODEL_TYPES
-from .errors import EditNotApplicable
+from .errors import EditNotApplicable, ParamsInvalid
 from .ladder import sibling
 from .pipeline import build_from_params, generate
 
@@ -36,6 +37,7 @@ KNOWN_OPS = frozenset(
         "toggle-diagram",
         "toggle-bar-view",
         cosmetic.OP,  # set-cosmetic (W1a): needs `changes`, so not a button op
+        numbers.OP,  # set-numbers (EXA-89): likewise a form, not a button
     }
 )
 
@@ -95,9 +97,20 @@ def available_ops(obj: dict) -> set[str]:
 def applicable(op: str, obj: dict) -> bool:
     """Whether ``op`` can be applied to ``obj``.
 
-    ``set-cosmetic`` is deliberately *not* in :func:`available_ops` — that set drives
-    one-click edit buttons, while this op needs a form of values (names/items).
+    ``set-cosmetic`` and ``set-numbers`` are deliberately *not* in :func:`available_ops` —
+    that set drives one-click edit buttons, while these ops need a form of values.
     """
+    if op == numbers.OP:
+        # Not on a multiple-choice copy (its options would no longer fit the numbers), a
+        # multi-part question (none of their blueprints marks free numbers yet), or a
+        # decimals view (its $ amounts print as a tenth of the whole-number parameters).
+        return (
+            obj.get("source_type") == "generated"
+            and _part(obj).get("answer", {}).get("type") != "choice"
+            and obj["validation"].get("checks", {}).get("representation") != "decimals"
+            and len(obj["question"]["parts"]) == 1
+            and bool(numbers.number_slots(obj["blueprint_code"]))
+        )
     if op == cosmetic.OP:
         # not on a multiple-choice copy (P8b): rebuilding it would drop the options
         if _part(obj).get("answer", {}).get("type") == "choice":
@@ -293,24 +306,16 @@ def _toggle_bar_view(source: dict, seed: int | None) -> dict:
     return canonical.load(child)
 
 
-def _set_cosmetic(source: dict, seed: int | None, changes: Mapping[str, object]) -> dict:
-    """Change person names / item nouns, then re-solve through the normal pipeline (W1a).
-
-    Nothing is string-substituted: the merged params go back through
-    :func:`build_from_params` (schema -> solve -> validate -> diagram -> assemble), so
-    the question text, worked steps, answer key and diagram labels all come from the
-    same code path as a generated question and stay provably consistent. The source's
-    *view state* (decimals representation, diagram toggled off, bar view_mode) is
-    replayed on the rebuilt object, since a rebuild resets it.
-    """
+def _rebuild(source: dict, params: dict) -> dict:
+    """Re-solve ``source`` from new ``params`` through :func:`build_from_params` (schema ->
+    solve -> validate -> diagram -> assemble), the code path a generated question takes, so
+    the text, worked steps, answer key and diagram stay provably consistent. The source's
+    *view state* (decimals representation, diagram toggled off, bar view_mode) is replayed
+    on the rebuilt object, since a rebuild resets it."""
     code = source["blueprint_code"]
-    spec = load_blueprint(code)
-    solver = get_solver(code)
     seed_val = source["seed"]
     assert seed_val is not None  # generated objects always carry their seed
-
-    params = cosmetic.merge_changes(code, source["parameters"], changes)
-    child = build_from_params(spec, solver, seed_val, params)
+    child = build_from_params(load_blueprint(code), get_solver(code), seed_val, params)
 
     src_part = _part(source)
     if src_part.get("diagram") is None:  # source had the aid diagram toggled off
@@ -333,6 +338,25 @@ def _set_cosmetic(source: dict, seed: int | None, changes: Mapping[str, object])
     return canonical.load(child)
 
 
+def _set_cosmetic(source: dict, seed: int | None, changes: Mapping[str, object]) -> dict:
+    """Change person names / item nouns, then re-solve (W1a). Nothing is string-substituted."""
+    params = cosmetic.merge_changes(source["blueprint_code"], source["parameters"], changes)
+    return _rebuild(source, params)
+
+
+def _set_numbers(source: dict, seed: int | None, changes: Mapping[str, object]) -> dict:
+    """Change the free numbers, then re-solve (EXA-89): names and items are kept, and every
+    number worked out from the free ones comes from the solver. The solver's ``validate``
+    stays the final gate; ``number_problem`` should already have said why it would fail."""
+    params = numbers.merge_numbers(source["blueprint_code"], source["parameters"], changes)
+    try:
+        return _rebuild(source, params)
+    except (ParamsInvalid, ArithmeticError) as e:
+        raise EditNotApplicable(
+            numbers.OP, "These numbers don't make a question the engine can check."
+        ) from e
+
+
 _DISPATCH = {
     "regenerate": _regenerate,
     "make-harder": _make_harder,
@@ -352,12 +376,16 @@ def apply(
 ) -> dict:
     """Apply edit ``op`` to ``obj``, returning a new lineage-stamped child.
 
-    ``changes`` is only used by ``set-cosmetic`` (``{param: new value(s)}``).
+    ``changes`` is only used by ``set-cosmetic`` and ``set-numbers`` (``{param: value(s)}``).
     Raises :class:`EditNotApplicable` if ``op`` is unavailable for this object.
     The source object is never mutated.
     """
+    if op == numbers.OP and not applicable(op, obj):
+        raise EditNotApplicable(op, numbers.NOT_OFFERED)
     if not applicable(op, obj):
         raise EditNotApplicable(op, f"not available for blueprint {obj.get('blueprint_code')!r}")
     if op == cosmetic.OP:
         return _set_cosmetic(obj, seed, changes or {})
+    if op == numbers.OP:
+        return _set_numbers(obj, seed, changes or {})
     return _DISPATCH[op](obj, seed)

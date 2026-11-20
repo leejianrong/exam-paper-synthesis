@@ -27,7 +27,7 @@ parameter_schema:                       # ADR-0014: sampled params validate agai
 # never enters solve()); number|choice drive the maths and are not cosmetically editable.
 param_roles:
   name:     { role: name }
-  values:   { role: number }
+  values:   { role: number, edit: free, label: "Numbers", sep: "," }
   template: { role: choice }
 # The solver builds the number-bearing fragments s1/s2; the name is interleaved here only.
 story_templates:

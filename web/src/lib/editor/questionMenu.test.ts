@@ -38,6 +38,13 @@ describe('the question menu (EXA-161)', () => {
     expect(labels(f)[0]).toEqual(['Another like this', 'Another topic', 'Swap from your bank…', 'Make harder', 'Edit names…', 'Change to decimals', 'Group segments'])
   })
 
+  it('offers "Edit numbers…" when the engine says set-numbers applies (EXA-89)', () => {
+    expect(labels(facts()).flat()).not.toContain('Edit numbers…')
+    const f = facts({ ops: ['set-numbers'] })
+    expect(labels(f)[0].slice(-2)).toEqual(['Edit names…', 'Edit numbers…'])
+    expect(menuGroups(f)[0].at(-1)?.action).toBe('numbers')
+  })
+
   it('hides what does not apply: swaps on a locked question, moves at the ends, harder on the top rung', () => {
     const locked = labels(facts({ locked: true, canMoveUp: false, ops: ['make-easier'] })).flat()
     expect(locked).not.toContain('Another like this')
