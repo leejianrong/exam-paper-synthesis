@@ -63,6 +63,7 @@
     saveDocument,
     swapQuestion,
     unfilledDetail,
+    type ExportFormat,
     type ExportMode,
     type Folder,
     type SwapMode,
@@ -126,7 +127,7 @@
   let deleted = false
   let deletedTimer: ReturnType<typeof setTimeout> | undefined
   /** EXA-137: the export refused a paper with empty placeholders; ask before printing it. */
-  let unfilled: { mode: ExportMode; questions: number[]; stems: number } | null = null
+  let unfilled: { mode: ExportMode; format: ExportFormat; questions: number[]; stems: number } | null = null
   let quota: Quota | null = null
   let selectedId: string | null = null // the block the author is in (for the inspector)
   let previewHtml: string | null = null
@@ -967,23 +968,26 @@
     else if (cmd === 'equation') onPaper(() => act.inText && addEquation())
   }
 
-  async function download(mode: ExportMode, allowPlaceholders = false) {
+  async function download(mode: ExportMode, allowPlaceholders = false, format: ExportFormat = 'pdf') {
     busy = `export-${mode}`
     showError('')
     unfilled = null
     try {
       await autosaver?.flush()
-      const blob = await exportDocument(id, mode, allowPlaceholders)
+      const blob = await exportDocument(id, mode, allowPlaceholders, format)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${title || 'paper'}-${mode}.pdf`
+      a.download = `${title || 'paper'}-${mode}.${format}`
       a.click()
       URL.revokeObjectURL(url)
     } catch (e) {
       const empty = unfilledDetail(e)
-      if (empty) unfilled = { mode, questions: empty.questions, stems: empty.lone_stems ?? 0 }
-      else failed(e, "Couldn't export the PDF", () => void download(mode, allowPlaceholders))
+      if (empty) unfilled = { mode, format, questions: empty.questions, stems: empty.lone_stems ?? 0 }
+      else {
+        const what = format === 'docx' ? 'the Word file' : 'the PDF'
+        failed(e, `Couldn't export ${what}`, () => void download(mode, allowPlaceholders, format))
+      }
     } finally {
       busy = ''
       void loadQuota().then((q) => (quota = q))
@@ -1131,7 +1135,7 @@
     {placeholdersLeft}
     onShowPlaceholders={showPlaceholders}
     onPreview={() => preview('full')}
-    onExport={(mode) => download(mode)}
+    onExport={(mode, format) => download(mode, false, format)}
     onRename={rename}
     {view}
     onView={(v) => void showView(v)}
@@ -1481,7 +1485,7 @@
     questions={unfilled.questions}
     stems={unfilled.stems}
     on:fill={fillPlaceholders}
-    on:print={() => unfilled && download(unfilled.mode, true)}
+    on:print={() => unfilled && download(unfilled.mode, true, unfilled.format)}
     on:cancel={() => (unfilled = null)}
   />
 {/if}

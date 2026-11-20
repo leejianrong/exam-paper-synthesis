@@ -18,6 +18,24 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   of fencing its outer edge), each 2 + 2 marks. A generated P5 Paper 2 now has no placeholder
   (it always left one 4-mark gap), so every paper template fills at P5 and P6. A paper takes
   multi-part questions of its own level only, so a P6 Paper 2 is unchanged.
+- **Export to Word (EXA-90).** The Export menu has **Student paper (Word)** and **Answer key
+  (Word)**: an editable .docx to change in Word. It keeps the paper's structure: the cover (its
+  fields and the examiner's table as Word tables), section headers with their marks sentence
+  and instructions, numbered questions with [n] at the right, lettered parts with their own
+  marks, shared stems with their lead line (kept with their first question; repeated in the
+  worked key when it shows the questions), MCQ options one to a line, data tables as real tables, working space and the
+  `Ans:` line with its unit, page breaks (the cover, blank pages, each structured question),
+  and the key: the school key as tables with an answer grid for Booklet A, or the worked key.
+  Figures are the engine's own, rasterised by the PDF export's Chromium at their print size;
+  uploaded images are embedded as they are. Inline maths becomes a Word equation (a small
+  LaTeX reader covering what the papers use; anything else stays as the LaTeX typed). The
+  marking strip, tally boxes and page footers are left out: Word paginates the document
+  itself, but a question's text and figure are kept with its working space. Characters Word
+  cannot hold (a pasted vertical tab) are dropped, and a picture Word cannot read prints
+  "[image unavailable]". A Word export counts against the export allowance like a PDF. API:
+  `POST /documents/{id}/export/docx?mode=student|key` (`api/app/docx_export.py`,
+  `docx_math.py`; new api dependency `python-docx`, MIT).
+
 - **Shared stems (EXA-90).** Insert ▸ **Shared stem** puts a block of text, figures or equations
   above questions that all use it, and the paper prints "Use the information below to answer
   Questions 12 and 13." from their numbers. Each question keeps its own number, marks, working

@@ -31,12 +31,14 @@ for (const width of [1366, 1024, 768]) {
     await expect(toWrite).toBeVisible()
     await expect(toWrite).toBeInViewport({ ratio: 1 })
     await expect(toWrite).toHaveText(/^\d+( placeholders?)? to write$/)
-    // Export is one menu with the three PDFs.
+    // Export is one menu: the three PDFs, then the paper and key as Word files.
     await page.getByRole('button', { name: 'Export', exact: true }).click()
     await expect(page.getByRole('menu', { name: 'Export' }).getByRole('menuitem')).toHaveText([
       'Student paper (PDF)',
       'Answer key (PDF)',
       'Paper and key together (PDF)',
+      'Student paper (Word)',
+      'Answer key (Word)',
     ])
     await page.keyboard.press('Escape')
     await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeFocused()
