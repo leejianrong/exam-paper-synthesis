@@ -25,7 +25,9 @@ and empty placeholders).
 ``regenerate_unlocked(doc, level, seed)`` refills every generated question and every
 still-empty placeholder whose ``locked`` is not true. Locked questions, bank (sourced)
 questions and anything the teacher wrote — free-form questions, placeholders with something
-in them — are kept exactly as they are.
+in them — are kept exactly as they are. So are the questions under a shared stem (EXA-90),
+generated or placeholder: they were written or chosen for that stem, and a new question in their
+place would not use it. Swapping one of them is still the teacher's call.
 
 Every choice follows the generator's rung rule first (EXA-146, ``paper.rung_shortfall``): a
 candidate whose rung fits the slot's marks beats one that falls short, whatever the order of
@@ -53,7 +55,13 @@ import copy
 import random
 
 from . import own_question
-from .document import QUESTION_TYPES, has_content, is_unfilled_placeholder
+from .document import (
+    GROUP_STEM,
+    QUESTION_TYPES,
+    has_content,
+    is_unfilled_placeholder,
+    stem_members,
+)
 from .paper import (
     KINDS,
     LEVELS,
@@ -529,7 +537,12 @@ def regenerate_unlocked(doc: dict, level: str | None, seed: int) -> tuple[dict, 
     out = copy.deepcopy(doc)
     blocks = out["content"]["content"]
     modes = _section_modes(blocks)
-    targets = [i for i, n in enumerate(blocks) if _refillable(n)]
+    # A question that shares a stem (EXA-90) was written or chosen for it: a new question in its
+    # place would not use the stem, so regenerating keeps it, as if locked (placeholders too).
+    grouped = {
+        m for i, n in enumerate(blocks) if n["type"] == GROUP_STEM for m in stem_members(blocks, i)
+    }
+    targets = [i for i, n in enumerate(blocks) if _refillable(n) and i not in grouped]
     paper = _Paper(blocks, level, skip=set(targets))
     rng = random.Random(f"regenerate|{level}|{seed}")
     report = {"replaced": 0, "placeholders": 0, "kept": 0}

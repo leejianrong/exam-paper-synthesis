@@ -342,18 +342,27 @@ def delete_document(doc_id: str, owner: Owner, store: Store) -> Response:
     return Response(status_code=204)
 
 
-def _unfilled_conflict(numbers: list[int]) -> HTTPException:
+def _unfilled_conflict(numbers: list[int], lone_stems: int = 0) -> HTTPException:
     many = len(numbers) > 1
     listed = ", ".join(map(str, numbers))
+    said = []
+    if numbers:
+        said.append(
+            f"Question{'s' if many else ''} {listed} {'are' if many else 'is'} still empty. "
+            f"Write or fill {'them' if many else 'it'} first, or print anyway."
+        )
+    if lone_stems:  # EXA-90: a shared stem with no question after it
+        said.append(
+            f"{lone_stems} shared stem{'s have' if lone_stems > 1 else ' has'} no questions "
+            "after it. Add them, or print anyway."
+        )
     return HTTPException(
         status_code=409,
         detail={
             "code": "unfilled_placeholders",
-            "message": (
-                f"Question{'s' if many else ''} {listed} {'are' if many else 'is'} still empty. "
-                f"Write or fill {'them' if many else 'it'} first, or print anyway."
-            ),
+            "message": " ".join(said),
             "questions": numbers,
+            "lone_stems": lone_stems,
         },
     )
 
@@ -368,8 +377,9 @@ def _printable(
         raise _not_found() from None
     document = rec["document"]
     unfilled = docs.unfilled_placeholder_numbers(document)
-    if unfilled and not allow_placeholders:
-        raise _unfilled_conflict(unfilled)
+    lone = docs.lone_stems(document)
+    if (unfilled or lone) and not allow_placeholders:
+        raise _unfilled_conflict(unfilled, lone)
     if mode == "key" and not docs.numbered_blocks(document):
         raise HTTPException(status_code=422, detail="no questions to put in an answer key")
     return rec["title"], document

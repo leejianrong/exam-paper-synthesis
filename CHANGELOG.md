@@ -27,6 +27,16 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   `POST /documents/{id}/export/docx?mode=student|key` (`api/app/docx_export.py`,
   `docx_math.py`; new api dependency `python-docx`, MIT).
 
+- **Shared stems (EXA-90).** Insert ▸ **Shared stem** puts a block of text, figures or equations
+  above questions that all use it, and the paper prints "Use the information below to answer
+  Questions 12 and 13." from their numbers. Each question keeps its own number, marks, working
+  space and Ans: line (in Booklet A each can be its own multiple choice). The stem's − and +
+  let a question go or take the next one in; moving a question at the group's edge steps it out
+  or in. The stem stays on the page of its first question, and the worked-solutions key repeats
+  it when it shows the question text. Regenerate unlocked keeps the questions under a stem, and
+  a stem with no questions after it asks before the PDF prints. Document schema 1.18.0 (`groupStem`); older papers are
+  unchanged. See `docs/planning/editor/SHARED-STEM-SHAPING.md`.
+
 - **Save your own question to your bank (EXA-90).** A question you wrote has **Save to your
   bank…** in its ⋯ menu. A small dialog asks its topic (the app's topic list), level (starting at
   the paper's) and difficulty; a single-part question's marks start at the block's, a multi-part

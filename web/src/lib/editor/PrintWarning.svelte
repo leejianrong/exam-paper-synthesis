@@ -5,6 +5,8 @@
 
   /** The printed numbers of the empty questions (the API's 409 `questions`). */
   export let questions: number[]
+  /** EXA-90: shared stems with no question after them (they would print on their own). */
+  export let stems = 0
 
   const dispatch = createEventDispatcher<{ fill: void; print: void; cancel: void }>()
 
@@ -17,14 +19,32 @@
 
 <div class="backdrop" role="presentation" on:click|self={() => dispatch('cancel')}>
   <div class="warn" role="alertdialog" aria-modal="true" aria-labelledby="pw-title" aria-describedby="pw-body">
-    <h2 id="pw-title">{many ? `${questions.length} questions are` : 'A question is'} still empty</h2>
-    <p id="pw-body">
-      Question{many ? 's' : ''} <strong>{listed}</strong>
-      {many ? 'were' : 'was'} left for you to write when the paper was generated.
-      {many ? 'They would' : 'It would'} print as a blank gap.
-    </p>
+    <h2 id="pw-title">
+      {#if questions.length}{many ? `${questions.length} questions are` : 'A question is'} still empty{:else}{stems > 1
+          ? `${stems} shared stems have`
+          : 'A shared stem has'} no questions{/if}
+    </h2>
+    <div id="pw-body">
+      {#if questions.length}
+        <p>
+          Question{many ? 's' : ''} <strong>{listed}</strong>
+          {many ? 'were' : 'was'} left for you to write when the paper was generated.
+          {many ? 'They would' : 'It would'} print as a blank gap.
+        </p>
+      {/if}
+      {#if stems}
+        <p>
+          {stems > 1 ? `${stems} shared stems have` : 'A shared stem has'} no questions after
+          {stems > 1 ? 'them' : 'it'}: {stems > 1 ? 'they' : 'it'} would print on {stems > 1
+            ? 'their'
+            : 'its'} own, with no "Use the information below…" line.
+        </p>
+      {/if}
+    </div>
     <div class="row">
-      <button class="go" on:click={() => dispatch('fill')}>Fill {many ? 'them' : 'it'}</button>
+      {#if questions.length}
+        <button class="go" on:click={() => dispatch('fill')}>Fill {many ? 'them' : 'it'}</button>
+      {/if}
       <button on:click={() => dispatch('print')}>Print anyway</button>
       <button on:click={() => dispatch('cancel')}>Cancel</button>
     </div>
