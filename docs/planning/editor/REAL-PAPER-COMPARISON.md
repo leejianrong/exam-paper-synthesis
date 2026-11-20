@@ -197,7 +197,7 @@ How the marks are split across parts:
 | Area & perimeter (rectilinear, overlap, tiles) | 3 | 2 | 2 | 1 | 2.0 | 3 | partial |
 | Circles (semi/quarter composites, π terms, π = 3.14) | 2 | 2 | 2 | 2 | 2.0 | 1 | weak (one rung, π = 22/7) |
 | Volume (tanks, transfer, taps, upside-down container) | 3 | 2 | 1 | 2 | 2.0 | 4 | yes |
-| Data (tables, bar/line/pie, chart matching, T/F/NPT) | 4 | 5 | 1 | 5 | 3.8 | 3 | partial (chart readings only) |
+| Data (tables, bar/line/pie, chart matching, T/F/NPT) | 4 | 5 | 1 | 5 | 3.8 | 3 | partial (chart readings, tables, tank graphs and fraction pies since EXA-148/158; no chart matching) |
 | **Nets / solids / views / cube counting** | 2 | 2 | 2 | 1 | 1.8 | 0 | **none** (cube_stack renderer exists) |
 | **Grid geometry** (∥/⊥, symmetry, 8-point directions, draw/measure) | 2 | 5 | 4 | 2 | 3.3 | 0 | **none** |
 | **Measurement & conversion** (scales, ruler, estimate, ℓ/mℓ, kg/g, ordering) | 3 | 3 | 3 | 2 | 2.8 | 0 | **none** |
@@ -387,7 +387,12 @@ such items.
    - Needs a `table` figure (simple) and a tick-table answer type.
    - ~~Data tables~~ done in #231 (EXA-148): `postage_table`, `rental_table` and the multi-part
      `tariff_gst` print the existing content-level `question.table` (no schema change). Still open:
-     the tick-table answer type, the tank line graph and pie charts in fractions.
+     the tick-table answer type. ~~The tank line graph and pie charts in fractions~~ done in
+     EXA-158 part 2: `tank_graph` (2 marks: water that flowed in between two times, or the rate
+     in ℓ/min) and the two-part `tank_graph_structured` (the rate, then the time the tank is
+     full), on a line graph over a numeric time axis; `pie_fraction`, `pie_percent_more` and
+     `pie_fraction_amount` (1/2/3 marks) on pies in fractions or percentages (schema 1.16.0).
+     Still open: "which chart matches this data" picture-option MCQs.
 7. ~~**Circles ladder.**~~ Done in #226 (EXA-149): a P6 `circles` ladder (1/2/3 marks) with
    semicircle and quarter-circle composites, shaded regions, π = 3.14 or 22/7 and some hard
    answers in terms of π (P8-SHAPING.md). ~~π-terms MCQs~~ done in #235 (EXA-155): 2-mark

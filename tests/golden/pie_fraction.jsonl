@@ -1,0 +1,3 @@
+{"params": {"name": "Ben", "context": "time", "den": 8, "parts": [4, 2, 1, 1], "hidden": 1}, "expected": {"answer": {"type": "fraction", "numerator": 1, "denominator": 4}, "total_marks": 1}}
+{"params": {"name": "Aisha", "context": "money", "den": 10, "parts": [3, 5, 2], "hidden": 0}, "expected": {"answer": {"type": "fraction", "numerator": 3, "denominator": 10}, "total_marks": 1}}
+{"params": {"name": "Faridah", "context": "time", "den": 12, "parts": [3, 2, 5, 2], "hidden": 0}, "expected": {"answer": {"type": "fraction", "numerator": 1, "denominator": 4}, "total_marks": 1}}
