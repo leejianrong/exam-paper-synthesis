@@ -122,17 +122,25 @@
   let schoolFocused = false
   let schoolDirty = false
   $: if ($settings && !schoolFocused && !schoolDirty) school = $settings.school_name
+  // The latest school name sent and not yet settled (EXA-175): while it is on its way the stored
+  // value is stale, so going back to it must still be saved, or the earlier save would win.
+  let schoolSending: { name: string } | null = null
 
   async function saveSchool() {
     if (!$settings) return
     const name = school.trim()
-    if (name === $settings.school_name) {
-      // back to what is stored: nothing to save, and an earlier failed edit no longer stands
-      supersede('school_name')
+    if (schoolSending ? name === schoolSending.name : name === $settings.school_name) {
+      // already stored or on its way: nothing to save; going back to what is stored also means
+      // an earlier failed edit no longer stands
+      if (!schoolSending) {
+        supersede('school_name')
+        schoolDirty = false
+      }
       school = name
-      schoolDirty = false
       return
     }
+    const sending = { name }
+    schoolSending = sending
     await save(
       { school_name: name },
       name ? `New papers' covers will say ${name}.` : 'New papers have no school name.',
@@ -144,6 +152,7 @@
         }
       },
     )
+    if (schoolSending === sending) schoolSending = null
   }
 
   const setLevel = (level: DefaultLevel) =>

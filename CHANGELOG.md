@@ -334,6 +334,13 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **A school name put back during a save is kept (EXA-175).** On Settings, typing a new school
+  name, leaving the field, then setting it back to the stored name before the first save
+  returned lost the change: the page compared it with the stored name (still the old one), sent
+  nothing, and the new name was saved. While a school name is on its way the page now compares
+  with the name being sent, so going back is saved after it. The level, Marks shown and answer
+  key style always save each choice, so they were not affected.
+
 - **[ and ] work on keyboards that need AltGr or ⌥ for them (EXA-172).** On a German, French,
   Spanish or Swiss keyboard on Windows or Linux, [ and ] are AltGr+8 / AltGr+9 or similar, and
   on a German Mac ⌥5 / ⌥6; Make easier ([) and Make harder (]) on a selected question never

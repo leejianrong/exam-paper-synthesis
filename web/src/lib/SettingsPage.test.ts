@@ -274,6 +274,37 @@ describe('SettingsPage: saving in order (EXA-169 review)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('going back to the stored school name while the new one is saving is saved too (EXA-175)', async () => {
+    settings.set({ ...DEFAULT_SETTINGS, school_name: 'Old Example School' })
+    const first = deferred()
+    fetchMock
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementation((_u: string, init: RequestInit) => reply(echo(init)))
+    render(SettingsPage)
+    await typeSchool('New Example School') // in flight
+    const school = await typeSchool('Old Example School') // reverted before it returns
+    first.answer(new Response(JSON.stringify({ ...DEFAULT_SETTINGS, school_name: 'New Example School' })))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(fetchMock.mock.calls.map((c) => JSON.parse(c[1].body))).toEqual([
+      { school_name: 'New Example School' },
+      { school_name: 'Old Example School' },
+    ])
+    await waitFor(() => expect(get(settings)?.school_name).toBe('Old Example School'))
+    expect(school).toHaveValue('Old Example School')
+  })
+
+  it('leaving the field again on the name already being saved sends nothing more', async () => {
+    settings.set({ ...DEFAULT_SETTINGS })
+    const first = deferred()
+    fetchMock.mockImplementationOnce(() => first.promise)
+    render(SettingsPage)
+    await typeSchool('Example Primary School')
+    await typeSchool('Example Primary School ')
+    first.answer(new Response(JSON.stringify({ ...DEFAULT_SETTINGS, school_name: 'Example Primary School' })))
+    await waitFor(() => expect(get(settings)?.school_name).toBe('Example Primary School'))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('a newer school name drops the old failure as soon as it is made, and saves', async () => {
     settings.set({ ...DEFAULT_SETTINGS })
     const second = deferred()
