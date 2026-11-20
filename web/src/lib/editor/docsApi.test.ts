@@ -14,7 +14,7 @@ const record = (id: string, title: string, version = 3) => ({
   folder_id: 'f1',
   created_at: '',
   updated_at: '',
-  document: { schema_version: '1.16.0', title, content: { type: 'doc', content: [{ type: 'paragraph' }] }, settings: { x: 1 } },
+  document: { schema_version: '1.17.0', title, content: { type: 'doc', content: [{ type: 'paragraph' }] }, settings: { x: 1 } },
 })
 const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 })
 const sent = (i: number) => {

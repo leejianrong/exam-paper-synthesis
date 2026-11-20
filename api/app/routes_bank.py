@@ -11,14 +11,16 @@ import json
 from contextlib import closing
 from typing import Annotated
 
-from exam_engine import canonical
+from exam_engine import canonical, own_question
 from exam_engine.canonical import CanonicalValidationError
+from exam_engine.document import referenced_assets
 from exam_engine.errors import BankDuplicateId, BankObjectNotFound
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from .assets import AssetStore, get_asset_store
 from .auth import current_owner
 from .bankstore import BankLike, open_owner_bank
-from .models import BankImportRequest, BankReviewRequest
+from .models import BankImportRequest, BankReviewRequest, BankSaveOwnRequest
 
 router = APIRouter()
 
@@ -26,6 +28,7 @@ MAX_IMPORT_OBJECTS = 200
 MAX_IMPORT_BYTES = 2 * 1024 * 1024
 
 Owner = Annotated[str, Depends(current_owner)]
+Assets = Annotated[AssetStore, Depends(get_asset_store)]
 
 
 @router.get("/bank")
@@ -107,6 +110,16 @@ def _unreviewed(obj: dict) -> dict:
     return {**obj, "validation": {**obj.get("validation", {}), "checks": checks}}
 
 
+def _missing_images(obj: dict, owner: str, assets: AssetStore) -> list[str]:
+    """A teacher's question must only show the caller's own images (a foreign id looks
+    missing), so it still draws in any of their papers."""
+    if not obj.get("freeform"):
+        return []
+    wanted = referenced_assets({"content": {"content": [obj["freeform"]]}})
+    owned = assets.owned(owner, wanted)
+    return [f"freeform: image asset {a!r} does not exist" for a in wanted if a not in owned]
+
+
 def _exists(bank: BankLike, obj_id: str) -> bool:
     try:
         bank.get(obj_id)
@@ -116,7 +129,7 @@ def _exists(bank: BankLike, obj_id: str) -> bool:
 
 
 @router.post("/bank/import")
-async def import_bank(request: Request, owner: Owner) -> dict:
+async def import_bank(request: Request, owner: Owner, assets: Assets) -> dict:
     """Import canonical objects into the caller's bank, review-gated, one result per item.
 
     One bad item never blocks the rest. A duplicate id is reported, not overwritten, unless
@@ -139,6 +152,8 @@ async def import_bank(request: Request, owner: Owner) -> dict:
                 continue
             try:
                 canonical.load(raw)
+                if missing := _missing_images(raw, owner, assets):
+                    raise CanonicalValidationError(missing)
                 existed = _exists(bank, raw["id"])
                 stored = bank.add(_unreviewed(raw), overwrite=req.replace)
             except CanonicalValidationError as e:
@@ -156,3 +171,37 @@ async def import_bank(request: Request, owner: Owner) -> dict:
         for k in ("imported", "replaced", "duplicate", "invalid")
     }
     return {"results": results, **counts}
+
+
+@router.get("/bank/topics")
+def bank_topics(owner: Owner) -> dict:
+    """The topics a teacher can file their own question under (EXA-90), with their strands."""
+    return {"topics": list(own_question.topics())}
+
+
+@router.post("/bank/own")
+def save_own_question(req: BankSaveOwnRequest, owner: Owner, assets: Assets) -> dict:
+    """Save one of the caller's own questions (a ``freeformQuestion`` block) to their bank.
+
+    It arrives unreviewed like any import (ADR-0019) and stays unverified. Saving the same
+    block again is a 409 "already in your bank" unless ``replace`` is set, which updates it.
+    """
+    try:
+        obj = own_question.to_canonical(
+            req.block, topic=req.topic, level=req.level, difficulty=req.difficulty, marks=req.marks
+        )
+    except own_question.NotSavable as e:
+        raise HTTPException(status_code=422, detail=str(e)) from None
+    except CanonicalValidationError as e:
+        raise HTTPException(status_code=422, detail=e.errors) from None
+    if missing := _missing_images(obj, owner, assets):
+        raise HTTPException(status_code=422, detail=missing)
+    with closing(open_owner_bank(owner)) as bank:
+        existed = _exists(bank, obj["id"])
+        try:
+            stored = bank.add(obj, overwrite=req.replace)
+        except BankDuplicateId:
+            raise HTTPException(
+                status_code=409, detail="This question is already in your bank."
+            ) from None
+    return {"id": stored["id"], "status": "replaced" if existed else "saved", **bank_item(stored)}

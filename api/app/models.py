@@ -109,6 +109,17 @@ class BankImportRequest(BaseModel):
     replace: bool = False
 
 
+class BankSaveOwnRequest(BaseModel):
+    """EXA-90: save a teacher's own question (a ``freeformQuestion`` block) to their bank."""
+
+    block: dict[str, Any]
+    topic: str = Field(max_length=200)
+    level: Literal["P5", "P6"]
+    difficulty: Literal["easy", "medium", "hard"] = "medium"
+    marks: int | None = Field(default=None, ge=0, le=100)
+    replace: bool = False
+
+
 class FolderRequest(BaseModel):
     """O2: create or rename a folder. The store trims and checks 1-80 characters."""
 

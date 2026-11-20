@@ -32,6 +32,8 @@ export interface FreeformQuestionOptions {
   onDeleted: () => void
   /** Its menu's "Edit answer…": the page opens the answer for the key (EXA-162). */
   onEditAnswer: (blockId: string) => void
+  /** Its menu's "Save to your bank…" (EXA-90): the page asks topic and level, then saves. */
+  onSaveToBank: (blockId: string) => void
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string) {
@@ -58,7 +60,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
   },
 
   addOptions() {
-    return { onAddBelow: () => {}, onSwap: async () => {}, onDeleted: () => {}, onEditAnswer: () => {} }
+    return { onAddBelow: () => {}, onSwap: async () => {}, onDeleted: () => {}, onEditAnswer: () => {}, onSaveToBank: () => {} }
   },
 
   addAttributes() {
@@ -72,6 +74,7 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
       ans_unit: jsonAttr<string | null>('data-ans_unit', null), // unit printed after Ans:
       slot: jsonAttr<Record<string, unknown> | null>('data-slot', null), // generator slot (P8a)
       locked: jsonAttr<boolean>('data-locked', false), // P8d: kept by "Regenerate unlocked"
+      bank_id: { default: null }, // EXA-90: the bank copy it was saved as or inserted from
     }
   },
 
@@ -302,6 +305,8 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
             return setLayout({ in_key: current.attrs.in_key === false })
           case 'answer':
             return options.onEditAnswer(String(current.attrs.block_id))
+          case 'save':
+            return options.onSaveToBank(String(current.attrs.block_id))
           case 'up':
           case 'down':
             moveBlock(editor, from, current.nodeSize, action === 'up' ? -1 : 1)

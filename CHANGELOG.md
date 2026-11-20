@@ -10,6 +10,16 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Save your own question to your bank (EXA-90).** A question you wrote has **Save to your
+  bank…** in its ⋯ menu. A small dialog asks its topic (the app's topic list), level (starting at
+  the paper's) and difficulty; a single-part question's marks start at the block's, a multi-part
+  question's are its parts'. The bank keeps the question exactly as written (parts, pictures,
+  maths, Ans: units and answers), so **From my bank** and **Swap from your bank…** put it back
+  into any of your papers unchanged, to edit like any question of yours. Saving the same question
+  again says it is already in your bank and offers to replace that copy. It arrives unreviewed,
+  like an import, and is never marked verified. Canonical schema **1.15.0** (`freeform` block,
+  `provenance.created_by: "teacher"`), document schema **1.17.0** (`bank_id` on a free-form
+  question), `POST /bank/own`, `GET /bank/topics`, ADR-0023.
 - **Edit numbers (EXA-89, tier-2 edits).** A generated question's ⋯ menu has **Edit numbers…**
   for eleven blueprints (Ratio easy/medium, Percentage easy/medium/hard, Speed easy/medium/hard,
   Fractions medium/hard, Average easy): change the amount shared, the ratio terms, a
