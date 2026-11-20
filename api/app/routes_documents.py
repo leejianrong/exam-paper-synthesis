@@ -32,6 +32,7 @@ from .docstore import (
     VersionConflict,
     get_store,
 )
+from .docx_export import build_docx
 from .models import (
     CreateDocumentRequest,
     GeneratePaperRequest,
@@ -366,14 +367,10 @@ def _unfilled_conflict(numbers: list[int], lone_stems: int = 0) -> HTTPException
     )
 
 
-def _html_for(
-    store: DocumentStore,
-    assets: AssetStore,
-    owner: str,
-    doc_id: str,
-    mode: Mode,
-    allow_placeholders: bool = True,
-) -> tuple[str, str]:
+def _printable(
+    store: DocumentStore, owner: str, doc_id: str, mode: Mode, allow_placeholders: bool
+) -> tuple[str, dict]:
+    """The title and document to print, after the checks every preview and export shares."""
     try:
         rec = store.get(owner, doc_id)
     except DocumentNotFound:
@@ -385,9 +382,19 @@ def _html_for(
         raise _unfilled_conflict(unfilled, lone)
     if mode == "key" and not docs.numbered_blocks(document):
         raise HTTPException(status_code=422, detail="no questions to put in an answer key")
-    return rec["title"], render_document_html(
-        rec["title"], document, mode=mode, assets=_resolver(assets, owner)
-    )
+    return rec["title"], document
+
+
+def _html_for(
+    store: DocumentStore,
+    assets: AssetStore,
+    owner: str,
+    doc_id: str,
+    mode: Mode,
+    allow_placeholders: bool = True,
+) -> tuple[str, str]:
+    title, document = _printable(store, owner, doc_id, mode, allow_placeholders)
+    return title, render_document_html(title, document, mode=mode, assets=_resolver(assets, owner))
 
 
 @router.get("/{doc_id}/preview/{mode}")
@@ -400,6 +407,43 @@ def preview_document(
 ) -> HTMLResponse:
     _, html = _html_for(store, assets, owner, doc_id, mode)
     return HTMLResponse(content=html)
+
+
+_DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+# Declared before /export/{mode}, which would otherwise take "docx" for a mode.
+@router.post("/{doc_id}/export/docx")
+def export_docx(
+    doc_id: str,
+    owner: Owner,
+    store: Store,
+    assets: Assets,
+    mode: Literal["student", "key"] = "student",
+    allow_placeholders: bool = False,
+) -> Response:
+    """The paper or its key as an editable Word document (EXA-90). Same checks and the same
+    export allowance as a PDF; the figures are rasterised by the same headless Chromium."""
+    title, document = _printable(store, owner, doc_id, mode, allow_placeholders)
+    ticket = check_export_quota(owner)
+    try:
+        with export_slot():
+            data = build_docx(
+                title,
+                document,
+                mode=mode,
+                rasterise=lambda svgs: export.html_to_png_many(svgs),
+                assets=_resolver(assets, owner),
+            )
+    except BaseException:
+        refund_export(ticket)
+        raise
+    filename = f"{_slug(title)}-{_MODE_SUFFIX[mode]}.docx"
+    return Response(
+        content=data,
+        media_type=_DOCX_TYPE,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/{doc_id}/export/{mode}")
