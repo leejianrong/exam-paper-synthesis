@@ -10,6 +10,17 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **True / False / Not possible to tell tables (EXA-158).** A question can now ask the pupil to
+  tick one box per statement, as real P5–P6 papers do: a new `tick_table` answer (canonical
+  schema 1.16.0). The student paper prints the statements in a ruled table with an empty box
+  under True, False and Not possible to tell; the full key and the school key print the same
+  table with the ticks. A new P5 Average blueprint, `average_statements` (2 marks), gives three
+  statements about containers whose average is known ("At least one of the jars P, Q and R
+  contains 25 sweets or more"); "Not possible to tell" is ticked only when the facts allow it
+  either way, and the key's working shows two fillings that disagree. The paper generator can
+  place it in a 2-mark short-answer or structured slot, never as multiple choice; the editor
+  shows it as it prints. A changed tick is refused like any changed answer; a changed statement only
+  takes the verified claim away, like other changed wording (EXA-157).
 - **Save your own question to your bank (EXA-90).** A question you wrote has **Save to your
   bank…** in its ⋯ menu. A small dialog asks its topic (the app's topic list), level (starting at
   the paper's) and difficulty; a single-part question's marks start at the block's, a multi-part

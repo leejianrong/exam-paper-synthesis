@@ -477,6 +477,16 @@ def _answer_matches(actual: dict, expected: dict, *, decimals_view: bool) -> boo
             and abs(float(actual["value"]) - float(expected["value"]) / 10) < 1e-9
             and actual.get("unit") == expected.get("unit")
         )
+    if expected.get("type") == "tick_table":
+        # the ticks are the answer; a statement's words are wording (wording_differences)
+        def ticks(a: dict) -> list:
+            return [r.get("tick") for r in a.get("rows", [])]
+
+        return (
+            actual.get("type") == "tick_table"
+            and actual.get("columns") == expected["columns"]
+            and ticks(actual) == ticks(expected)
+        )
     return all(actual.get(k) == v for k, v in expected.items())
 
 
@@ -706,6 +716,10 @@ def wording_differences(obj: dict) -> list[str]:
             where.append("figure")
         if _same_words(part.get("solution_steps")) != _same_words(w.get("solution_steps")):
             where.append("worked steps")
+        if w["answer"].get("type") == "tick_table" and _same_words(
+            [r.get("statement") for r in part["answer"].get("rows", [])]
+        ) != _same_words([r["statement"] for r in w["answer"]["rows"]]):
+            where.append("statements")
         if (
             _scheme_differs(part.get("marking_scheme") or [], answer, part.get("marks"))
             if converted

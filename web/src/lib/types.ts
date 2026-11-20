@@ -35,6 +35,14 @@ export interface Answer {
   correct?: string
   /** `expression` answers: a collected sum of coefficient * symbol^power terms. */
   terms?: ExpressionTerm[]
+  /** `tick_table` answers (EXA-158): statements are question content; each `tick` is the key. */
+  columns?: string[]
+  rows?: TickRow[]
+}
+
+export interface TickRow {
+  statement: string
+  tick: string
 }
 
 export interface ChoiceOption {
