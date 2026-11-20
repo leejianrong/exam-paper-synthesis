@@ -16,7 +16,7 @@ describe('describeBlock', () => {
     expect(f.status).toEqual({ text: 'Not verified', tone: 'warn' })
   })
 
-  it('says where the wording differs from the engine (EXA-157)', () => {
+  it('says what differs from the engine (EXA-157)', () => {
     const q = makeQuestion({
       validation: { status: 'unverified', checks: { wording_differs: 'question text, option (2)' } },
     })

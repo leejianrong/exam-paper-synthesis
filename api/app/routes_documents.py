@@ -76,7 +76,7 @@ def _store_new(
 
 
 def _valid_or_422(document: object) -> dict:
-    """The document as stored: valid, and a generated question whose wording is not the
+    """The document as stored: valid, and a generated question whose printed content is not the
     engine's marked unverified rather than refused (EXA-157)."""
     errors = docs.validate_document(document)
     if errors:

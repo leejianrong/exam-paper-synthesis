@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import copy
 import json
 import re
@@ -240,16 +241,57 @@ def test_tampered_table_cell_is_found():
     assert wording_differences(obj) == ["table"]
 
 
-def test_tampered_option_text_is_found():
+def test_an_option_that_reads_as_the_answer_is_found():
     from exam_engine.mcq import to_mcq
 
     obj = to_mcq(generate("ratio_medium", 3), 7)
     assert wording_differences(obj) == []
     answer = obj["question"]["parts"][0]["answer"]
     wrong = next(o for o in answer["options"] if o["label"] != answer["correct"])
-    wrong["text"] = "$999999"
-    assert verify_snapshot(obj) == []  # the proven answer still stands; only the words differ
+    wrong["text"] = "$999999"  # a reworded distractor: options are not re-derived
+    assert wording_differences(obj) == []
+    right = next(o["text"] for o in answer["options"] if o["label"] == answer["correct"])
+    wrong["text"] = right.replace("$", "$ ") + ".00"  # "$344" -> "$ 344.00": the answer again
+    assert verify_snapshot(obj) == []  # the texts differ, so the hard check lets it through
     assert wording_differences(obj) == [f"option ({wrong['label']})"]
+
+
+def test_a_changed_figure_is_found():
+    obj = generate("statistics_chart_easy", 1)
+    figure = obj["question"]["parts"][0].get("diagram") or obj["question"]["diagram"]
+    figure["series"][0]["values"][1] += 10  # the key's answer no longer follows from the chart
+    assert verify_snapshot(obj) == []
+    assert wording_differences(obj) == ["figure"]
+
+    obj = generate("geometry_angle_hard", 1)
+    obj["question"]["parts"][0]["diagram"]["labels"][0]["text"] = "99°"
+    assert wording_differences(obj) == ["figure"]
+
+
+def test_figure_view_ops_still_match():
+    obj = next(
+        o
+        for o in (generate(c, s) for c in CODES for s in range(1, 4))
+        if "toggle-bar-view" in edits.available_ops(o)
+    )
+    flipped = edits.apply("toggle-bar-view", obj)
+    hidden = edits.apply("toggle-diagram", flipped)
+    assert wording_differences(flipped) == wording_differences(hidden) == []
+    assert wording_differences(edits.apply("toggle-diagram", hidden)) == []
+    # hiding a figure the question needs is not a view op
+    chart = generate("statistics_chart_easy", 1)
+    part = chart["question"]["parts"][0]
+    if part.get("diagram") is not None:
+        part["diagram"] = None
+        assert wording_differences(chart) == ["figure"]
+
+
+def test_changed_worked_steps_and_scheme_are_found():
+    obj = generate("ratio_medium", 1)
+    obj["question"]["parts"][0]["solution_steps"][0]["text"] += " Then double it."
+    obj["question"]["parts"][0]["marking_scheme"][0]["description"] = "Any answer."
+    assert wording_differences(obj) == ["worked steps", "marking scheme"]
+    assert wording_differences(generate("ratio_medium", 1)) == []  # the blueprint is untouched
 
 
 def test_harmless_differences_do_not_count():
@@ -270,14 +312,68 @@ def test_flag_is_lifted_when_the_wording_matches_again():
     assert _flagged(obj) == good["validation"]
 
 
+_VIEW_OPS = ("change-to-decimals", "toggle-diagram", "toggle-bar-view")
+
+
+@pytest.mark.parametrize("code", CODES)
+def test_no_engine_path_loses_the_badge(code):
+    """Everything the engine itself makes keeps its claim: generation, every chain of view
+    ops, a rename, the resample ops and multiple choice (π included)."""
+    from exam_engine import cosmetic
+    from exam_engine.mcq import convertible, to_mcq
+
+    for seed in (1, 2):
+        obj = generate(code, seed)
+        made = [obj]
+        if convertible(obj):
+            made.append(to_mcq(obj, seed))
+        frontier = [obj]
+        for _ in range(3):  # chained view ops, e.g. decimals -> hide -> show
+            frontier = [
+                edits.apply(op, o)
+                for o in frontier
+                for op in _VIEW_OPS
+                if op in edits.available_ops(o)
+            ]
+            made += frontier
+        slot = (cosmetic.editable_slots(code) or [{}])[0]
+        if slot.get("role") == "name":
+            names = ["Zara", "Yusof", "Xin Yi", "Ali"][: slot["count"]]
+            change = {slot["key"]: names if slot["count"] > 1 else names[0]}
+            made += [edits.apply("set-cosmetic", o, changes=change) for o in [obj, *frontier[:2]]]
+        made += [
+            edits.apply(op, obj)
+            for op in ("regenerate", "make-harder", "make-easier")
+            if op in edits.available_ops(obj)
+        ]
+        for o in made:
+            assert wording_differences(o) == [], (code, seed, o["id"])
+
+
 @pytest.mark.parametrize("template", ["p1_booklet_a", "p1_booklet_b", "p2"])
 def test_generated_papers_keep_every_badge(template):
     from exam_engine.paper import generate_paper
+    from exam_engine.paper_swap import SwapNotPossible, regenerate_unlocked, swap_question
 
     for level in ("P5", "P6"):
-        for seed in range(1, 4):
+        for seed in (1, 2):
             doc, _ = generate_paper(template, level, seed)
-            assert flag_wording(doc) == doc, (template, level, seed)
+            made = [doc, regenerate_unlocked(doc, level, seed + 100)[0]]
+            ids = [n["attrs"]["block_id"] for n in question_blocks(doc)]
+            for block_id in ids[:3]:
+                for mode in ("like", "topic"):
+                    with contextlib.suppress(SwapNotPossible):
+                        made.append(swap_question(doc, block_id, mode, seed, level)[0])
+            for d in made:
+                assert flag_wording(d) == d, (template, level, seed)
+
+
+def test_an_exam_set_keeps_every_badge():
+    from exam_engine.paper import generate_set
+
+    for level in ("P5", "P6"):
+        for doc, _ in generate_set(["p1_booklet_a", "p1_booklet_b", "p2"], level, 3):
+            assert flag_wording(doc) == doc, level
 
 
 # --- rendering --------------------------------------------------------------------

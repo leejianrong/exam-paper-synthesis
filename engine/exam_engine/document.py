@@ -510,8 +510,8 @@ def verify_snapshot(obj: dict) -> list[str]:
     owner's own paper — but the engine-proven badge must not be forgeable. Checks: the
     blueprint exists, ``parameters`` satisfy its schema, the solver's own validation
     passes, and the snapshot's answer and marks equal the re-derived ones. Wording is
-    checked separately by :func:`wording_differences`, which only takes the badge away
-    (a blueprint's wording may change after a paper was saved). Non-generated (sourced)
+    and figures are checked separately by :func:`wording_differences`, which only takes the
+    badge away (a blueprint's wording may change after a paper was saved). Non-generated (sourced)
     objects are teacher-vouched and not verified here.
     """
     if obj.get("source_type") != "generated":
@@ -589,59 +589,61 @@ _FIGURE_IS_THE_QUESTION = frozenset({"cube_stack", "net", "grid"})  # grid: EXA-
 
 
 def _same_words(value: object) -> object:
-    """``value`` with harmless differences dropped: runs of whitespace, and the litre
-    spelling (a paper saved before litres printed as ``ℓ`` says ``l``)."""
+    """``value`` with harmless differences dropped: runs of whitespace, the litre spelling (a
+    paper saved before litres printed as ``ℓ`` says ``l``) and a before-after bar model's
+    ``view_mode`` (toggle-bar-view: the same figure, drawn another way)."""
     if isinstance(value, str):
         return " ".join(value.split()).replace("ℓ", "l")
     if isinstance(value, list):
         return [_same_words(v) for v in value]
     if isinstance(value, dict):
-        return {k: _same_words(v) for k, v in value.items()}
+        return {k: _same_words(v) for k, v in value.items() if k != "view_mode"}
     return value
 
 
-def _offered_options(rebuilt: dict) -> set[str]:
-    """Every option text :func:`mcq.to_mcq` could print for ``rebuilt`` (its seed only picks
-    among these and orders them)."""
-    from .expression import in_terms_of_pi, pi_parts
-    from .mcq import _number_options, answer_text, pi_grid_sides
+def _reads(text: object) -> str:
+    """How an option reads, for "does a wrong option say the answer?": normalised as
+    :func:`_same_words` without spaces, thousands commas dropped and every number in its plain value
+    (``$18.00`` reads as ``$18``)."""
+    from fractions import Fraction
 
-    answer = rebuilt["question"]["parts"][0]["answer"]
-    k = pi_parts(answer) if answer["type"] == "expression" else None
-    if k is None:
-        texts = {t for _, _, t, _ in _number_options(rebuilt, answer)[1]}
-    else:
-        pis, numbers = pi_grid_sides(rebuilt)
-        unit = answer.get("unit") or ""
-        texts = {
-            answer_text(in_terms_of_pi(a, b, unit))
-            for a in [k[0], *(v for v, _ in pis)]
-            for b in [k[1], *(v for v, _ in numbers)]
-        }
-    return {str(_same_words(t)) for t in [*texts, answer_text(answer)]}
+    words = "".join(str(_same_words(str(text or ""))).split())
+    words = re.sub(r"(?<=\d),(?=\d{3})", "", words)
+    return re.sub(r"\d+(?:\.\d+)?", lambda m: str(Fraction(m.group())), words)
+
+
+def _figure_differs(have: object, wanted: list[object], *, may_hide: bool) -> bool:
+    """A stored figure differs from every figure the engine draws for these parameters. An
+    aid figure may be hidden (toggle-diagram)."""
+    if have is None and may_hide:
+        return False
+    return all(_same_words(have) != _same_words(w) for w in wanted)
 
 
 def wording_differences(obj: dict) -> list[str]:
-    """Where a generated snapshot's printed wording differs from what the engine prints for
-    its parameters (EXA-157): ``"question text"``, ``"part (b)"``, ``"table"``, ``"option
-    (2)"``. Empty when it matches, or when the object is not generated.
+    """Where a generated snapshot's printed content differs from what the engine prints for
+    its parameters (EXA-157): ``"question text"``, ``"part (b)"``, ``"table"``, ``"figure"``,
+    ``"worked steps"``, ``"marking scheme"``, ``"option (2)"``. Empty when it matches, or when
+    the object is not generated.
 
     The engine re-builds the question through the same path as generation and the
     set-cosmetic edit (:func:`pipeline.build_from_params`), replaying the decimals view.
-    Call it on a snapshot :func:`verify_snapshot` accepts.
+    Multiple-choice options are not re-derived (the distractors change as the engine
+    improves): only a wrong option that reads as the answer is flagged. Call it on a
+    snapshot :func:`verify_snapshot` accepts.
     """
     if obj.get("source_type") != "generated":
         return []
-    from .edits import _change_to_decimals
+    from .edits import AID_DIAGRAM_TYPES, _change_to_decimals
     from .pipeline import build_from_params
 
     code = obj.get("blueprint_code") or ""
     try:
-        rebuilt = build_from_params(
-            load_blueprint(code), get_solver(code), obj["seed"], obj["parameters"]
-        )
+        spec = load_blueprint(code)
+        plain = build_from_params(spec, get_solver(code), obj["seed"], obj["parameters"])
+        rebuilt = plain
         if obj.get("validation", {}).get("checks", {}).get("representation") == "decimals":
-            rebuilt = _change_to_decimals(rebuilt, None)
+            rebuilt = _change_to_decimals(plain, None)
     except Exception:  # verify_snapshot reports why; here the wording simply is not proven
         return ["question text"]
 
@@ -651,17 +653,35 @@ def wording_differences(obj: dict) -> list[str]:
         where.append("question text")
     if _same_words(have.get("table")) != _same_words(want.get("table")):
         where.append("table")
+    if _same_words(have.get("diagram")) != _same_words(want.get("diagram")):
+        where.append("figure")
     parts, wanted = have["parts"], want["parts"]
-    for i, part in enumerate(parts):
-        if i < len(wanted) and _same_words(part["text"]) != _same_words(wanted[i]["text"]):
+    answer = parts[0]["answer"]
+    converted = answer.get("type") == "choice" and wanted[0]["answer"].get("type") != "choice"
+    for i, (part, w) in enumerate(zip(parts, wanted, strict=False)):
+        if _same_words(part["text"]) != _same_words(w["text"]):
             where.append("question text" if len(parts) == 1 else f"part ({part['label']})")
-    answer, proven = parts[0]["answer"], wanted[0]["answer"]
-    if answer.get("type") == "choice" and proven.get("type") != "choice":
-        offered = _offered_options(rebuilt)
+        # toggle-diagram on a decimals view redraws from the whole-number parameters
+        figures = [w.get("diagram"), plain["question"]["parts"][i].get("diagram")]
+        if _figure_differs(
+            part.get("diagram"), figures, may_hide=spec.diagram in AID_DIAGRAM_TYPES
+        ):
+            where.append("figure")
+        if _same_words(part.get("solution_steps")) != _same_words(w.get("solution_steps")):
+            where.append("worked steps")
+        # a multiple-choice copy's scheme names why each wrong option tempts (P8b)
+        if not converted and _same_words(part.get("marking_scheme")) != _same_words(
+            w.get("marking_scheme")
+        ):
+            where.append("marking scheme")
+    if converted:
+        right = _reads(
+            next(o["text"] for o in answer["options"] if o["label"] == answer["correct"])
+        )
         where += [
             f"option ({o['label']})"
             for o in answer["options"]
-            if _same_words(o.get("text") or "") not in offered
+            if o["label"] != answer["correct"] and _reads(o.get("text")) == right
         ]
     return list(dict.fromkeys(where))
 
@@ -670,8 +690,8 @@ WORDING_CHECK = "wording_differs"  # validation.checks key: where the wording di
 
 
 def flag_wording(doc: dict) -> dict:
-    """``doc`` with each generated question's engine-proven claim matching its wording: a
-    snapshot whose printed words differ from the engine's (tampered, or saved before the
+    """``doc`` with each generated question's engine-proven claim matching what it prints: a
+    snapshot whose words, figure, steps or scheme differ from the engine's (tampered, or saved before the
     blueprint's wording changed) is marked ``unverified`` with where it differs, instead of
     the paper being refused; one that matches again gets its ``pass`` back. Call it on a
     document :func:`validate_document` accepts."""
@@ -687,6 +707,8 @@ def flag_wording(doc: dict) -> dict:
                 checks[WORDING_CHECK] = ", ".join(where)
                 status = "unverified"
             elif WORDING_CHECK in validation.get("checks", {}):
+                # only this flag took the badge away: validate_document has already re-proven
+                # the answer and marks (verify_snapshot), so the claim stands again
                 status = "pass"
             if checks != validation.get("checks", {}) or status != validation.get("status"):
                 q = {**q, "validation": {**validation, "status": status, "checks": checks}}

@@ -56,7 +56,7 @@ export function describeBlock(node: DocNode, number: number): Facts {
       ? { text: 'Engine-verified — the answer key is the solution to this question', tone: 'ok' }
       : typeof differs === 'string'
         ? {
-            text: `Not verified — its wording (${differs}) is not what the app writes for these numbers. Swap it for a verified question.`,
+            text: `Not verified — its ${differs} is not what the app makes for these numbers. Swap it for a verified question.`,
             tone: 'warn',
           }
         : { text: 'Not verified', tone: 'warn' },
