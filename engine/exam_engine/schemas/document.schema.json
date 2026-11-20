@@ -51,6 +51,7 @@
         { "$ref": "#/$defs/section" },
         { "$ref": "#/$defs/cover_page" },
         { "$ref": "#/$defs/blank_page" },
+        { "$ref": "#/$defs/group_stem" },
         { "$ref": "#/$defs/templated_question" },
         { "$ref": "#/$defs/freeform_question" },
         { "$ref": "#/$defs/image" }
@@ -178,6 +179,23 @@
       "type": "object", "additionalProperties": false,
       "required": ["type"],
       "properties": { "type": { "const": "pageBreak" } }
+    },
+    "group_stem": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "attrs", "content"],
+      "$comment": "A shared stem (1.17.0, EXA-90): text, images and equations that the next `count` questions all refer to (\"Use the table below to answer Questions 12 and 13.\"). Top level only; the questions stay ordinary top-level blocks with their own numbers, marks and answers. The members are the next `count` questions, rich text between them allowed; a section, blank page or another stem ends the group early. The lead sentence is derived from the members' numbers, never stored.",
+      "properties": {
+        "type": { "const": "groupStem" },
+        "attrs": {
+          "type": "object", "additionalProperties": false,
+          "required": ["block_id", "count"],
+          "properties": {
+            "block_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{4,64}$" },
+            "count": { "type": "integer", "minimum": 1, "maximum": 20, "description": "How many of the following questions share this stem." }
+          }
+        },
+        "content": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/text_block" } }
+      }
     },
     "section": {
       "type": "object", "additionalProperties": false,

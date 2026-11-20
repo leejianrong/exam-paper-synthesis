@@ -10,6 +10,15 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Shared stems (EXA-90).** Insert ▸ **Shared stem** puts a block of text, figures or equations
+  above questions that all use it, and the paper prints "Use the information below to answer
+  Questions 12 and 13." from their numbers. Each question keeps its own number, marks, working
+  space and Ans: line (in Booklet A each can be its own multiple choice). The stem's − and +
+  let a question go or take the next one in; moving a question at the group's edge steps it out
+  or in. The stem stays on the page of its first question, and the worked-solutions key repeats
+  it when it shows the question text. Document schema 1.17.0 (`groupStem`); older papers are
+  unchanged. See `docs/planning/editor/SHARED-STEM-SHAPING.md`.
+
 - **Edit numbers (EXA-89, tier-2 edits).** A generated question's ⋯ menu has **Edit numbers…**
   for eleven blueprints (Ratio easy/medium, Percentage easy/medium/hard, Speed easy/medium/hard,
   Fractions medium/hard, Average easy): change the amount shared, the ratio terms, a

@@ -5,7 +5,7 @@ import type { Question } from '../types'
 import { assetUrl } from './assets'
 import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.16.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.17.0'
 
 export interface DocNode {
   type: string
@@ -203,6 +203,12 @@ export function cleanNode(node: DocNode): DocNode {
       if (typeof a[k] === 'boolean') attrs[k] = a[k]
     out = { ...out, attrs }
   }
+  if (out.type === 'groupStem') {
+    // EXA-90: a shared stem stores only its id and how many questions follow it.
+    const a = out.attrs ?? {}
+    const count = Number(a.count)
+    out = { ...out, attrs: { block_id: a.block_id, count: Number.isInteger(count) && count >= 1 ? count : 2 } }
+  }
   if (out.type === 'blankPage') {
     const a = out.attrs ?? {}
     const text = typeof a.text === 'string' ? a.text.trim() : ''
@@ -305,7 +311,7 @@ export function buildDocument(
 ): PaperDocument {
   const seen = new Set<string>()
   const blocks = (content.content ?? []).map(cleanNode).map((node) => {
-    if (node.type !== 'templatedQuestion' && node.type !== 'freeformQuestion') return node
+    if (!['templatedQuestion', 'freeformQuestion', 'groupStem'].includes(node.type)) return node
     let id = String(node.attrs?.block_id ?? '')
     if (!id || seen.has(id)) id = newBlockId()
     seen.add(id)

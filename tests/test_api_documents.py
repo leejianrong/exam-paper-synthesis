@@ -4,7 +4,16 @@ from __future__ import annotations
 
 import pytest
 from app.main import app
-from documents import freeform_block, gen_block, heading, image_node, make_doc, para, question_block
+from documents import (
+    freeform_block,
+    gen_block,
+    heading,
+    image_node,
+    make_doc,
+    para,
+    question_block,
+    stem_block,
+)
 from exam_engine import generate
 from fastapi.testclient import TestClient
 from images import png
@@ -301,3 +310,22 @@ def test_old_paper_with_drifted_wording_opens_unverified():
     validation = got["document"]["content"]["content"][0]["attrs"]["question"]["validation"]
     assert validation["status"] == "unverified"
     assert client.get(f"/documents/{rec['id']}/preview/student", headers=ALICE).status_code == 200
+
+
+def test_a_shared_stem_round_trips_and_prints_its_lead_line():
+    rec = _create()
+    doc = make_doc(
+        stem_block("Use the table: STEMTEXT", count=2),
+        freeform_block("first", marks=2),
+        gen_block(),
+    )
+    saved = _save(rec, doc)
+    assert saved.status_code == 200
+    got = client.get(f"/documents/{rec['id']}", headers=ALICE).json()
+    from app.ops import strip_document_hints
+
+    assert strip_document_hints(got["document"]) == doc
+    assert got["total_marks"] == saved.json()["total_marks"] > 2
+    student = client.get(f"/documents/{rec['id']}/preview/student", headers=ALICE).text
+    assert "Use the information below to answer Questions 1 and 2." in student
+    assert "STEMTEXT" in student

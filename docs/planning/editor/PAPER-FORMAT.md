@@ -174,3 +174,13 @@ The editor's section bar has "Marks shown", and every question block on the edit
 its [n] by the effective placement of its section, live (EXA-152).
 
 The Ans: line is right-aligned and short (55 mm): "Ans: $ ____ cm² [2]", parts "Ans: (a) ____".
+
+### Shared stems (EXA-90, document schema 1.17.0)
+
+A `groupStem` block holds text, figures and equations that the next `count` questions all refer
+to; it prints "Use the information below to answer Questions 12 and 13." (derived from the
+numbers) above its content. The questions stay ordinary numbered blocks with their own marks,
+working space and Ans: lines, so numbering, section totals and the cover's examiner table are
+unchanged. The paginator keeps the stem with its first question; the worked-solutions key repeats
+it when it shows the question text. Editor: **Insert ▸ Shared stem**, − / + on the stem to change
+its questions. Design and rules: [`SHARED-STEM-SHAPING.md`](SHARED-STEM-SHAPING.md).
