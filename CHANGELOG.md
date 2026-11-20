@@ -10,6 +10,16 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **True / False / Not possible to tell tables (EXA-158).** A question can now ask the pupil to
+  tick one box per statement, as real P5–P6 papers do: a new `tick_table` answer (canonical
+  schema 1.15.0). The student paper prints the statements in a ruled table with an empty box
+  under True, False and Not possible to tell; the full key and the school key print the same
+  table with the ticks. A new P5 Average blueprint, `average_statements` (2 marks), gives three
+  statements about containers whose average is known ("At least one of the jars P, Q and R
+  contains 25 sweets or more"); "Not possible to tell" is ticked only when the facts allow it
+  either way, and the key's working shows two fillings that disagree. The paper generator can
+  place it in a 2-mark short-answer or structured slot, never as multiple choice; the editor
+  shows it as it prints.
 - **Defaults for new papers (EXA-169, UI redesign S11).** Settings has a **New papers** group:
   the school name, the level (Not set, P5 or P6), **Marks shown** (the editor's own control and
   labels) and the answer key style. Each paper made from then on starts with them: the school

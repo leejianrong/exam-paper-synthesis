@@ -59,7 +59,8 @@ and the worksheet's answer-space blank falls back to a sensible default size.
 `answer` and `diagram` are **tagged unions** keyed by `type` — read `type`, apply
 that variant's strict sub-schema.
 
-- **answer.type** ∈ `integer | decimal | fraction | ratio | quantity | set | text | choice`
+- **answer.type** ∈ `integer | decimal | fraction | ratio | quantity | set | text | choice |
+  construction | expression | tick_table`
 - **diagram.type** ∈ `bar_model | bar_model_before_after | geometry_figure | shaded_fraction | raster`
   (`raster` = an image reference, used by sourced/scanned diagrams). The generated
   families render to inline `<svg>`; `raster` renders to an `<img src="{asset_ref}"
@@ -510,3 +511,25 @@ and cell `(col, row)` has its top-left corner at point `(col, row)`.
   of non-zero length, distinct points and unique letters. Valid in MCQ options and `panels`.
   Server-side rendering only (`exam_engine.grid`); a point's letter goes inside a square next to
   it, clear of every grid line (`label_layout`).
+
+## `answer.type: "tick_table"` (schema 1.15.0)
+
+Additive (EXA-158); every 1.14.0 object still validates. The True / False / Not possible to tell
+table of real P5–P6 papers: a list of statements, each ticked in exactly one column.
+
+- `{ type, columns, rows[{statement, tick}] }`. `columns` (2–3, unique) come from the fixed set
+  `True`, `False`, `Not possible to tell`, in print order; 1–8 `rows`.
+- The statements and columns are question content: the student paper prints a ruled table with
+  an empty box under each column (no working space, no Ans: line; the marks sit beside the
+  question). Only each row's `tick` is the key: the full key and the school key print the same
+  table with a tick in the right box (`render._render_tick_table`, an inline SVG tick in the
+  print palette), and a one-line summary (`tick_table.summary`) stands in where a table cannot
+  (an MCQ answer grid, the Classic page).
+- Load gate (`exam_engine.tick_table.check_tick_table_consistency`): every tick names one of the
+  table's columns, and no statement appears twice.
+- Never converted to multiple choice (`mcq.to_mcq` refuses it; the paper generator never puts it
+  in an MCQ slot). `document.verify_snapshot` re-solves a generated one and compares the whole
+  answer, so a changed tick, statement or row order does not verify. `convert.to_freeform` puts
+  the statements in the question body and the ticks in the written answer.
+- Blueprint: `average_statements` (P5 Average, 2 marks: B1 for two rows right, B1 more for all
+  three, as school keys mark these tables).

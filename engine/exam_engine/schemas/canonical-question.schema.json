@@ -161,7 +161,8 @@
         { "$ref": "#/$defs/answer_text" },
         { "$ref": "#/$defs/answer_choice" },
         { "$ref": "#/$defs/answer_construction" },
-        { "$ref": "#/$defs/answer_expression" }
+        { "$ref": "#/$defs/answer_expression" },
+        { "$ref": "#/$defs/answer_tick_table" }
       ]
     },
     "table": {
@@ -214,6 +215,29 @@
           }
         },
         "unit": { "$ref": "#/$defs/unit" }
+      }
+    },
+    "answer_tick_table": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "columns", "rows"],
+      "$comment": "One tick per statement row from a fixed column set (added schema 1.15.0, EXA-158): the True / False / Not possible to tell table. Statements and columns are question content, printed with empty boxes on the worksheet; only each row's `tick` is the key. Each tick naming one of the columns, and distinct statements, are enforced at load by exam_engine.tick_table.check_tick_table_consistency.",
+      "properties": {
+        "type": { "const": "tick_table" },
+        "columns": {
+          "type": "array", "minItems": 2, "uniqueItems": true,
+          "items": { "type": "string", "enum": ["True", "False", "Not possible to tell"] }
+        },
+        "rows": {
+          "type": "array", "minItems": 1, "maxItems": 8,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["statement", "tick"],
+            "properties": {
+              "statement": { "type": "string", "minLength": 1 },
+              "tick": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
       }
     },
     "answer_integer": {

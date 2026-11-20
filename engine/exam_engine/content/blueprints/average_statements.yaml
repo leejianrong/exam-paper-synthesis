@@ -1,0 +1,56 @@
+code: average_statements
+syllabus:
+  level: P5
+  strand: "Data Analysis"
+  topic: "Average"
+  subtopic: "What an average does and does not tell you (True / False / Not possible to tell)"
+  skill_codes: ["AVG.TOTAL", "AVG.REASON"]   # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [context, count, average, known, rows]
+  properties:
+    context: { type: string, enum: [jars, boxes, bags, tins] }
+    count: { type: integer, enum: [3, 4] }
+    average: { type: integer, minimum: 12, maximum: 30 }
+    # count 4: what the 4th container (S) holds; count 3: null
+    known: { type: [integer, "null"], minimum: 1, maximum: 60 }
+    rows:
+      type: array
+      minItems: 3
+      maxItems: 3
+      items:
+        type: object
+        additionalProperties: false
+        required: [kind, x]
+        properties:
+          kind: { type: string, enum: [total, at_least, all_fewer, exact, equal, new_average] }
+          x: { type: integer, minimum: 0, maximum: 200 }
+          who: { type: string, enum: [P, Q, R] }
+          added: { type: integer, minimum: 2, maximum: 60 }
+# Every parameter_schema property needs a role (W1a). No names: the containers are lettered.
+param_roles:
+  context: { role: choice }
+  count:   { role: number }
+  average: { role: number }
+  known:   { role: number }
+  rows:    { role: choice }
+story_templates:
+  - stem: null
+    text: "{setup} For each statement, put a tick in the correct box."
+solution_template:
+  steps:
+    - text: "{step1}"
+    - text: "{reason1}"
+    - text: "{reason2}"
+    - text: "{reason3}"
+marking_scheme:
+  - { mark: 1, type: B, description: "At least two of the three statements ticked correctly." }
+  - { mark: 1, type: B, description: "All three statements ticked correctly." }
+answer:
+  type: tick_table

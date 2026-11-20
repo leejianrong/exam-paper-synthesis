@@ -43,6 +43,10 @@ def main(prefixes: list[str]) -> None:
             for p in q["parts"]:
                 label = f"({p['label']}) " if len(q["parts"]) > 1 else ""
                 print(f"   {label}{plain(p['text'])}")
+                for row in (
+                    p["answer"].get("rows", []) if p["answer"]["type"] == "tick_table" else []
+                ):
+                    print(f"      [{row['tick']}] {plain(row['statement'])}")
                 for s in p.get("solution_steps", []):
                     print(f"      · {plain(s['text'])}")
                 marks = f"{p['marks']} mark{'' if p['marks'] == 1 else 's'}"

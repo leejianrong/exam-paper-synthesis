@@ -247,7 +247,7 @@ fraction comparison and ordering, number-line reading, discount and GST, and ref
     appear in the question at all).
 - **Tasks we cannot express at all.**
   - Tables the pupil completes: True / False / Not possible to tell appears in 3 of 4 schools (AT P2
-    Q6b, CH B Q24, SN P2 Q8b).
+    Q6b, CH B Q24, SN P2 Q8b). Now expressible: the `tick_table` answer (EXA-158).
   - Drawing or shading on a grid: shade squares for symmetry, complete a trapezium, rhombus or net,
     draw a front or side view.
   - Measuring with a protractor or ruler.
@@ -327,7 +327,7 @@ fraction comparison and ordering, number-line reading, discount and GST, and ref
 | Errors | Several slips copied as printed (e.g. AT, CH, SN keys) | Engine-proven; one cosmetic issue: a scheme description prints "cm^3" literally (P2 Q5) |
 
 Our key is a strength. The only gap is that it cannot show drawn or ticked answers, because we have no
-such items.
+such items. (Since EXA-158 it prints ticked tables: the `tick_table` answer.)
 
 ## 7. Ranked content gaps → suggested blueprints and features
 
@@ -386,8 +386,11 @@ such items.
    - Real: 15 data questions plus 3 tick tables.
    - Needs a `table` figure (simple) and a tick-table answer type.
    - ~~Data tables~~ done in #231 (EXA-148): `postage_table`, `rental_table` and the multi-part
-     `tariff_gst` print the existing content-level `question.table` (no schema change). Still open:
-     the tick-table answer type, the tank line graph and pie charts in fractions.
+     `tariff_gst` print the existing content-level `question.table` (no schema change). ~~The
+     tick-table answer type~~ done in EXA-158: a `tick_table` answer (schema 1.15.0; empty boxes
+     on the paper, ticks in both keys, never multiple choice) and the P5 `average_statements`
+     blueprint (2 marks, three statements about what an average does and does not tell). Still
+     open: the tank line graph and pie charts in fractions.
 7. ~~**Circles ladder.**~~ Done in #226 (EXA-149): a P6 `circles` ladder (1/2/3 marks) with
    semicircle and quarter-circle composites, shaded regions, π = 3.14 or 22/7 and some hard
    answers in terms of π (P8-SHAPING.md). ~~π-terms MCQs~~ done in #235 (EXA-155): 2-mark

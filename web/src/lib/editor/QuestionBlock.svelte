@@ -14,7 +14,7 @@
   import AnswerArea from './AnswerArea.svelte'
   import QuestionBar from './QuestionBar.svelte'
   import LockBadge from './LockBadge.svelte'
-  import type { BlockLayout } from './layout'
+  import { hasTickTable, onQuestion, type BlockLayout } from './layout'
   import type { SectionPlacement } from './doc'
   import type { SwapMode } from './docsApi'
   import type { PaperSlot } from './templatedQuestion'
@@ -47,16 +47,15 @@
   $: multipart = q.question.parts.length > 1
   // A multiple-choice copy (P8b) can't be rebuilt with new names: the engine refuses it.
   $: isChoice = q.question.parts.some((p) => p.answer?.type === 'choice')
-  // Only written answers get working space and an Ans: line (not MCQ, not a construction).
-  $: writtenParts = q.question.parts.filter(
-    (p) => !['choice', 'construction'].includes(p.answer?.type ?? ''),
-  )
+  // Only written answers get working space and an Ans: line (not MCQ, a construction or ticks).
+  $: writtenParts = q.question.parts.filter((p) => !onQuestion(p.answer?.type))
   // A sourced (bank) question is teacher-vouched: drawn by the engine's print renderer, with
   // none of the engine-only edits. Its status lives in the inspector, not on the page.
   $: fromBank = q.source_type === 'sourced'
   // A generated multi-part question (P8c) is drawn the same way, so its stem and every
   // lettered part show; it keeps its engine edits (the API offers only whole-question ones).
-  $: engineDrawn = fromBank || multipart
+  // So is a tick table (EXA-158): the engine draws its statements and boxes.
+  $: engineDrawn = fromBank || multipart || hasTickTable(q)
   $: ops = (q.available_ops ?? []) as EditOp[]
   // P8d: a question the paper generator put here can be swapped for another, or locked.
   $: generated = $paperSlot.generated

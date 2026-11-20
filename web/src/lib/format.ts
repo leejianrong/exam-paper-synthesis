@@ -40,6 +40,8 @@ export function fmtAnswer(a: Answer | undefined): string {
       return (a.values ?? []).join(", ");
     case "text":
       return a.text ?? "";
+    case "tick_table":
+      return (a.rows ?? []).map((r) => `${r.statement} ${r.tick}`).join("; ");
     case "choice": {
       const hit = (a.options ?? []).find((o) => o.label === a.correct);
       return hit?.text ? `${a.correct}. ${hit.text}` : `${a.correct ?? ""}`;

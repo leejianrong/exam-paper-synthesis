@@ -11,6 +11,7 @@ import {
   makeMultipartQuestion,
   makeQuestion,
   makeTableQuestion,
+  makeTickTableQuestion,
   routeFetch,
 } from './fixtures'
 import type { DocJSON } from './doc'
@@ -169,5 +170,23 @@ describe('templatedQuestion node view', () => {
     expect(await pillButton(screen.getByTestId('question-block'), 'Another like this')).toBeInTheDocument()
     expect(await menuLabels(screen.getByTestId('question-block'))).not.toContain('Make harder')
     await selectBlock(screen.getByTestId('question-block'))
+  })
+
+  it('draws a tick table with the engine renderer, with no Ans: line of its own', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        routeFetch({
+          '/render/question.css': '.q{}',
+          '/render/katex.js': '',
+          '/render/question': { html: '<table class="tick-table">Not possible to tell</table>' },
+        }),
+      ),
+    )
+    make({ type: 'doc', content: [questionNode(makeTickTableQuestion())] })
+    await waitFor(() =>
+      expect(screen.getByTestId('fragment').shadowRoot?.textContent).toContain('Not possible to tell'),
+    )
+    expect(screen.queryByText('Ans:')).not.toBeInTheDocument()
   })
 })
