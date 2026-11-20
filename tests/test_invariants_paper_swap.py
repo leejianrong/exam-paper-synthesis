@@ -360,7 +360,8 @@ def test_regenerate_with_everything_unlocked_gives_a_new_paper():
     assert sorted(c for c in map(_code, _blocks(new)) if c and META[c]["parts"] > 1) == MULTIPART
 
 
-MULTIPART = sorted(c for c, m in META.items() if m["parts"] > 1)
+# a P6 paper takes P6 multi-part questions only (EXA-117)
+MULTIPART = sorted(c for c, m in META.items() if m["parts"] > 1 and m["level"] == "P6")
 
 
 def _multipart_in(doc) -> list[str]:
@@ -452,13 +453,17 @@ def test_swaps_are_deterministic_and_leave_the_input_alone():
 
 
 def test_a_placeholder_is_filled_by_like_and_topic_when_content_allows():
-    # P5 has too few 3-5 mark blueprints for Paper 2 Section B, so placeholders are left that
-    # no unused blueprint fits ...
+    # P5 Paper 2 is full since its multi-part questions (EXA-117); a placeholder the teacher
+    # makes of one in Section B is filled again with the multi-part question it freed ...
     doc, _ = generate_paper("p2", "P5", 1)
-    ph = _first(doc, lambda n: n["type"] == "freeformQuestion")
-    with pytest.raises(SwapNotPossible):
-        swap_question(doc, ph["attrs"]["block_id"], "like", 1)
-    # ... while P5 Booklet B fills its 2-mark slots (EXA-154), and a 2-mark placeholder the
+    assert not any(n["type"] == "freeformQuestion" for n in _blocks(doc))
+    mp = _first(doc, lambda n: bool(_code(n)) and META[_code(n)]["parts"] > 1)
+    bid = mp["attrs"]["block_id"]
+    doc, _ = swap_question(doc, bid, "own", 1)
+    new, report = swap_question(doc, bid, "like", 1)
+    assert report["blueprint"] == _code(mp)
+    _check_rules(new, "P5", "refilled")
+    # ... P5 Booklet B fills its 2-mark slots (EXA-154), and a 2-mark placeholder the
     # teacher makes there is filled again from the blueprints left
     doc, _ = generate_paper("p1_booklet_b", "P5", 1)
     used = _first(doc, lambda n: n["type"] == "templatedQuestion" and _marks(n) == 2)

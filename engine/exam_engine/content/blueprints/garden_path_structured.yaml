@@ -1,0 +1,63 @@
+code: garden_path_structured
+syllabus:
+  level: P5
+  strand: "Measurement"
+  topic: "Geometry (Area & Perimeter)"
+  subtopic: "Structured: the area of a path round a rectangular garden, then the cost of fencing its outer edge"
+  skill_codes: ["MEAS.AREA.PATH"]       # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Multiple concepts"]
+marks: 4                                # the question total; each part's marks are below
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [length, width, path, price]
+  properties:
+    length: { type: integer, minimum: 8, maximum: 30 }
+    width: { type: integer, minimum: 5, maximum: 28 }
+    path: { type: integer, minimum: 1, maximum: 3 }
+    price: { type: integer, minimum: 4, maximum: 15 }      # dollars a metre of fence
+# Every parameter_schema property needs a role (W1a).
+param_roles:
+  length: { role: number }
+  width:  { role: number }
+  path:   { role: number }
+  price:  { role: number }
+# P8c multi-part: shared stem here, each part's text/marks/scheme/steps/answer under `parts`.
+story_templates:
+  - stem: >
+      A rectangular garden measures {length} m by {width} m. A path {path} m wide is built
+      all round the outside of the garden.
+parts:
+  - label: a
+    marks: 2
+    text: "What is the area of the path?"
+    solution_template:
+      steps:
+        - text: "The garden and the path together measure ({length} + 2 × {path}) m by ({width} + 2 × {path}) m = {outer_l} m by {outer_w} m."
+          expr: "{length}+2*{path}"
+        - text: "Area of the garden and the path = {outer_l} × {outer_w} = {outer_area} m²."
+          expr: "{outer_l}*{outer_w}"
+        - text: "Area of the path = {outer_area} − {length} × {width} = {outer_area} − {garden_area} = {path_area} m²."
+          expr: "{outer_area}-{garden_area}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Finds the area of the outer rectangle (garden and path)." }
+      - { mark: 1, type: A, description: "Subtracts the garden's area: correct area with the m² unit." }
+    answer: { type: integer, unit: "m^2" }
+  - label: b
+    marks: 2
+    text: >
+      A fence is put up along the outer edge of the path. The fence costs ${price} per
+      metre. How much does the fence cost?
+    solution_template:
+      steps:
+        - text: "Length of the fence = 2 × ({outer_l} + {outer_w}) = {perimeter} m."
+          expr: "2*({outer_l}+{outer_w})"
+        - text: "Cost of the fence = {perimeter} × ${price} = ${cost}."
+          expr: "{perimeter}*{price}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Finds the perimeter of the outer edge of the path." }
+      - { mark: 1, type: A, description: "Correct cost." }
+    answer: { type: quantity, unit: "$" }

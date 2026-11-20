@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { generateSinglePaper } from './helpers.js'
+import { generateSinglePaper, questionMenu } from './helpers.js'
 
 /**
  * EXA-160: the editor header fits the laptops teachers use. At 1366 (a common school laptop), 1024
  * and 768 (a tablet) the page never scrolls sideways, and Preview, Export and the "N
- * placeholders to write" link stay on screen. A P5 Paper 2 is generated because it has a
- * placeholder (P6 seeds fill every slot), so the link is there to check.
+ * placeholders to write" link stay on screen. Every generated paper fills since EXA-117, so a
+ * question is replaced with the teacher's own to make a placeholder for the link.
  */
 for (const width of [1366, 1024, 768]) {
   test(`the editor header fits at ${width} px with Preview and Export on screen`, async ({ page }) => {
@@ -14,6 +14,7 @@ for (const width of [1366, 1024, 768]) {
     await generateSinglePaper(page, 'Paper 2', 'P5')
     await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
     await expect(page.getByTestId('question-block').first()).toBeVisible()
+    await questionMenu(page.getByTestId('question-block').first(), 'Replace with my own question')
 
     const widths = await page.evaluate(() => ({
       scroll: document.documentElement.scrollWidth,

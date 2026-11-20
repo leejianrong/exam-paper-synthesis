@@ -148,7 +148,18 @@ def test_export_refuses_empty_placeholders_unless_told_to_print_anyway(monkeypat
         json={"template": "p2", "level": "P5", "seed": 1},
         headers=ALICE,
     ).json()
-    assert gen["report"]["placeholders"] == 1  # today's content: too few P5 3-5 markers
+    assert gen["report"]["placeholders"] == 0  # every slot filled since EXA-117, so the
+    # teacher empties the last question ("write my own")
+    last = [n for n in gen["document"]["content"]["content"] if n["type"] == "templatedQuestion"]
+    gen = client.post(
+        f"/documents/{gen['id']}/swap",
+        json={
+            "block_id": last[-1]["attrs"]["block_id"],
+            "mode": "own",
+            "base_version": gen["version"],
+        },
+        headers=ALICE,
+    ).json()
     url = f"/documents/{gen['id']}/export"
 
     for mode in ("student", "key", "full"):
@@ -156,8 +167,8 @@ def test_export_refuses_empty_placeholders_unless_told_to_print_anyway(monkeypat
         assert resp.status_code == 409, mode
         detail = resp.json()["detail"]
         assert detail["code"] == "unfilled_placeholders"
-        assert detail["questions"] == [22]  # the last Section B question
-        assert "Question 22 is still empty" in detail["message"]
+        assert detail["questions"] == [20]  # the last Section B question
+        assert "Question 20 is still empty" in detail["message"]
     assert charged == []  # refused before any export allowance is spent
 
     ok = client.post(f"{url}/student?allow_placeholders=true", headers=ALICE)

@@ -268,9 +268,13 @@ def _pool() -> tuple[Candidate, ...]:
 
 
 def candidates(level: str) -> list[Candidate]:
-    """Blueprints a paper of ``level`` may use: its level and below."""
+    """Blueprints a paper of ``level`` may use: its level and below, but multi-part ones only at
+    its own level (EXA-117: a P6 Section B keeps its P6 multi-part questions, as real papers
+    do). A P5 single-part blueprint may still fill a P6 paper's slots, stand-ins included."""
     allowed = LEVELS[: LEVELS.index(level) + 1]
-    return [c for c in _pool() if c.level in allowed]
+    return [
+        c for c in _pool() if c.level in allowed and (c.kind != "multipart" or c.level == level)
+    ]
 
 
 def _fits(c: Candidate, kind: str) -> bool:

@@ -7,6 +7,7 @@ import re
 from documents import freeform_block, gen_block, make_doc
 from exam_engine.document import unfilled_placeholder_numbers, validate_document
 from exam_engine.paper import generate_paper, unfilled_placeholders
+from exam_engine.paper_swap import swap_question
 from exam_engine.render import render_document_html
 
 
@@ -49,9 +50,11 @@ def test_numbers_are_the_printed_question_numbers_of_unwritten_placeholders():
 
 
 def test_the_generator_report_and_the_numbers_agree():
-    doc, report = generate_paper("p2", "P5", 1)  # too few 3-5 mark blueprints at P5
-    assert unfilled_placeholder_numbers(doc) == [22]
-    assert report["placeholders"] == 1
+    doc, report = generate_paper("p2", "P5", 1)  # every slot filled since EXA-117
+    assert unfilled_placeholder_numbers(doc) == [] and report["placeholders"] == 0
+    last = [n for n in doc["content"]["content"] if n["type"] == "templatedQuestion"][-1]
+    doc, _ = swap_question(doc, last["attrs"]["block_id"], "own", 1)  # "write my own"
+    assert unfilled_placeholder_numbers(doc) == [20]  # the last Section B question
 
 
 def _questions(html: str) -> list[str]:
