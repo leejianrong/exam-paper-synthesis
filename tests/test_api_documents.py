@@ -329,3 +329,17 @@ def test_a_shared_stem_round_trips_and_prints_its_lead_line():
     student = client.get(f"/documents/{rec['id']}/preview/student", headers=ALICE).text
     assert "Use the information below to answer Questions 1 and 2." in student
     assert "STEMTEXT" in student
+
+
+def test_a_stem_with_no_questions_asks_before_it_prints():
+    rec = _create()
+    assert (
+        _save(rec, make_doc(freeform_block("first"), stem_block("Lonely", count=2))).status_code
+        == 200
+    )
+    resp = client.post(f"/documents/{rec['id']}/export/student", headers=ALICE)
+    assert resp.status_code == 409
+    detail = resp.json()["detail"]
+    assert detail["code"] == "unfilled_placeholders"
+    assert detail["questions"] == [] and detail["lone_stems"] == 1
+    assert "1 shared stem has no questions after it" in detail["message"]

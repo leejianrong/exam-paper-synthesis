@@ -176,6 +176,12 @@ def stem_groups(doc: dict) -> dict[int, list[int]]:
     }
 
 
+def lone_stems(doc: dict) -> int:
+    """How many shared stems have no question after them (they print with no lead line): the
+    export warns before printing them, as it does for empty placeholders (EXA-137)."""
+    return sum(1 for numbers in stem_groups(doc).values() if not numbers)
+
+
 def stem_sentence(numbers: list[int]) -> str:
     """The lead line a stem prints, from its members' numbers (never typed, so it cannot drift):
     "Use the information below to answer Questions 12 and 13." Empty with no members."""

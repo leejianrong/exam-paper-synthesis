@@ -8,7 +8,7 @@ import { Node } from '@tiptap/core'
 import type { NodeViewRendererProps } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
-import { closeHistory } from '@tiptap/pm/history'
+import { closeHistory, isHistoryTransaction } from '@tiptap/pm/history'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { get } from 'svelte/store'
 import { newBlockId } from './doc'
@@ -97,10 +97,16 @@ function membership(doc: PMNode): Map<string, string[]> {
 }
 
 /** The counts that keep each stem's questions with it after an edit: a deleted question leaves
- *  the group without pulling the next one in, and a question inserted (or moved) between two of
- *  its questions joins it. A stem's group ends at the last of its old questions still there. */
+ *  the group without pulling the next one in, and a new question inserted between two of its
+ *  questions joins it. The group ends at the last of its old questions still there, and never
+ *  grows past a question that was not one of them (an old question moved in from elsewhere, or a
+ *  pasted copy, which keeps its original's id until the paper is saved). */
 export function keepMembers(before: PMNode, after: PMNode): Array<{ pos: number; count: number }> {
   const old = membership(before)
+  const existed = new Set<string>()
+  before.forEach((c) => {
+    if (QUESTIONS.includes(c.type.name)) existed.add(String(c.attrs.block_id))
+  })
   const blocks = blocksOf(after)
   const fixes: Array<{ pos: number; count: number }> = []
   after.forEach((child, pos, i) => {
@@ -109,10 +115,15 @@ export function keepMembers(before: PMNode, after: PMNode): Array<{ pos: number;
     if (!was) return
     let count = 0
     let seen = 0
+    const met = new Set<string>()
     for (let j = i + 1; j < blocks.length && !ENDS.includes(blocks[j].type); j++) {
       if (!QUESTIONS.includes(blocks[j].type)) continue
       seen++
-      if (was.includes(String(blocks[j].attrs?.block_id))) count = seen
+      const id = String(blocks[j].attrs?.block_id)
+      const first = !met.has(id)
+      met.add(id)
+      if (first && was.includes(id)) count = seen
+      else if (!first || existed.has(id)) break // not one of its questions: the group ends here
     }
     if (count > 0 && count !== child.attrs.count) fixes.push({ pos, count })
   })
@@ -192,7 +203,9 @@ export const GroupStem = Node.create({
       new Plugin({
         key,
         appendTransaction(trs, before, after) {
-          if (!trs.some((t) => t.docChanged) || trs.some((t) => t.getMeta(OWN))) return null
+          // Undo and redo bring the count back with the questions: never recompute over them.
+          if (!trs.some((t) => t.docChanged) || trs.some((t) => t.getMeta(OWN) || isHistoryTransaction(t)))
+            return null
           const fixes = keepMembers(before.doc, after.doc)
           if (!fixes.length) return null
           const tr = after.tr
@@ -314,15 +327,24 @@ export const GroupStem = Node.create({
   },
 })
 
-/** Insert a stem before the question the caret is in (it and the next one share it), else at
- *  the end of the paper's text; the caret goes into the stem. */
+/** Insert a stem before the question the caret is in, else after the block the caret is in; the
+ *  caret goes into the stem. It covers the next two questions, or as many as there are before the
+ *  next section, page or stem (at least one, so the next question added below joins it). */
 export function insertStem(editor: NodeViewRendererProps['editor']) {
   const { state } = editor
   const { $from, from, to } = state.selection
   const top = $from.depth > 0 ? $from.before(1) : from
   const node = state.doc.nodeAt(top)
   const at = node && QUESTIONS.includes(node.type.name) ? top : $from.depth > 0 ? $from.after(1) : to
-  const tr = state.tr.insert(at, state.schema.nodeFromJSON(stemNode()))
+  let available = 0
+  const index = state.doc.resolve(at).index(0)
+  for (let i = index; i < state.doc.childCount; i++) {
+    const name = state.doc.child(i).type.name
+    if (ENDS.includes(name)) break
+    if (QUESTIONS.includes(name)) available++
+  }
+  const count = Math.max(1, Math.min(2, available))
+  const tr = state.tr.insert(at, state.schema.nodeFromJSON(stemNode(count)))
   tr.setSelection(TextSelection.create(tr.doc, at + 2)).scrollIntoView()
   editor.view.dispatch(tr)
   editor.view.focus()

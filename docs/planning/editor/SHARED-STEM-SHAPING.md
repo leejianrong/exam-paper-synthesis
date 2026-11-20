@@ -26,7 +26,10 @@ so the editor has to keep it honest (below). We chose B.
 - Its questions are the next `count` question blocks after it. Rich text between them stays in
   the group. A section, blank page, cover or another stem ends the group early, so a stem never
   reaches into the next part of the paper. A stem with no question after it yet is valid (the
-  editor autosaves while it is being written); it prints without a lead line.
+  editor autosaves while it is being written); it prints without a lead line, and the PDF export
+  asks first (the same 409 and dialog as an empty placeholder: `lone_stems`).
+- A stem with fewer questions after it than its `count` simply covers those (the engine and the
+  editor clip it the same way).
 - The lead line is **derived** from the members' printed numbers (`stem_sentence`), never
   stored: "Use the information below to answer Question 7." / "Questions 12 and 13." /
   "Questions 3 to 5." `number_from` (Booklet B) applies.
@@ -39,17 +42,25 @@ so the editor has to keep it honest (below). We chose B.
   in the key, when `key_options.show_question` is on. The school (compact) key never prints
   question text, so no stem.
 - Generated questions inside a group verify and get the wording check exactly as elsewhere.
+- **Regenerate unlocked** keeps every question under a stem, generated or placeholder, as if it
+  were locked: it was written or chosen for the stem, and a new question in its place would not
+  use it. Swapping one is still the teacher's call (swap, swap from the bank).
 
 ## Editor
 
-- **Insert ▸ Shared stem**: with the caret in a question, the stem goes above it (that question
-  and the next share it); otherwise after the current block. The caret lands in the stem.
+- **Insert ▸ Shared stem**: with the caret in a question, the stem goes above it; otherwise after
+  the current block. The caret lands in the stem. A new stem covers two questions, or as many as
+  follow it before the next section, page or stem, and at least one: a stem inserted with no
+  question after it takes the next question added below it.
 - The stem shows its lead line live, "N questions", **−** (let the last question go) and
   **+** (take in the next one), and **Delete stem** (its questions stay). All are real buttons.
 - Its questions carry a bar down their left (a node decoration).
 - Membership follows the questions through edits (`keepMembers`, an `appendTransaction`): the
   group ends at the last of its old questions still after it, so deleting a question does not
-  pull the next one in, and a question inserted or moved between two of its questions joins.
+  pull the next one in, and a new question inserted between two of its questions joins. It never
+  grows past a question that was not its own (an old question from elsewhere, or a pasted copy,
+  which keeps its original's id until saved). Undo and redo are left alone: the count comes back
+  with the history step it was changed in.
 - Moving a question (its menu, or its shortcut) at a group's edge steps it out of or into the
   group first: down from the last place lets it go, up from just below takes it in.
 

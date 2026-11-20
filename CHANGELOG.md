@@ -16,7 +16,8 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   space and Ans: line (in Booklet A each can be its own multiple choice). The stem's − and +
   let a question go or take the next one in; moving a question at the group's edge steps it out
   or in. The stem stays on the page of its first question, and the worked-solutions key repeats
-  it when it shows the question text. Document schema 1.18.0 (`groupStem`); older papers are
+  it when it shows the question text. Regenerate unlocked keeps the questions under a stem, and
+  a stem with no questions after it asks before the PDF prints. Document schema 1.18.0 (`groupStem`); older papers are
   unchanged. See `docs/planning/editor/SHARED-STEM-SHAPING.md`.
 
 - **Save your own question to your bank (EXA-90).** A question you wrote has **Save to your

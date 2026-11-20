@@ -126,7 +126,7 @@
   let deleted = false
   let deletedTimer: ReturnType<typeof setTimeout> | undefined
   /** EXA-137: the export refused a paper with empty placeholders; ask before printing it. */
-  let unfilled: { mode: ExportMode; questions: number[] } | null = null
+  let unfilled: { mode: ExportMode; questions: number[]; stems: number } | null = null
   let quota: Quota | null = null
   let selectedId: string | null = null // the block the author is in (for the inspector)
   let previewHtml: string | null = null
@@ -982,7 +982,7 @@
       URL.revokeObjectURL(url)
     } catch (e) {
       const empty = unfilledDetail(e)
-      if (empty) unfilled = { mode, questions: empty.questions }
+      if (empty) unfilled = { mode, questions: empty.questions, stems: empty.lone_stems ?? 0 }
       else failed(e, "Couldn't export the PDF", () => void download(mode, allowPlaceholders))
     } finally {
       busy = ''
@@ -1479,6 +1479,7 @@
 {#if unfilled}
   <PrintWarning
     questions={unfilled.questions}
+    stems={unfilled.stems}
     on:fill={fillPlaceholders}
     on:print={() => unfilled && download(unfilled.mode, true)}
     on:cancel={() => (unfilled = null)}

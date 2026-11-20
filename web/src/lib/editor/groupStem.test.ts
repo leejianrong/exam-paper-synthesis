@@ -210,3 +210,88 @@ describe('saving', () => {
     expect(doc.schema_version).toBe('1.18.0')
   })
 })
+
+describe('undo and redo bring the count back (review fixes)', () => {
+  const del = (id: string) => {
+    const at = posOf(id)
+    editor.view.dispatch(editor.state.tr.delete(at, at + editor.state.doc.nodeAt(at)!.nodeSize))
+  }
+  it('deleting the last question, then undo and redo', () => {
+    make([stem(2), q('ffa1'), q('ffb1'), q('ffc1')])
+    del('ffb1')
+    expect(count()).toBe(1)
+    editor.commands.undo()
+    expect(count()).toBe(2)
+    expect(json().content.map((n) => n.attrs?.block_id)).toEqual(['gs_test_1', 'ffa1', 'ffb1', 'ffc1'])
+    editor.commands.redo()
+    expect(count()).toBe(1)
+  })
+
+  it('+ and − are undone', async () => {
+    make([stem(2), q('ffa1'), q('ffb1'), q('ffc1')])
+    await tick()
+    ;(document.querySelector('.group-more') as HTMLButtonElement).click()
+    expect(count()).toBe(3)
+    editor.commands.undo()
+    expect(count()).toBe(2)
+    ;(document.querySelector('.group-fewer') as HTMLButtonElement).click()
+    expect(count()).toBe(1)
+    editor.commands.undo()
+    expect(count()).toBe(2)
+    editor.commands.redo()
+    expect(count()).toBe(1)
+  })
+
+  it('moving a question out, then undo', () => {
+    make([stem(2), q('ffa1'), q('ffb1'), q('ffc1')])
+    moveBlock(editor, posOf('ffb1'), editor.state.doc.nodeAt(posOf('ffb1'))!.nodeSize, 1)
+    expect(count()).toBe(1)
+    editor.commands.undo()
+    expect(count()).toBe(2)
+  })
+})
+
+describe('the group never grows past questions that were not its own', () => {
+  it('a pasted copy of a grouped question further down does not pull the questions between in', () => {
+    make([stem(2), q('ffa1'), q('ffb1'), q('ffc1'), q('ffd1')])
+    editor.view.dispatch(editor.state.tr.insert(editor.state.doc.content.size, editor.schema.nodeFromJSON(q('ffa1'))))
+    expect(count()).toBe(2)
+  })
+
+  it('a member deleted and put back further down in one step leaves the group', () => {
+    make([stem(2), q('ffa1'), q('ffb1'), q('ffc1'), q('ffd1')])
+    const at = posOf('ffb1')
+    const node = editor.state.doc.nodeAt(at)!
+    const tr = editor.state.tr.delete(at, at + node.nodeSize)
+    tr.insert(tr.doc.content.size, node)
+    editor.view.dispatch(tr)
+    expect(count()).toBe(1)
+    expect(json().content.map((n) => n.attrs?.block_id)).toEqual(['gs_test_1', 'ffa1', 'ffc1', 'ffd1', 'ffb1'])
+  })
+})
+
+describe('a new stem covers two questions, or as many as follow it', () => {
+  const caretIn = (id: string) =>
+    editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, posOf(id) + 2)))
+  it('above the last question it covers that one', () => {
+    make([q('ffa1'), q('ffb1')])
+    caretIn('ffb1')
+    insertStem(editor)
+    expect(count()).toBe(1)
+  })
+  it('with no question after it, it covers the next one added', () => {
+    make([q('ffa1'), para('notes')])
+    editor.view.dispatch(editor.state.tr.setSelection(TextSelection.atEnd(editor.state.doc)))
+    insertStem(editor)
+    expect(json().content.map((n) => n.type)).toEqual(['freeformQuestion', 'paragraph', 'groupStem'])
+    expect(count()).toBe(1)
+    editor.view.dispatch(editor.state.tr.insert(editor.state.doc.content.size, editor.schema.nodeFromJSON(q('ffnew'))))
+    expect(stemMembers(json().content, 2)).toEqual([3])
+  })
+  it('a section limits it', () => {
+    make([q('ffa1'), { type: 'section', attrs: { title: 'B' } }, q('ffb1')])
+    caretIn('ffa1')
+    insertStem(editor)
+    expect(count()).toBe(1)
+  })
+})

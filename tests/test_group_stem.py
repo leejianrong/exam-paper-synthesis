@@ -23,6 +23,7 @@ from documents import (
 )
 from exam_engine.document import (
     flag_wording,
+    lone_stems,
     paper_outline,
     stem_groups,
     stem_sentence,
@@ -93,6 +94,7 @@ def test_a_section_or_another_stem_ends_a_group_early():
     # a stem with nothing after it yet saves (the editor autosaves while it is being written)
     lone = make_doc(freeform_block("a"), stem_block(count=2))
     assert validate_document(lone) == [] and stem_groups(lone) == {1: []}
+    assert lone_stems(lone) == 1 and lone_stems(doc) == 0
 
 
 def test_marks_sections_and_totals_ignore_the_stem():
@@ -260,3 +262,23 @@ def test_the_stem_and_its_first_question_share_a_page(browser):
         moved += where["stem"] > where["filler"]
     # some layouts had to carry the stem over to the next page with its question
     assert 0 < moved < len(range(40, 200, 10))
+
+
+# --- regenerating a generated paper -------------------------------------------------------
+
+
+def test_regenerate_keeps_the_questions_under_a_stem():
+    from exam_engine.paper import generate_paper
+    from exam_engine.paper_swap import regenerate_unlocked
+
+    doc, _ = generate_paper("p2", "P6", 4)
+    blocks = doc["content"]["content"]
+    first = next(i for i, n in enumerate(blocks) if n["type"] == "templatedQuestion")
+    assert blocks[first + 1]["type"] == "templatedQuestion"
+    blocks.insert(first, stem_block("A shared table.", count=2))
+    kept = [blocks[first + 1], blocks[first + 2]]
+    new, report = regenerate_unlocked(doc, "P6", 99)
+    after = new["content"]["content"]
+    assert [after[first + 1], after[first + 2]] == kept
+    assert report["kept"] == 2 and report["replaced"] == 15
+    assert validate_document(new) == []
