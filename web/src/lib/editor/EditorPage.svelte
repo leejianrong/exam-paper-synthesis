@@ -1412,7 +1412,9 @@
       </p>
       <p>
         Questions you write yourself, edit as your own text, or import are <strong>not verified</strong>. The app
-        prints them as they are, so check their answers yourself.
+        prints them as they are, so check their answers yourself. So is a generated question whose text, figure
+        or worked answer is no longer what the app makes for its numbers (changed by hand, or saved before the app
+        changed how it words that question).
       </p>
       <p>Verified means the maths is right. It does not mean the question suits your class: read the paper before you print it.</p>
     </div>

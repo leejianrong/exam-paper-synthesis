@@ -358,13 +358,28 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **A generated question's wording and figures are checked too (EXA-157).** Changing a generated
+  question's text, a part, a table cell, its figure (a bar of a chart, an angle label), its worked
+  steps or its marking scheme kept the "Engine-verified" claim, since only the answer, marks and
+  the figures of cube, net and grid questions were re-derived. The server now rebuilds the
+  question from its numbers and names, the same way generation and renaming do, and compares
+  (spacing, the ℓ / l spelling and the bar model's grouped / sliced view aside; a hidden aid
+  figure is fine). A multiple-choice option may be reworded, but one that reads as the answer
+  or has its value in another form ("$344.00" beside "$344", 4/6 or 0.75 beside 2/3 or 3/4) is
+  caught, as is a marking scheme that calls another option correct. A question that differs is
+  saved and opened as **Not verified**, and the Question tab says what differs; the paper
+  itself is never refused, so a paper saved before a blueprint's wording changed still opens,
+  saves and prints. Renaming people or items still verifies. **For contributors:** changing a
+  blueprint's wording, worked steps or marking scheme, or how a solver draws its figure (any
+  change to the figure spec, even a label's position), marks that question "Not verified" in
+  papers saved earlier ("question text", "worked steps", "figure", ...) until the teacher swaps
+  it; say so in the change's CHANGELOG entry.
 - **A school name put back during a save is kept (EXA-175).** On Settings, typing a new school
   name, leaving the field, then setting it back to the stored name before the first save
   returned lost the change: the page compared it with the stored name (still the old one), sent
   nothing, and the new name was saved. While a school name is on its way the page now compares
   with the name being sent (also by Try again), so going back is saved after it. The level,
   Marks shown and answer key style always save each choice, so they were not affected.
-
 - **[ and ] work on keyboards that need AltGr or ⌥ for them (EXA-172).** On a German, French,
   Spanish or Swiss keyboard on Windows or Linux, [ and ] are AltGr+8 / AltGr+9 or similar, and
   on a German Mac ⌥5 / ⌥6; Make easier ([) and Make harder (]) on a selected question never

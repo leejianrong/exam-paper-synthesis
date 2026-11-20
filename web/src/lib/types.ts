@@ -15,7 +15,7 @@ export interface DataTableSpec {
   rows: TableCell[][]
 }
 
-export type ValidationStatus = 'pass' | 'fail'
+export type ValidationStatus = 'pass' | 'fail' | 'unverified'
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
 /** A rendered answer. Fields present depend on `type`; kept broad on purpose. */

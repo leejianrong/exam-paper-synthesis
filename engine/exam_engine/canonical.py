@@ -118,9 +118,10 @@ def to_json(obj: dict, *, indent: int | None = None) -> str:
 
 def _scheme(scheme: list[dict], ctx: dict) -> list[dict]:
     """The marking scheme, a description with ``{name}`` filled from ``ctx`` (EXA-154: a line
-    can name what this question asks for); one without braces is left exactly as written."""
+    can name what this question asks for); one without braces is left exactly as written. A
+    copy, so editing a question never edits the cached blueprint."""
     return [
-        {**m, "description": _fill(m["description"], ctx)} if "{" in m["description"] else m
+        {**m, "description": _fill(m["description"], ctx)} if "{" in m["description"] else {**m}
         for m in scheme
     ]
 

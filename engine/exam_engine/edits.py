@@ -220,7 +220,7 @@ def _change_to_decimals(source: dict, seed: int | None) -> dict:
         "text": part_text,
         "marks": spec.marks,
         "answer": answer,
-        "marking_scheme": spec.marking_scheme,
+        "marking_scheme": copy.deepcopy(spec.marking_scheme),
         "solution_steps": steps,
         "diagram": diagram,
     }
