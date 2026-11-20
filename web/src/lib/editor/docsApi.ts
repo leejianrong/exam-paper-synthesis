@@ -69,6 +69,8 @@ export interface UnfilledPlaceholders {
   code: 'unfilled_placeholders'
   message: string
   questions: number[]
+  /** EXA-90: shared stems with no question after them (absent from an older server). */
+  lone_stems?: number
 }
 
 export function unfilledDetail(e: unknown): UnfilledPlaceholders | null {

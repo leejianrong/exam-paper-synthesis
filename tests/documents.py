@@ -92,3 +92,13 @@ def multipart_block(*parts: dict, stem: str = "A tank holds water.", block_id=No
         "attrs": {"block_id": block_id or f"ffm_{next(_ids):04d}", "marks": None},
         "content": [para(stem), *parts],
     }
+
+
+def stem_block(*content: dict | str, count: int = 2, block_id: str | None = None) -> dict:
+    """A shared ``groupStem`` (EXA-90) for the next ``count`` questions."""
+    blocks = [para(c) if isinstance(c, str) else c for c in content] or [para("A table.")]
+    return {
+        "type": "groupStem",
+        "attrs": {"block_id": block_id or f"gs_{next(_ids):04d}", "count": count},
+        "content": blocks,
+    }

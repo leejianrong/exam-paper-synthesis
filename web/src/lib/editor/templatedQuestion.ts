@@ -19,6 +19,7 @@ import { layoutOf, type BlockLayout } from './layout'
 import { trackPlacement } from './sections'
 import type { SectionPlacement } from './doc'
 import { NOWHERE, trackPlace, type BlockPlace } from './blockPlace'
+import { groupStep, setStemCount } from './groupStem'
 
 export interface TemplatedQuestionOptions {
   /** Open the "add question" picker to insert after the block at `pos`. */
@@ -270,6 +271,12 @@ export function moveBlock(
   const $pos = doc.resolve(pos)
   const index = $pos.index()
   const parent = $pos.parent
+  // At the edge of a shared stem's group the question steps in or out of it first (EXA-90).
+  const step = $pos.depth === 0 ? groupStep(doc, index, dir) : null
+  if (step) {
+    const stepTr = setStemCount(editor.state, step.pos, step.count)
+    if (stepTr) return editor.view.dispatch(stepTr)
+  }
   const target = index + dir
   if (target < 0 || target >= parent.childCount) return
   const node = parent.child(index)
