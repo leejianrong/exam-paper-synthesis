@@ -60,3 +60,4 @@ parts:
       - { mark: 1, type: A, description: "Adds the time already shown on the graph; correct time in min." }
     answer: { type: integer, unit: "min" }
 diagram: chart
+figure_in_stem: true                    # the graph prints after the stem, before (a)

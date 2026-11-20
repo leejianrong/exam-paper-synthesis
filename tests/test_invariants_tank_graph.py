@@ -123,7 +123,8 @@ def check_tank_structured(obj: dict) -> None:
     canonical.load(obj)
     q = obj["question"]
     a, b = q["parts"]
-    svg = render_svg(a["diagram"])
+    assert a["diagram"] is None and b["diagram"] is None  # the graph is the stem's
+    svg = render_svg(q["diagram"])
     corners = read_graph(svg)
     step = _volume_step(svg)
     assert "empty" in q["stem"] and corners[0] == (0, 0)

@@ -169,6 +169,9 @@ class BlueprintSpec:
     # single-part blueprint (the top-level ``marking_scheme``/``solution_template``/
     # ``answer`` describe its only part). ``marks`` is always the question total.
     parts: list[dict] = field(default_factory=list)
+    # A multi-part question whose figure belongs to the shared stem (printed after the stem,
+    # before (a)) rather than to part (a), e.g. the tank graph (EXA-158).
+    figure_in_stem: bool = False
     _extra: dict = field(default_factory=dict)
 
     @property
@@ -210,6 +213,7 @@ class BlueprintSpec:
             "diagram",
             "param_roles",
             "parts",
+            "figure_in_stem",
         }
         parts = data.get("parts") or []
         return cls(
@@ -226,6 +230,7 @@ class BlueprintSpec:
             diagram=data.get("diagram"),
             param_roles=data.get("param_roles") or {},
             parts=parts,
+            figure_in_stem=bool(data.get("figure_in_stem")),
             _extra={k: v for k, v in data.items() if k not in known},
         )
 

@@ -192,7 +192,8 @@ def assemble(
     template = spec.story_templates[seed % len(spec.story_templates)]
     stem: str | None
     if spec.parts:
-        stem, parts = _multipart(spec, ctx, template, solution, diagram)
+        in_stem = spec.figure_in_stem and diagram is not None
+        stem, parts = _multipart(spec, ctx, template, solution, None if in_stem else diagram)
     else:
         stem = template.get("stem")
         marks_total = sum(m["mark"] for m in spec.marking_scheme)
@@ -213,6 +214,8 @@ def assemble(
         ]
 
     question: dict = {"stem": stem}
+    if spec.parts and spec.figure_in_stem and diagram is not None:
+        question["diagram"] = diagram  # the shared figure, before (a)
     if table is not None:  # a data table printed before the parts (EXA-148)
         question["table"] = table
     obj = {

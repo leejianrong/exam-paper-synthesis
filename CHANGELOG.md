@@ -17,7 +17,8 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   amount gives the whole, then the unlabelled sector's share), `tank_graph` (2 marks: the water
   that flowed in between two times, or the rate in ℓ/min, read off a line graph of the volume
   in a tank) and the two-part `tank_graph_structured` for Paper 2 (the rate, then how many
-  minutes until the tank of a given capacity is full). The `chart` figure (canonical schema
+  minutes until the tank of a given capacity is full; the graph prints after the shared
+  stem, before (a), via a new blueprint option `figure_in_stem`). The `chart` figure (canonical schema
   1.16.0) gains a numeric time axis with vertical gridlines, each line given as its corners,
   and a fraction pie that prints each sector as a stacked fraction; the unit `l/min` prints as
   ℓ/min. The invariant tests read every answer back off the drawn SVG: the graph's corners from

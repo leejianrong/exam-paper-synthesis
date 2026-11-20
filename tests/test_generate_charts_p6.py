@@ -33,6 +33,12 @@ CASES = {
 SINGLE = [c for c in CASES if c != "tank_graph_structured"]
 
 
+def figure(obj: dict) -> dict:
+    """The chart: the shared stem's figure on the two-part question, else part (a)'s."""
+    q = obj["question"]
+    return q.get("diagram") or q["parts"][0]["diagram"]
+
+
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("code", CASES)
 def test_generate_is_valid_tagged_and_draws_its_chart(code, seed):
@@ -45,7 +51,7 @@ def test_generate_is_valid_tagged_and_draws_its_chart(code, seed):
     assert obj["cognitive"]["difficulty"] == difficulty
     assert [p["marks"] for p in obj["question"]["parts"]] == marks
     assert all(p["answer"]["type"] == atype for p in obj["question"]["parts"])
-    assert obj["question"]["parts"][0]["diagram"]["type"] == "chart"
+    assert figure(obj)["type"] == "chart"
     assert verify_snapshot(obj) == [] and wording_differences(obj) == []
 
 
@@ -63,7 +69,7 @@ def test_every_step_carries_an_exact_expr_ending_at_the_answer(code, seed):
 @pytest.mark.parametrize("code", CASES)
 def test_deterministic_and_varied(code):
     assert generate(code, 5) == generate(code, 5)
-    figures = {json.dumps(generate(code, s)["question"]["parts"][0]["diagram"]) for s in SEEDS}
+    figures = {json.dumps(figure(generate(code, s))) for s in SEEDS}
     assert len(figures) > 1
 
 
@@ -100,7 +106,7 @@ def test_rename_is_cosmetic(code, key, new):
     printed = " ".join([q["stem"] or ""] + [p["text"] for p in q["parts"]])
     assert new in printed
     assert [p["answer"] for p in q["parts"]] == [p["answer"] for p in obj["question"]["parts"]]
-    assert q["parts"][0]["diagram"] == obj["question"]["parts"][0]["diagram"]
+    assert figure(child) == figure(obj)
 
 
 @pytest.mark.parametrize("code", SINGLE)
@@ -189,3 +195,12 @@ def test_an_empty_tank_is_said_to_be_empty():
         empty = obj["parameters"]["volumes"][0] == 0
         assert ("into an empty" in part["text"]) == empty
         assert "there were 0 ℓ" not in part["solution_steps"][0]["text"]
+
+
+def test_the_tank_graph_belongs_to_the_shared_stem():
+    """Real papers print the graph after the shared stem, before (a), not under (a)'s text."""
+    obj = generate("tank_graph_structured", 1)
+    q = obj["question"]
+    assert q["diagram"]["type"] == "chart" and all(p["diagram"] is None for p in q["parts"])
+    html = render_worksheet_html("Tank", [obj])
+    assert html.index(q["stem"][:30]) < html.index("<svg") < html.index("At what rate")
