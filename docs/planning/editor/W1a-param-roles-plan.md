@@ -118,3 +118,30 @@ object is schema-valid; the same op refused on `ratio` with a clear error.
 - `ParamsInvalid` (new) is raised by `pipeline.build_from_params` when edited params are
   infeasible; the API maps it to 422 like `EditNotApplicable`.
 - Status: **implemented** (PR for branch `feat/w1a-param-roles`).
+
+## Tier 2 as built (EXA-89)
+
+- A number role a teacher may type is marked `edit: free` with a `label` (and `sep: ":"` for a
+  ratio) in `param_roles`; `check_param_roles` refuses the mark on anything but a number role or
+  without a label. Eleven blueprints are marked (Ratio easy/medium, Percentage easy/medium/hard,
+  Speed easy/medium/hard, Fractions medium/hard, Average easy); the rest have no editable numbers.
+- **No `derived` flag was needed.** In every marked blueprint each number parameter is printed
+  in the question, so all of them are free; the numbers worked out from them (unit value,
+  shares, change, original price, the answer) are solver intermediates, which the re-solve
+  recomputes. The plan's alternative (expose `unit_value`, derive `total` through a
+  `from_free_params` hook) would make teachers type a number the question never prints; instead
+  the printed total is free and a total that doesn't divide is refused. A blueprint whose
+  printed number is a function of others (e.g. `decimals_easy`, which prints `digits / 10^dp`)
+  stays unmarked until it needs that hook.
+- Refusals are sentences: ranges come from the parameter schema, and the solver's
+  `number_problem(params)` (required for a marked blueprint) mirrors its sampler's construction
+  in words ("The two times must be different."). `validate` stays the final gate; a sweep test
+  (`tests/test_set_numbers.py`) checks it never refuses what `number_problem` let through, and
+  that each accepted edit passes the blueprint's own invariant test, `verify_snapshot` and the
+  EXA-157 wording check.
+- `set-numbers` (`exam_engine/numbers.py`, `edits.apply`) re-solves through the same
+  `_rebuild` as `set-cosmetic`. Not offered on a multiple-choice copy, a multi-part question or a
+  decimals view (whose $ amounts print as a tenth of the parameters). The API's `available_ops`
+  hint names `set-numbers` when it applies, so the editor shows **Edit numbers…**
+  (`web/src/lib/editor/NumbersPopover.svelte`); the engine's own `available_ops` stays the
+  one-click set.

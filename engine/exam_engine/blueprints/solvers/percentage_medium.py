@@ -54,6 +54,16 @@ class PercentageMediumSolver:
             "direction": direction,
         }
 
+    def number_problem(self, params: dict) -> str | None:
+        """Why a teacher's numbers don't give whole dollars (EXA-89), else ``None``."""
+        percent, original = params["percent"], params["original"]
+        if percent * original % 100:
+            return (
+                f"The change must be a whole number of dollars, but "
+                f"{percent}% of ${original} is not."
+            )
+        return None
+
     def solve(self, params: dict) -> dict:
         original = params["original"]
         percent = params["percent"]

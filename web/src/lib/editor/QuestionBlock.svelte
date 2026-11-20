@@ -5,10 +5,11 @@
   // snapshot with the child object the API returns (lineage intact).
   import { errorText } from '../errors'
   import type { Readable } from 'svelte/store'
-  import { editQuestion, setCosmetic, type EditOp } from '../api'
+  import { editQuestion, setCosmetic, setNumbers, type EditOp } from '../api'
   import type { Question } from '../types'
   import { confirmAction } from '../confirm'
   import NamesPopover from './NamesPopover.svelte'
+  import NumbersPopover from './NumbersPopover.svelte'
   import FragmentView from './FragmentView.svelte'
   import QuestionBody from './QuestionBody.svelte'
   import AnswerArea from './AnswerArea.svelte'
@@ -86,6 +87,7 @@
   let busy = false
   let error = ''
   let editingNames = false
+  let editingNumbers = false
 
   async function run(fn: () => Promise<Question | void>) {
     busy = true
@@ -94,7 +96,10 @@
     try {
       const next = await fn()
       if (next) ctx.replace(next, from)
+      // a closing form would drop focus to the page: give it back to the block
+      if (editingNames || editingNumbers) host.focus()
       editingNames = false
+      editingNumbers = false
     } catch (e) {
       error = errorText(e, "The question wasn't changed")
     } finally {
@@ -125,6 +130,10 @@
         return run(() => editQuestion('make-harder', q))
       case 'names':
         editingNames = !editingNames
+        return
+      case 'numbers':
+        editingNumbers = !editingNumbers
+        error = ''
         return
       case 'lock':
         return ctx.setLocked(!locked)
@@ -178,7 +187,20 @@
       />
     {/if}
 
-    {#if error}
+    {#if editingNumbers}
+      <NumbersPopover
+        {q}
+        {busy}
+        {error}
+        on:apply={(e) => run(() => setNumbers(q, e.detail.changes))}
+        on:close={() => {
+          editingNumbers = false
+          error = ''
+        }}
+      />
+    {/if}
+
+    {#if error && !editingNumbers}
       <p class="error" role="alert">{error}</p>
     {/if}
   </div>

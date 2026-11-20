@@ -61,6 +61,17 @@ class PercentageHardSolver:
             "new_value": new_value,
         }
 
+    def number_problem(self, params: dict) -> str | None:
+        """Why a teacher's numbers don't give a whole original price (EXA-89), else ``None``."""
+        percent, new_value = params["percent"], params["new_value"]
+        factor = 100 + percent if params["direction"] == "increase" else 100 - percent
+        if new_value * 100 % factor:
+            return (
+                f"The price before would not be a whole number of dollars: ${new_value} "
+                f"must be {factor}% of a whole number of dollars."
+            )
+        return None
+
     def solve(self, params: dict) -> dict:
         percent = params["percent"]
         direction = params["direction"]

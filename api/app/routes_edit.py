@@ -9,7 +9,7 @@ from __future__ import annotations
 import random
 from datetime import UTC, datetime
 
-from exam_engine import canonical, cosmetic, edits
+from exam_engine import canonical, cosmetic, edits, numbers
 from exam_engine.canonical import CanonicalValidationError
 from exam_engine.errors import (
     EditNotApplicable,
@@ -29,9 +29,14 @@ _SEED_CEIL = 2**31
 
 @router.get("/blueprints/{code}/params")
 def get_editable_params(code: str) -> dict:
-    """The cosmetic (name/item) slots of a blueprint, for building the edit form (W1a)."""
+    """A blueprint's cosmetic (name/item) slots (W1a) and free numbers (EXA-89), for the
+    "Edit names" and "Edit numbers" forms."""
     try:
-        return {"code": code, "slots": cosmetic.editable_slots(code)}
+        return {
+            "code": code,
+            "slots": cosmetic.editable_slots(code),
+            "numbers": numbers.number_slots(code),
+        }
     except UnknownBlueprint as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -55,7 +60,9 @@ def post_edit(op: str, req: EditRequest) -> EditResponse:
     try:
         child = edits.apply(op, source, seed=seed, changes=req.changes)
     except EditNotApplicable as e:
-        raise HTTPException(status_code=422, detail=str(e)) from e
+        # set-numbers refuses in a sentence a teacher can act on (EXA-89): send it as it is
+        detail = e.reason if op == numbers.OP else str(e)
+        raise HTTPException(status_code=422, detail=detail) from e
     except UnknownBlueprint as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except (InfeasibleConstraints, ParamsInvalid) as e:
