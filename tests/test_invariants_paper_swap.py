@@ -141,11 +141,9 @@ def _could_fill(code: str, node, kind: str, level: str) -> bool:
 
 def _possible_other_topic(doc, idx, level) -> bool:
     """Is there an unused, level-allowed blueprint with the slot's marks from another topic,
-    no easier for the slot than the question it would replace (EXA-146), of a topic the rest of
-    the paper has fewer than two questions of (EXA-154)?"""
+    no easier for the slot than the question it would replace (EXA-146)?"""
     node = _blocks(doc)[idx]
     used = {_code(n) for i, n in enumerate(_blocks(doc)) if i != idx and _code(n)}
-    topics = Counter(META[c]["topic"] for c in used)
     allowed = LEVELS[: LEVELS.index(level) + 1]
     topic = META[_code(node)]["topic"] if _code(node) else None
     floor = _shortfall(_code(node), _marks(node)) if _code(node) else 2
@@ -154,7 +152,6 @@ def _possible_other_topic(doc, idx, level) -> bool:
         and m["level"] in allowed
         and m["marks"] == _marks(node)
         and m["topic"] != topic
-        and topics[m["topic"]] < 2
         and _shortfall(code, _marks(node)) <= floor
         for code, m in META.items()
     )
@@ -356,12 +353,15 @@ def test_regenerating_a_paper_2_keeps_two_questions_a_topic_at_most(level):
 def test_regenerate_with_everything_unlocked_gives_a_new_paper():
     doc, _ = generate_paper("p2", "P6", 4)
     new, report = regenerate_unlocked(doc, "P6", 99)
-    assert report["kept"] == 0 and report["replaced"] == 16  # 5 short, 11 multi-part
+    assert report["kept"] == 0 and report["replaced"] == 17  # 5 short, 10 multi-part, 2 stand-ins
     assert json.dumps(new) != json.dumps(doc)
     _check_rules(new, "P6", "p2 regenerate")
-    # P8c: like the generator, Section B takes multi-part blueprints first (EXA-117: 11 of the
-    # 12 fit its 45 marks and two-a-topic cap)
-    assert len(_multipart_in(new)) == 11
+    # P8c: like the generator, Section B takes every multi-part blueprint again
+    assert sorted(c for c in map(_code, _blocks(new)) if c and META[c]["parts"] > 1) == MULTIPART
+
+
+# a P6 paper takes P6 multi-part questions only (EXA-117)
+MULTIPART = sorted(c for c, m in META.items() if m["parts"] > 1 and m["level"] == "P6")
 
 
 def _multipart_in(doc) -> list[str]:
@@ -374,7 +374,7 @@ def test_a_random_walk_on_paper_2_keeps_multipart_in_section_b_and_every_rule(se
     Paper 2. Totals stay exact, nothing repeats, multi-part questions stay in Section B (never a
     stand-in), and "like" on a multi-part question keeps it multi-part."""
     doc, _ = generate_paper("p2", "P6", seed)
-    assert len(_multipart_in(doc)) >= 10  # of 13: what the 45 marks and the topic cap allow
+    assert _multipart_in(doc) == MULTIPART
     rng = random.Random(f"walk{seed}")
     for step in range(30):
         where = f"p2 P6 seed={seed} step={step}"

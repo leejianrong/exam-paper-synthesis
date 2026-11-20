@@ -268,9 +268,13 @@ def _pool() -> tuple[Candidate, ...]:
 
 
 def candidates(level: str) -> list[Candidate]:
-    """Blueprints a paper of ``level`` may use: its level and below."""
+    """Blueprints a paper of ``level`` may use: its level and below, but multi-part ones only at
+    its own level (EXA-117: a P6 Section B keeps its P6 multi-part questions, as real papers
+    do; a P5 one may still stand in as a single-part question)."""
     allowed = LEVELS[: LEVELS.index(level) + 1]
-    return [c for c in _pool() if c.level in allowed]
+    return [
+        c for c in _pool() if c.level in allowed and (c.kind != "multipart" or c.level == level)
+    ]
 
 
 def _fits(c: Candidate, kind: str) -> bool:
@@ -359,13 +363,12 @@ class _Filler:
 
     def pick_multipart(self, max_marks: int) -> Candidate | None:
         """An unused multi-part blueprint of at most ``max_marks``, least-used topic first
-        (seeded ties), the same way :meth:`pick` chooses. It never leaves fewer marks than a
-        stand-in takes (EXA-117: eleven multi-part questions of 44 marks left a 1-mark gap)."""
+        (seeded ties), the same way :meth:`pick` chooses."""
         options = [
             c
             for c in self.pool
             if c.code not in self.used
-            and (c.marks == max_marks or c.marks <= max_marks - _STAND_IN_MIN_MARKS)
+            and c.marks <= max_marks
             and _fits(c, "multipart")
             and self.topics.get(c.topic, 0) < TOPIC_CAP
         ]

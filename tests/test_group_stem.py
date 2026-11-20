@@ -280,5 +280,5 @@ def test_regenerate_keeps_the_questions_under_a_stem():
     new, report = regenerate_unlocked(doc, "P6", 99)
     after = new["content"]["content"]
     assert [after[first + 1], after[first + 2]] == kept
-    assert report["kept"] == 2 and report["replaced"] == 14  # 16 questions (11 multi-part, EXA-117)
+    assert report["kept"] == 2 and report["replaced"] == 15
     assert validate_document(new) == []

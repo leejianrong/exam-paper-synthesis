@@ -13,9 +13,8 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
-  // Section B: 10-11 multi-part questions and 0-2 single-part stand-ins, by seed (EXA-117)
-  await expect(page.getByTestId('generate-report')).toContainText(/Filled (1[67]) of \1 questions/)
-  await expect(page.getByTestId('generate-report')).not.toContainText('placeholder')
+  await expect(page.getByTestId('generate-report')).toContainText('Filled 17 of 17 questions')
+  await expect(page.getByTestId('generate-report')).toContainText('Section B has 10 multi-part questions; 2 single-part questions stand in for the rest')
   await expect(page.locator('.cover-block')).toHaveCount(1)
   await expect(page.locator('.cover-block .cover-line').last()).toContainText('Primary 6 · Mathematics')
   await expect(page.locator('.section-block')).toHaveCount(2)
@@ -23,7 +22,7 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
     'Questions 1–5 · 10 / 10 marks',
   )
   await expect(page.locator('.section-block').nth(1).locator('.section-summary')).toHaveText(
-    /Questions 6–1[67] · 45 \/ 45 marks/,
+    /Questions 6–1[78] · 45 \/ 45 marks/,
   )
   await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
   await expect(page.getByLabel('Paper time in minutes')).toHaveValue('90')

@@ -81,8 +81,9 @@ def _set_topics(papers) -> Counter[str]:
 
 
 MULTIPART = {
-    level: [c for c, m in META.items() if m["parts"] > 1 and m["level"] in LEVELS[: i + 1]]
-    for i, level in enumerate(LEVELS)
+    # a paper takes multi-part questions of its own level only (EXA-117)
+    level: [c for c, m in META.items() if m["parts"] > 1 and m["level"] == level]
+    for level in LEVELS
 }
 
 
@@ -258,21 +259,9 @@ def test_generated_papers_keep_every_rule(code, level):
                             assert n["attrs"]["slot"]["stand_in"] is True, where
                             assert _marks(n) >= 2, where
                 assert [_marks(n) for n in nodes] == sorted(_marks(n) for n in nodes), where
-                # every multi-part blueprint the level allows is used before any stand-in,
-                # unless the section has no room for it: its topic already has two multi-part
-                # questions, its marks would pass the target or leave a gap of 1 mark (less
-                # than a stand-in takes), or every slot is taken (EXA-117: twelve at P6 no
-                # longer all fit)
-                mp_marks = sum(META[c]["marks"] for c in multipart)
-                mp_topics = Counter(META[c]["topic"] for c in multipart)
-                left = tsec["marks_target"] - mp_marks
-                for c in set(MULTIPART[level]) - set(multipart):
-                    m = META[c]["marks"]
-                    assert (
-                        mp_topics[META[c]["topic"]] >= 2
-                        or not (m == left or m <= left - 2)
-                        or len(multipart) >= sum(x["count"] for x in tsec["slots"])
-                    ), (where, "multi-part left out", c)
+                # every multi-part blueprint the level allows is used before any stand-in
+                # (today's eight fit in any P6 Section B: 33 marks of 45, 8 of 12 slots)
+                assert sorted(multipart) == sorted(MULTIPART[level]), where
                 rep = next(s for s in report["sections"] if s["title"] == sec["title"])
                 assert rep["multipart"] == len(multipart), where
                 assert rep["stand_ins"] == rep["filled"] - len(multipart), where

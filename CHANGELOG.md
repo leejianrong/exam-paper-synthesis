@@ -16,9 +16,8 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   (Money: one saver's money after some weeks, then when two savers have the same amount) and
   `garden_path_structured` (Area & Perimeter: the area of a path round a garden, then the cost
   of fencing its outer edge), each 2 + 2 marks. A generated P5 Paper 2 now has no placeholder
-  (it always left one 4-mark gap), so every paper template fills at P5 and P6. P6 Paper 2 may
-  take them too; the generator no longer picks a multi-part question that would leave a 1-mark
-  gap no stand-in can fill.
+  (it always left one 4-mark gap), so every paper template fills at P5 and P6. A paper takes
+  multi-part questions of its own level only, so a P6 Paper 2 is unchanged.
 - **Shared stems (EXA-90).** Insert ▸ **Shared stem** puts a block of text, figures or equations
   above questions that all use it, and the paper prints "Use the information below to answer
   Questions 12 and 13." from their numbers. Each question keeps its own number, marks, working
