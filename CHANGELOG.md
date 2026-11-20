@@ -418,6 +418,11 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **Dependency audit covers the project (EXA-176).** The CI job ran `uvx pip-audit` with no
+  arguments, which audited pip-audit's own environment. It now audits a `uv export` of
+  `uv.lock` (engine, api, cli and the dev group). That flagged anyio, certifi and
+  opentelemetry-api, now bumped to fixed releases (anyio 4.14.2, certifi 2026.10.23,
+  opentelemetry-api 1.45.2). The web side was already audited (`npm audit`, high and above).
 - **A generated question's wording and figures are checked too (EXA-157).** Changing a generated
   question's text, a part, a table cell, its figure (a bar of a chart, an angle label), its worked
   steps or its marking scheme kept the "Engine-verified" claim, since only the answer, marks and
