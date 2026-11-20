@@ -102,8 +102,13 @@ jobs:
           python-version: "3.12"
           enable-cache: true
 
+      # Audit the project's locked dependencies (every workspace member and the dev
+      # group), not pip-audit's own environment. The workspace packages themselves are
+      # left out: they are not on PyPI. Hashed pins let pip-audit skip resolving.
       - name: Audit Python dependencies
-        run: uvx pip-audit
+        run: |
+          uv export --frozen --all-packages --all-groups --no-emit-workspace --quiet -o requirements-audit.txt
+          uvx pip-audit -r requirements-audit.txt --disable-pip --strict
 
       - name: Set up Node
         uses: actions/setup-node@v7
