@@ -32,10 +32,13 @@ Related decisions: ADR-0004 (object), ADR-0012 (diagram union), ADR-0013 (multi-
 | `question` | `{ stem?, diagram?, parts[], total_marks }` |
 | `source` / `license` | required for `sourced` |
 | `validation` | `{ status, checks{} }` |
-| `provenance` | `{ created_by, llm_used, created_at?, parent_id?, version }` |
+| `provenance` | `{ created_by, llm_used, created_at?, parent_id?, version }`; `created_by` ∈ `engine \| ingested \| teacher` |
+| `freeform` | a teacher's own question: its editor block, verbatim (1.15.0, see below) |
 
 Conditional rules (JSON Schema `if/then`): `generated` ⇒ `blueprint_code` +
-`parameters` required; `sourced` ⇒ `source` + `license` required.
+`parameters` required; `sourced` ⇒ `source` + `license` required;
+`provenance.created_by: "teacher"` ⇒ `sourced` with a `freeform` block, and no other object
+has one.
 
 ## Multi-part
 
@@ -462,6 +465,19 @@ both) and `tests/fixtures/sourced/psle_2023_stem_diagram.json` (a two-part
 question sharing one stem-level `geometry_figure` `diagram`, with two angles
 each bound to its own part via `part_label`, where one part also omits
 `marks`/`marking_scheme`).
+
+## A teacher's own question: `freeform` (schema 1.15.0)
+
+"Save to your bank…" on a question the teacher wrote in a paper (EXA-90, ADR-0023) stores it as
+a `sourced` object with `provenance.created_by: "teacher"` and the paper's `freeformQuestion`
+block, verbatim, in `freeform` (body, lettered parts, images by asset id, inline maths, marks,
+Ans: units and written answers; paper-only attributes such as the slot, lock and key setting are
+left behind). `question` is a plain-text summary of the block (maths as `\(…\)`, a picture as
+`[picture]`, each written answer as a `text` answer) for lists and pickers. The load gate
+(`exam_engine.own_question.check`) validates the block against the document schema and checks
+that `question.total_marks` and the number of parts agree with it. Inserting it into a paper
+(`own_question.to_block`) gives the block back under a new block id, with `bank_id` naming the
+bank copy. It arrives unreviewed (ADR-0019) and is never verified. Its id is `own-<block_id>`.
 
 ## `diagram.type: "cube_stack"` (schema 1.12.0)
 

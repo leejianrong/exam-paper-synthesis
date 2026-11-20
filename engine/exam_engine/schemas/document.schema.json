@@ -274,7 +274,8 @@
             "in_key": { "type": "boolean", "description": "false leaves this question out of the answer key (1.7.0); absent = included." },
             "slot": { "$ref": "#/$defs/slot" },
             "locked": { "type": "boolean", "description": "true keeps this question when the paper is regenerated, and blocks swapping it (1.11.0, P8d); absent = unlocked." },
-            "remark": { "$ref": "#/$defs/remark" }
+            "remark": { "$ref": "#/$defs/remark" },
+            "bank_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 200, "description": "The question-bank id this teacher's question was saved as or inserted from (1.17.0, EXA-90): saving it again updates that bank question. Never printed." }
           }
         },
         "content": {

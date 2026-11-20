@@ -147,6 +147,47 @@ export async function listBank(): Promise<BankItem[]> {
   return ((await res.json()) as { items: BankItem[] }).items
 }
 
+/** A topic a teacher can file their own question under, with its strand (EXA-90). */
+export interface BankTopic {
+  topic: string
+  strand: string
+}
+
+export async function listBankTopics(): Promise<BankTopic[]> {
+  const res = await apiFetch(`${BASE}/bank/topics`)
+  if (!res.ok) return fail(res)
+  return ((await res.json()) as { topics: BankTopic[] }).topics
+}
+
+export interface SaveOwnRequest {
+  /** The paper's `freeformQuestion` block, as saved. */
+  block: Record<string, unknown>
+  topic: string
+  level: 'P5' | 'P6'
+  difficulty: 'easy' | 'medium' | 'hard'
+  /** A single-part question's marks; a multi-part question's are its parts'. */
+  marks?: number | null
+  replace?: boolean
+}
+
+/**
+ * Save a teacher's own question to their bank (POST /bank/own, EXA-90). `duplicate` means it is
+ * already there (saved from this block before): ask, then send again with `replace`.
+ */
+export async function saveOwnQuestion(
+  req: SaveOwnRequest,
+): Promise<{ status: 'saved' | 'replaced' | 'duplicate'; id: string | null }> {
+  const res = await apiFetch(`${BASE}/bank/own`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+  if (res.status === 409) return { status: 'duplicate', id: null }
+  if (!res.ok) return fail(res)
+  const body = (await res.json()) as { status: 'saved' | 'replaced'; id: string }
+  return { status: body.status, id: body.id }
+}
+
 /**
  * Mark a bank question reviewed (or withdraw that): ADR-0019's deliberate human act. Resolves
  * `false` when the question is no longer in the owner's bank (404), so a paper's own copy can
