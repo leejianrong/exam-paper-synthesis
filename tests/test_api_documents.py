@@ -268,3 +268,36 @@ def test_remarks_roundtrip_through_the_api_and_stay_out_of_every_preview():
     for mode in ("student", "key", "full"):
         html = client.get(f"/documents/{rec['id']}/preview/{mode}", headers=ALICE).text
         assert "REMARK-xyz" not in html
+
+
+def test_reworded_question_is_saved_unverified_not_refused():
+    """EXA-157: tampered wording (or a paper saved before a blueprint's wording changed) keeps
+    the paper; the question just loses its engine-proven claim, and says where it differs."""
+    rec = _create()
+    block = gen_block("grid_lines", 3)
+    q = block["attrs"]["question"]
+    q["question"]["parts"][0]["text"] = q["question"]["parts"][0]["text"].replace(
+        "parallel", "perpendicular"
+    )
+    resp = _save(rec, make_doc(block))
+    assert resp.status_code == 200
+    served = resp.json()["document"]["content"]["content"][0]["attrs"]["question"]["validation"]
+    assert served["status"] == "unverified"
+    assert served["checks"]["wording_differs"] == "question text"
+
+
+def test_old_paper_with_drifted_wording_opens_unverified():
+    from app.docstore import get_store
+
+    rec = _create()
+    block = gen_block("ratio_medium", 3)
+    assert _save(rec, make_doc(block)).status_code == 200
+    stored = get_store().get("alice", rec["id"])
+    doc = stored["document"]
+    doc["content"]["content"][0]["attrs"]["question"]["question"]["parts"][0]["text"] += " (old)"
+    get_store().save("alice", rec["id"], doc, stored["total_marks"], stored["version"])
+
+    got = client.get(f"/documents/{rec['id']}", headers=ALICE).json()
+    validation = got["document"]["content"]["content"][0]["attrs"]["question"]["validation"]
+    assert validation["status"] == "unverified"
+    assert client.get(f"/documents/{rec['id']}/preview/student", headers=ALICE).status_code == 200

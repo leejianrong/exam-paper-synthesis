@@ -510,8 +510,9 @@ def verify_snapshot(obj: dict) -> list[str]:
     owner's own paper — but the engine-proven badge must not be forgeable. Checks: the
     blueprint exists, ``parameters`` satisfy its schema, the solver's own validation
     passes, and the snapshot's answer and marks equal the re-derived ones. Wording is
-    deliberately not compared (a tampered sentence cannot change the proven answer).
-    Non-generated (sourced) objects are teacher-vouched and not verified here.
+    checked separately by :func:`wording_differences`, which only takes the badge away
+    (a blueprint's wording may change after a paper was saved). Non-generated (sourced)
+    objects are teacher-vouched and not verified here.
     """
     if obj.get("source_type") != "generated":
         return []
@@ -585,3 +586,110 @@ def verify_snapshot(obj: dict) -> list[str]:
 
 
 _FIGURE_IS_THE_QUESTION = frozenset({"cube_stack", "net", "grid"})  # grid: EXA-144
+
+
+def _same_words(value: object) -> object:
+    """``value`` with harmless differences dropped: runs of whitespace, and the litre
+    spelling (a paper saved before litres printed as ``ℓ`` says ``l``)."""
+    if isinstance(value, str):
+        return " ".join(value.split()).replace("ℓ", "l")
+    if isinstance(value, list):
+        return [_same_words(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _same_words(v) for k, v in value.items()}
+    return value
+
+
+def _offered_options(rebuilt: dict) -> set[str]:
+    """Every option text :func:`mcq.to_mcq` could print for ``rebuilt`` (its seed only picks
+    among these and orders them)."""
+    from .expression import in_terms_of_pi, pi_parts
+    from .mcq import _number_options, answer_text, pi_grid_sides
+
+    answer = rebuilt["question"]["parts"][0]["answer"]
+    k = pi_parts(answer) if answer["type"] == "expression" else None
+    if k is None:
+        texts = {t for _, _, t, _ in _number_options(rebuilt, answer)[1]}
+    else:
+        pis, numbers = pi_grid_sides(rebuilt)
+        unit = answer.get("unit") or ""
+        texts = {
+            answer_text(in_terms_of_pi(a, b, unit))
+            for a in [k[0], *(v for v, _ in pis)]
+            for b in [k[1], *(v for v, _ in numbers)]
+        }
+    return {str(_same_words(t)) for t in [*texts, answer_text(answer)]}
+
+
+def wording_differences(obj: dict) -> list[str]:
+    """Where a generated snapshot's printed wording differs from what the engine prints for
+    its parameters (EXA-157): ``"question text"``, ``"part (b)"``, ``"table"``, ``"option
+    (2)"``. Empty when it matches, or when the object is not generated.
+
+    The engine re-builds the question through the same path as generation and the
+    set-cosmetic edit (:func:`pipeline.build_from_params`), replaying the decimals view.
+    Call it on a snapshot :func:`verify_snapshot` accepts.
+    """
+    if obj.get("source_type") != "generated":
+        return []
+    from .edits import _change_to_decimals
+    from .pipeline import build_from_params
+
+    code = obj.get("blueprint_code") or ""
+    try:
+        rebuilt = build_from_params(
+            load_blueprint(code), get_solver(code), obj["seed"], obj["parameters"]
+        )
+        if obj.get("validation", {}).get("checks", {}).get("representation") == "decimals":
+            rebuilt = _change_to_decimals(rebuilt, None)
+    except Exception:  # verify_snapshot reports why; here the wording simply is not proven
+        return ["question text"]
+
+    have, want = obj["question"], rebuilt["question"]
+    where = []
+    if _same_words(have.get("stem")) != _same_words(want.get("stem")):
+        where.append("question text")
+    if _same_words(have.get("table")) != _same_words(want.get("table")):
+        where.append("table")
+    parts, wanted = have["parts"], want["parts"]
+    for i, part in enumerate(parts):
+        if i < len(wanted) and _same_words(part["text"]) != _same_words(wanted[i]["text"]):
+            where.append("question text" if len(parts) == 1 else f"part ({part['label']})")
+    answer, proven = parts[0]["answer"], wanted[0]["answer"]
+    if answer.get("type") == "choice" and proven.get("type") != "choice":
+        offered = _offered_options(rebuilt)
+        where += [
+            f"option ({o['label']})"
+            for o in answer["options"]
+            if _same_words(o.get("text") or "") not in offered
+        ]
+    return list(dict.fromkeys(where))
+
+
+WORDING_CHECK = "wording_differs"  # validation.checks key: where the wording differs
+
+
+def flag_wording(doc: dict) -> dict:
+    """``doc`` with each generated question's engine-proven claim matching its wording: a
+    snapshot whose printed words differ from the engine's (tampered, or saved before the
+    blueprint's wording changed) is marked ``unverified`` with where it differs, instead of
+    the paper being refused; one that matches again gets its ``pass`` back. Call it on a
+    document :func:`validate_document` accepts."""
+    blocks = []
+    for node in doc["content"]["content"]:
+        if node["type"] == "templatedQuestion":
+            q = node["attrs"]["question"]
+            validation = q.get("validation", {})
+            checks = {k: v for k, v in validation.get("checks", {}).items() if k != WORDING_CHECK}
+            status = validation.get("status")
+            where = wording_differences(q)
+            if where:
+                checks[WORDING_CHECK] = ", ".join(where)
+                status = "unverified"
+            elif WORDING_CHECK in validation.get("checks", {}):
+                status = "pass"
+            if checks != validation.get("checks", {}) or status != validation.get("status"):
+                q = {**q, "validation": {**validation, "status": status, "checks": checks}}
+                node = {**node, "attrs": {**node["attrs"], "question": q}}
+        blocks.append(node)
+    return {**doc, "content": {**doc["content"], "content": blocks}}

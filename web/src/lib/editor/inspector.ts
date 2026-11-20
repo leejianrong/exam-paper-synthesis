@@ -45,6 +45,8 @@ export function describeBlock(node: DocNode, number: number): Facts {
     }
   }
   const verified = q.validation.status === 'pass'
+  // EXA-157: the server marks a question whose printed words are not the engine's
+  const differs = q.validation.checks?.wording_differs
   if (q.cognitive?.difficulty) rows.push(['Difficulty', cap(q.cognitive.difficulty)])
   rows.push(['Blueprint', q.blueprint_code], ['Seed', String(q.seed)])
   if (q.parent_id) rows.push(['Edited from', q.parent_id])
@@ -52,7 +54,12 @@ export function describeBlock(node: DocNode, number: number): Facts {
     heading: `Question ${number}`,
     status: verified
       ? { text: 'Engine-verified — the answer key is the solution to this question', tone: 'ok' }
-      : { text: 'Not verified', tone: 'warn' },
+      : typeof differs === 'string'
+        ? {
+            text: `Not verified — its wording (${differs}) is not what the app writes for these numbers. Swap it for a verified question.`,
+            tone: 'warn',
+          }
+        : { text: 'Not verified', tone: 'warn' },
     rows: [['Type', 'Generated'], ...rows],
   }
 }

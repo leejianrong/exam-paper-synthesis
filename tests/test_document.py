@@ -26,12 +26,14 @@ from exam_engine.document import (
     MAX_IMAGES,
     MAX_QUESTION_BLOCKS,
     empty_document,
+    flag_wording,
     question_blocks,
     questions_in_order,
     referenced_assets,
     total_marks,
     validate_document,
     verify_snapshot,
+    wording_differences,
 )
 from exam_engine.render import _fmt_answer, render_document_html
 
@@ -136,8 +138,11 @@ def test_genuine_generated_snapshots_verify(code):
     for seed in range(1, 11):
         obj = generate(code, seed)
         assert verify_snapshot(obj) == [], (code, seed)
+        assert wording_differences(obj) == [], (code, seed)
         if "change-to-decimals" in edits.available_ops(obj):
-            assert verify_snapshot(edits.apply("change-to-decimals", obj)) == [], (code, seed)
+            decimals = edits.apply("change-to-decimals", obj)
+            assert verify_snapshot(decimals) == [], (code, seed)
+            assert wording_differences(decimals) == [], (code, seed)
         if edits.applicable("set-cosmetic", obj):
             from exam_engine import cosmetic
 
@@ -145,7 +150,9 @@ def test_genuine_generated_snapshots_verify(code):
             if slot["role"] == "name":
                 names = ["Zara", "Yusof", "Xin Yi"][: slot["count"]]
                 changes = {slot["key"]: names if slot["count"] > 1 else names[0]}
-                assert verify_snapshot(edits.apply("set-cosmetic", obj, changes=changes)) == []
+                renamed = edits.apply("set-cosmetic", obj, changes=changes)
+                assert verify_snapshot(renamed) == []
+                assert wording_differences(renamed) == [], (code, seed)
 
 
 def test_tampered_answer_is_rejected():
@@ -193,6 +200,84 @@ def test_sourced_objects_are_teacher_vouched_not_verified():
 
 def test_every_blueprint_has_a_solver_for_verification():
     assert all(get_solver(c) for c in CODES)
+
+
+# --- wording (EXA-157) ------------------------------------------------------------
+
+
+def _flagged(obj: dict) -> dict:
+    """The snapshot as a saved paper stores it."""
+    doc = make_doc(question_block(obj))
+    assert validate_document(doc) == []  # wording never refuses the paper
+    return flag_wording(doc)["content"]["content"][0]["attrs"]["question"]["validation"]
+
+
+def test_tampered_stem_loses_the_badge_but_the_paper_still_saves():
+    obj = generate("grid_lines", 3)
+    part = obj["question"]["parts"][0]
+    assert "parallel" in part["text"]
+    part["text"] = part["text"].replace("parallel", "perpendicular")
+    assert wording_differences(obj) == ["question text"]
+    assert _flagged(obj) == {
+        **obj["validation"],
+        "status": "unverified",
+        "checks": {**obj["validation"]["checks"], "wording_differs": "question text"},
+    }
+
+
+def test_tampered_shared_stem_and_part_text_are_named():
+    obj = generate("ratio_structured", 1)
+    obj["question"]["parts"][1]["text"] += " Give your answer in cents."
+    assert wording_differences(obj) == ["part (b)"]
+    stemmed = next(o for o in (generate(c, 1) for c in CODES) if o["question"].get("stem"))
+    stemmed["question"]["stem"] = "Something else entirely."
+    assert wording_differences(stemmed) == ["question text"]
+
+
+def test_tampered_table_cell_is_found():
+    obj = generate("postage_table", 1)
+    obj["question"]["table"]["rows"][0][1] = "$0.10"
+    assert wording_differences(obj) == ["table"]
+
+
+def test_tampered_option_text_is_found():
+    from exam_engine.mcq import to_mcq
+
+    obj = to_mcq(generate("ratio_medium", 3), 7)
+    assert wording_differences(obj) == []
+    answer = obj["question"]["parts"][0]["answer"]
+    wrong = next(o for o in answer["options"] if o["label"] != answer["correct"])
+    wrong["text"] = "$999999"
+    assert verify_snapshot(obj) == []  # the proven answer still stands; only the words differ
+    assert wording_differences(obj) == [f"option ({wrong['label']})"]
+
+
+def test_harmless_differences_do_not_count():
+    obj = generate("ratio_medium", 2)
+    part = obj["question"]["parts"][0]
+    part["text"] = "  " + part["text"].replace(" ", "  \n ") + "\n"
+    assert wording_differences(obj) == []
+    sourced = json.loads((SOURCED / "psle_2023_ratio.json").read_text(encoding="utf-8"))
+    sourced["question"]["parts"][0]["text"] = "anything"
+    assert wording_differences(sourced) == []
+
+
+def test_flag_is_lifted_when_the_wording_matches_again():
+    obj = generate("ratio_medium", 3)
+    good = copy.deepcopy(obj)
+    obj["validation"] = _flagged({**obj, "question": {**obj["question"], "stem": "Changed."}})
+    assert obj["validation"]["status"] == "unverified"
+    assert _flagged(obj) == good["validation"]
+
+
+@pytest.mark.parametrize("template", ["p1_booklet_a", "p1_booklet_b", "p2"])
+def test_generated_papers_keep_every_badge(template):
+    from exam_engine.paper import generate_paper
+
+    for level in ("P5", "P6"):
+        for seed in range(1, 4):
+            doc, _ = generate_paper(template, level, seed)
+            assert flag_wording(doc) == doc, (template, level, seed)
 
 
 # --- rendering --------------------------------------------------------------------

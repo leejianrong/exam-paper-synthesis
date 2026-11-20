@@ -334,6 +334,15 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **A generated question's wording is checked too (EXA-157).** Changing a word of a generated
+  question (its text, a part, a table cell or a multiple-choice option, say "parallel" to
+  "perpendicular") kept the "Engine-verified" claim, since only the answer, marks and some
+  figures were re-derived. The server now rebuilds the wording from the question's numbers and
+  names, the same way generation and renaming do, and compares it (spacing and the ℓ / l spelling
+  aside). A question whose words differ is saved and opened as **Not verified**, and the Question
+  tab says where it differs; the paper itself is never refused, so a paper saved before a
+  blueprint's wording changed still opens, saves and prints. Renaming people or items still
+  verifies.
 - **[ and ] work on keyboards that need AltGr or ⌥ for them (EXA-172).** On a German, French,
   Spanish or Swiss keyboard on Windows or Linux, [ and ] are AltGr+8 / AltGr+9 or similar, and
   on a German Mac ⌥5 / ⌥6; Make easier ([) and Make harder (]) on a selected question never

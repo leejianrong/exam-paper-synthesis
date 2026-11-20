@@ -76,11 +76,13 @@ def _store_new(
 
 
 def _valid_or_422(document: object) -> dict:
+    """The document as stored: valid, and a generated question whose wording is not the
+    engine's marked unverified rather than refused (EXA-157)."""
     errors = docs.validate_document(document)
     if errors:
         raise HTTPException(status_code=422, detail=errors)
     assert isinstance(document, dict)
-    return document
+    return docs.flag_wording(document)
 
 
 def _owned_assets_or_422(document: dict, owner: str, assets: AssetStore) -> None:
@@ -242,9 +244,11 @@ def list_documents(owner: Owner, store: Store) -> dict:
 @router.get("/{doc_id}")
 def get_document(doc_id: str, owner: Owner, store: Store) -> dict:
     try:
-        return with_document_hints(store.get(owner, doc_id))
+        rec = store.get(owner, doc_id)
     except DocumentNotFound:
         raise _not_found() from None
+    # a paper saved before a blueprint's wording changed opens with that question unverified
+    return with_document_hints({**rec, "document": docs.flag_wording(rec["document"])})
 
 
 @router.put("/{doc_id}")
