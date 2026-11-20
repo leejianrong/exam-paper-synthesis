@@ -292,7 +292,8 @@ export const FreeformQuestion = Node.create<FreeformQuestionOptions>({
           case 'like':
             return swap('like')
           case 'topic':
-            return swap('topic')
+          case 'bank':
+            return swap(action)
           case 'addPart':
             return addPart()
           case 'lock':

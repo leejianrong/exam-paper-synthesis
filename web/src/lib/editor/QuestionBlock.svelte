@@ -121,6 +121,7 @@
       case 'like':
       case 'topic':
       case 'own':
+      case 'bank':
         return run(() => ctx.swap(action))
       case 'regenerate':
         return run(() => editQuestion('regenerate', q))

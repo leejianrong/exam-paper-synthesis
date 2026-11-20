@@ -46,19 +46,19 @@ def list_bank(
             source_type=source_type,
             reviewed=reviewed,
         )
+    return {"items": [bank_item(obj) for obj in objects]}
+
+
+def bank_item(obj: dict) -> dict:
+    """One bank question as the API lists it (also the bank swap's picker, EXA-33)."""
     return {
-        "items": [
-            {
-                "id": obj["id"],
-                "topic": obj.get("syllabus", {}).get("topic"),
-                "level": obj.get("syllabus", {}).get("level"),
-                "difficulty": obj.get("cognitive", {}).get("difficulty"),
-                "source_type": obj["source_type"],
-                "reviewed": bool(obj.get("validation", {}).get("checks", {}).get("human_reviewed")),
-                "question": obj,
-            }
-            for obj in objects
-        ]
+        "id": obj["id"],
+        "topic": obj.get("syllabus", {}).get("topic"),
+        "level": obj.get("syllabus", {}).get("level"),
+        "difficulty": obj.get("cognitive", {}).get("difficulty"),
+        "source_type": obj["source_type"],
+        "reviewed": bool(obj.get("validation", {}).get("checks", {}).get("human_reviewed")),
+        "question": obj,
     }
 
 

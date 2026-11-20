@@ -23,6 +23,19 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   `GET /blueprints/{code}/params`; CLI: `mathgen edit set-numbers --set total=140`. Not offered on
   a multiple-choice copy, a multi-part question or a decimals view.
 
+- **Swap from your bank (EXA-33, R6.4).** A generated question, or an empty placeholder, has
+  **Swap from your bank…** in its ⋯ menu. It lists the questions in your own bank that fit
+  that place: the same marks and kind of answer (multiple choice in Booklet A, a single
+  written-answer question in a short-answer section), no higher level than the paper, and not
+  already in the paper, with the question's topic first and reviewed questions before
+  unreviewed ones. Each shows its topic, marks, review status and the question as it prints;
+  a longer list can be searched. Picking one puts it in that place as a bank question, exactly
+  as inserting it from the bank would, keeping the position's working space, key setting and
+  slot, so the section's marks stay on target. A generated question picked this way is locked,
+  so **Regenerate unlocked** keeps it. The paper is saved before the list is worked out, so a
+  question you have just inserted is not offered again. Locked questions can't be swapped. When nothing
+  fits, the dialog says so. Only your own bank is ever offered (`GET
+  /documents/{id}/swap/bank`, `POST /documents/{id}/swap` with `mode: "bank"`).
 - **Defaults for new papers (EXA-169, UI redesign S11).** Settings has a **New papers** group:
   the school name, the level (Not set, P5 or P6), **Marks shown** (the editor's own control and
   labels) and the answer key style. Each paper made from then on starts with them: the school
