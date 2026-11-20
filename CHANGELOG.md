@@ -263,6 +263,17 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Changed
 
+- **Landing page roadmap brought up to date (EXA-174).** The roadmap on the landing page
+  (`site/index.html`) listed only V1–V3 as shipped. It now shows what has shipped (the MVP
+  slices V1–V7, the paper editor, bank and accounts W1–W4, the T-series figures and answer types,
+  the paper format and one-click papers P1–P8d, the editor and app redesign), what is in progress
+  (the exam-set answer key, more topics in P8e) and what is planned later. The hero chip, the note
+  under the geometry showcase and the closing paragraph no longer call shipped work "planned"
+  or "being built", and the hero no longer says "No accounts". The sample question's bar model
+  moved into its answer key (bar models are worked solutions, EXA-132), and the feature cards
+  describe one-click papers, keep / swap / lock and the bank's review mark instead of the
+  Classic page's batch and review gate.
+
 - **Test fixtures use a made-up school name (EXA-173).** Tests and the cover's School
   field hint no longer use a name that could read as a real school: fixtures say "Example
   Primary School" and the field's hint reads "Your school’s name".
@@ -350,6 +361,12 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   change to the figure spec, even a label's position), marks that question "Not verified" in
   papers saved earlier ("question text", "worked steps", "figure", ...) until the teacher swaps
   it; say so in the change's CHANGELOG entry.
+- **A school name put back during a save is kept (EXA-175).** On Settings, typing a new school
+  name, leaving the field, then setting it back to the stored name before the first save
+  returned lost the change: the page compared it with the stored name (still the old one), sent
+  nothing, and the new name was saved. While a school name is on its way the page now compares
+  with the name being sent (also by Try again), so going back is saved after it. The level,
+  Marks shown and answer key style always save each choice, so they were not affected.
 - **[ and ] work on keyboards that need AltGr or ⌥ for them (EXA-172).** On a German, French,
   Spanish or Swiss keyboard on Windows or Linux, [ and ] are AltGr+8 / AltGr+9 or similar, and
   on a German Mac ⌥5 / ⌥6; Make easier ([) and Make harder (]) on a selected question never

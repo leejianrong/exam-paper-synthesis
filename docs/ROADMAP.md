@@ -185,6 +185,7 @@ Cross-cutting engineering foundation. Open PRs #8-10.
 
 - **done** Static GitHub Pages landing page + `pages.yml`
 - **done** Humanise landing copy; mark V2 shipped
+- **done** Roadmap list refreshed to V1–V7, W1–W4, T-series, P1–P8d and the UI redesign, with P8e under Now (EXA-174)
 
 ## Backlog / deferred (no milestone, no epic)
 
