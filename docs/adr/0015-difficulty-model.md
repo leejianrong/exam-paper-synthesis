@@ -38,4 +38,8 @@ of parts / marks) with intrinsic per-part difficulty.
 - Q-D3: a blueprint stays fixed to one profile (the ladder provides the other
   profiles), confirmed by this decision.
 - Whether the swap pool may also include **sourced** questions from the internal
-  bank (see ADR-0011 update).
+  bank (see ADR-0011 update). **Resolved (EXA-33, R6.4):** yes, but as a separate, explicit
+  choice, never mixed into "another like this" or make harder/easier. "Swap from your bank…"
+  lists the owner's own bank questions that fit the paper's slot (same marks and kind, at or
+  below the paper's level, not already in it, the slot's topic first) and the teacher picks
+  one (`paper_swap.bank_options` / `swap_from_bank`).

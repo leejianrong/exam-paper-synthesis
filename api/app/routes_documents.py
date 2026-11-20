@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import random
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from exam_engine import document as docs
 from exam_engine import paper, paper_swap
+from exam_engine.errors import BankObjectNotFound
 from exam_engine.render import render_document_html
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
@@ -22,6 +24,7 @@ from fastapi.responses import HTMLResponse, Response
 from . import export
 from .assets import AssetNotFound, AssetStore, get_asset_store
 from .auth import current_owner
+from .bankstore import open_owner_bank
 from .docstore import (
     DocumentNotFound,
     DocumentStore,
@@ -39,6 +42,7 @@ from .models import (
 )
 from .ops import strip_document_hints, with_document_hints
 from .quota import check_export_quota, export_slot, refund_export
+from .routes_bank import bank_item
 from .settings import SettingsStore, get_settings_store
 
 router = APIRouter(prefix="/documents")
@@ -208,16 +212,55 @@ def swap_question(doc_id: str, req: SwapQuestionRequest, owner: Owner, store: St
     """P8d: another question like this one, one from another topic, or a placeholder to
     write, keeping the slot's marks and the paper's rules (engine ``paper_swap``)."""
     seed = req.seed if req.seed is not None else random.randrange(1, _SEED_CEIL)
+    if req.mode == "bank":
+        if not req.bank_id:
+            raise HTTPException(status_code=422, detail="bank_id is needed to swap from the bank")
+        with closing(open_owner_bank(owner)) as bank:
+            try:
+                chosen = bank.get(req.bank_id)
+            except BankObjectNotFound:
+                raise HTTPException(
+                    status_code=404, detail="no such question in your bank"
+                ) from None
 
     def change(document: dict) -> tuple[dict, dict]:
-        try:
+        with _swap_errors():
+            if req.mode == "bank":
+                return paper_swap.swap_from_bank(document, req.block_id, chosen, req.level)
             return paper_swap.swap_question(document, req.block_id, req.mode, seed, req.level)
-        except paper_swap.BlockNotFound:
-            raise HTTPException(status_code=404, detail="question not found") from None
-        except paper_swap.SwapNotPossible as e:
-            raise HTTPException(status_code=422, detail=str(e)) from None
 
     return _rework(owner, doc_id, store, req.base_version, change)
+
+
+@contextmanager
+def _swap_errors() -> Iterator[None]:
+    try:
+        yield
+    except paper_swap.BlockNotFound:
+        raise HTTPException(status_code=404, detail="question not found") from None
+    except paper_swap.SwapNotPossible as e:
+        raise HTTPException(status_code=422, detail=str(e)) from None
+
+
+@router.get("/{doc_id}/swap/bank")
+def bank_swap_options(
+    doc_id: str,
+    block_id: str,
+    owner: Owner,
+    store: Store,
+    level: Literal["P5", "P6"] | None = None,
+) -> dict:
+    """EXA-33: the owner's bank questions that could take this question's place (same marks
+    and kind, not already in the paper), the question's topic first."""
+    try:
+        rec = store.get(owner, doc_id)
+    except DocumentNotFound:
+        raise _not_found() from None
+    with closing(open_owner_bank(owner)) as bank:
+        objects = bank.search()
+    with _swap_errors():
+        fit = paper_swap.bank_options(rec["document"], block_id, objects, level)
+    return {"items": [bank_item(o) for o in fit]}
 
 
 @router.post("/{doc_id}/regenerate")

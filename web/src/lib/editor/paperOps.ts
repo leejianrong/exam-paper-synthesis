@@ -129,6 +129,7 @@ export function goToQuestion(editor: Editor, number: number, start = 1): boolean
 /** One line for the page after a swap. */
 export function swapNotice(r: SwapReport): string {
   if (r.placeholder) return `Placeholder ready: write your own ${r.marks}-mark question there.`
+  if (r.mode === 'bank') return `Swapped in a ${r.marks}-mark ${r.topic ?? ''} question from your bank.`.replace('  ', ' ')
   return `Swapped in a ${r.marks}-mark ${r.topic ?? ''} question.`.replace('  ', ' ')
 }
 

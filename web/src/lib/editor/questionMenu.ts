@@ -10,6 +10,7 @@ export type QuestionAction =
   | 'like' // another question for this slot (the server's `like` swap)
   | 'regenerate' // a new seed of the same blueprint, for a generated question no paper made
   | 'topic'
+  | 'bank' // EXA-33: pick a question from the owner's bank for this place
   | 'fill' // a placeholder: let the generator put a question here
   | 'easier'
   | 'harder'
@@ -61,6 +62,8 @@ const OP_DEFAULT: Partial<Record<EditOp, string>> = {
   'toggle-bar-view': 'Slice into units',
 }
 
+const BANK_ROW: QuestionRow = { action: 'bank', label: 'Swap from your bank…', icon: 'copy', hint: 'Pick a question from your bank with the same marks' }
+
 /** The menu's rows in groups (a separator between groups; empty groups dropped). */
 export function menuGroups(f: QuestionFacts): QuestionRow[][] {
   const change: QuestionRow[] = []
@@ -68,6 +71,7 @@ export function menuGroups(f: QuestionFacts): QuestionRow[][] {
     change.push(
       { action: 'like', label: 'Another like this', icon: 'swap', shortcut: BLOCK_KEYS.like, hint: 'Another question for this place: same marks, same topic where possible' },
       { action: 'topic', label: 'Another topic', icon: 'topic', hint: 'A question with the same marks from a topic this paper uses less' },
+      BANK_ROW,
     )
   } else if (f.kind !== 'generated' && f.kind !== 'placeholder' && f.ops.includes('regenerate')) {
     // Reachable: the API gives `available_ops` (regenerate among them) to any templated question
@@ -78,6 +82,7 @@ export function menuGroups(f: QuestionFacts): QuestionRow[][] {
     change.push(
       { action: 'fill', label: 'Fill with a question', icon: 'swap', shortcut: BLOCK_KEYS.like, hint: 'Let the generator put a question with these marks here' },
       { action: 'topic', label: 'Another topic', icon: 'topic', hint: 'Fill it with a question from a topic this paper uses less' },
+      BANK_ROW,
     )
   }
   if (f.ops.includes('make-easier')) change.push({ action: 'easier', label: 'Make easier', icon: 'easier', shortcut: BLOCK_KEYS.easier })

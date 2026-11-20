@@ -17,6 +17,11 @@ document → document transforms. They keep every P8a rule (``paper.generate_pap
 - ``own``   — a free-form placeholder with the slot's marks and an empty body, for the
   teacher to write.
 
+``bank_options`` / ``swap_from_bank`` (EXA-33, R6.4) put a question from the owner's bank in
+its place instead: same marks and kind, at or below the paper's level, not already in the
+paper; the block's topic first. The same blocks can be swapped (unlocked generated questions
+and empty placeholders).
+
 ``regenerate_unlocked(doc, level, seed)`` refills every generated question and every
 still-empty placeholder whose ``locked`` is not true. Locked questions, bank (sourced)
 questions and anything the teacher wrote — free-form questions, placeholders with something
@@ -296,19 +301,9 @@ def _describe(c: Candidate) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def swap_question(
-    doc: dict, block_id: str, mode: str, seed: int, level: str | None = None
-) -> tuple[dict, dict]:
-    """Replace the question ``block_id`` (see the module docstring). Returns ``(document,
-    report)``; ``doc`` itself is not changed. Raises ``SwapNotPossible`` with a message for
-    the teacher when the paper's rules leave nothing to swap in, and ``KeyError`` when no
-    question has that id (``BlockNotFound``). Bank (sourced) questions and teacher-written
-    free-form questions are never swapped."""
-    if mode not in MODES:
-        raise ValueError(f"mode must be one of {MODES}, not {mode!r}")
-    level = paper_level(doc, level)
-    out = copy.deepcopy(doc)
-    blocks = out["content"]["content"]
+def _target(blocks: list[dict], block_id: str) -> int:
+    """The index of the question ``block_id``, if a swap may replace it: a generated question
+    or an empty placeholder, not locked."""
     idx = next(
         (
             i
@@ -331,8 +326,26 @@ def swap_question(
             raise SwapNotPossible("Only generated questions and placeholders can be swapped.")
         if has_content(node.get("content", [])):
             raise SwapNotPossible("You have started writing this question, so it is kept.")
-        if mode == "own":
-            raise SwapNotPossible("This is already a question for you to write.")
+    return idx
+
+
+def swap_question(
+    doc: dict, block_id: str, mode: str, seed: int, level: str | None = None
+) -> tuple[dict, dict]:
+    """Replace the question ``block_id`` (see the module docstring). Returns ``(document,
+    report)``; ``doc`` itself is not changed. Raises ``SwapNotPossible`` with a message for
+    the teacher when the paper's rules leave nothing to swap in, and ``KeyError`` when no
+    question has that id (``BlockNotFound``). Bank (sourced) questions and teacher-written
+    free-form questions are never swapped."""
+    if mode not in MODES:
+        raise ValueError(f"mode must be one of {MODES}, not {mode!r}")
+    level = paper_level(doc, level)
+    out = copy.deepcopy(doc)
+    blocks = out["content"]["content"]
+    idx = _target(blocks, block_id)
+    node = blocks[idx]
+    if mode == "own" and node["type"] == "freeformQuestion":
+        raise SwapNotPossible("This is already a question for you to write.")
 
     slot = _slot_of(node, _section_modes(blocks)[idx])
     rng = random.Random(f"swap|{block_id}|{mode}|{level}|{seed}")
@@ -388,6 +401,88 @@ def swap_question(
     obj = _fresh(choice.code, slot["kind"], rng, avoid)
     blocks[idx] = _question_block(node, obj, _new_slot(node, slot, choice))
     return out, {**report, **_describe(choice), "placeholder": False}
+
+
+# ---------------------------------------------------------------------------
+# Swap from the bank (EXA-33, R6.4)
+# ---------------------------------------------------------------------------
+
+_KIND_WORDS = {
+    "mcq": "multiple-choice",
+    "short": "single-part, written-answer",
+    "structured": "written-answer",
+}
+
+
+def _reviewed(obj: dict) -> bool:
+    return bool(obj.get("validation", {}).get("checks", {}).get("human_reviewed"))
+
+
+def _bank_refusal(blocks: list[dict], idx: int, slot: dict, obj: dict, level: str) -> str | None:
+    """Why the bank question ``obj`` can't take the place of ``blocks[idx]`` (None: it can).
+    The paper's rules hold: the slot's marks and kind, nothing above the paper's level, no
+    question (or blueprint) twice."""
+    in_paper = {n["attrs"]["question"]["id"] for n in blocks if n["type"] == "templatedQuestion"}
+    if obj["id"] in in_paper:
+        return "That question is already in this paper."
+    code = obj.get("blueprint_code")
+    if code and any(_blueprint(n) == code for i, n in enumerate(blocks) if i != idx):
+        return "The paper already has a question of that kind."
+    q = obj["question"]
+    obj_level = obj.get("syllabus", {}).get("level")
+    if obj_level in LEVELS and LEVELS.index(obj_level) > LEVELS.index(level):
+        return f"That is a {obj_level} question and this is a {level} paper."
+    parts = q["parts"]
+    choice = [(p.get("answer") or {}).get("type") == "choice" for p in parts]
+    kind = slot["kind"]
+    fits = (
+        len(parts) == 1 and all(choice)
+        if kind == "mcq"
+        else not any(choice) and (kind == "structured" or len(parts) == 1)
+    )
+    if int(q["total_marks"]) != slot["marks"] or not fits:
+        return f"This place needs a {slot['marks']}-mark {_KIND_WORDS[kind]} question."
+    return None
+
+
+def bank_options(
+    doc: dict, block_id: str, bank: list[dict], level: str | None = None
+) -> list[dict]:
+    """The questions of ``bank`` (the owner's) that could replace ``block_id``, best first:
+    the block's topic, then reviewed ones, then in bank order. Raises like ``swap_question``
+    when the block can't be swapped at all."""
+    level = paper_level(doc, level)
+    blocks = doc["content"]["content"]
+    idx = _target(blocks, block_id)
+    slot = _slot_of(blocks[idx], _section_modes(blocks)[idx])
+    topic = _topic(blocks[idx])
+    fit = [o for o in bank if _bank_refusal(blocks, idx, slot, o, level) is None]
+    return sorted(
+        fit, key=lambda o: (o.get("syllabus", {}).get("topic") != topic, not _reviewed(o))
+    )
+
+
+def swap_from_bank(
+    doc: dict, block_id: str, obj: dict, level: str | None = None
+) -> tuple[dict, dict]:
+    """Replace the question ``block_id`` with the bank question ``obj``, as the editor inserts
+    one from the bank (its snapshot, unchanged). The position keeps its slot, layout and key
+    setting. Raises ``SwapNotPossible`` when ``obj`` doesn't fit (see ``_bank_refusal``)."""
+    level = paper_level(doc, level)
+    out = copy.deepcopy(doc)
+    blocks = out["content"]["content"]
+    idx = _target(blocks, block_id)
+    node = blocks[idx]
+    slot = _slot_of(node, _section_modes(blocks)[idx])
+    why = _bank_refusal(blocks, idx, slot, obj, level)
+    if why:
+        raise SwapNotPossible(why)
+    multipart = len(obj["question"]["parts"]) > 1
+    new_slot = _filled_slot(slot, multipart) if node["attrs"].get("slot") else None
+    blocks[idx] = _question_block(node, copy.deepcopy(obj), new_slot)
+    topic = obj.get("syllabus", {}).get("topic")
+    report = {"block_id": block_id, "mode": "bank", "marks": slot["marks"], "bank_id": obj["id"]}
+    return out, {**report, "topic": topic, "placeholder": False}
 
 
 # ---------------------------------------------------------------------------

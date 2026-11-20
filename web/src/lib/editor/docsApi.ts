@@ -3,6 +3,7 @@
 
 import { ApiError, fail } from '../errors'
 import { apiFetch } from '../http'
+import type { BankItem } from '../api'
 import type { DocumentRecord, DocumentSummary, PaperDocument } from './doc'
 
 const BASE: string = import.meta.env.VITE_API ?? 'http://localhost:8000'
@@ -147,8 +148,9 @@ export async function generatePaper(
   return (await res.json()) as DocumentRecord & { report: PaperReport }
 }
 
-/** P8d: how to replace one question of a paper. */
-export type SwapMode = 'like' | 'topic' | 'own'
+/** P8d: how to replace one question of a paper; `bank` (EXA-33) puts a question from the
+ *  owner's bank there, picked from `bankSwapOptions`. */
+export type SwapMode = 'like' | 'topic' | 'own' | 'bank'
 
 /** What a swap did (engine `paper_swap.swap_question`'s report). */
 export interface SwapReport {
@@ -158,6 +160,7 @@ export interface SwapReport {
   placeholder: boolean
   blueprint?: string
   topic?: string
+  bank_id?: string
 }
 
 /** What "regenerate unlocked" did (engine `paper_swap.regenerate_unlocked`'s report). */
@@ -173,14 +176,22 @@ export async function swapQuestion(
   blockId: string,
   mode: SwapMode,
   baseVersion: number,
+  bankId?: string,
 ): Promise<DocumentRecord & { report: SwapReport }> {
   const res = await apiFetch(`${BASE}/documents/${id}/swap`, {
     method: 'POST',
     headers: json,
-    body: JSON.stringify({ block_id: blockId, mode, base_version: baseVersion }),
+    body: JSON.stringify({ block_id: blockId, mode, base_version: baseVersion, ...(bankId ? { bank_id: bankId } : {}) }),
   })
   if (!res.ok) return fail(res)
   return (await res.json()) as DocumentRecord & { report: SwapReport }
+}
+
+/** EXA-33: the owner's bank questions that could take this question's place, best first. */
+export async function bankSwapOptions(id: string, blockId: string): Promise<BankItem[]> {
+  const res = await apiFetch(`${BASE}/documents/${id}/swap/bank?block_id=${encodeURIComponent(blockId)}`)
+  if (!res.ok) return fail(res)
+  return ((await res.json()) as { items: BankItem[] }).items
 }
 
 /** Refill every unlocked generated question and empty placeholder (locked ones stay). */

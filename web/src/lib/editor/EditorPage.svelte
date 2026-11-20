@@ -32,8 +32,10 @@
   import { NodeSelection, TextSelection, type Selection } from '@tiptap/pm/state'
 
   import type { Question } from '../types'
+  import type { BankItem } from '../api'
   import AddQuestion from './AddQuestion.svelte'
   import AnswerDialog from './AnswerDialog.svelte'
+  import BankSwapDialog from './BankSwapDialog.svelte'
   import KeyView from './KeyView.svelte'
   import { answerWritten, keyNumbers } from './keyRows'
   import { withReviewed } from './inspector'
@@ -153,6 +155,7 @@
   let paletteCommands: Command[] = []
   let sheetOpen = false
   let verifiedOpen = false
+  let bankSwapFor: string | null = null // the block "Swap from your bank…" is picking for (EXA-33)
   let moveFolders: Folder[] | null = null
   let moveError = ''
   let confirmDelete = false
@@ -1016,17 +1019,27 @@
     }
   }
 
-  async function swapBlock(blockId: string, mode: SwapMode): Promise<void> {
+  async function swapBlock(blockId: string, mode: SwapMode, bankId?: string): Promise<void> {
+    if (mode === 'bank' && !bankId) {
+      bankSwapFor = blockId // the picker asks which bank question, then comes back here
+      return
+    }
     await paperOp(
-      (base) => swapQuestion(id, blockId, mode, base),
+      (base) => swapQuestion(id, blockId, mode, base, bankId),
       swapNotice,
       "The question wasn't swapped",
-      () => void swapBlock(blockId, mode),
+      () => void swapBlock(blockId, mode, bankId),
     )
     // The swapped block is selected; give the editor focus back (the menu that asked is gone),
     // so its pill shows and R swaps again (EXA-161).
     await nextTick()
     if (editor && (!document.activeElement || document.activeElement === document.body)) editor.view.focus()
+  }
+
+  function pickFromBank(item: BankItem) {
+    const blockId = bankSwapFor
+    bankSwapFor = null
+    if (blockId) void swapBlock(blockId, 'bank', item.id)
   }
 
   function regenerate(): Promise<void> {
@@ -1405,6 +1418,10 @@
     on:freeform={insertFreeformQuestion}
     on:close={() => (pickerAt = undefined)}
   />
+{/if}
+
+{#if bankSwapFor}
+  <BankSwapDialog docId={id} blockId={bankSwapFor} onPick={pickFromBank} onClose={() => (bankSwapFor = null)} />
 {/if}
 
 {#if unfilled}
