@@ -515,6 +515,29 @@ def test_what_todays_content_fills():
     assert [(s["multipart"], s["stand_ins"]) for s in r["sections"]] == [(0, 0), (3, 12)]
 
 
+def test_a_shortfall_the_content_cannot_fill_becomes_placeholders(monkeypatch):
+    """Every template fills since EXA-117, so the placeholder fallback is driven here by taking
+    the multi-part blueprints away: a P5 Section B then falls short again (as it did before)."""
+    from exam_engine import paper
+
+    real = paper.candidates
+    monkeypatch.setattr(
+        paper, "candidates", lambda level: [c for c in real(level) if c.kind != "multipart"]
+    )
+    for seed in range(1, 11):
+        doc, report = generate_paper("p2", "P5", seed)
+        assert validate_document(doc) == [], seed
+        section_b = report["sections"][1]
+        assert section_b["multipart"] == 0 and section_b["placeholders"] >= 1, seed
+        assert report["placeholders"] == unfilled_placeholders(doc) == section_b["placeholders"]
+        for info in paper_outline(doc):  # placeholders keep every section at its target
+            assert info["marks"] == info["marks_target"], (seed, info)
+        for n in _questions(doc):
+            slot = n["attrs"].get("slot", {})
+            if slot.get("placeholder"):
+                assert n["type"] == "freeformQuestion" and 3 <= slot["marks"] <= 5, seed
+
+
 def test_unknown_template_and_level_are_refused():
     from exam_engine.paper import UnknownPaperTemplate
 

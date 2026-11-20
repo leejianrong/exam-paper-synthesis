@@ -193,7 +193,7 @@ def _check_path(obj: dict) -> None:
 @st.composite
 def path_params(draw) -> dict:
     length = draw(st.integers(8, 30))
-    width = draw(st.integers(5, length - 1))
+    width = draw(st.integers(5, min(length - 2, 28)))  # as the solver and schema
     path = draw(st.integers(1, 3))
     price = draw(st.integers(4, 15))
     assume(2 * path < width and 2 * (length + width + 4 * path) * price <= 2000)

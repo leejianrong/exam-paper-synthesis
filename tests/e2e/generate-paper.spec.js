@@ -71,7 +71,7 @@ test('generate a P5 Paper 2: every slot filled; a question replaced is a placeho
   await expect(page.getByTestId('placeholders-left')).toHaveText('1 placeholder to write')
   const hints = page.locator('.ff-placeholder-hint:visible')
   await expect(hints).toHaveCount(1)
-  await expect(hints.first()).toHaveText(/write a [2-5]-mark structured question here/)
+  await expect(hints.first()).toHaveText(/write a [345]-mark structured question here/)
 
   // Writing a placeholder's question clears it.
   await page.locator('.ffblock.placeholder-slot .ff-body').first().click()
