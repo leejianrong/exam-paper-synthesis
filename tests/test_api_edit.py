@@ -136,6 +136,12 @@ def test_editable_params_endpoint_lists_free_numbers():
     body = client.get("/blueprints/ratio_easy/params").json()
     assert body["numbers"] == [
         {"key": "ratio", "label": "Ratio", "list": True, "minimum": 1, "maximum": 9, "sep": ":"},
-        {"key": "total", "label": "Amount shared ($)", "list": False, "minimum": 6, "maximum": 2000},
+        {
+            "key": "total",
+            "label": "Amount shared ($)",
+            "list": False,
+            "minimum": 6,
+            "maximum": 2000,
+        },
     ]
     assert client.get("/blueprints/ratio_hard/params").json()["numbers"] == []
