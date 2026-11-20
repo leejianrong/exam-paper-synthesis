@@ -290,7 +290,8 @@ def _render_axes_chart(spec: dict) -> str:
             if x > left and x + entry > width - right:
                 legend_rows, x = legend_rows + 1, left
             x += entry
-    height = 320 + (legend_rows - 1) * 20
+    # a time graph is shorter, so a two-part question with it still fits a page with its working
+    height = (250 if numeric else 320) + (legend_rows - 1) * 20
     bottom = 64 + (22 + (legend_rows - 1) * 20 if legend else 0)
     pw, ph = width - left - right, height - top - bottom
     lo, hi = axis["min"], axis["max"]

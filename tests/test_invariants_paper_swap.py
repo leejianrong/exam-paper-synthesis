@@ -353,7 +353,7 @@ def test_regenerating_a_paper_2_keeps_two_questions_a_topic_at_most(level):
 def test_regenerate_with_everything_unlocked_gives_a_new_paper():
     doc, _ = generate_paper("p2", "P6", 4)
     new, report = regenerate_unlocked(doc, "P6", 99)
-    assert report["kept"] == 0 and report["replaced"] == 17  # 5 short, 10 multi-part, 2 stand-ins
+    assert report["kept"] == 0 and report["replaced"] == 16  # 5 short, 11 multi-part
     assert json.dumps(new) != json.dumps(doc)
     _check_rules(new, "P6", "p2 regenerate")
     # P8c: like the generator, Section B takes every multi-part blueprint again

@@ -159,7 +159,7 @@ def graphs(draw, *, empty: bool) -> dict:
     for d, r in zip(durations, rises, strict=True):
         times.append(times[-1] + d)
         volumes.append(volumes[-1] + r)
-    assume(volumes[-1] // step <= 10)
+    assume(volumes[-1] // step <= 8)
     return {
         "vessel": draw(st.sampled_from(["tank", "container", "barrel"])),
         "step": step,

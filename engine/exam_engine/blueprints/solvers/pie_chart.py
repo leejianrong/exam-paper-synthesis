@@ -218,6 +218,8 @@ class PiePercentMoreSolver:
             (Fraction(p[y] * t, 100), f"the amount spent on {labels[y].lower()} only"),
             (Fraction((p[x] + p[y]) * t, 100), "added the two sectors"),
             (Fraction((100 - p[x] + p[y]) * t, 100), "took the difference from 100%"),
+            (Fraction((p[x] - p[y] - 5) * t, 100), "misread a sector by 5%"),
+            (Fraction((p[x] - p[y] + 5) * t, 100), "misread a sector by 5%"),
         ]
 
     def validate(self, params: dict, solution: dict) -> dict:
@@ -305,6 +307,8 @@ class PieFractionAmountSolver:
             (given + params["parts"][h] * u, "added the given amount on"),
             (fs[h] * given, "took the fraction of the given amount"),
             (Fraction(given) / fs[h], "divided by the unlabelled sector's fraction"),
+            (u, f"stopped at the value of one {frac(Fraction(1, params['den']))} part"),
+            (abs(given - params["parts"][h] * u), "the difference between the two sectors"),
         ]
         # every amount in the question is whole dollars or minutes; so is a believable slip
         return [(v, why) for v, why in slips if Fraction(v).denominator == 1]

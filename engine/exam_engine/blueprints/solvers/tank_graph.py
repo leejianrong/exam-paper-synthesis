@@ -25,7 +25,7 @@ Slip = tuple[int | Fraction, str]
 
 VESSELS = ("tank", "container", "barrel")
 STEPS = (5, 10, 20)
-_MAX_TICKS = 11  # volume gridlines above zero, so the graph stays readable
+_MAX_TICKS = 9  # volume gridlines above zero, so the graph stays readable
 
 
 def _sample_graph(rng: random.Random, *, empty: bool) -> tuple[int, list[int], list[int]]:
@@ -180,16 +180,21 @@ class TankGraphSolver:
             for i in (a - 1, a + 1):  # the stretch beside the one asked about
                 if 0 <= i < len(t) - 1:
                     out.append((rates_of(t, v)[i], "read the rate of the next stretch"))
+            out.append((Fraction(rise, span + 1), "counted the time marks, not the minutes"))
             out.append((Fraction(rise + step, span), "misread a point by one gridline"))
             out.append((Fraction(rise - step, span), "misread a point by one gridline"))
             return out
-        return [
+        out = [
             (v[b], f"read the volume at {t[b]} min only"),
             (v[a] + v[b], "added the two readings"),
             (rise + step, "misread a point by one gridline"),
             (rise - step, "misread a point by one gridline"),
             (v[a], f"read the volume at {t[a]} min only"),
         ]
+        if b > a + 1:  # the water of one stretch only
+            out.append((v[a + 1] - v[a], f"stopped at {t[a + 1]} min"))
+            out.append((v[b] - v[b - 1], f"started at {t[b - 1]} min"))
+        return out
 
     def validate(self, params: dict, solution: dict) -> dict:
         t, v, a, b = params["times"], params["volumes"], params["a"], params["b"]

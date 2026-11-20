@@ -56,7 +56,7 @@ parts:
         - text: "The {vessel} was full {t_end} + {more} = {full} min after the start."
           expr: "{t_end}+{more}"
     marking_scheme:
-      - { mark: 1, type: M, description: "Finds the time to fill the rest of the tank at the rate in (a)." }
+      - { mark: 1, type: M, description: "Finds the time to fill the rest at the rate in (a)." }
       - { mark: 1, type: A, description: "Adds the time already shown on the graph; correct time in min." }
     answer: { type: integer, unit: "min" }
 diagram: chart

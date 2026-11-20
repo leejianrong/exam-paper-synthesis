@@ -13,6 +13,7 @@ import re
 
 import pytest
 from documents import freeform_block, make_doc, multipart_block, para, part_node
+from exam_engine.blueprints.registry import load_blueprint
 from exam_engine.document import (
     empty_document,
     key_options,
@@ -187,7 +188,12 @@ def test_the_options_bring_back_the_scheme_marks_and_one_mark_working():
 
 def test_distractor_reasons_never_print_in_the_school_key():
     booklet_a, _ = generate_paper("p1_booklet_a", "P6", 3)
-    mcq = questions(booklet_a)[0]  # a multiple-choice question outside a multiple-choice section
+    # a converted multiple-choice question (its wrong options carry reasons), outside an MCQ section
+    mcq = next(
+        q
+        for q in questions(booklet_a)
+        if load_blueprint(q["attrs"]["question"]["blueprint_code"]).answer_types != ("choice",)
+    )
     doc = make_doc(copy.deepcopy(mcq))
     full = key(with_key_style(doc, "worked"))
     assert "Wrong options" in full  # worked solutions keep them for the teacher

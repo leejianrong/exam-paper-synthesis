@@ -23,7 +23,7 @@ from .solid import check_solid_consistency
 if TYPE_CHECKING:  # avoid an import cycle at runtime
     from .blueprints.base import BlueprintSpec
 
-SCHEMA_VERSION = "1.14.0"
+SCHEMA_VERSION = "1.16.0"
 
 
 class CanonicalValidationError(Exception):
