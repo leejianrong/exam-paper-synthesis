@@ -523,13 +523,16 @@ table of real P5–P6 papers: a list of statements, each ticked in exactly one c
   an empty box under each column (no working space, no Ans: line; the marks sit beside the
   question). Only each row's `tick` is the key: the full key and the school key print the same
   table with a tick in the right box (`render._render_tick_table`, an inline SVG tick in the
-  print palette), and a one-line summary (`tick_table.summary`) stands in where a table cannot
-  (an MCQ answer grid, the Classic page).
+  print palette). Where a table cannot be drawn (a key's multiple-choice answer grid) the engine
+  prints the ticks in row order (`tick_table.summary`); the web's Classic page lists each
+  statement with its tick (`fmtAnswer` in `web/src/lib/format.ts`).
 - Load gate (`exam_engine.tick_table.check_tick_table_consistency`): every tick names one of the
   table's columns, and no statement appears twice.
 - Never converted to multiple choice (`mcq.to_mcq` refuses it; the paper generator never puts it
-  in an MCQ slot). `document.verify_snapshot` re-solves a generated one and compares the whole
-  answer, so a changed tick, statement or row order does not verify. `convert.to_freeform` puts
+  in an MCQ slot). `document.verify_snapshot` re-solves a generated one and compares the columns
+  and the ticks in row order, so a changed tick (or rows put in another order) is refused; the
+  statements' words are wording (EXA-157): `wording_differences` reports a changed statement as
+  `statements` and the question loses its verified claim. `convert.to_freeform` puts
   the statements in the question body and the ticks in the written answer.
 - Blueprint: `average_statements` (P5 Average, 2 marks: B1 for two rows right, B1 more for all
   three, as school keys mark these tables).

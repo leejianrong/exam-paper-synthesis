@@ -19,7 +19,8 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   contains 25 sweets or more"); "Not possible to tell" is ticked only when the facts allow it
   either way, and the key's working shows two fillings that disagree. The paper generator can
   place it in a 2-mark short-answer or structured slot, never as multiple choice; the editor
-  shows it as it prints.
+  shows it as it prints. A changed tick is refused like any changed answer; a changed statement only
+  takes the verified claim away, like other changed wording (EXA-157).
 - **Defaults for new papers (EXA-169, UI redesign S11).** Settings has a **New papers** group:
   the school name, the level (Not set, P5 or P6), **Marks shown** (the editor's own control and
   labels) and the answer key style. Each paper made from then on starts with them: the school

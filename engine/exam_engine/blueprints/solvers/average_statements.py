@@ -237,6 +237,7 @@ class AverageStatementsSolver:
         rows = params["rows"]
         ticks = [r["tick"] for r in solution["answer"]["rows"]]
         checks = {
+            "known_iff_four": (params["known"] is not None) == (params["count"] == 4),
             "three_statements": len(rows) == 3,
             "kinds_distinct": len({r["kind"] for r in rows}) == 3,
             "each_container_can_hold_one": t >= 9,

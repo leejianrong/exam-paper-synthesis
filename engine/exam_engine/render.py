@@ -1449,16 +1449,18 @@ def _templated_key_work(obj: dict, key: KeyOptions) -> str:
             lead = f'<span class="ans-part">({_esc(label)})</span> ' if label and i == 0 else ""
             piece.append(f'<p class="key-step">{lead}{_mathify(step["text"])}</p>')
         answer = part["answer"]
-        if answer["type"] in ("construction", "tick_table"):
+        if answer["type"] == "tick_table":
+            # the ticked table is the answer: no "Ans:" line, the marks right under it
+            piece.append(_render_tick_table(answer, reveal=True))
+            if marks := _key_marks(part.get("marks"), key):
+                piece.append(f'<p class="key-ans">{marks}</p>')
+        elif answer["type"] == "construction":
             marks = _key_marks(part.get("marks"), key)
             if (label and not part.get("solution_steps")) or marks:
                 # no step carried the part label: the "Ans:" line names the part (and its marks)
                 piece.append(_key_ans("", label if not part.get("solution_steps") else "", marks))
-            if answer["type"] == "tick_table":
-                piece.append(_render_tick_table(answer, reveal=True))
-            else:
-                svg = diagram.render_svg(answer["diagram"], given=part.get("diagram") or q_diagram)
-                piece.append(f'<figure class="diagram answer-diagram">{svg}</figure>')
+            svg = diagram.render_svg(answer["diagram"], given=part.get("diagram") or q_diagram)
+            piece.append(f'<figure class="diagram answer-diagram">{svg}</figure>')
         else:
             piece.append(_key_ans(_fmt_answer(answer), label, _key_marks(part.get("marks"), key)))
         if key.show_scheme:

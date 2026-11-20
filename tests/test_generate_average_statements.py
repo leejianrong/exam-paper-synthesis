@@ -14,7 +14,7 @@ from documents import make_doc, question_block
 from exam_engine import canonical, convert, generate, mcq
 from exam_engine.blueprints.registry import get_solver, load_blueprint
 from exam_engine.canonical import CanonicalValidationError
-from exam_engine.document import verify_snapshot
+from exam_engine.document import verify_snapshot, wording_differences
 from exam_engine.errors import EditNotApplicable
 from exam_engine.render import (
     render_answer_key_html,
@@ -128,16 +128,59 @@ def test_no_multiple_choice_copy():
         lambda a: a["rows"][0].update(
             tick=next(c for c in a["columns"] if c != a["rows"][0]["tick"])
         ),
-        lambda a: a["rows"][1].update(statement=a["rows"][1]["statement"].replace(" P,", " P, S,")),
         lambda a: a["rows"].reverse(),
         lambda a: a["rows"].pop(),
+        lambda a: a["columns"].pop(),
     ],
 )
-def test_a_tampered_table_does_not_verify(tamper):
-    obj = _obj()
+def test_a_tampered_tick_does_not_verify(tamper):
+    obj = _obj(2)
+    assert len({r["tick"] for r in _answer(obj)["rows"]}) == 3  # reversing moves every tick
     assert verify_snapshot(obj) == []
     tamper(_answer(obj))
     assert verify_snapshot(obj) != []
+
+
+def test_changed_words_lose_the_verified_claim():
+    """EXA-157: a statement or the question text that is not the engine's is flagged (the
+    question becomes unverified); the untouched question is not."""
+    obj = _obj()
+    assert wording_differences(obj) == []
+    row = _answer(obj)["rows"][1]
+    row["statement"] = row["statement"].replace(" P,", " P, S,")
+    assert verify_snapshot(obj) == [] and wording_differences(obj) == ["statements"]
+    obj = _obj()
+    obj["question"]["parts"][0]["text"] = obj["question"]["parts"][0]["text"].replace("3", "4")
+    assert wording_differences(obj) == ["question text"]
+
+
+def test_a_count_for_s_with_three_containers_does_not_verify():
+    """The stem prints S only with four containers: a ``known`` on three would change every tick
+    without the printed facts saying so (e.g. "fewer than 26" ticked Not possible to tell)."""
+    solver = get_solver(CODE)
+    for seed in range(1, 40):
+        obj = _obj(seed)
+        params = obj["parameters"]
+        forged = copy.deepcopy(obj)
+        if params["count"] == 3:
+            forged["parameters"]["known"] = params["average"]
+        else:
+            forged["parameters"]["known"] = None
+        p = forged["parameters"]
+        if p["known"] is not None:
+            assert solver.validate(p, solver.solve(p))["ok"] is False
+            forged["question"]["parts"][0]["answer"] = solver.solve(p)["answer"]
+        assert verify_snapshot(forged) != [], seed
+
+
+def test_the_school_key_shows_the_marks_without_an_empty_ans_line():
+    doc = make_doc(question_block(_obj()))
+    doc["settings"] = {"key_options": {"layout": "compact", "show_marks": True}}
+    key = render_document_html("T", doc, mode="key")
+    work = key[key.index('<td class="key-work">') :]
+    assert "Ans:" not in work.split("</td>")[0].split('<table class="tick-table">')[0]
+    after = work.split("</table>", 1)[1]
+    assert after.startswith('<p class="key-ans"> <span class="key-marks">[2]</span></p>')
 
 
 def test_conversion_keeps_the_statements_in_the_body_and_the_ticks_in_the_answer():

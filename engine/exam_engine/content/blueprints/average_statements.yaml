@@ -33,6 +33,10 @@ parameter_schema:                       # ADR-0014: sampled params validate agai
           x: { type: integer, minimum: 0, maximum: 200 }
           who: { type: string, enum: [P, Q, R] }
           added: { type: integer, minimum: 2, maximum: 60 }
+  # the stem prints S's count exactly when there are four containers
+  if: { properties: { count: { const: 4 } } }
+  then: { properties: { known: { type: integer } } }
+  else: { properties: { known: { type: "null" } } }
 # Every parameter_schema property needs a role (W1a). No names: the containers are lettered.
 param_roles:
   context: { role: choice }
