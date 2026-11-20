@@ -74,11 +74,20 @@
         return false
       }
     }
+    const sending = { patch }
+    inFlight.set(key, sending)
     pending += 1
-    const next = queue.then(run).finally(() => (pending -= 1))
+    const next = queue.then(run).finally(() => {
+      pending -= 1
+      if (inFlight.get(key) === sending) inFlight.delete(key)
+    })
     queue = next
     return next
   }
+
+  // Each setting's latest save not yet settled, also a Try again (EXA-175): while one is on its
+  // way the stored value is stale, so an edit back to it must still be saved.
+  const inFlight = new Map<string, { patch: Patch }>()
 
   /** A new edit of `key`: its earlier failure no longer stands. Returns the edit's number. */
   function supersede(key: string): number {
@@ -122,25 +131,21 @@
   let schoolFocused = false
   let schoolDirty = false
   $: if ($settings && !schoolFocused && !schoolDirty) school = $settings.school_name
-  // The latest school name sent and not yet settled (EXA-175): while it is on its way the stored
-  // value is stale, so going back to it must still be saved, or the earlier save would win.
-  let schoolSending: { name: string } | null = null
 
   async function saveSchool() {
     if (!$settings) return
     const name = school.trim()
-    if (schoolSending ? name === schoolSending.name : name === $settings.school_name) {
+    const sending = inFlight.get('school_name')?.patch.school_name
+    if (name === (sending ?? $settings.school_name)) {
       // already stored or on its way: nothing to save; going back to what is stored also means
       // an earlier failed edit no longer stands
-      if (!schoolSending) {
+      if (sending === undefined) {
         supersede('school_name')
         schoolDirty = false
       }
       school = name
       return
     }
-    const sending = { name }
-    schoolSending = sending
     await save(
       { school_name: name },
       name ? `New papers' covers will say ${name}.` : 'New papers have no school name.',
@@ -152,7 +157,6 @@
         }
       },
     )
-    if (schoolSending === sending) schoolSending = null
   }
 
   const setLevel = (level: DefaultLevel) =>
