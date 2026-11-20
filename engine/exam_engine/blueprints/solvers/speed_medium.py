@@ -69,9 +69,15 @@ class SpeedMediumSolver:
         # Equal times or equal speeds make the average the mean of the two speeds, so the
         # question would no longer catch that slip (the rung is built with both distinct).
         if t1 == t2:
-            return "The two times must be different."
+            return (
+                "The two times must be different, or the answer would just be the mean of "
+                "the two speeds."
+            )
         if d1 * t2 == d2 * t1:
-            return "The two parts of the journey must be at different speeds."
+            return (
+                "The two parts of the journey must be at different speeds, or the answer "
+                "would just be that speed."
+            )
         if (d1 + d2) % (t1 + t2):
             return (
                 f"The total distance ({d1 + d2} km) must divide exactly by the total time "

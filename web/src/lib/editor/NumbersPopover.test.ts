@@ -32,13 +32,23 @@ describe('NumbersPopover (EXA-89)', () => {
     expect((screen.getByLabelText('Ratio, number 3') as HTMLInputElement).value).toBe('4')
     expect(screen.getAllByText(':')).toHaveLength(2)
     // the answer is worked out by the engine, shown but not editable
-    expect(screen.getByLabelText('Answer, worked out by the engine')).toHaveTextContent('$40')
+    expect(screen.getByLabelText('Answer now, worked out by the engine')).toHaveTextContent('$40')
 
     await fireEvent.input(total, { target: { value: '180' } })
     await fireEvent.input(screen.getByLabelText('Ratio, number 1'), { target: { value: '1' } })
     await fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
     await waitFor(() => expect(apply).toHaveBeenCalled())
     expect(apply.mock.calls[0][0].detail.changes).toEqual({ ratio: [1, 3, 4], total: 180 })
+  })
+
+  it('focuses the first field once drawn, and Escape closes', async () => {
+    fetchMock.mockResolvedValue(paramsResponse([RATIO, TOTAL]))
+    const close = vi.fn()
+    render(NumbersPopover, { props: { q: makeQuestion() }, events: { close } })
+    const first = await screen.findByLabelText('Ratio, number 1')
+    await waitFor(() => expect(first).toHaveFocus())
+    await fireEvent.keyDown(first, { key: 'Escape' })
+    expect(close).toHaveBeenCalledTimes(1)
   })
 
   it("shows the engine's refusal inline", async () => {

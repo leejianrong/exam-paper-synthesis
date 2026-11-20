@@ -17,7 +17,8 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   answer, the working, the bar model and the key stay engine-proven. Names and items are kept.
   Numbers that don't make a question of that kind are refused with the reason inline ("The
   amount must be a multiple of 12: $301 can't be shared in the ratio 9 : 3 in whole dollars.").
-  Undo works as for any edit. Engine: number roles marked `edit: free` (with a label) in the
+  The edited question is locked (and a notice says so), so **Regenerate unlocked** or a swap
+  doesn't throw your numbers away; one Undo reverts both. Engine: number roles marked `edit: free` (with a label) in the
   blueprint YAML, the solver's `number_problem` hook, `exam_engine/numbers.py` and the
   `set-numbers` edit op; API: `POST /edit/set-numbers`, the free numbers listed by
   `GET /blueprints/{code}/params`; CLI: `mathgen edit set-numbers --set total=140`. Not offered on

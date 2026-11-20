@@ -211,6 +211,27 @@ def test_refusals_say_why(changes, says):
     assert says in e.value.reason
 
 
+@pytest.mark.parametrize("tampered", [{"ratio": 5}, {"total": "x"}, {"ratio": [3]}])
+def test_tampered_parameters_are_refused_in_words(tampered):
+    """A forged object's parameters never reach the solver (they would crash it)."""
+    q = _ratio()
+    q["parameters"] = {**q["parameters"], **tampered}
+    with pytest.raises(EditNotApplicable) as e:
+        edits.apply(OP, q, changes={"ratio": [1, 2]})
+    assert (
+        e.value.reason
+        == "This question's numbers don't fit its kind of question, so they can't be changed."
+    )
+
+
+def test_a_one_number_list_reads_in_the_singular(monkeypatch):
+    monkeypatch.setattr(numbers, "validate_params", lambda params, schema: [])
+    params = {**_ratio()["parameters"], "ratio": [3]}
+    with pytest.raises(EditNotApplicable) as e:
+        numbers.merge_numbers("ratio_easy", params, {"ratio": [1, 2]})
+    assert e.value.reason == "Ratio needs 1 number."
+
+
 def test_a_choice_parameter_is_not_a_free_number():
     q = generate("percentage_medium", 1)
     with pytest.raises(EditNotApplicable, match="not a number you can change"):
@@ -221,7 +242,7 @@ def test_a_choice_parameter_is_not_a_free_number():
     ("code", "changes", "says"),
     [
         ("percentage_easy", {"percent": 7, "whole": 30}, "but 7% of $30 is not"),
-        ("speed_medium", {"t1": 2, "t2": 2}, "The two times must be different."),
+        ("speed_medium", {"t1": 2, "t2": 2}, "would just be the mean of the two speeds"),
         ("speed_medium", {"d1": 60, "t1": 1, "d2": 120, "t2": 2}, "at different speeds"),
         ("speed_hard", {"s1": 30, "s2": 40, "gap": 100}, "combined speed (70 km/h)"),
         ("fractions_medium", {"n1": 3, "d1": 2}, "The fraction 3/2 must be less than 1"),
@@ -246,8 +267,9 @@ def test_not_offered_where_it_would_not_be_clean():
     assert not edits.applicable(OP, generate("ratio_hard", 1))  # no free numbers marked
     sourced = {**_ratio(), "source_type": "sourced"}
     assert not edits.applicable(OP, sourced)
-    with pytest.raises(EditNotApplicable):
+    with pytest.raises(EditNotApplicable) as e:
         edits.apply(OP, to_mcq(_ratio(), 1), changes={"total": 120})
+    assert e.value.reason == "The numbers in this question can't be changed."
 
 
 def test_keeps_the_diagram_toggled_off():

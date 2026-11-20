@@ -130,6 +130,15 @@ def test_set_numbers_not_offered_without_free_numbers():
     source = _generate("ratio_hard", 1)
     resp = client.post("/edit/set-numbers", json={"question": source, "changes": {"spent": 10}})
     assert resp.status_code == 422
+    assert resp.json()["detail"] == "The numbers in this question can't be changed."
+
+
+def test_set_numbers_on_tampered_parameters_is_a_422_not_a_500():
+    source = _generate("ratio_easy", 3)
+    source["parameters"]["ratio"] = 5
+    resp = client.post("/edit/set-numbers", json={"question": source, "changes": {"ratio": [1, 2]}})
+    assert resp.status_code == 422
+    assert resp.json()["detail"].startswith("This question's numbers don't fit")
 
 
 def test_editable_params_endpoint_lists_free_numbers():

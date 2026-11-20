@@ -380,6 +380,8 @@ def apply(
     Raises :class:`EditNotApplicable` if ``op`` is unavailable for this object.
     The source object is never mutated.
     """
+    if op == numbers.OP and not applicable(op, obj):
+        raise EditNotApplicable(op, numbers.NOT_OFFERED)
     if not applicable(op, obj):
         raise EditNotApplicable(op, f"not available for blueprint {obj.get('blueprint_code')!r}")
     if op == cosmetic.OP:

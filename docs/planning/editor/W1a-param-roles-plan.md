@@ -135,7 +135,10 @@ object is schema-valid; the same op refused on `ratio` with a clear error.
   stays unmarked until it needs that hook.
 - Refusals are sentences: ranges come from the parameter schema, and the solver's
   `number_problem(params)` (required for a marked blueprint) mirrors its sampler's construction
-  in words ("The two times must be different."). `validate` stays the final gate; a sweep test
+  in words ("The two times must be different, or the answer would just be the mean of the two
+  speeds."). A ratio not in simplest form is accepted, as the ratio samplers make them too
+  (9 : 3). A question's own parameters that don't fit the schema (a tampered object) are
+  refused before any solver code runs. `validate` stays the final gate; a sweep test
   (`tests/test_set_numbers.py`) checks it never refuses what `number_problem` let through, and
   that each accepted edit passes the blueprint's own invariant test, `verify_snapshot` and the
   EXA-157 wording check.
@@ -144,4 +147,5 @@ object is schema-valid; the same op refused on `ratio` with a clear error.
   decimals view (whose $ amounts print as a tenth of the parameters). The API's `available_ops`
   hint names `set-numbers` when it applies, so the editor shows **Edit numbers…**
   (`web/src/lib/editor/NumbersPopover.svelte`); the engine's own `available_ops` stays the
-  one-click set.
+  one-click set. A successful edit also locks the question in the same transaction, so
+  "Regenerate unlocked" and swaps keep the teacher's numbers.

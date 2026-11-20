@@ -16,10 +16,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from .blueprints.base import validate_params
 from .blueprints.registry import get_solver, load_blueprint
 from .errors import EditNotApplicable
 
 OP = "set-numbers"
+NOT_OFFERED = "The numbers in this question can't be changed."
+_DAMAGED = "This question's numbers don't fit its kind of question, so they can't be changed."
 
 
 def number_slots(code: str) -> list[dict]:
@@ -71,6 +74,9 @@ def merge_numbers(code: str, params: dict, changes: Mapping[str, object]) -> dic
     """
     if not changes:
         raise EditNotApplicable(OP, "No numbers were given.")
+    schema = load_blueprint(code).parameter_schema
+    if validate_params(params, schema):  # a tampered object: its numbers can't be trusted
+        raise EditNotApplicable(OP, _DAMAGED)
     slots = {s["key"]: s for s in number_slots(code)}
     merged = {k: (list(v) if isinstance(v, list) else v) for k, v in params.items()}
     for key, value in changes.items():
@@ -81,10 +87,13 @@ def merge_numbers(code: str, params: dict, changes: Mapping[str, object]) -> dic
         if slot["list"]:
             current = params[key]
             if not isinstance(value, list) or len(value) != len(current):
-                raise EditNotApplicable(OP, f"{label} needs {len(current)} numbers.")
+                n = len(current)
+                raise EditNotApplicable(OP, f"{label} needs {n} number{'' if n == 1 else 's'}.")
             merged[key] = [_whole(label, v, lo, hi) for v in value]
         else:
             merged[key] = _whole(label, value, lo, hi)
+    if validate_params(merged, schema):  # a guard: each value was checked above
+        raise EditNotApplicable(OP, _DAMAGED)
     problem = get_solver(code).number_problem(merged)  # type: ignore[attr-defined]
     if problem:
         raise EditNotApplicable(OP, problem)

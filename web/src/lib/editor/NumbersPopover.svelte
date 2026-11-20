@@ -7,6 +7,7 @@
   import { createEventDispatcher, onMount } from 'svelte'
   import { getNumberSlots, type NumberSlot } from '../api'
   import type { Question } from '../types'
+  import { formKeys } from './formKeys'
 
   export let q: Question
   export let busy = false
@@ -68,7 +69,12 @@
   }
 </script>
 
-<form class="numbers" on:submit|preventDefault={submit} aria-label="Edit numbers">
+<form
+  class="numbers"
+  on:submit|preventDefault={submit}
+  aria-label="Edit numbers"
+  use:formKeys={() => dispatch('close')}
+>
   {#if !loaded}
     <p class="hint">Loading…</p>
   {:else if loadError}
@@ -104,8 +110,8 @@
     {/each}
     {#if answerText}
       <div class="row derived">
-        <span>Answer</span>
-        <output aria-label="Answer, worked out by the engine">{answerText}</output>
+        <span>Answer now</span>
+        <output aria-label="Answer now, worked out by the engine">{answerText}</output>
       </div>
     {/if}
     {#if error}
