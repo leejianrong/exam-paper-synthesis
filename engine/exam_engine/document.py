@@ -510,8 +510,9 @@ def verify_snapshot(obj: dict) -> list[str]:
     owner's own paper — but the engine-proven badge must not be forgeable. Checks: the
     blueprint exists, ``parameters`` satisfy its schema, the solver's own validation
     passes, and the snapshot's answer and marks equal the re-derived ones. Wording is
-    deliberately not compared (a tampered sentence cannot change the proven answer).
-    Non-generated (sourced) objects are teacher-vouched and not verified here.
+    and figures are checked separately by :func:`wording_differences`, which only takes the
+    badge away (a blueprint's wording may change after a paper was saved). Non-generated (sourced)
+    objects are teacher-vouched and not verified here.
     """
     if obj.get("source_type") != "generated":
         return []
@@ -585,3 +586,167 @@ def verify_snapshot(obj: dict) -> list[str]:
 
 
 _FIGURE_IS_THE_QUESTION = frozenset({"cube_stack", "net", "grid"})  # grid: EXA-144
+
+
+def _same_words(value: object) -> object:
+    """``value`` with harmless differences dropped: runs of whitespace, the litre spelling (a
+    paper saved before litres printed as ``ℓ`` says ``l``) and a before-after bar model's
+    ``view_mode`` (toggle-bar-view: the same figure, drawn another way)."""
+    if isinstance(value, str):
+        return " ".join(value.split()).replace("ℓ", "l")
+    if isinstance(value, list):
+        return [_same_words(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _same_words(v) for k, v in value.items() if k != "view_mode"}
+    return value
+
+
+def _reads(text: object) -> str:
+    """How an option reads, for "does a wrong option say the answer?": normalised as
+    :func:`_same_words` without spaces, thousands commas dropped and every number in its plain value
+    (``$18.00`` reads as ``$18``)."""
+    from fractions import Fraction
+
+    words = "".join(str(_same_words(str(text or ""))).split())
+    words = re.sub(r"(?<=\d),(?=\d{3})", "", words)
+    return re.sub(r"\d+(?:\.\d+)?", lambda m: str(Fraction(m.group())), words)
+
+
+def _value(text: object) -> tuple[object, str] | None:
+    """A one-number option as ``(value, the rest)``: ``\\(\\frac{4}{6}\\) kg`` and
+    ``\\(\\frac{2}{3}\\) kg`` share a value, as do ``\\(\\frac{3}{4}\\) kg`` and ``0.75 kg``.
+    ``None`` for anything else (an answer in terms of π, say)."""
+    from fractions import Fraction
+
+    words = _reads(text).replace("\\(", "").replace("\\)", "")
+    m = re.fullmatch(r"([^\d\\]*)(?:\\frac\{(\d+)\}\{(\d+)\}|(\d+(?:/\d+)?))([^\d\\]*)", words)
+    if m is None or m.group(3) == "0":
+        return None
+    value = Fraction(int(m.group(2)), int(m.group(3))) if m.group(2) else Fraction(m.group(4))
+    return value, m.group(1) + m.group(5)
+
+
+def _says_the_answer(option: object, correct: object) -> bool:
+    """A wrong option reads as the correct one, or names the same value in another form."""
+    if _reads(option) == _reads(correct):
+        return True
+    v = _value(option)
+    return v is not None and v == _value(correct)
+
+
+def _scheme_differs(scheme: list[dict], answer: dict, marks: object) -> bool:
+    """A multiple-choice copy's scheme (P8b) is one A mark for the stored correct option. Its
+    reasons for the wrong ones come from the distractor rules of the day, so only the option
+    it calls correct is checked: the stored one, and no other."""
+    if len(scheme) != 1 or scheme[0].get("mark") != marks or scheme[0].get("type") != "A":
+        return True
+    description = str(_same_words(str(scheme[0].get("description") or "")))
+    named = re.findall(r"correct option \(([^)]*)\)", description, flags=re.IGNORECASE)
+    return not description.startswith(f"Correct option ({answer['correct']}).") or any(
+        n != answer["correct"] for n in named
+    )
+
+
+def _figure_differs(have: object, wanted: list[object], *, may_hide: bool) -> bool:
+    """A stored figure differs from every figure the engine draws for these parameters. An
+    aid figure may be hidden (toggle-diagram)."""
+    if have is None and may_hide:
+        return False
+    return all(_same_words(have) != _same_words(w) for w in wanted)
+
+
+def wording_differences(obj: dict) -> list[str]:
+    """Where a generated snapshot's printed content differs from what the engine prints for
+    its parameters (EXA-157): ``"question text"``, ``"part (b)"``, ``"table"``, ``"figure"``,
+    ``"worked steps"``, ``"marking scheme"``, ``"option (2)"``. Empty when it matches, or when
+    the object is not generated.
+
+    The engine re-builds the question through the same path as generation and the
+    set-cosmetic edit (:func:`pipeline.build_from_params`), replaying the decimals view.
+    Multiple-choice options are not re-derived (the distractors change as the engine
+    improves): only a wrong option that reads as the answer, or has its value, and a scheme
+    that names another correct option are flagged. Call it on a
+    snapshot :func:`verify_snapshot` accepts.
+    """
+    if obj.get("source_type") != "generated":
+        return []
+    from .edits import AID_DIAGRAM_TYPES, _change_to_decimals
+    from .pipeline import build_from_params
+
+    code = obj.get("blueprint_code") or ""
+    try:
+        spec = load_blueprint(code)
+        plain = build_from_params(spec, get_solver(code), obj["seed"], obj["parameters"])
+        rebuilt = plain
+        if obj.get("validation", {}).get("checks", {}).get("representation") == "decimals":
+            rebuilt = _change_to_decimals(plain, None)
+    except Exception:  # verify_snapshot reports why; here the wording simply is not proven
+        return ["question text"]
+
+    have, want = obj["question"], rebuilt["question"]
+    where = []
+    if _same_words(have.get("stem")) != _same_words(want.get("stem")):
+        where.append("question text")
+    if _same_words(have.get("table")) != _same_words(want.get("table")):
+        where.append("table")
+    if _same_words(have.get("diagram")) != _same_words(want.get("diagram")):
+        where.append("figure")
+    parts, wanted = have["parts"], want["parts"]
+    answer = parts[0]["answer"]
+    converted = answer.get("type") == "choice" and wanted[0]["answer"].get("type") != "choice"
+    for i, (part, w) in enumerate(zip(parts, wanted, strict=False)):
+        if _same_words(part["text"]) != _same_words(w["text"]):
+            where.append("question text" if len(parts) == 1 else f"part ({part['label']})")
+        # toggle-diagram on a decimals view redraws from the whole-number parameters
+        figures = [w.get("diagram"), plain["question"]["parts"][i].get("diagram")]
+        if _figure_differs(
+            part.get("diagram"), figures, may_hide=spec.diagram in AID_DIAGRAM_TYPES
+        ):
+            where.append("figure")
+        if _same_words(part.get("solution_steps")) != _same_words(w.get("solution_steps")):
+            where.append("worked steps")
+        if (
+            _scheme_differs(part.get("marking_scheme") or [], answer, part.get("marks"))
+            if converted
+            else _same_words(part.get("marking_scheme")) != _same_words(w.get("marking_scheme"))
+        ):
+            where.append("marking scheme")
+    if converted:
+        right = next(o["text"] for o in answer["options"] if o["label"] == answer["correct"])
+        where += [
+            f"option ({o['label']})"
+            for o in answer["options"]
+            if o["label"] != answer["correct"] and _says_the_answer(o.get("text"), right)
+        ]
+    return list(dict.fromkeys(where))
+
+
+WORDING_CHECK = "wording_differs"  # validation.checks key: where the wording differs
+
+
+def flag_wording(doc: dict) -> dict:
+    """``doc`` with each generated question's engine-proven claim matching what it prints: a
+    snapshot whose words, figure, steps or scheme differ from the engine's (tampered, or saved
+    before the blueprint's wording changed) is marked ``unverified`` with where it differs,
+    instead of the paper being refused; one that matches again gets its ``pass`` back. Call it on a
+    document :func:`validate_document` accepts."""
+    blocks = []
+    for node in doc["content"]["content"]:
+        if node["type"] == "templatedQuestion":
+            q = node["attrs"]["question"]
+            validation = q.get("validation", {})
+            checks = {k: v for k, v in validation.get("checks", {}).items() if k != WORDING_CHECK}
+            status = validation.get("status")
+            where = wording_differences(q)
+            if where:
+                checks[WORDING_CHECK] = ", ".join(where)
+                status = "unverified"
+            elif WORDING_CHECK in validation.get("checks", {}):
+                # only this flag took the badge away: validate_document has already re-proven
+                # the answer and marks (verify_snapshot), so the claim stands again
+                status = "pass"
+            if checks != validation.get("checks", {}) or status != validation.get("status"):
+                q = {**q, "validation": {**validation, "status": status, "checks": checks}}
+                node = {**node, "attrs": {**node["attrs"], "question": q}}
+        blocks.append(node)
+    return {**doc, "content": {**doc["content"], "content": blocks}}
