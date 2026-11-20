@@ -22,6 +22,7 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
+# 1.17.0 (EXA-90): + freeformQuestion `bank_id` (the bank question it was saved as).
 # 1.16.0 (EXA-159): + key_options.show_marks and key_options.one_mark_working (school key).
 # 1.15.0 (EXA-140): + coverPage.parent_signature and coverPage.even_pages.
 # 1.14.0 (EXA-142): + settings.key_options.layout (full / compact answer key).
@@ -37,7 +38,7 @@ from .schema import validate_object
 # 1.4.0 (P2): + settings.marks_placement, per-question space_mm / ans_unit.
 # 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math; 1.3.0 (W5): + question `remark`.
 # Older documents stay valid (every addition is optional).
-DOCUMENT_SCHEMA_VERSION = "1.16.0"
+DOCUMENT_SCHEMA_VERSION = "1.17.0"
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000

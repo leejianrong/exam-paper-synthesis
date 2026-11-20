@@ -78,8 +78,8 @@ describe('the question menu (EXA-161)', () => {
   it("a teacher's own question adds parts; a placeholder fills from the generator", () => {
     const own = facts({ kind: 'own', lockable: false, ops: [], canEditNames: false, canAddPart: true })
     expect(labels(own)[0]).toEqual(['Add a part'])
-    // its answer is written by the teacher, for the key (EXA-162)
-    expect(labels(own)[1]).toEqual(['Edit answer…', 'Leave out of answer key'])
+    // its answer is written by the teacher, for the key (EXA-162); it can go to the bank (EXA-90)
+    expect(labels(own)[1]).toEqual(['Edit answer…', 'Save to your bank…', 'Leave out of answer key'])
     expect(labels(own).flat()).not.toContain('Edit as my own text…')
     expect(pillActions(own)).toEqual(['addPart'])
 

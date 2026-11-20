@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createEvent, fireEvent, render, screen, waitFor, within } from '@testing-library/svelte'
 import EditorPage from './EditorPage.svelte'
-import { freeformDocNode, makeQuestion } from './fixtures'
+import { freeformDocNode, makeQuestion, routeFetch } from './fixtures'
 import { questionNode } from './templatedQuestion'
 import { chooseFromMenu, menuLabels, pillButton, selectBlock } from './blockTesting'
 
@@ -409,6 +409,65 @@ describe('EditorPage', () => {
       await fireEvent.click(screen.getByRole('tab', { name: 'Write my own' }))
       await waitFor(() => expect(document.querySelectorAll('.ffblock')).toHaveLength(1))
       expect(screen.queryByRole('dialog', { name: 'Add question' })).not.toBeInTheDocument()
+    })
+
+    it('"Save to your bank…" files the question and remembers its bank copy (EXA-90)', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      try {
+        const reply = (body: unknown) => ({ ok: true, status: 200, json: async () => body })
+        fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+          if (String(url).includes('/bank/topics')) return reply({ topics: [{ topic: 'Ratio', strand: 'Ratio' }] })
+          if (String(url).includes('/bank/own')) return reply({ status: 'saved', id: 'own-ff_s' })
+          if (init?.method === 'PUT') return reply({ ...record([]), version: 5 })
+          return reply(record([freeformDocNode({ id: 'ff_s', marks: 2, body: 'My own question.' })]))
+        })
+        render(EditorPage, { props: { id: 'd1' } })
+        const block = await waitFor(() => {
+          const b = document.querySelector('.ffblock') as HTMLElement
+          expect(b).toBeTruthy()
+          return b
+        })
+        await chooseFromMenu(block, 'Save to your bank…')
+        const dialog = await screen.findByRole('dialog', { name: 'Save to your bank' })
+        await waitFor(() => expect(within(dialog).getByRole('option', { name: 'Ratio' })).toBeInTheDocument())
+        await fireEvent.change(within(dialog).getByLabelText('Topic'), { target: { value: 'Ratio' } })
+        await fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+        expect(await screen.findByText(/Saved to your bank\./)).toBeInTheDocument()
+        const post = fetchMock.mock.calls.find((c) => String(c[0]).includes('/bank/own'))!
+        expect(JSON.parse(post[1].body).block.content[0].content[0].text).toBe('My own question.')
+        await vi.advanceTimersByTimeAsync(1500)
+        const put = fetchMock.mock.calls.find((c) => c[1]?.method === 'PUT')!
+        expect(JSON.parse(put[1].body).document.content.content[0].attrs.bank_id).toBe('own-ff_s')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('"From my bank" puts a saved own question back as the teacher wrote it (EXA-90)', async () => {
+      const saved = freeformDocNode({ id: 'ff_old', marks: 2, body: 'Saved earlier.', answer: '42' })
+      const own = { ...makeQuestion({ id: 'own-ff_old' }, 'Saved earlier.'), source_type: 'sourced', freeform: saved }
+      const item = { id: 'own-ff_old', topic: 'Ratio', level: 'P5', difficulty: 'easy', source_type: 'sourced', reviewed: false, question: own }
+      fetchMock.mockImplementation(
+        routeFetch({
+          '/bank': { items: [item] },
+          '/render/question.css': '.q{}',
+          '/render/katex.js': '',
+          '/render/question': { html: '<div class="frag">Saved earlier.</div>' },
+          '/documents/d1': record([]),
+        }),
+      )
+      render(EditorPage, { props: { id: 'd1' } })
+      await waitFor(() => expect(screen.getByLabelText('Paper title')).toHaveValue('Ratio Review'))
+      await fireEvent.click(screen.getByRole('button', { name: 'Add question' }))
+      await fireEvent.click(screen.getByRole('tab', { name: 'From my bank' }))
+      await fireEvent.click(await screen.findByRole('button', { name: 'Use this' }))
+      const block = await waitFor(() => {
+        const b = document.querySelector('.ffblock') as HTMLElement
+        expect(b).toBeTruthy()
+        return b
+      })
+      expect(block).toHaveTextContent('Saved earlier.')
+      expect(document.querySelectorAll('[data-testid="question-block"]')).toHaveLength(0) // not a templated copy
     })
 
     it('an answer written in Edit answer… is written back to the question node and saved', async () => {

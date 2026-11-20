@@ -5,7 +5,7 @@ import type { Question } from '../types'
 import { assetUrl } from './assets'
 import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.16.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.17.0'
 
 export interface DocNode {
   type: string
@@ -171,6 +171,8 @@ export function cleanNode(node: DocNode): DocNode {
     if (attrs.slot === null || attrs.slot === undefined) delete attrs.slot
     // Unlocked unless set (P8d): only a lock is stored.
     if (attrs.locked !== true) delete attrs.locked
+    // EXA-90: only an own question saved to (or inserted from) the bank names its bank copy.
+    if (!attrs.bank_id) delete attrs.bank_id
     out = { ...out, attrs }
   }
   if (out.type === 'section' && out.attrs) {
@@ -247,6 +249,13 @@ export function freeformNode(): DocNode {
     attrs: { block_id: newBlockId(), marks: null, answer: EMPTY_ANSWER },
     content: [{ type: 'paragraph' }],
   }
+}
+
+/** A teacher's own bank question (EXA-90) as a block for this paper: the saved block as it was
+ *  written, under a new block id, remembering its bank copy (saving it again updates that). */
+export function ownBankNode(question: { id: string; freeform?: Record<string, unknown> | null }): DocNode {
+  const block = structuredClone(question.freeform) as unknown as DocNode
+  return { ...block, attrs: { ...block.attrs, block_id: newBlockId(), bank_id: question.id } }
 }
 
 const esc = (t: string): string =>
