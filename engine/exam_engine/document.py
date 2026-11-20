@@ -691,9 +691,9 @@ WORDING_CHECK = "wording_differs"  # validation.checks key: where the wording di
 
 def flag_wording(doc: dict) -> dict:
     """``doc`` with each generated question's engine-proven claim matching what it prints: a
-    snapshot whose words, figure, steps or scheme differ from the engine's (tampered, or saved before the
-    blueprint's wording changed) is marked ``unverified`` with where it differs, instead of
-    the paper being refused; one that matches again gets its ``pass`` back. Call it on a
+    snapshot whose words, figure, steps or scheme differ from the engine's (tampered, or saved
+    before the blueprint's wording changed) is marked ``unverified`` with where it differs,
+    instead of the paper being refused; one that matches again gets its ``pass`` back. Call it on a
     document :func:`validate_document` accepts."""
     blocks = []
     for node in doc["content"]["content"]:
