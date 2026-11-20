@@ -18,6 +18,7 @@ from documents import (
     para,
     part_node,
     question_block,
+    stem_block,
 )
 from docx import Document
 from exam_engine import generate
@@ -342,3 +343,47 @@ def test_a_question_keeps_together_and_the_file_says_what_it_is(raster):
     assert abs(datetime.now(UTC) - props.created) < timedelta(days=1)
     xml = zipfile.ZipFile(io.BytesIO(_export(doc_id, "student").content)).read("word/document.xml")
     assert b'descr="A figure"' in xml and b'descr="Figure"' in xml  # the image's alt, a figure's
+
+
+def _stem_paper(**key_options) -> dict:
+    left_out = freeform_block("Second.", marks=2, answer="Second-answer")
+    doc = make_doc(
+        freeform_block("First.", marks=1, answer="1"),
+        _section("structured"),
+        freeform_block("Lone.", marks=2, answer="2"),
+        stem_block("Stem-text: Ali has 40 marbles.", count=2),
+        freeform_block("How many does he give away?", marks=2, answer="Stem-answer-a"),
+        left_out,
+    )
+    doc["settings"] = {"key_options": key_options}
+    return doc
+
+
+def test_a_shared_stem_prints_its_lead_line_and_keeps_with_its_question(raster):
+    word = Document(io.BytesIO(_export(_create(_stem_paper()), "student").content))
+    paras = word.paragraphs
+    lead = next(p for p in paras if p.text.startswith("Use the information"))
+    assert lead.text == "Use the information below to answer Questions 3 and 4."
+    at = paras.index(lead)
+    stem, first = paras[at + 1], paras[at + 2]
+    assert stem.text == "Stem-text: Ali has 40 marbles."
+    assert first.text.startswith("3.\t")  # unnumbered stem, the question keeps its number
+    assert lead.paragraph_format.keep_with_next and stem.paragraph_format.keep_with_next
+    # in a structured section the stem, not its first question, starts the page
+    assert lead.paragraph_format.page_break_before
+    assert not first.paragraph_format.page_break_before
+
+
+def test_a_shared_stem_in_the_key(raster):
+    worked = _all_text(_export(_create(_stem_paper(layout="full")), "key").content)
+    assert "Stem-text" in worked and "Questions 3 and 4" in worked
+    hidden = _stem_paper(layout="full", show_question=False)
+    assert "Stem-text" not in _all_text(_export(_create(hidden), "key").content)
+    school = _all_text(_export(_create(_stem_paper(layout="compact")), "key").content)
+    assert "Stem-text" not in school and "Stem-answer-a" in school
+    # the stem goes above the first of its questions the key keeps
+    doc = _stem_paper(layout="full")
+    doc["content"]["content"][4]["attrs"]["in_key"] = False
+    text = _all_text(_export(_create(doc), "key").content)
+    assert text.index("Stem-text") < text.index("Second.")
+    assert "How many does he give away?" not in text

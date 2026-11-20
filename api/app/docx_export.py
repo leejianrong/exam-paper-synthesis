@@ -31,6 +31,7 @@ from docx.shared import Inches, Mm, Pt, RGBColor
 from docx.text.paragraph import Paragraph
 from exam_engine import diagram
 from exam_engine.document import (
+    GROUP_STEM,
     QUESTION_TYPES,
     cover_page,
     has_content,
@@ -39,6 +40,8 @@ from exam_engine.document import (
     number_from,
     paper_outline,
     paper_placement,
+    stem_groups,
+    stem_sentence,
 )
 from exam_engine.render import (
     _BLANK_TEXT,
@@ -105,6 +108,7 @@ class _Writer:
         self.number = ""  # the next paragraph starts a numbered question
         self.indent = False  # inside a question: paragraphs sit under its number
         self.break_next = False  # the next paragraph starts a page
+        self.keep = False  # inside a shared stem: it stays with its first question
         self.last: Paragraph | None = None
         self.figures: list[tuple[Any, str]] = []  # (run, svg) placed once rasterised
         self._setup()
@@ -144,6 +148,8 @@ class _Writer:
         if self.indent and self.target is self.word:
             fmt.left_indent = _INDENT
             fmt.keep_with_next = True  # a question's lines stay with what follows them
+        if self.keep:
+            fmt.keep_with_next = True
         if self.number:
             fmt.first_line_indent = -_INDENT
             p.add_run(f"{self.number}\t").bold = True
@@ -464,6 +470,16 @@ class _Writer:
 
     # -- the paper ----------------------------------------------------------------------------
 
+    def group_stem(self, node: dict, numbers: list[int]) -> None:
+        """A shared stem (EXA-90): the lead line from its questions' numbers, then its text and
+        figures, unnumbered and kept with the question after it."""
+        self.keep = True
+        if lead := stem_sentence(numbers):
+            self.para().add_run(lead).italic = True
+        for b in node["content"]:
+            self.rich(b)
+        self.keep = False
+
     def start_question(self, number: int) -> None:
         self.number, self.indent = f"{number}.", True
 
@@ -562,9 +578,15 @@ class _Writer:
         mcq = own_page = False
         first_in_section = True
         last_q = max((i for i, n in enumerate(content) if n["type"] in QUESTION_TYPES), default=-1)
+        groups = stem_groups(self.doc)
         for i, node in enumerate(content):
             kind = node["type"]
-            if kind == "coverPage":
+            if kind == GROUP_STEM:
+                if own_page and not first_in_section:
+                    self.page_break()  # a structured question's stem tops its page
+                    first_in_section = True  # so its first question does not break again
+                self.group_stem(node, groups[i])
+            elif kind == "coverPage":
                 self.cover(node["attrs"], marks)
             elif kind == "blankPage":
                 self.page_break()
@@ -613,9 +635,17 @@ class _Writer:
             return
         self.header(marks, key=True)
         placement = paper_placement(self.doc)
+        numbered = [n for n, b in enumerate(blocks, number_from(self.doc)) if in_key(b)]
+        stems: dict[int, tuple[dict, list[int]]] = {}  # above the first of its questions here
+        if key.show_question:
+            for at, numbers in stem_groups(self.doc).items():
+                if first := next((n for n in numbered if n in numbers), None):
+                    stems[first] = (content[at], numbers)
         for number, node in enumerate(blocks, number_from(self.doc)):
             if not in_key(node):
                 continue
+            if number in stems:
+                self.group_stem(*stems[number])
             self.start_question(number)
             layout = Layout(placement, node["attrs"].get("space_mm"), node["attrs"].get("ans_unit"))
             if node["type"] == "freeformQuestion":

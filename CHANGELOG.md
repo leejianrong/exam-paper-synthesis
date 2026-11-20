@@ -14,7 +14,8 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   (Word)**: an editable .docx to change in Word. It keeps the paper's structure: the cover (its
   fields and the examiner's table as Word tables), section headers with their marks sentence
   and instructions, numbered questions with [n] at the right, lettered parts with their own
-  marks, MCQ options one to a line, data tables as real tables, working space and the
+  marks, shared stems with their lead line (kept with their first question; repeated in the
+  worked key when it shows the questions), MCQ options one to a line, data tables as real tables, working space and the
   `Ans:` line with its unit, page breaks (the cover, blank pages, each structured question),
   and the key: the school key as tables with an answer grid for Booklet A, or the worked key.
   Figures are the engine's own, rasterised by the PDF export's Chromium at their print size;
