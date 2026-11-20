@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { generateSinglePaper } from './helpers.js'
+import { generateSinglePaper, questionMenu } from './helpers.js'
 import { API } from './ports.js'
 
 /**
@@ -13,8 +13,9 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
 
-  await expect(page.getByTestId('generate-report')).toContainText('Filled 17 of 17 questions')
-  await expect(page.getByTestId('generate-report')).toContainText('Section B has 10 multi-part questions; 2 single-part questions stand in for the rest')
+  // Section B: 10-11 multi-part questions and 0-2 single-part stand-ins, by seed (EXA-117)
+  await expect(page.getByTestId('generate-report')).toContainText(/Filled (1[67]) of \1 questions/)
+  await expect(page.getByTestId('generate-report')).not.toContainText('placeholder')
   await expect(page.locator('.cover-block')).toHaveCount(1)
   await expect(page.locator('.cover-block .cover-line').last()).toContainText('Primary 6 · Mathematics')
   await expect(page.locator('.section-block')).toHaveCount(2)
@@ -22,7 +23,7 @@ test('generate a P6 Paper 2: a full paper with a cover, sections at their target
     'Questions 1–5 · 10 / 10 marks',
   )
   await expect(page.locator('.section-block').nth(1).locator('.section-summary')).toHaveText(
-    /Questions 6–1[78] · 45 \/ 45 marks/,
+    /Questions 6–1[67] · 45 \/ 45 marks/,
   )
   await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
   await expect(page.getByLabel('Paper time in minutes')).toHaveValue('90')
@@ -54,17 +55,24 @@ test('generate a P5 Booklet B: every slot filled, numbered on from Booklet A', a
   ])
 })
 
-test('generate a P5 Paper 2: placeholders for what the content cannot fill yet', async ({ page }) => {
+test('generate a P5 Paper 2: every slot filled; a question replaced is a placeholder to write', async ({ page }) => {
   await page.goto('/')
   await generateSinglePaper(page, 'Paper 2', 'P5')
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
 
-  // P5 has too few 3-5 mark blueprints for Section B: 16 stand-ins and 1 placeholder
-  await expect(page.getByTestId('generate-report')).toContainText('Filled 21 of 22 questions')
+  // Section B has the 3 P5 multi-part questions and 12 stand-ins, no placeholder (EXA-117)
+  await expect(page.getByTestId('generate-report')).toContainText('Filled 20 of 20 questions')
+  await expect(page.getByTestId('generate-report')).toContainText('Section B has 3 multi-part questions')
+  await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
+
+  // "Replace with my own question" on the last one leaves a placeholder of its marks.
+  const blocks = page.getByTestId('question-block')
+  await expect(blocks.nth(19)).toBeVisible()
+  await questionMenu(blocks.nth(19), 'Replace with my own question')
   await expect(page.getByTestId('placeholders-left')).toHaveText('1 placeholder to write')
   const hints = page.locator('.ff-placeholder-hint:visible')
   await expect(hints).toHaveCount(1)
-  await expect(hints.first()).toHaveText(/write a [345]-mark structured question here/)
+  await expect(hints.first()).toHaveText(/write a [2-5]-mark structured question here/)
 
   // Writing a placeholder's question clears it.
   await page.locator('.ffblock.placeholder-slot .ff-body').first().click()
