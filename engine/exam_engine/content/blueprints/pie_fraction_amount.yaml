@@ -47,5 +47,5 @@ marking_scheme:
   - { mark: 1, type: A, description: "Correct amount for the unlabelled sector, with its unit." }
 answer:
   type: integer
-  unit: "$"
+  unit: "$"                             # or "min" in the time context (the solver sets it)
 diagram: chart

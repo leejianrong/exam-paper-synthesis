@@ -144,7 +144,11 @@ class PieFractionSolver:
     def distractors(self, params: dict, solution: dict) -> list[Slip]:
         fs, h = fractions_of(params), params["hidden"]
         labels = CONTEXTS[params["context"]][1]
-        out: list[Slip] = [(1 - fs[h], "the labelled sectors added up, not the rest")]
+        # "the labelled sectors added up" (1 − answer) is a real slip, but as an option it makes
+        # the only pair summing to 1, and the smaller of that pair is nearly always the answer
+        shown = [f for i, f in enumerate(fs) if i != h]
+        naive = Fraction(sum(f.numerator for f in shown), sum(f.denominator for f in shown))
+        out: list[Slip] = [(1 - naive, "added the numerators and the denominators")]
         for i in ((h + 1) % len(fs), (h - 1) % len(fs)):
             out.append((fs[i], f"read the {labels[i]} sector instead"))
         out.append((Fraction(1, len(fs)), "took every sector to be the same size"))

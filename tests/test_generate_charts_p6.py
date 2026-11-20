@@ -8,6 +8,7 @@ and the hand-verified goldens hold. The correctness authority is
 from __future__ import annotations
 
 import json
+import re
 from fractions import Fraction
 from pathlib import Path
 
@@ -149,3 +150,42 @@ def test_the_answer_moves_over_all_four_options(code):
 def test_the_structured_question_is_not_turned_into_multiple_choice():
     with pytest.raises(Exception, match="not applicable"):
         mcq.to_mcq(generate("tank_graph_structured", 1), 1)
+
+
+def test_a_fraction_pie_answer_is_not_the_smaller_of_a_pair_summing_to_1():
+    """Review of #258: with "the labelled sectors added up" (1 − answer) as an option, the only
+    pair of options summing to 1 held the answer, and its smaller member won 82% of the time.
+    A pupil playing that trick must do no better than a blind guess (25%)."""
+    wins = 0
+    for seed in range(1, 401):
+        choice = mcq.to_mcq(generate("pie_fraction", seed), seed)["question"]["parts"][0]["answer"]
+        vals = {
+            o["label"]: Fraction(
+                *map(int, re.search(r"frac\{(\d+)\}\{(\d+)\}", o["text"]).groups())
+            )
+            for o in choice["options"]
+        }
+        pairs = [(x, y) for x in vals for y in vals if x < y and vals[x] + vals[y] == 1]
+        if len(pairs) == 1:
+            wins += min(pairs[0], key=vals.__getitem__) == choice["correct"]
+    assert wins / 400 <= 0.25, wins
+
+
+@pytest.mark.parametrize("code", ["tank_graph", "tank_graph_structured"])
+def test_the_tap_is_turned_off_in_about_a_third_of_the_graphs(code):
+    """Review of #258: the flat stretch was chosen inside the rejection loop and came out in ~70%
+    of graphs; it is meant to be about 30%."""
+    flat = 0
+    for seed in range(1, 401):
+        q = generate(code, seed)["question"]
+        flat += "turned off" in " ".join([q["stem"] or ""] + [p["text"] for p in q["parts"]])
+    assert 0.2 <= flat / 400 <= 0.4, flat
+
+
+def test_an_empty_tank_is_said_to_be_empty():
+    for seed in range(1, 200):
+        obj = generate("tank_graph", seed)
+        part = obj["question"]["parts"][0]
+        empty = obj["parameters"]["volumes"][0] == 0
+        assert ("into an empty" in part["text"]) == empty
+        assert "there were 0 ℓ" not in part["solution_steps"][0]["text"]

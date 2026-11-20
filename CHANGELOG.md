@@ -21,7 +21,9 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   1.16.0) gains a numeric time axis with vertical gridlines, each line given as its corners,
   and a fraction pie that prints each sector as a stacked fraction; the unit `l/min` prints as
   ℓ/min. The invariant tests read every answer back off the drawn SVG: the graph's corners from
-  the gridlines and tick labels, the pie's shares from its arcs.
+  the gridlines and tick labels, the pie's shares from its arcs. The paper generator places all but `pie_fraction_amount`
+  (3 marks): Paper 2 Section A takes 2-mark questions and Section B already has the tank
+  question for the topic, so it is for adding by hand for now.
 - **Edit numbers (EXA-89, tier-2 edits).** A generated question's ⋯ menu has **Edit numbers…**
   for eleven blueprints (Ratio easy/medium, Percentage easy/medium/hard, Speed easy/medium/hard,
   Fractions medium/hard, Average easy): change the amount shared, the ratio terms, a

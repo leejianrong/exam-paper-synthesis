@@ -30,12 +30,12 @@ _MAX_TICKS = 9  # volume gridlines above zero, so the graph stays readable
 
 def _sample_graph(rng: random.Random, *, empty: bool) -> tuple[int, list[int], list[int]]:
     """(step, times, volumes): three stretches, corners on grid points, whole rates."""
+    flat = rng.random() < 0.3  # the middle stretch: tap turned off (chosen once: no bias)
     while True:
         step = rng.choice(STEPS)
         durations = [rng.randint(1, 4) for _ in range(3)]
         if not 6 <= sum(durations) <= 12:
             continue
-        flat = rng.random() < 0.3  # the middle stretch: tap turned off
         rates = []
         for i, d in enumerate(durations):
             if flat and i == 1:
@@ -138,7 +138,12 @@ class TankGraphSolver:
         t, v = params["times"], params["volumes"]
         a, b, vessel = params["a"], params["b"], params["vessel"]
         rise, span = v[b] - v[a], t[b] - t[a]
-        read = f"At {t[a]} min, there were {v[a]} ℓ of water. At {t[b]} min, there were {v[b]} ℓ."
+        first = (
+            f"At 0 min, the {vessel} was empty."
+            if v[a] == 0
+            else f"At {t[a]} min, there were {v[a]} ℓ of water."
+        )
+        read = f"{first} At {t[b]} min, there were {v[b]} ℓ."
         if params["ask"] == "rate":
             rate = rise // span
             text = (
@@ -159,7 +164,7 @@ class TankGraphSolver:
         return {
             "answer": answer,
             "intermediates": {
-                "question_text": f"{_intro(params, False)} {text}",
+                "question_text": f"{_intro(params, v[0] == 0)} {text}",
                 "step1": steps[0],
                 "expr1": steps[1],
                 "step2": steps[2],
