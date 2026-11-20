@@ -74,11 +74,20 @@
         return false
       }
     }
+    const sending = { patch }
+    inFlight.set(key, sending)
     pending += 1
-    const next = queue.then(run).finally(() => (pending -= 1))
+    const next = queue.then(run).finally(() => {
+      pending -= 1
+      if (inFlight.get(key) === sending) inFlight.delete(key)
+    })
     queue = next
     return next
   }
+
+  // Each setting's latest save not yet settled, also a Try again (EXA-175): while one is on its
+  // way the stored value is stale, so an edit back to it must still be saved.
+  const inFlight = new Map<string, { patch: Patch }>()
 
   /** A new edit of `key`: its earlier failure no longer stands. Returns the edit's number. */
   function supersede(key: string): number {
@@ -126,11 +135,15 @@
   async function saveSchool() {
     if (!$settings) return
     const name = school.trim()
-    if (name === $settings.school_name) {
-      // back to what is stored: nothing to save, and an earlier failed edit no longer stands
-      supersede('school_name')
+    const sending = inFlight.get('school_name')?.patch.school_name
+    if (name === (sending ?? $settings.school_name)) {
+      // already stored or on its way: nothing to save; going back to what is stored also means
+      // an earlier failed edit no longer stands
+      if (sending === undefined) {
+        supersede('school_name')
+        schoolDirty = false
+      }
       school = name
-      schoolDirty = false
       return
     }
     await save(
