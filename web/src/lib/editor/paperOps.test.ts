@@ -102,6 +102,9 @@ describe('paper ops helpers (P8d)', () => {
     expect(swapNotice({ block_id: 'b', mode: 'bank', marks: 2, placeholder: false, topic: 'Ratio', bank_id: 's1' })).toBe(
       'Swapped in a 2-mark Ratio question from your bank.',
     )
+    expect(swapNotice({ block_id: 'b', mode: 'bank', marks: 2, placeholder: false, topic: 'Circles', bank_id: 'g', locked: true })).toBe(
+      'Swapped in a 2-mark Circles question from your bank. It is locked, so Regenerate keeps it.',
+    )
     expect(regenerateNotice({ replaced: 1, kept: 2, placeholders: 3 })).toBe(
       'Regenerated 1 question; kept 2 locked or written by you; 3 left as placeholders.',
     )

@@ -129,7 +129,10 @@ export function goToQuestion(editor: Editor, number: number, start = 1): boolean
 /** One line for the page after a swap. */
 export function swapNotice(r: SwapReport): string {
   if (r.placeholder) return `Placeholder ready: write your own ${r.marks}-mark question there.`
-  if (r.mode === 'bank') return `Swapped in a ${r.marks}-mark ${r.topic ?? ''} question from your bank.`.replace('  ', ' ')
+  if (r.mode === 'bank') {
+    const lock = r.locked ? ' It is locked, so Regenerate keeps it.' : ''
+    return `Swapped in a ${r.marks}-mark ${r.topic ?? ''} question from your bank.${lock}`.replace('  ', ' ')
+  }
   return `Swapped in a ${r.marks}-mark ${r.topic ?? ''} question.`.replace('  ', ' ')
 }
 

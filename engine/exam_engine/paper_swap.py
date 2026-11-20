@@ -467,7 +467,8 @@ def swap_from_bank(
 ) -> tuple[dict, dict]:
     """Replace the question ``block_id`` with the bank question ``obj``, as the editor inserts
     one from the bank (its snapshot, unchanged). The position keeps its slot, layout and key
-    setting. Raises ``SwapNotPossible`` when ``obj`` doesn't fit (see ``_bank_refusal``)."""
+    setting; a generated one is locked, so regenerating the paper keeps it. Raises
+    ``SwapNotPossible`` when ``obj`` doesn't fit (see ``_bank_refusal``)."""
     level = paper_level(doc, level)
     out = copy.deepcopy(doc)
     blocks = out["content"]["content"]
@@ -480,9 +481,14 @@ def swap_from_bank(
     multipart = len(obj["question"]["parts"]) > 1
     new_slot = _filled_slot(slot, multipart) if node["attrs"].get("slot") else None
     blocks[idx] = _question_block(node, copy.deepcopy(obj), new_slot)
+    # A generated bank question would otherwise be refilled by the next "Regenerate unlocked"
+    # (or R): the teacher picked it, so it is locked. Sourced ones are never refilled anyway.
+    locked = obj.get("source_type") == "generated"
+    if locked:
+        blocks[idx]["attrs"]["locked"] = True
     topic = obj.get("syllabus", {}).get("topic")
     report = {"block_id": block_id, "mode": "bank", "marks": slot["marks"], "bank_id": obj["id"]}
-    return out, {**report, "topic": topic, "placeholder": False}
+    return out, {**report, "topic": topic, "placeholder": False, "locked": locked}
 
 
 # ---------------------------------------------------------------------------

@@ -1036,6 +1036,15 @@
     if (editor && (!document.activeElement || document.activeElement === document.body)) editor.view.focus()
   }
 
+  // The bank list is worked out on the saved paper, so a question just inserted (or a block just
+  // added) must be saved first, or it is offered again (or not found).
+  async function saveForBank() {
+    await autosaver?.flush()
+    if (status === 'conflict' || status === 'error') {
+      throw new Error('Your latest changes are not saved yet. Try again in a moment.')
+    }
+  }
+
   function pickFromBank(item: BankItem) {
     const blockId = bankSwapFor
     bankSwapFor = null
@@ -1421,7 +1430,13 @@
 {/if}
 
 {#if bankSwapFor}
-  <BankSwapDialog docId={id} blockId={bankSwapFor} onPick={pickFromBank} onClose={() => (bankSwapFor = null)} />
+  <BankSwapDialog
+    docId={id}
+    blockId={bankSwapFor}
+    ready={saveForBank}
+    onPick={pickFromBank}
+    onClose={() => (bankSwapFor = null)}
+  />
 {/if}
 
 {#if unfilled}

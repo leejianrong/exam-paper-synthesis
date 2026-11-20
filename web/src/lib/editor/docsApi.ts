@@ -161,6 +161,8 @@ export interface SwapReport {
   blueprint?: string
   topic?: string
   bank_id?: string
+  /** A generated question from the bank is locked, so regenerating keeps it (EXA-33). */
+  locked?: boolean
 }
 
 /** What "regenerate unlocked" did (engine `paper_swap.regenerate_unlocked`'s report). */

@@ -18,7 +18,9 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   unreviewed ones. Each shows its topic, marks, review status and the question as it prints;
   a longer list can be searched. Picking one puts it in that place as a bank question, exactly
   as inserting it from the bank would, keeping the position's working space, key setting and
-  slot, so the section's marks stay on target. Locked questions can't be swapped. When nothing
+  slot, so the section's marks stay on target. A generated question picked this way is locked,
+  so **Regenerate unlocked** keeps it. The paper is saved before the list is worked out, so a
+  question you have just inserted is not offered again. Locked questions can't be swapped. When nothing
   fits, the dialog says so. Only your own bank is ever offered (`GET
   /documents/{id}/swap/bank`, `POST /documents/{id}/swap` with `mode: "bank"`).
 - **Defaults for new papers (EXA-169, UI redesign S11).** Settings has a **New papers** group:

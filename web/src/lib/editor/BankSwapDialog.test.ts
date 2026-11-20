@@ -61,6 +61,26 @@ describe('Swap from your bank (EXA-33)', () => {
     expect(onPick.mock.calls[0][0].id).toBe('sourced:example-2')
   })
 
+  it('saves the paper before it asks the server what fits (review of #255)', async () => {
+    stub([sourced('sourced:example-1', 'Ratio', true)])
+    let saved: () => void = () => {}
+    const ready = vi.fn(() => new Promise<void>((done) => (saved = done)))
+    render(BankSwapDialog, { props: { docId: 'd1', blockId: 'blk-7', onPick: vi.fn(), onClose: vi.fn(), ready } })
+    await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))
+    expect(fetchMock).not.toHaveBeenCalled()
+    saved()
+    await waitFor(() => expect(screen.getAllByTestId('bank-swap-item')).toHaveLength(1))
+  })
+
+  it('shows why when the paper could not be saved first, and asks no server', async () => {
+    const ready = vi.fn(async () => {
+      throw new Error('Your latest changes are not saved yet. Try again in a moment.')
+    })
+    render(BankSwapDialog, { props: { docId: 'd1', blockId: 'blk-7', onPick: vi.fn(), onClose: vi.fn(), ready } })
+    expect(await screen.findByText(/not saved yet/)).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('says plainly when nothing in the bank fits', async () => {
     stub([])
     open()

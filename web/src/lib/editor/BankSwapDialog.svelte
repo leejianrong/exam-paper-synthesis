@@ -16,7 +16,15 @@
     blockId,
     onPick,
     onClose,
-  }: { docId: string; blockId: string; onPick: (item: BankItem) => void; onClose: () => void } = $props()
+    ready = async () => {},
+  }: {
+    docId: string
+    blockId: string
+    onPick: (item: BankItem) => void
+    onClose: () => void
+    /** Saves the paper's pending edits: the server lists what fits its saved copy. */
+    ready?: () => Promise<void>
+  } = $props()
 
   let items: BankItem[] = $state([])
   let loading = $state(true)
@@ -28,6 +36,7 @@
     loading = true
     error = ''
     try {
+      await ready()
       items = await bankSwapOptions(docId, blockId)
     } catch (e) {
       error = errorText(e, "Couldn't load your question bank")

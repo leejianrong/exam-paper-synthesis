@@ -16,9 +16,11 @@ from exam_engine.paper import generate_paper
 from exam_engine.paper_swap import (
     SwapNotPossible,
     bank_options,
+    regenerate_unlocked,
     swap_from_bank,
     swap_question,
 )
+from exam_engine.pipeline import generate
 
 SOURCED = Path(__file__).parent / "fixtures" / "sourced"
 
@@ -128,6 +130,7 @@ def test_swapping_keeps_the_position_and_the_papers_totals(paper):
         "bank_id": obj["id"],
         "topic": obj["syllabus"]["topic"],
         "placeholder": False,
+        "locked": False,  # a sourced question is never refilled, so it needs no lock
     }
     assert [s["marks"] for s in paper_outline(doc)] == [s["marks"] for s in paper_outline(paper)]
     assert validate_document(doc) == []
@@ -174,3 +177,18 @@ def test_a_question_that_does_not_fit_is_refused_with_a_reason(paper):
     q = _short_2(paper)
     with pytest.raises(SwapNotPossible, match="2-mark single-part"):
         swap_from_bank(paper, q["attrs"]["block_id"], bank_obj("standin_chart_bar", "big"))
+
+
+def test_a_generated_bank_question_is_locked_so_regenerating_keeps_it(paper):
+    q = _short_2(paper)
+    obj = generate("circles_medium", 3)  # a 2-mark P6 question the paper doesn't use
+    assert bank_options(paper, q["attrs"]["block_id"], [obj]) == [obj]
+    doc, report = swap_from_bank(paper, q["attrs"]["block_id"], obj)
+    assert report["locked"] is True
+    new = next(n for n in _questions(doc) if n["attrs"]["block_id"] == q["attrs"]["block_id"])
+    assert new["attrs"]["locked"] is True
+    regenerated, _ = regenerate_unlocked(doc, None, 9)
+    kept = next(
+        n for n in _questions(regenerated) if n["attrs"]["block_id"] == q["attrs"]["block_id"]
+    )
+    assert kept["attrs"]["question"]["id"] == obj["id"]
