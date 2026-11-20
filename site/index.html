@@ -527,8 +527,8 @@ footer a:hover { color: var(--verify-ink); }
       <p class="hero-note">Free &amp; open source · Built one vertical slice at a time.</p>
     </div>
 
-    <!-- SIGNATURE: a real ratio_medium worksheet card + bar model + verified answer key -->
-    <figure class="worksheet" aria-label="Sample generated question with its bar model and verified answer key">
+    <!-- SIGNATURE: a real ratio_medium question + its answer key with the worked bar model -->
+    <figure class="worksheet" aria-label="Sample generated question with its verified answer key and worked bar model">
       <div class="ws-head">
         <span>ratio_medium · seed 4831</span>
         <span class="ws-badge">✓ schema-valid</span>
@@ -541,6 +541,10 @@ footer a:hover { color: var(--verify-ink); }
           <span class="mark">[3]</span>
         </p>
 
+      </div>
+
+      <div class="answer-key">
+        <p class="ak-label">✓ Answer key — worked, deterministic</p>
         <svg class="barmodel" viewBox="0 0 520 132" role="img" aria-label="Bar model: a bar of ten equal units split into two units for Amy, three for Ben and five for Cai; one unit equals twelve dollars.">
           <!-- 10 unit cells, width 46 + gap 2, starting x = 20 -->
           <g>
@@ -566,14 +570,10 @@ footer a:hover { color: var(--verify-ink); }
             <text x="20" y="116" fill="var(--ink-faint)" font-family="ui-monospace, Menlo, monospace">1 unit = $120 ÷ 10 = $12</text>
           </g>
         </svg>
-        <p class="bm-caption">
-          <span>bar_model · aid diagram</span>
+        <p class="bm-caption" style="margin-bottom:12px">
+          <span>bar_model · key only</span>
           <span>every label = a solved value</span>
         </p>
-      </div>
-
-      <div class="answer-key">
-        <p class="ak-label">✓ Answer key — worked, deterministic</p>
         <ul class="ak-steps">
           <li><span class="op">units</span> 2 + 3 + 5 = 10 units</li>
           <li><span class="op">1 unit</span> $120 ÷ 10 = $12</li>
@@ -666,8 +666,8 @@ footer a:hover { color: var(--verify-ink); }
     <div class="features reveal">
       <div class="feat">
         <svg class="feat-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>
-        <h3>A full set in minutes</h3>
-        <p><span class="k">20–50</span> fresh questions per topic in one batch. Every generation is a new instance with different numbers, so worksheets never repeat.</p>
+        <h3>A full paper in one click</h3>
+        <p>Generate a whole Paper 1 or Paper 2 from a real slot layout. Every generation is a new instance with different numbers, so papers never repeat.</p>
       </div>
       <div class="feat">
         <svg class="feat-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/></svg>
@@ -677,12 +677,12 @@ footer a:hover { color: var(--verify-ink); }
       <div class="feat">
         <svg class="feat-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="8" height="16" rx="1"/><rect x="13" y="4" width="8" height="9" rx="1"/></svg>
         <h3>Diagrams that match</h3>
-        <p>Bar models and geometry figures are drawn from the same numbers as the question, and every dimension and label is checked against a solved value.</p>
+        <p>Geometry figures, charts and solids are drawn from the same numbers as the question, and every dimension and label is checked against a solved value. Bar models go in the answer key as worked solutions.</p>
       </div>
       <div class="feat">
         <svg class="feat-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
         <h3>You have the final say</h3>
-        <p>A human review gate sits between generation and export. Approve, regenerate, or discard each question, so nothing goes out that you haven't cleared.</p>
+        <p>Keep, swap or lock each question, regenerate everything you haven't locked, and add your own. Imported questions stay unreviewed until you mark them reviewed.</p>
       </div>
       <div class="feat">
         <svg class="feat-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5"/></svg>
@@ -692,7 +692,7 @@ footer a:hover { color: var(--verify-ink); }
       <div class="feat">
         <svg class="feat-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/></svg>
         <h3>Nudge the difficulty</h3>
-        <p>Make a question harder or easier, swap to decimals, or toggle the bar-model aid. Each edit is a new version, linked back to the original.</p>
+        <p>Make a question harder or easier, or swap it to decimals. Each edit is re-solved, so the answer key still matches.</p>
       </div>
     </div>
   </div>
@@ -787,20 +787,20 @@ footer a:hover { color: var(--verify-ink); }
         <span class="v">W1–W4</span>
         <div class="body">
           <h3>Paper editor, question bank &amp; accounts</h3>
-          <p>A WYSIWYG paper editor that mixes generated questions with your own (text, images, maths), a question bank you can import into, sign-in with Google, Microsoft or GitHub, and a hosted deployment on Postgres.</p>
+          <p>A WYSIWYG paper editor that mixes generated questions with your own (text, images, maths), a question bank you can import into, sign-in with Google, Microsoft or GitHub, and a production build ready to deploy (Postgres, Fly).</p>
         </div>
         <span class="state shipped">✓ Shipped</span>
       </li>
       <li class="rung done">
         <span class="v">T1–T7</span>
         <div class="body">
-          <h3>More figures &amp; answer types</h3>
+          <h3>Server-drawn figures (T-series and more) &amp; answer types</h3>
           <p>Bar, line and pie charts, cuboids and containers with a water level, number lines, cube stacks and their views, cube nets, square grids, and answers in terms of π, each drawn by the engine from the same numbers the answer uses.</p>
         </div>
         <span class="state shipped">✓ Shipped</span>
       </li>
       <li class="rung done">
-        <span class="v">P1–P8</span>
+        <span class="v">P1–P8d</span>
         <div class="body">
           <h3>Real exam-paper format &amp; one-click papers</h3>
           <p>Working space, Ans: lines and marks; sections with marks targets; cover pages, page numbers and the marking strip; answer-key options; and a full Paper 1 or Paper 2 generated in one click, with multiple choice for Booklet A, multi-part questions for Booklet B, and keep, swap or lock per question.</p>
@@ -818,8 +818,8 @@ footer a:hover { color: var(--verify-ink); }
       <li class="rung future">
         <span class="v">Now</span>
         <div class="body">
-          <h3>Exam-set answer key &amp; wider topic coverage</h3>
-          <p>One answer key for a whole exam set, with booklet headings; and more question types for full P5/P6 papers, starting with True / False / Not possible to tell tables and a tank line graph.</p>
+          <h3>Exam-set answer key &amp; more topics (P8e)</h3>
+          <p>One answer key for a whole exam set, with booklet headings; and more topics and question types so full P5/P6 papers need fewer placeholders. Next up: True / False / Not possible to tell tables and a tank line graph.</p>
         </div>
         <span class="state building">In progress</span>
       </li>

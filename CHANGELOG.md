@@ -266,10 +266,13 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 - **Landing page roadmap brought up to date (EXA-174).** The roadmap on the landing page
   (`site/index.html`) listed only V1–V3 as shipped. It now shows what has shipped (the MVP
   slices V1–V7, the paper editor, bank and accounts W1–W4, the T-series figures and answer types,
-  the paper format and one-click papers P1–P8, the editor and app redesign), what is in progress
-  (the exam-set answer key, more topics) and what is planned later. The hero chip, the note
+  the paper format and one-click papers P1–P8d, the editor and app redesign), what is in progress
+  (the exam-set answer key, more topics in P8e) and what is planned later. The hero chip, the note
   under the geometry showcase and the closing paragraph no longer call shipped work "planned"
-  or "being built", and the hero no longer says "No accounts".
+  or "being built", and the hero no longer says "No accounts". The sample question's bar model
+  moved into its answer key (bar models are worked solutions, EXA-132), and the feature cards
+  describe one-click papers, keep / swap / lock and the bank's review mark instead of the
+  Classic page's batch and review gate.
 
 - **Test fixtures use a made-up school name (EXA-173).** Tests and the cover's School
   field hint no longer use a name that could read as a real school: fixtures say "Example
