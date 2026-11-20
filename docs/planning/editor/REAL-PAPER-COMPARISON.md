@@ -387,7 +387,7 @@ such items. (Since EXA-158 it prints ticked tables: the `tick_table` answer.)
    - Needs a `table` figure (simple) and a tick-table answer type.
    - ~~Data tables~~ done in #231 (EXA-148): `postage_table`, `rental_table` and the multi-part
      `tariff_gst` print the existing content-level `question.table` (no schema change). ~~The
-     tick-table answer type~~ done in EXA-158: a `tick_table` answer (schema 1.15.0; empty boxes
+     tick-table answer type~~ done in EXA-158: a `tick_table` answer (schema 1.16.0; empty boxes
      on the paper, ticks in both keys, never multiple choice) and the P5 `average_statements`
      blueprint (2 marks, three statements about what an average does and does not tell). Still
      open: the tank line graph and pie charts in fractions.

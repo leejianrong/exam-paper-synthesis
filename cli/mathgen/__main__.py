@@ -68,7 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         default=[],
         metavar="PARAM=VALUE[,VALUE…]",
-        help="set-cosmetic only: new name(s)/item, e.g. --set names=Ann,Ben,Cal (repeatable)",
+        help="set-cosmetic / set-numbers: new values, e.g. --set names=Ann,Ben or --set ratio=3,4 "
+        "(repeatable)",
     )
     ed.add_argument("--out", default=None, help="write to FILE instead of stdout")
 

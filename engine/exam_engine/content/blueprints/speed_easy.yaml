@@ -29,8 +29,8 @@ parameter_schema:                       # ADR-0014: sampled params validate agai
 # never enters solve()); number|choice drive the maths and are not cosmetically editable.
 param_roles:
   name:  { role: name }
-  speed: { role: number }
-  time:  { role: number }
+  speed: { role: number, edit: free, label: "Speed (km/h)" }
+  time:  { role: number, edit: free, label: "Time (h)" }
 story_templates:
   - stem: null
     text: >

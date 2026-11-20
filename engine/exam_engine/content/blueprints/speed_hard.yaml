@@ -36,9 +36,9 @@ parameter_schema:                       # ADR-0014: sampled params validate agai
 param_roles:
   name1: { role: name }
   name2: { role: name }
-  s1:    { role: number }
-  s2:    { role: number }
-  gap:   { role: number }
+  s1:    { role: number, edit: free, label: "First speed (km/h)" }
+  s2:    { role: number, edit: free, label: "Second speed (km/h)" }
+  gap:   { role: number, edit: free, label: "Distance apart (km)" }
 story_templates:
   - stem: null
     text: >

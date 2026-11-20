@@ -70,7 +70,7 @@ existing `raster`/`text` escape hatches for anything in items 8+.
   observation that two additional papers already corrected the first paper's
   reading three times.
 
-## Follow-up (EXA-158, schema 1.15.0)
+## Follow-up (EXA-158, schema 1.16.0)
 
 The deferred tick-matrix item is now built, as a separate answer type rather than a cell kind of
 `question.table`, as this ADR expected: `answer.type: "tick_table"` holds the statements, the

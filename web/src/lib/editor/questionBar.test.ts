@@ -99,7 +99,7 @@ describe('at rest and selected', () => {
     expect(pill.getByLabelText('Marks')).toHaveValue(1)
     expect(pill.getByRole('button', { name: 'Part' })).toBeInTheDocument()
     expect(pill.queryByRole('button', { name: 'Lock' })).toBeNull() // not the generator's
-    expect(await menuLabels(mine)).toEqual(['Add a part', 'Edit answer…', 'Leave out of answer key', 'Move down', 'Add question below', 'Delete'])
+    expect(await menuLabels(mine)).toEqual(['Add a part', 'Edit answer…', 'Save to your bank…', 'Leave out of answer key', 'Move down', 'Add question below', 'Delete'])
 
     const slot = document.querySelectorAll<HTMLElement>('.ffblock')[1]
     expect(slot).toHaveClass('placeholder-slot')
@@ -607,5 +607,17 @@ describe('keys on other controls inside a block are theirs (review)', () => {
     expect(isBlockKeyTarget($('#p'), host)).toBe(true)
     for (const sel of ['[role=slider]', '#x', 'a', '#o', 'select']) expect(isBlockKeyTarget($(sel), host)).toBe(false)
     expect(isBlockKeyTarget(document.createElement('button'), host)).toBe(false) // not in the block
+  })
+})
+
+describe('Swap from your bank… (EXA-33)', () => {
+  it('asks the page for a bank swap of a generated question and of an empty placeholder', async () => {
+    const { onSwap } = make([gq('a', 'First.'), placeholder('p')])
+    await tick()
+    await chooseFromMenu(qblock('First.'), /Swap from your bank/)
+    expect(onSwap).toHaveBeenCalledWith('a', 'bank')
+    const slot = document.querySelector('[data-block-id="p"]') as HTMLElement
+    await chooseFromMenu(slot, /Swap from your bank/)
+    await waitFor(() => expect(onSwap).toHaveBeenCalledWith('p', 'bank'))
   })
 })

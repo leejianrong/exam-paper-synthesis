@@ -1,4 +1,4 @@
-"""EXA-158 (schema 1.15.0) the ``tick_table`` answer: a table of statements, each ticked in one
+"""EXA-158 (schema 1.16.0) the ``tick_table`` answer: a table of statements, each ticked in one
 column ("True", "False", "Not possible to tell"). The statements and columns are question
 content (the student paper prints them with empty boxes); each row's tick is the key.
 """

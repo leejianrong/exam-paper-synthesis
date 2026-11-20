@@ -33,9 +33,26 @@
     "source": { "$ref": "#/$defs/source" },
     "license": { "type": ["string", "null"] },
     "validation": { "$ref": "#/$defs/validation" },
-    "provenance": { "$ref": "#/$defs/provenance" }
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "freeform": {
+      "type": ["object", "null"],
+      "description": "A teacher's own question saved to their bank (added schema 1.15.0, EXA-90): the editor's freeformQuestion block (body, lettered parts, images by asset id, inline maths, marks, Ans: units, written answers) kept verbatim, so inserting it into a paper gives back the same question. `question` is a plain-text summary of it for lists and pickers. The block is checked at load against the document schema by exam_engine.own_question.check, and its marks must agree with `question`."
+    }
   },
   "allOf": [
+    {
+      "$comment": "A teacher's own question (EXA-90) is sourced, written by the teacher, and carries its block; the block belongs to nothing else.",
+      "if": { "properties": { "provenance": { "properties": { "created_by": { "const": "teacher" } } } } },
+      "then": { "required": ["freeform"], "properties": {
+        "source_type": { "const": "sourced" },
+        "freeform": {
+          "type": "object",
+          "required": ["type", "attrs", "content"],
+          "properties": { "type": { "const": "freeformQuestion" } }
+        }
+      } },
+      "else": { "properties": { "freeform": { "type": "null" } } }
+    },
     {
       "$comment": "Generated questions must name a blueprint and parameters.",
       "if": { "properties": { "source_type": { "const": "generated" } } },
@@ -220,7 +237,7 @@
     "answer_tick_table": {
       "type": "object", "additionalProperties": false,
       "required": ["type", "columns", "rows"],
-      "$comment": "One tick per statement row from a fixed column set (added schema 1.15.0, EXA-158): the True / False / Not possible to tell table. Statements and columns are question content, printed with empty boxes on the worksheet; only each row's `tick` is the key. Each tick naming one of the columns, and distinct statements, are enforced at load by exam_engine.tick_table.check_tick_table_consistency.",
+      "$comment": "One tick per statement row from a fixed column set (added schema 1.16.0, EXA-158): the True / False / Not possible to tell table. Statements and columns are question content, printed with empty boxes on the worksheet; only each row's `tick` is the key. Each tick naming one of the columns, and distinct statements, are enforced at load by exam_engine.tick_table.check_tick_table_consistency.",
       "properties": {
         "type": { "const": "tick_table" },
         "columns": {
@@ -873,7 +890,7 @@
       "additionalProperties": false,
       "required": ["created_by", "version"],
       "properties": {
-        "created_by": { "type": "string", "enum": ["engine", "ingested"] },
+        "created_by": { "type": "string", "enum": ["engine", "ingested", "teacher"], "description": "teacher = the owner's own question, saved from a paper (1.15.0, EXA-90)." },
         "llm_used": { "type": "boolean", "default": false },
         "created_at": { "type": ["string", "null"], "description": "ISO-8601 timestamp; nullable." },
         "parent_id": { "type": ["string", "null"], "description": "Lineage: the object this was edited from." },

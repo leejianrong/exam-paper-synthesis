@@ -97,6 +97,9 @@ export interface Question {
   }
   validation: { status: ValidationStatus; checks?: Record<string, unknown> }
   cognitive?: { difficulty?: Difficulty }
+  provenance?: { created_by?: string }
+  /** A teacher's own question (EXA-90): the editor block it was saved from, inserted as is. */
+  freeform?: Record<string, unknown> | null
   /**
    * Engine-computed set of applicable edit ops (KAN-243), attached by the API as
    * a UI hint (not part of the canonical schema). Drives edit-button visibility;

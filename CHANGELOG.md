@@ -12,7 +12,7 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 - **True / False / Not possible to tell tables (EXA-158).** A question can now ask the pupil to
   tick one box per statement, as real P5–P6 papers do: a new `tick_table` answer (canonical
-  schema 1.15.0). The student paper prints the statements in a ruled table with an empty box
+  schema 1.16.0). The student paper prints the statements in a ruled table with an empty box
   under True, False and Not possible to tell; the full key and the school key print the same
   table with the ticks. A new P5 Average blueprint, `average_statements` (2 marks), gives three
   statements about containers whose average is known ("At least one of the jars P, Q and R
@@ -21,6 +21,43 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   place it in a 2-mark short-answer or structured slot, never as multiple choice; the editor
   shows it as it prints. A changed tick is refused like any changed answer; a changed statement only
   takes the verified claim away, like other changed wording (EXA-157).
+- **Save your own question to your bank (EXA-90).** A question you wrote has **Save to your
+  bank…** in its ⋯ menu. A small dialog asks its topic (the app's topic list), level (starting at
+  the paper's) and difficulty; a single-part question's marks start at the block's, a multi-part
+  question's are its parts'. The bank keeps the question exactly as written (parts, pictures,
+  maths, Ans: units and answers), so **From my bank** and **Swap from your bank…** put it back
+  into any of your papers unchanged, to edit like any question of yours. Saving the same question
+  again says it is already in your bank and offers to replace that copy. It arrives unreviewed,
+  like an import, and is never marked verified. Canonical schema **1.15.0** (`freeform` block,
+  `provenance.created_by: "teacher"`), document schema **1.17.0** (`bank_id` on a free-form
+  question), `POST /bank/own`, `GET /bank/topics`, ADR-0023.
+- **Edit numbers (EXA-89, tier-2 edits).** A generated question's ⋯ menu has **Edit numbers…**
+  for eleven blueprints (Ratio easy/medium, Percentage easy/medium/hard, Speed easy/medium/hard,
+  Fractions medium/hard, Average easy): change the amount shared, the ratio terms, a
+  percentage, a speed or the listed scores, and the engine solves the question again, so the
+  answer, the working, the bar model and the key stay engine-proven. Names and items are kept.
+  Numbers that don't make a question of that kind are refused with the reason inline ("The
+  amount must be a multiple of 12: $301 can't be shared in the ratio 9 : 3 in whole dollars.").
+  The edited question is locked (and a notice says so), so **Regenerate unlocked** or a swap
+  doesn't throw your numbers away; one Undo reverts both. Engine: number roles marked `edit: free` (with a label) in the
+  blueprint YAML, the solver's `number_problem` hook, `exam_engine/numbers.py` and the
+  `set-numbers` edit op; API: `POST /edit/set-numbers`, the free numbers listed by
+  `GET /blueprints/{code}/params`; CLI: `mathgen edit set-numbers --set total=140`. Not offered on
+  a multiple-choice copy, a multi-part question or a decimals view.
+
+- **Swap from your bank (EXA-33, R6.4).** A generated question, or an empty placeholder, has
+  **Swap from your bank…** in its ⋯ menu. It lists the questions in your own bank that fit
+  that place: the same marks and kind of answer (multiple choice in Booklet A, a single
+  written-answer question in a short-answer section), no higher level than the paper, and not
+  already in the paper, with the question's topic first and reviewed questions before
+  unreviewed ones. Each shows its topic, marks, review status and the question as it prints;
+  a longer list can be searched. Picking one puts it in that place as a bank question, exactly
+  as inserting it from the bank would, keeping the position's working space, key setting and
+  slot, so the section's marks stay on target. A generated question picked this way is locked,
+  so **Regenerate unlocked** keeps it. The paper is saved before the list is worked out, so a
+  question you have just inserted is not offered again. Locked questions can't be swapped. When nothing
+  fits, the dialog says so. Only your own bank is ever offered (`GET
+  /documents/{id}/swap/bank`, `POST /documents/{id}/swap` with `mode: "bank"`).
 - **Defaults for new papers (EXA-169, UI redesign S11).** Settings has a **New papers** group:
   the school name, the level (Not set, P5 or P6), **Marks shown** (the editor's own control and
   labels) and the answer key style. Each paper made from then on starts with them: the school

@@ -4,7 +4,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import { screen, waitFor } from '@testing-library/svelte'
+import { fireEvent, screen, waitFor } from '@testing-library/svelte'
 import { TemplatedQuestion, questionNode } from './templatedQuestion'
 import {
   makeBankQuestion,
@@ -24,12 +24,12 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-function make(content: DocJSON, onAddBelow = vi.fn()) {
+function make(content: DocJSON, onAddBelow = vi.fn(), onNotice = vi.fn()) {
   const el = document.createElement('div')
   document.body.appendChild(el)
   editor = new Editor({
     element: el,
-    extensions: [StarterKit, TemplatedQuestion.configure({ onAddBelow })],
+    extensions: [StarterKit, TemplatedQuestion.configure({ onAddBelow, onNotice })],
     content,
   })
   return { editor, el, onAddBelow }
@@ -106,6 +106,43 @@ describe('templatedQuestion node view', () => {
     await waitFor(() => expect(screen.getByText('Regenerated question text.')).toBeInTheDocument())
     expect(texts(e)).toEqual(['a:v2', 'b'])
     expect(screen.queryByText('First question text.')).not.toBeInTheDocument()
+  })
+
+  it('Edit numbers… re-solves and locks the question in one undoable step (EXA-89)', async () => {
+    const numbers = [{ key: 'total', label: 'Amount shared ($)', list: false, minimum: 12, maximum: 2000 }]
+    const child = makeQuestion({ id: 'a:v2' }, 'Ann, Ben and Cal share $180 in the ratio 2 : 3 : 4.')
+    vi.stubGlobal('fetch', routeFetch({ '/params': { slots: [], numbers }, '/edit/set-numbers': { question: child } }))
+    const onNotice = vi.fn()
+    const { editor: e } = make(
+      { type: 'doc', content: [questionNode(makeQuestion({ id: 'a', available_ops: ['set-numbers'] }))] },
+      vi.fn(),
+      onNotice,
+    )
+    const block = screen.getByTestId('question-block')
+    await chooseFromMenu(block, 'Edit numbers…')
+    const total = await screen.findByLabelText('Amount shared ($)')
+    await fireEvent.input(total, { target: { value: '180' } })
+    await fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    await waitFor(() => expect(texts(e)).toEqual(['a:v2']))
+    expect(e.getJSON().content?.[0].attrs?.locked).toBe(true)
+    expect(onNotice).toHaveBeenCalledWith(expect.stringContaining('now locked'))
+    e.commands.undo()
+    expect(texts(e)).toEqual(['a'])
+    expect(e.getJSON().content?.[0].attrs?.locked).toBe(false)
+  })
+
+  it('opening Edit numbers… closes Edit names…, and the other way round', async () => {
+    vi.stubGlobal('fetch', routeFetch({ '/params': { slots: [{ key: 'names', role: 'name', count: 3 }], numbers: [] } }))
+    make({ type: 'doc', content: [questionNode(makeQuestion({ id: 'a', available_ops: ['set-numbers'] }))] })
+    const block = screen.getByTestId('question-block')
+    await chooseFromMenu(block, 'Edit names…')
+    expect(await screen.findByRole('form', { name: 'Edit names' })).toBeInTheDocument()
+    await chooseFromMenu(block, 'Edit numbers…')
+    expect(await screen.findByRole('form', { name: 'Edit numbers' })).toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'Edit names' })).not.toBeInTheDocument()
+    await chooseFromMenu(block, 'Edit names…')
+    expect(await screen.findByRole('form', { name: 'Edit names' })).toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'Edit numbers' })).not.toBeInTheDocument()
   })
 
   it('shows the API error inside the block and leaves the snapshot alone', async () => {

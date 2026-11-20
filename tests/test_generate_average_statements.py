@@ -1,5 +1,5 @@
 """Generation suite for ``average_statements`` and the ``tick_table`` answer (EXA-158, schema
-1.15.0): the load gate, the printed table (empty boxes on the paper, ticks in both keys), no
+1.16.0): the load gate, the printed table (empty boxes on the paper, ticks in both keys), no
 multiple-choice copy, the snapshot check, conversion to a free-form question, and the goldens.
 The correctness authority is ``test_invariants_average_statements.py``."""
 
@@ -37,7 +37,7 @@ def _answer(obj: dict) -> dict:
 
 def test_objects_are_schema_valid_deterministic_and_varied():
     obj = _obj()
-    assert obj["schema_version"] == "1.15.0"
+    assert obj["schema_version"] == "1.16.0"
     assert canonical.load(copy.deepcopy(obj)) == obj
     assert generate(CODE, 3) == obj
     assert len({json.dumps(_answer(generate(CODE, s))) for s in range(1, 21)}) == 20

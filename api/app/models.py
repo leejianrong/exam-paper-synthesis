@@ -60,11 +60,13 @@ class GeneratePaperRequest(BaseModel):
 
 
 class SwapQuestionRequest(BaseModel):
-    """P8d: replace one question of a paper (another like this / another topic / my own)."""
+    """P8d: replace one question of a paper (another like this / another topic / my own), or
+    (EXA-33) put the owner's bank question ``bank_id`` in its place (mode ``bank``)."""
 
     block_id: str = Field(min_length=1, max_length=64)
-    mode: Literal["like", "topic", "own"]
+    mode: Literal["like", "topic", "own", "bank"]
     base_version: int
+    bank_id: str | None = Field(default=None, min_length=1, max_length=200)
     level: Literal["P5", "P6"] | None = None  # None = the paper's own (cover, else questions)
     seed: int | None = Field(default=None, ge=1, lt=2**31)
 
@@ -104,6 +106,17 @@ class BankReviewRequest(BaseModel):
 
 class BankImportRequest(BaseModel):
     objects: list[Any]  # per-item validation happens in the route, so one bad item is reported
+    replace: bool = False
+
+
+class BankSaveOwnRequest(BaseModel):
+    """EXA-90: save a teacher's own question (a ``freeformQuestion`` block) to their bank."""
+
+    block: dict[str, Any]
+    topic: str = Field(max_length=200)
+    level: Literal["P5", "P6"]
+    difficulty: Literal["easy", "medium", "hard"] = "medium"
+    marks: int | None = Field(default=None, ge=0, le=100)
     replace: bool = False
 
 

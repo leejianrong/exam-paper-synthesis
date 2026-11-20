@@ -32,8 +32,11 @@
   import { NodeSelection, TextSelection, type Selection } from '@tiptap/pm/state'
 
   import type { Question } from '../types'
+  import type { BankItem } from '../api'
   import AddQuestion from './AddQuestion.svelte'
   import AnswerDialog from './AnswerDialog.svelte'
+  import SaveToBankDialog from './SaveToBankDialog.svelte'
+  import BankSwapDialog from './BankSwapDialog.svelte'
   import KeyView from './KeyView.svelte'
   import { answerWritten, keyNumbers } from './keyRows'
   import { withReviewed } from './inspector'
@@ -41,6 +44,7 @@
   import {
     buildDocument,
     freeformNode,
+    ownBankNode,
     numberedNodes,
     paperOutline,
     totalMarks,
@@ -153,6 +157,7 @@
   let paletteCommands: Command[] = []
   let sheetOpen = false
   let verifiedOpen = false
+  let bankSwapFor: string | null = null // the block "Swap from your bank…" is picking for (EXA-33)
   let moveFolders: Folder[] | null = null
   let moveError = ''
   let confirmDelete = false
@@ -160,6 +165,8 @@
   let keyView: KeyView | undefined
   /** "Edit answer…": the own question whose answer is open. */
   let answerFor: string | null = null
+  /** "Save to your bank…" (EXA-90): the own question being filed in the bank. */
+  let bankSaveFor: string | null = null
 
   /** Show a failed action in plain words (EXA-165), with Try again when it may work now. */
   function failed(e: unknown, action: string, retry?: () => void) {
@@ -184,6 +191,9 @@
   $: blocks = numberedNodes(content)
   $: marks = totalMarks(content)
   $: coverPresent = content.content?.[0]?.type === 'coverPage'
+  // "Primary 6", "P6": the level a question saved from this paper starts at (EXA-90)
+  $: paperLevel = /\b(?:P|Primary\s*)([56])\b/i.exec(String(coverPresent ? (content.content?.[0]?.attrs?.level ?? '') : ''))?.[1]
+  $: bankSaveBlock = bankSaveFor === null ? undefined : blocks.find((b) => b.attrs?.block_id === bankSaveFor)
   $: placeholdersLeft = unfilledPlaceholders(content)
   $: canRegenerate = hasGeneratedSlots(content)
   // The generator's report (P8a), shown once on the paper it made.
@@ -527,6 +537,7 @@
             onSwap: swapBlock,
             onDeleted: questionDeleted,
             onEditAnswer: (blockId: string) => (answerFor = blockId),
+            onSaveToBank: (blockId: string) => (bankSaveFor = blockId),
           }),
           TemplatedQuestion.configure({
             onAddBelow: (pos: number) => (pickerAt = pos),
@@ -622,6 +633,12 @@
 
   function insertQuestion(q: Question) {
     if (!editor) return
+    if (q.freeform) {
+      // the teacher's own question goes in as they wrote it, to edit like any of theirs (EXA-90)
+      insertFreeform(editor, insertionPoint(editor), ownBankNode(q))
+      pickerAt = undefined
+      return
+    }
     editor.chain().insertContentAt(insertionPoint(editor), questionNode(q)).scrollIntoView().run()
     editor.view.focus() // now, not a frame later (TipTap's focus() defers; keys would be lost)
     pickerAt = undefined
@@ -1016,17 +1033,36 @@
     }
   }
 
-  async function swapBlock(blockId: string, mode: SwapMode): Promise<void> {
+  async function swapBlock(blockId: string, mode: SwapMode, bankId?: string): Promise<void> {
+    if (mode === 'bank' && !bankId) {
+      bankSwapFor = blockId // the picker asks which bank question, then comes back here
+      return
+    }
     await paperOp(
-      (base) => swapQuestion(id, blockId, mode, base),
+      (base) => swapQuestion(id, blockId, mode, base, bankId),
       swapNotice,
       "The question wasn't swapped",
-      () => void swapBlock(blockId, mode),
+      () => void swapBlock(blockId, mode, bankId),
     )
     // The swapped block is selected; give the editor focus back (the menu that asked is gone),
     // so its pill shows and R swaps again (EXA-161).
     await nextTick()
     if (editor && (!document.activeElement || document.activeElement === document.body)) editor.view.focus()
+  }
+
+  // The bank list is worked out on the saved paper, so a question just inserted (or a block just
+  // added) must be saved first, or it is offered again (or not found).
+  async function saveForBank() {
+    await autosaver?.flush()
+    if (status === 'conflict' || status === 'error') {
+      throw new Error('Your latest changes are not saved yet. Try again in a moment.')
+    }
+  }
+
+  function pickFromBank(item: BankItem) {
+    const blockId = bankSwapFor
+    bankSwapFor = null
+    if (blockId) void swapBlock(blockId, 'bank', item.id)
   }
 
   function regenerate(): Promise<void> {
@@ -1381,6 +1417,19 @@
   />
 {/if}
 
+{#if bankSaveFor !== null && bankSaveBlock}
+  <SaveToBankDialog
+    block={bankSaveBlock}
+    level={paperLevel ? `P${paperLevel}` : ''}
+    onSaved={({ status, id: bankId }) => {
+      if (bankSaveFor) setBlockAttrs(bankSaveFor, ['freeformQuestion'], { bank_id: bankId })
+      notice = status === 'replaced' ? 'Updated the copy in your bank.' : 'Saved to your bank.'
+      bankSaveFor = null
+    }}
+    onClose={() => (bankSaveFor = null)}
+  />
+{/if}
+
 {#if verifiedOpen}
   <Dialog title="What “verified” means" width="30rem" onClose={() => (verifiedOpen = false)}>
     <div class="verified">
@@ -1406,6 +1455,16 @@
     on:insert={(e) => insertQuestion(e.detail.question)}
     on:freeform={insertFreeformQuestion}
     on:close={() => (pickerAt = undefined)}
+  />
+{/if}
+
+{#if bankSwapFor}
+  <BankSwapDialog
+    docId={id}
+    blockId={bankSwapFor}
+    ready={saveForBank}
+    onPick={pickFromBank}
+    onClose={() => (bankSwapFor = null)}
   />
 {/if}
 
