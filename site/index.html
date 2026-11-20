@@ -512,7 +512,7 @@ footer a:hover { color: var(--verify-ink); }
 <section class="hero">
   <div class="wrap">
     <div>
-      <div class="status-chip"><span class="dot"></span>V3 shipped · difficulty ladder &amp; in-place edits</div>
+      <div class="status-chip"><span class="dot"></span>Paper editor shipped · one-click P5–P6 papers</div>
       <h1>PSLE-style maths you can hand out <span class="accent">without checking</span> the answer key.</h1>
       <p class="lede">
         Generate fresh, syllabus-aligned Primary&nbsp;5–6 questions in minutes, each with a
@@ -524,7 +524,7 @@ footer a:hover { color: var(--verify-ink); }
         <a class="btn btn-primary" href="https://github.com/leejianrong/exam-paper-synthesis" target="_blank" rel="noopener">Follow the build on GitHub →</a>
         <a class="btn btn-ghost" href="#trust">See why it's trustworthy</a>
       </div>
-      <p class="hero-note">Free &amp; open source · No accounts · Coming to life one vertical slice at a time.</p>
+      <p class="hero-note">Free &amp; open source · Built one vertical slice at a time.</p>
     </div>
 
     <!-- SIGNATURE: a real ratio_medium worksheet card + bar model + verified answer key -->
@@ -746,7 +746,7 @@ footer a:hover { color: var(--verify-ink); }
       </div>
     </div>
 
-    <p class="showcase-note reveal">The area worksheet above illustrates a <b>planned</b> geometry family. Today's shipped engine generates the <b>Ratio</b> questions you saw at the top of the page.</p>
+    <p class="showcase-note reveal">The area question above is one of the shipped PSLE geometry families; the engine also covers Ratio, Fractions, Percentage, Speed, Circles, Volume, Statistics and more.</p>
   </div>
 </section>
 
@@ -760,50 +760,74 @@ footer a:hover { color: var(--verify-ink); }
 
     <ol class="roadmap-list reveal">
       <li class="rung done">
-        <span class="v">V1</span>
+        <span class="v">V1–V3</span>
         <div class="body">
-          <h3>Generate a Ratio question</h3>
-          <p>Click Generate → a fresh, schema-valid three-term ratio question with its typed answer and a validation badge, end-to-end through engine, API and web.</p>
+          <h3>Ratio questions, worked solutions &amp; a difficulty ladder</h3>
+          <p>Generate a schema-valid Ratio question with its typed answer, step-by-step working, [n] marks and a bar model drawn to the ratio; then regenerate it, make it harder or easier, or switch it to decimals.</p>
         </div>
         <span class="state shipped">✓ Shipped</span>
       </li>
       <li class="rung done">
-        <span class="v">V2</span>
+        <span class="v">V4–V5</span>
         <div class="body">
-          <h3>Worked solutions, marks &amp; bar models</h3>
-          <p>The card gained step-by-step working, [n] marks per part, and an accurate inline bar-model SVG whose units match the ratio, with the total shown as a vertical brace across the bars.</p>
+          <h3>Review gate, preview &amp; both PDFs</h3>
+          <p>Approve or discard each question into a titled worksheet with a running marks total, preview it as it prints, and export the worksheet and its answer key as separate PDFs.</p>
         </div>
         <span class="state shipped">✓ Shipped</span>
       </li>
       <li class="rung done">
-        <span class="v">V3</span>
+        <span class="v">V6–V7</span>
         <div class="body">
-          <h3>Difficulty ladder &amp; edits</h3>
-          <p>Regenerate, make harder or easier, switch to decimals, toggle the diagram, with harder/easier hidden at the ends of the ladder.</p>
+          <h3>More topics, PSLE geometry &amp; a headless CLI</h3>
+          <p>Fractions, Percentage and Speed ladders, angle and area questions with figures drawn to the numbers, the <b>mathgen</b> command line, and past-paper questions imported through the same schema.</p>
+        </div>
+        <span class="state shipped">✓ Shipped</span>
+      </li>
+      <li class="rung done">
+        <span class="v">W1–W4</span>
+        <div class="body">
+          <h3>Paper editor, question bank &amp; accounts</h3>
+          <p>A WYSIWYG paper editor that mixes generated questions with your own (text, images, maths), a question bank you can import into, sign-in with Google, Microsoft or GitHub, and a hosted deployment on Postgres.</p>
+        </div>
+        <span class="state shipped">✓ Shipped</span>
+      </li>
+      <li class="rung done">
+        <span class="v">T1–T7</span>
+        <div class="body">
+          <h3>More figures &amp; answer types</h3>
+          <p>Bar, line and pie charts, cuboids and containers with a water level, number lines, cube stacks and their views, cube nets, square grids, and answers in terms of π, each drawn by the engine from the same numbers the answer uses.</p>
+        </div>
+        <span class="state shipped">✓ Shipped</span>
+      </li>
+      <li class="rung done">
+        <span class="v">P1–P8</span>
+        <div class="body">
+          <h3>Real exam-paper format &amp; one-click papers</h3>
+          <p>Working space, Ans: lines and marks; sections with marks targets; cover pages, page numbers and the marking strip; answer-key options; and a full Paper 1 or Paper 2 generated in one click, with multiple choice for Booklet A, multi-part questions for Booklet B, and keep, swap or lock per question.</p>
+        </div>
+        <span class="state shipped">✓ Shipped</span>
+      </li>
+      <li class="rung done">
+        <span class="v">UI</span>
+        <div class="body">
+          <h3>Editor &amp; app redesign</h3>
+          <p>A two-row editor header with one Export menu, a Paper / Question side panel, menus and a Ctrl+K command palette, the answer key as a view of the printed key, a question bank page, new-paper defaults in Settings, and a clearer sign-in page.</p>
         </div>
         <span class="state shipped">✓ Shipped</span>
       </li>
       <li class="rung future">
-        <span class="v">V4</span>
+        <span class="v">Now</span>
         <div class="body">
-          <h3>Review gate &amp; worksheet tray</h3>
-          <p>Approve or discard each question; approved ones collect in a titled worksheet with a running total of marks.</p>
+          <h3>Exam-set answer key &amp; wider topic coverage</h3>
+          <p>One answer key for a whole exam set, with booklet headings; and more question types for full P5/P6 papers, starting with True / False / Not possible to tell tables and a tank line graph.</p>
         </div>
-        <span class="state building">Next up</span>
-      </li>
-      <li class="rung future">
-        <span class="v">V5</span>
-        <div class="body">
-          <h3>Preview &amp; export both PDFs</h3>
-          <p>A WYSIWYG preview that matches print, then export a worksheet PDF and a separate answer-key PDF — the full Ratio flow, end to end.</p>
-        </div>
-        <span class="state planned">Planned</span>
+        <span class="state building">In progress</span>
       </li>
       <li class="rung future">
         <span class="v">Later</span>
         <div class="body">
-          <h3>Four more topics, geometry figures &amp; interchange</h3>
-          <p>Fractions, Percentage, Area/Geometry and Speed ladders with mandatory figures; a headless CLI; and sourced past-paper questions through the same schema.</p>
+          <h3>Bank swaps, parameter editing &amp; Word export</h3>
+          <p>Swap a question for one from your bank, edit a generated question's numbers directly, save your own questions to the bank, and export a paper as .docx.</p>
         </div>
         <span class="state planned">Planned</span>
       </li>
@@ -815,7 +839,7 @@ footer a:hover { color: var(--verify-ink); }
 <section class="closer">
   <div class="wrap">
     <h2>Watch a trustworthy maths engine come together.</h2>
-    <p>The app is still young: the first seven slices (V1–V7) have shipped, and the paper editor is being built now. If a worksheet generator you don't have to double-check sounds useful, follow along and watch it grow.</p>
+    <p>The MVP slices, the paper editor and one-click paper generation have shipped; the exam-set answer key and more topics are being built now. If a worksheet generator you don't have to double-check sounds useful, follow along and watch it grow.</p>
     <div class="cta-row">
       <a class="btn btn-primary" href="https://github.com/leejianrong/exam-paper-synthesis" target="_blank" rel="noopener">Star &amp; follow on GitHub →</a>
       <a class="btn btn-ghost" href="https://github.com/leejianrong/exam-paper-synthesis/blob/main/docs/planning/mvp/PRD.md" target="_blank" rel="noopener">Read the product spec</a>
