@@ -1,0 +1,48 @@
+code: tank_graph
+syllabus:
+  level: P6
+  strand: "Data Analysis"
+  topic: "Statistics (Charts)"
+  subtopic: "Line graph of the water in a tank: water that flowed in, or the rate of flow"
+  skill_codes: ["DATA.LINE.TANK"]       # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Representation", "Reasoning depth"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [vessel, step, times, volumes, ask, a, b]
+  properties:
+    vessel: { type: string, enum: [tank, container, barrel] }
+    step: { type: integer, enum: [5, 10, 20] }
+    times: { type: array, minItems: 4, maxItems: 4, items: { type: integer, minimum: 0, maximum: 12 } }
+    volumes: { type: array, minItems: 4, maxItems: 4, items: { type: integer, minimum: 0, maximum: 400 } }
+    ask: { type: string, enum: [between, rate] }
+    a: { type: integer, minimum: 0, maximum: 3 }
+    b: { type: integer, minimum: 0, maximum: 3 }
+param_roles:
+  vessel: { role: item }
+  step: { role: number }
+  times: { role: number }
+  volumes: { role: number }
+  ask: { role: choice }
+  a: { role: number }
+  b: { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{expr1}"
+    - text: "{step2}"
+      expr: "{expr2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Reads the volume of water at both times from the graph." }
+  - { mark: 1, type: A, description: "Correct answer with its unit (ℓ, or ℓ/min for a rate)." }
+answer:
+  type: integer
+  unit: "l"
+diagram: chart

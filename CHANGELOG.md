@@ -10,6 +10,19 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Tank line graphs and pie charts in fractions or percentages (EXA-158, part 2).** Five new
+  P6 Statistics (Charts) blueprints, on no ladder: `pie_fraction` (1 mark: the fraction of the
+  unlabelled sector), `pie_percent_more` (2 marks: how much more was spent on one sector than
+  another, from a percentage pie and the total), `pie_fraction_amount` (3 marks: one sector's
+  amount gives the whole, then the unlabelled sector's share), `tank_graph` (2 marks: the water
+  that flowed in between two times, or the rate in ℓ/min, read off a line graph of the volume
+  in a tank) and the two-part `tank_graph_structured` for Paper 2 (the rate, then how many
+  minutes until the tank of a given capacity is full). The `chart` figure (canonical schema
+  1.16.0) gains a numeric time axis with vertical gridlines, each line given as its corners,
+  and a fraction pie that prints each sector as a stacked fraction; the unit `l/min` prints as
+  ℓ/min. The invariant tests read every answer back off the drawn SVG: the graph's corners from
+  the gridlines and tick labels, the pie's shares from its arcs.
+
 - **Defaults for new papers (EXA-169, UI redesign S11).** Settings has a **New papers** group:
   the school name, the level (Not set, P5 or P6), **Marks shown** (the editor's own control and
   labels) and the answer key style. Each paper made from then on starts with them: the school

@@ -5,6 +5,7 @@ import type { Answer } from "./types";
 export const PRINTED_UNIT: Record<string, string> = {
   l: "ℓ",
   ml: "mℓ",
+  "l/min": "ℓ/min",
   "cm^2": "cm²",
   "m^2": "m²",
   "cm^3": "cm³",

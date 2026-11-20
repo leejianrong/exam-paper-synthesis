@@ -10,7 +10,15 @@ latin-ext subset), so it is still the one typeface (EXA-94).
 
 from __future__ import annotations
 
-PRINTED = {"l": "ℓ", "ml": "mℓ", "cm^2": "cm²", "m^2": "m²", "cm^3": "cm³", "m^3": "m³"}
+PRINTED = {
+    "l": "ℓ",
+    "ml": "mℓ",
+    "l/min": "ℓ/min",
+    "cm^2": "cm²",
+    "m^2": "m²",
+    "cm^3": "cm³",
+    "m^3": "m³",
+}
 
 
 def printed_unit(unit: str) -> str:

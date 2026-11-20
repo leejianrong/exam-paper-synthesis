@@ -1,0 +1,62 @@
+code: tank_graph_structured
+syllabus:
+  level: P6
+  strand: "Data Analysis"
+  topic: "Statistics (Charts)"
+  subtopic: "Structured: the rate from a tank line graph, then the time to fill the tank"
+  skill_codes: ["DATA.LINE.TANK.FILL"]  # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Representation", "Reasoning depth", "Multiple concepts"]
+marks: 4                                # the question total; each part's marks are below
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [vessel, step, times, volumes, capacity]
+  properties:
+    vessel: { type: string, enum: [tank, container, barrel] }
+    step: { type: integer, enum: [5, 10, 20] }
+    times: { type: array, minItems: 4, maxItems: 4, items: { type: integer, minimum: 0, maximum: 12 } }
+    volumes: { type: array, minItems: 4, maxItems: 4, items: { type: integer, minimum: 0, maximum: 400 } }
+    capacity: { type: integer, minimum: 1, maximum: 1000 }
+param_roles:
+  vessel: { role: item }
+  step: { role: number }
+  times: { role: number }
+  volumes: { role: number }
+  capacity: { role: number }
+# P8c multi-part: shared stem here, each part's text/marks/scheme/steps/answer under `parts`.
+story_templates:
+  - stem: "{intro}"
+parts:
+  - label: a
+    marks: 2
+    text: "At what rate did water flow into the {vessel} from {t_from} min to {t_end} min? Give your answer in litres per minute."
+    solution_template:
+      steps:
+        - text: "At {t_from} min, there were {v_from} ℓ of water. At {t_end} min, there were {v_end} ℓ. {v_end} − {v_from} = {rise} ℓ flowed in."
+          expr: "{v_end}-{v_from}"
+        - text: "Rate = {rise} ℓ ÷ {span} min = {rate} ℓ/min."
+          expr: "{rise}/{span}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Reads both volumes and finds the water that flowed in." }
+      - { mark: 1, type: A, description: "Correct rate in ℓ/min." }
+    answer: { type: integer, unit: "l/min" }
+  - label: b
+    marks: 2
+    text: >
+      The {vessel} can hold {capacity} ℓ of water. After {t_end} min, water continued to
+      flow in at the rate in (a) until the {vessel} was full. How many minutes after the
+      start was the {vessel} full?
+    solution_template:
+      steps:
+        - text: "Water still needed = {capacity} − {v_end} = {left} ℓ, which takes {left} ÷ {rate} = {more} min."
+          expr: "({capacity}-{v_end})/{rate}"
+        - text: "The {vessel} was full {t_end} + {more} = {full} min after the start."
+          expr: "{t_end}+{more}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Finds the time to fill the rest of the tank at the rate in (a)." }
+      - { mark: 1, type: A, description: "Adds the time already shown on the graph; correct time in min." }
+    answer: { type: integer, unit: "min" }
+diagram: chart
