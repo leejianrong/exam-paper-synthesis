@@ -609,3 +609,15 @@ describe('keys on other controls inside a block are theirs (review)', () => {
     expect(isBlockKeyTarget(document.createElement('button'), host)).toBe(false) // not in the block
   })
 })
+
+describe('Swap from your bank… (EXA-33)', () => {
+  it('asks the page for a bank swap of a generated question and of an empty placeholder', async () => {
+    const { onSwap } = make([gq('a', 'First.'), placeholder('p')])
+    await tick()
+    await chooseFromMenu(qblock('First.'), /Swap from your bank/)
+    expect(onSwap).toHaveBeenCalledWith('a', 'bank')
+    const slot = document.querySelector('[data-block-id="p"]') as HTMLElement
+    await chooseFromMenu(slot, /Swap from your bank/)
+    await waitFor(() => expect(onSwap).toHaveBeenCalledWith('p', 'bank'))
+  })
+})

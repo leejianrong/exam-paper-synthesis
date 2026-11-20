@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import fs from 'node:fs'
 import { generateSinglePaper, questionHost, questionMenu, questionPill } from './helpers.js'
 import { API } from './ports.js'
 
@@ -121,4 +122,46 @@ test('typing on a selected question does nothing; Shift+Enter starts a paragraph
   await page.keyboard.type('After it')
   await expect(paras).toHaveText(['After it'])
   expect(await blocks.count()).toBe(17)
+})
+
+test('swap a question for one from your bank (EXA-33)', async ({ page }) => {
+  // a 2-mark P6 stand-in with a stem no other run shares, so it is found among earlier imports
+  const token = Date.now().toString(36)
+  const base = JSON.parse(fs.readFileSync('tests/fixtures/sourced/standin_chart_line.json', 'utf8'))
+  const mine = {
+    ...base,
+    id: `sourced:e2e-bank-swap-${token}`,
+    question: { ...base.question, stem: `${base.question.stem} (Sample ${token})` },
+  }
+  const imported = await page.request.post(`${API}/bank/import`, { data: { objects: [mine] } })
+  expect((await imported.json()).imported).toBe(1)
+
+  await page.goto('/')
+  await generateSinglePaper(page, 'Paper 2', 'P6')
+  await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
+  const id = page.url().split('/docs/')[1]
+  const blocks = page.getByTestId('question-block')
+  await expect(blocks.nth(16)).toBeVisible()
+  const sectionA = page.locator('.section-block').nth(0).locator('.section-summary')
+
+  await questionMenu(blocks.nth(1), 'Swap from your bank…')
+  const dialog = page.getByRole('dialog', { name: 'Swap from your bank' })
+  const item = dialog.getByTestId('bank-swap-item').filter({ hasText: `Sample ${token}` })
+  await expect(item).toContainText('2 marks')
+  await expect(item).toContainText('Unreviewed')
+  await item.getByRole('button', { name: /^Use this/ }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByText(/Swapped in a 2-mark Statistics question from your bank/)).toBeVisible()
+  await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
+
+  const saved = await (await page.request.get(`${API}/documents/${id}`)).json()
+  const second = saved.document.content.content.filter((n) => n.type === 'templatedQuestion')[1]
+  expect(second.attrs.question.id).toBe(mine.id)
+
+  // now in the paper, it is not offered for another place
+  await questionMenu(blocks.nth(2), 'Swap from your bank…')
+  await expect(dialog.getByText('Loading your bank…')).toHaveCount(0)
+  await expect(dialog.getByTestId('bank-swap-item').filter({ hasText: `Sample ${token}` })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
 })
