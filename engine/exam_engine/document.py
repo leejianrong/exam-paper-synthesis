@@ -612,6 +612,41 @@ def _reads(text: object) -> str:
     return re.sub(r"\d+(?:\.\d+)?", lambda m: str(Fraction(m.group())), words)
 
 
+def _value(text: object) -> tuple[object, str] | None:
+    """A one-number option as ``(value, the rest)``: ``\\(\\frac{4}{6}\\) kg`` and
+    ``\\(\\frac{2}{3}\\) kg`` share a value, as do ``\\(\\frac{3}{4}\\) kg`` and ``0.75 kg``.
+    ``None`` for anything else (an answer in terms of π, say)."""
+    from fractions import Fraction
+
+    words = _reads(text).replace("\\(", "").replace("\\)", "")
+    m = re.fullmatch(r"([^\d\\]*)(?:\\frac\{(\d+)\}\{(\d+)\}|(\d+(?:/\d+)?))([^\d\\]*)", words)
+    if m is None or m.group(3) == "0":
+        return None
+    value = Fraction(int(m.group(2)), int(m.group(3))) if m.group(2) else Fraction(m.group(4))
+    return value, m.group(1) + m.group(5)
+
+
+def _says_the_answer(option: object, correct: object) -> bool:
+    """A wrong option reads as the correct one, or names the same value in another form."""
+    if _reads(option) == _reads(correct):
+        return True
+    v = _value(option)
+    return v is not None and v == _value(correct)
+
+
+def _scheme_differs(scheme: list[dict], answer: dict, marks: object) -> bool:
+    """A multiple-choice copy's scheme (P8b) is one A mark for the stored correct option. Its
+    reasons for the wrong ones come from the distractor rules of the day, so only the option
+    it calls correct is checked: the stored one, and no other."""
+    if len(scheme) != 1 or scheme[0].get("mark") != marks or scheme[0].get("type") != "A":
+        return True
+    description = str(_same_words(str(scheme[0].get("description") or "")))
+    named = re.findall(r"correct option \(([^)]*)\)", description, flags=re.IGNORECASE)
+    return not description.startswith(f"Correct option ({answer['correct']}).") or any(
+        n != answer["correct"] for n in named
+    )
+
+
 def _figure_differs(have: object, wanted: list[object], *, may_hide: bool) -> bool:
     """A stored figure differs from every figure the engine draws for these parameters. An
     aid figure may be hidden (toggle-diagram)."""
@@ -629,7 +664,8 @@ def wording_differences(obj: dict) -> list[str]:
     The engine re-builds the question through the same path as generation and the
     set-cosmetic edit (:func:`pipeline.build_from_params`), replaying the decimals view.
     Multiple-choice options are not re-derived (the distractors change as the engine
-    improves): only a wrong option that reads as the answer is flagged. Call it on a
+    improves): only a wrong option that reads as the answer, or has its value, and a scheme
+    that names another correct option are flagged. Call it on a
     snapshot :func:`verify_snapshot` accepts.
     """
     if obj.get("source_type") != "generated":
@@ -669,19 +705,18 @@ def wording_differences(obj: dict) -> list[str]:
             where.append("figure")
         if _same_words(part.get("solution_steps")) != _same_words(w.get("solution_steps")):
             where.append("worked steps")
-        # a multiple-choice copy's scheme names why each wrong option tempts (P8b)
-        if not converted and _same_words(part.get("marking_scheme")) != _same_words(
-            w.get("marking_scheme")
+        if (
+            _scheme_differs(part.get("marking_scheme") or [], answer, part.get("marks"))
+            if converted
+            else _same_words(part.get("marking_scheme")) != _same_words(w.get("marking_scheme"))
         ):
             where.append("marking scheme")
     if converted:
-        right = _reads(
-            next(o["text"] for o in answer["options"] if o["label"] == answer["correct"])
-        )
+        right = next(o["text"] for o in answer["options"] if o["label"] == answer["correct"])
         where += [
             f"option ({o['label']})"
             for o in answer["options"]
-            if o["label"] != answer["correct"] and _reads(o.get("text")) == right
+            if o["label"] != answer["correct"] and _says_the_answer(o.get("text"), right)
         ]
     return list(dict.fromkeys(where))
 

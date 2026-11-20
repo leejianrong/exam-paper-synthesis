@@ -256,6 +256,40 @@ def test_an_option_that_reads_as_the_answer_is_found():
     assert wording_differences(obj) == [f"option ({wrong['label']})"]
 
 
+def test_an_option_with_the_answers_value_in_another_form_is_found():
+    from exam_engine.mcq import to_mcq
+
+    obj = to_mcq(generate("fractions_easy", 5), 1)  # answer 1/2: a decimal shows it exactly
+    answer = obj["question"]["parts"][0]["answer"]
+    right = next(o for o in answer["options"] if o["label"] == answer["correct"])
+    wrong = next(o for o in answer["options"] if o["label"] != answer["correct"])
+    n, d = (int(x) for x in re.findall(r"\d+", right["text"]))
+    wrong["text"] = rf"\(\frac{{{2 * n}}}{{{2 * d}}}\)"  # an equivalent fraction
+    assert verify_snapshot(obj) == []
+    assert wording_differences(obj) == [f"option ({wrong['label']})"]
+    wrong["text"] = f"{n / d}"  # the same value as a decimal
+    assert wording_differences(obj) == [f"option ({wrong['label']})"]
+    wrong["text"] = rf"\(\frac{{{n + 1}}}{{{d}}}\)"  # just another wrong value
+    assert wording_differences(obj) == []
+
+
+def test_a_scheme_naming_another_correct_option_is_found():
+    from exam_engine.mcq import to_mcq
+
+    obj = to_mcq(generate("ratio_medium", 3), 7)
+    part = obj["question"]["parts"][0]
+    correct = part["answer"]["correct"]
+    other = next(o["label"] for o in part["answer"]["options"] if o["label"] != correct)
+    scheme = part["marking_scheme"][0]
+    scheme["description"] = scheme["description"].replace(f"({correct})", f"({other})", 1)
+    assert verify_snapshot(obj) == []
+    assert wording_differences(obj) == ["marking scheme"]
+    scheme["description"] = f"Correct option ({correct}). Wrong options: none."  # reasons reworded
+    assert wording_differences(obj) == []
+    scheme["description"] += f" Correct option ({other}) also scores."
+    assert wording_differences(obj) == ["marking scheme"]
+
+
 def test_a_changed_figure_is_found():
     obj = generate("statistics_chart_easy", 1)
     figure = obj["question"]["parts"][0].get("diagram") or obj["question"]["diagram"]
