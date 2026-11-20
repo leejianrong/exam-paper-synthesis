@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const apiFetch = vi.fn()
 vi.mock('../http', () => ({ apiFetch: (...a: unknown[]) => apiFetch(...a) }))
 
-import { copyDocument, copyTitle, renameDocument, TITLE_MAX } from './docsApi'
+import { copyDocument, copyTitle, exportDocument, renameDocument, TITLE_MAX } from './docsApi'
 import type { PaperDocument } from './doc'
 
 const record = (id: string, title: string, version = 3) => ({
@@ -88,5 +88,18 @@ describe('copyDocument (EXA-166)', () => {
     await expect(copyDocument('d1')).rejects.toMatchObject({ status: 500, detail: 'boom' })
     expect(sent(3)).toMatchObject({ method: 'DELETE' })
     expect(sent(3).url).toMatch(/\/documents\/c1$/)
+  })
+})
+
+describe('exportDocument (EXA-90)', () => {
+  it('asks for a PDF by mode and for Word by the docx route with the mode as a query', async () => {
+    apiFetch.mockImplementation(async () => new Response('x', { status: 200 }))
+    await exportDocument('d1', 'full')
+    await exportDocument('d1', 'key', false, 'docx')
+    await exportDocument('d1', 'student', true, 'docx')
+    expect(sent(0).url).toMatch(/\/documents\/d1\/export\/full$/)
+    expect(sent(1).url).toMatch(/\/documents\/d1\/export\/docx\?mode=key$/)
+    expect(sent(2).url).toMatch(/\/export\/docx\?mode=student&allow_placeholders=true$/)
+    expect(sent(2).method).toBe('POST')
   })
 })

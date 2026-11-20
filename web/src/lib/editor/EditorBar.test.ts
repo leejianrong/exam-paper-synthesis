@@ -71,10 +71,27 @@ describe('EditorBar (EXA-160)', () => {
     expect(exportButton).toHaveClass('primary')
     await fireEvent.click(exportButton)
     const names = screen.getAllByRole('menuitem').map((m) => m.textContent?.trim())
-    expect(names).toEqual(['Student paper (PDF)', 'Answer key (PDF)', 'Paper and key together (PDF)'])
+    expect(names).toEqual([
+      'Student paper (PDF)',
+      'Answer key (PDF)',
+      'Paper and key together (PDF)',
+      'Student paper (Word)',
+      'Answer key (Word)',
+    ])
     expect(screen.getByText('24 exports left today')).toBeInTheDocument()
     await fireEvent.click(screen.getByRole('menuitem', { name: 'Paper and key together (PDF)' }))
     expect(onExport).toHaveBeenCalledWith('full')
+  })
+
+  it('Word exports the paper or the key as .docx, after a rule (EXA-90)', async () => {
+    const { onExport } = setup()
+    await fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+    expect(screen.getByRole('separator')).toBeInTheDocument()
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Student paper (Word)' }))
+    expect(onExport).toHaveBeenCalledWith('student', 'docx')
+    await fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Answer key (Word)' }))
+    expect(onExport).toHaveBeenCalledWith('key', 'docx')
   })
 
   it('the answer key cannot be exported from an empty paper, and says why', async () => {
@@ -83,6 +100,7 @@ describe('EditorBar (EXA-160)', () => {
     const key = screen.getByRole('menuitem', { name: 'Answer key (PDF)' })
     expect(key).toHaveAttribute('aria-disabled', 'true')
     expect(key.title).toMatch(/Add a question first/)
+    expect(screen.getByRole('menuitem', { name: 'Answer key (Word)' })).toHaveAttribute('aria-disabled', 'true')
   })
 
   it('Preview is a secondary button; the title button asks to rename', async () => {

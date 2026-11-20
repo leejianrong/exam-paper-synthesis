@@ -10,6 +10,21 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Export to Word (EXA-90).** The Export menu has **Student paper (Word)** and **Answer key
+  (Word)**: an editable .docx to change in Word. It keeps the paper's structure: the cover (its
+  fields and the examiner's table as Word tables), section headers with their marks sentence
+  and instructions, numbered questions with [n] at the right, lettered parts with their own
+  marks, MCQ options one to a line, data tables as real tables, working space and the
+  `Ans:` line with its unit, page breaks (the cover, blank pages, each structured question),
+  and the key: the school key as tables with an answer grid for Booklet A, or the worked key.
+  Figures are the engine's own, rasterised by the PDF export's Chromium at their print size;
+  uploaded images are embedded as they are. Inline maths becomes a Word equation (a small
+  LaTeX reader covering what the papers use; anything else stays as the LaTeX typed). The
+  marking strip, tally boxes and page footers are left out: Word paginates the document
+  itself. A Word export counts against the export allowance like a PDF. API:
+  `POST /documents/{id}/export/docx?mode=student|key` (`api/app/docx_export.py`,
+  `docx_math.py`; new api dependency `python-docx`, MIT).
+
 - **Edit numbers (EXA-89, tier-2 edits).** A generated question's ⋯ menu has **Edit numbers…**
   for eleven blueprints (Ratio easy/medium, Percentage easy/medium/hard, Speed easy/medium/hard,
   Fractions medium/hard, Average easy): change the amount shared, the ratio terms, a
