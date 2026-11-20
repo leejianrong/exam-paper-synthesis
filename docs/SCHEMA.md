@@ -477,7 +477,9 @@ left behind). `question` is a plain-text summary of the block (maths as `\(…\)
 (`exam_engine.own_question.check`) validates the block against the document schema and checks
 that `question.total_marks` and the number of parts agree with it. Inserting it into a paper
 (`own_question.to_block`) gives the block back under a new block id, with `bank_id` naming the
-bank copy. It arrives unreviewed (ADR-0019) and is never verified. Its id is `own-<block_id>`.
+bank copy. It arrives unreviewed (ADR-0019) and is never verified. Its id is `own-<block_id>`;
+the gate keeps `own-` ids for teachers' questions only. `question` must equal the block's summary,
+and the block may not carry a paper's attributes (`slot`, `locked`, `in_key`, `bank_id`).
 
 ## `diagram.type: "cube_stack"` (schema 1.12.0)
 

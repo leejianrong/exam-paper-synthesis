@@ -192,28 +192,39 @@ def to_block(obj: dict, block_id: str) -> dict:
 
 
 def check(obj: dict) -> list[str]:
-    """The load gate's rules for a teacher's question the schemas can't express: the block is a
-    valid document block, and the summary's marks and parts agree with it."""
+    """The load gate's rules for a teacher's question the schemas can't express: ``own-`` ids
+    are teachers' questions and theirs only; the block is a valid document block with nothing
+    of a paper's in it; and ``question`` is exactly its summary, so the bank never lists one
+    question and inserts another."""
+    teacher = obj["provenance"]["created_by"] == "teacher"
+    if teacher != obj["id"].startswith(OWN_PREFIX):
+        return [f"id: an id starting {OWN_PREFIX!r} is for a teacher's own question, and only that"]
     node = obj.get("freeform")
-    if not node:
+    if node is None:
         return []
     doc = {
         "schema_version": DOCUMENT_SCHEMA_VERSION,
         "title": "bank",
         "content": {"type": "doc", "content": [node]},
     }
-    errors = [
-        "freeform: " + e.removeprefix("content/content/0").lstrip("/: ")
-        for e in validate_document(doc)
-    ]
+    errors = [_short(e) for e in validate_document(doc)]
     if errors:
         return errors
-    if node["type"] != "freeformQuestion":
-        return ["freeform: must be a freeformQuestion block"]
-    q = obj["question"]
-    if q["total_marks"] != freeform_marks(node):
-        errors.append("question.total_marks: must equal the block's marks")
-    n_parts = len(freeform_parts(node))
-    if len(q["parts"]) != max(n_parts, 1):
-        errors.append("question.parts: must have one part per lettered part of the block")
+    errors = [
+        f"freeform/attrs/{k}: belongs to a paper, not the bank"
+        for k in _PAPER_ONLY
+        if k in node["attrs"]
+    ]
+    if not errors and obj["question"] != _summary(node):
+        errors.append("question: must be the plain-text summary of the freeform block")
     return errors
+
+
+def _short(error: str) -> str:
+    """A document error as a short, path-pointed line (a schema message can quote the whole
+    block)."""
+    where, _, why = error.partition(": ")
+    where = "freeform" + where.removeprefix("content/content/0")
+    if len(why) > 120:
+        why = "is not valid here"
+    return f"{where}: {why}"

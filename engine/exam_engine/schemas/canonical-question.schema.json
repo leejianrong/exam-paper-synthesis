@@ -45,7 +45,11 @@
       "if": { "properties": { "provenance": { "properties": { "created_by": { "const": "teacher" } } } } },
       "then": { "required": ["freeform"], "properties": {
         "source_type": { "const": "sourced" },
-        "freeform": { "type": "object" }
+        "freeform": {
+          "type": "object",
+          "required": ["type", "attrs", "content"],
+          "properties": { "type": { "const": "freeformQuestion" } }
+        }
       } },
       "else": { "properties": { "freeform": { "type": "null" } } }
     },

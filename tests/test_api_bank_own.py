@@ -5,12 +5,16 @@ Named ``test_api_*`` so it also runs on Postgres with ``EXAM_TEST_BACKEND=postgr
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from app.main import app
 from documents import freeform_block, image_node, make_doc, multipart_block, part_node
 from fastapi.testclient import TestClient
 from images import png
 
 client = TestClient(app)
+SOURCED = Path(__file__).parent / "fixtures" / "sourced"
 ALICE = {"X-Dev-Owner": "alice"}
 BOB = {"X-Dev-Owner": "bob"}
 
@@ -127,3 +131,26 @@ def test_inserted_into_another_paper_prints_the_same(monkeypatch):
         assert saved.status_code == 200, saved.text
         papers.append(client.get(f"/documents/{rec['id']}/preview/full", headers=ALICE).text)
     assert papers[0] == papers[1] and "data:image/png;base64" in papers[0]
+
+
+def test_import_refuses_an_empty_block_and_a_reserved_id(monkeypatch):
+    _env(monkeypatch)
+    obj = _save(_block()).json()["question"]
+    body = client.post(
+        "/bank/import", json={"objects": [{**obj, "freeform": {}}], "replace": True}, headers=BOB
+    ).json()
+    assert body["invalid"] == 1
+    imported = json.loads((SOURCED / "psle_2023_mcq.json").read_text(encoding="utf-8"))
+    body = client.post(
+        "/bank/import",
+        json={"objects": [{**imported, "id": obj["id"]}], "replace": True},
+        headers=ALICE,
+    ).json()
+    assert body["invalid"] == 1 and body["results"][0]["errors"][0].startswith("id:")
+    (item,) = client.get("/bank", headers=ALICE).json()["items"]
+    assert item["question"]["provenance"]["created_by"] == "teacher"  # not replaced
+
+
+def test_topics_need_auth(monkeypatch):
+    monkeypatch.delenv("EXAM_DEV_AUTH", raising=False)
+    assert client.get("/bank/topics").status_code == 401

@@ -491,7 +491,13 @@ def swap_from_bank(
     report = {"block_id": block_id, "mode": "bank", "marks": slot["marks"], "bank_id": obj["id"]}
     if obj.get("freeform"):  # the teacher's own question goes back in as they wrote it (EXA-90)
         own = own_question.to_block(obj, block_id)
-        own["attrs"].update({k: node["attrs"][k] for k in ("in_key",) if k in node["attrs"]})
+        # The place keeps its key setting, as a templated swap does; its working space and
+        # remark fill in only where the teacher's question has none of its own.
+        kept = _kept(node)
+        own["attrs"].update({k: kept[k] for k in ("in_key",) if k in kept})
+        for k in ("space_mm", "remark"):
+            if k in kept and own["attrs"].get(k) is None:
+                own["attrs"][k] = kept[k]
         if new_slot is not None:
             own["attrs"]["slot"] = new_slot
         blocks[idx] = own

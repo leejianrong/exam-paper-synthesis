@@ -18,7 +18,9 @@ between paragraphs, the exact written answer), so a question would not come back
 - **The block rides along verbatim.** Canonical schema 1.15.0 adds an optional top-level
   `freeform`: the `freeformQuestion` node, kept as written. It is checked at load against the
   document schema (`exam_engine.own_question.check`), and the object's `question` must agree with
-  it (total marks, one part per lettered part).
+  it: `question` must be exactly the block's summary, so a crafted import can't list one
+  question and insert another. The block must not carry a paper's attributes (slot, lock, key
+  setting, `bank_id`); saving strips them, and the gate refuses them.
 - **`question` is a plain-text summary** (maths kept as `\(…\)`, a picture as `[picture]`, the
   written answer as a `text` answer) so lists, filters, pickers and the bank swap's marks and
   kind rules work on it like any other bank question.
@@ -29,7 +31,17 @@ between paragraphs, the exact written answer), so a question would not come back
   (document schema 1.17.0) naming its bank copy, from "From my bank" and from "Swap from your
   bank…". Saving that block again finds the same id, so it reports "already in your bank" and
   replaces it only when asked. A block that never came from the bank saves as `own-<block_id>`;
-  only an `own-` id is ever reused, so a save can't overwrite an imported or generated question.
+  only an `own-` id is ever reused. The load gate reserves `own-` ids for teachers' questions
+  (and gives every teacher's question one), so neither a save nor an import with `replace` can
+  overwrite an imported or generated question with an own one, or the other way round.
+- **Replace across papers.** Every copy inserted from the bank names the same bank question, so
+  re-saving any of them (in any paper) offers to replace that one bank copy with this version;
+  the other papers' copies are not changed. A question written fresh has its own id.
+- **The private remark travels.** A question's remark (the teacher's note, never printed) is
+  kept in the bank copy and comes back on insert. The bank is owner-only, so no one else sees it.
+- **Swapped into a place** ("Swap from your bank…"), the question keeps the place's answer-key
+  setting, as a templated swap does; the place's working space and remark fill in only where
+  the question has none of its own, since its own layout is part of what the teacher wrote.
 - **It arrives unreviewed and stays unverified.** ADR-0019 says every authored or imported
   sourced object lands unreviewed and only the review action marks it; saving from the paper is
   authoring, not review. The teacher can tick it reviewed in the bank like any import.

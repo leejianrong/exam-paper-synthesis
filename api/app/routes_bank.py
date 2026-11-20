@@ -174,7 +174,7 @@ async def import_bank(request: Request, owner: Owner, assets: Assets) -> dict:
 
 
 @router.get("/bank/topics")
-def bank_topics() -> dict:
+def bank_topics(owner: Owner) -> dict:
     """The topics a teacher can file their own question under (EXA-90), with their strands."""
     return {"topics": list(own_question.topics())}
 

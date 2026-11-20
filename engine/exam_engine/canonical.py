@@ -43,9 +43,8 @@ def load(obj: dict) -> dict:
 
 
 def _own_errors(obj: dict) -> list[str]:
-    """A teacher's own question (schema 1.15.0, EXA-90): its block must be a valid one."""
-    if not obj.get("freeform"):
-        return []
+    """A teacher's own question (schema 1.15.0, EXA-90): its block must be a valid one, and
+    ``own-`` ids belong to such questions only (so saving one can never replace an import)."""
     from .own_question import check  # runtime import: own_question builds on this module
 
     return check(obj)

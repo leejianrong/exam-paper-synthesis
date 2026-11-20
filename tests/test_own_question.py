@@ -152,9 +152,11 @@ def test_load_gate_holds_the_block_and_the_summary_together():
     assert broken(lambda o: o.update(freeform=None))
     assert broken(lambda o: o.update(source_type="generated"))
     assert broken(lambda o: o["provenance"].update(created_by="ingested"))
-    assert any("total_marks" in e for e in broken(lambda o: o["question"].update(total_marks=9)))
     assert any(
-        "parts" in e
+        e.startswith("question") for e in broken(lambda o: o["question"].update(total_marks=9))
+    )
+    assert any(
+        e.startswith("question")
         for e in broken(lambda o: o["question"].update(parts=o["question"]["parts"][:1]))
     )
     bad_math = lambda o: o["freeform"]["content"][0]["content"].__setitem__(  # noqa: E731
@@ -212,3 +214,81 @@ def test_three_mark_own_question_does_not_fit_a_two_mark_place():
     doc, _ = generate_paper("p2", "P6", 5)
     obj = save(freeform_block("Long one.", marks=3, block_id="ff_three"))
     assert bank_options(doc, _short_2(doc)["attrs"]["block_id"], [obj]) == []
+
+
+def _errors(obj: dict) -> list[str]:
+    with pytest.raises(CanonicalValidationError) as e:
+        canonical.load(obj)
+    return e.value.errors
+
+
+def test_an_empty_or_bare_block_is_refused():
+    good = save(single())
+    assert _errors({**good, "freeform": {}})
+    assert _errors({**good, "freeform": {"type": "freeformQuestion", "attrs": {}}})
+
+
+def test_the_summary_must_be_the_blocks_own():
+    """A crafted object can't list one question in the bank and insert another."""
+    good = save(rich_multipart())
+    lying = copy.deepcopy(good)
+    lying["question"]["parts"][0]["text"] = "A harmless question."
+    assert any(e.startswith("question:") for e in _errors(lying))
+    lying = copy.deepcopy(good)
+    lying["question"]["parts"][0]["answer"]["text"] = "99"
+    assert _errors(lying)
+
+
+@pytest.mark.parametrize("key", ["slot", "locked", "in_key", "bank_id"])
+def test_paper_attributes_are_refused_in_the_bank(key):
+    obj = save(single())
+    obj["freeform"]["attrs"][key] = {
+        "slot": {"marks": 1, "kind": "short"},
+        "locked": True,
+        "in_key": False,
+        "bank_id": "own-x",
+    }[key]
+    assert any(key in e for e in _errors(obj))
+
+
+def test_own_ids_belong_to_teachers_questions_only():
+    teacher = save(single())
+    assert _errors({**teacher, "id": "sourced:psle-1"})
+    imported = copy.deepcopy(teacher)
+    imported.pop("freeform")
+    imported["provenance"]["created_by"] = "ingested"
+    assert any(e.startswith("id:") for e in _errors(imported))
+
+
+def test_gate_errors_are_short():
+    obj = save(rich_multipart())
+    obj["freeform"]["content"][2]["content"] = [{"type": "nope"}]
+    errors = _errors(obj)
+    assert errors and all(len(e) < 200 for e in errors) and errors[0].startswith("freeform")
+
+
+def test_swap_into_a_placeholder_keeps_its_space_and_remark_where_the_question_has_none():
+    doc, _ = generate_paper("p2", "P6", 5)
+    target = _short_2(doc)
+    target["attrs"].update({"space_mm": 55, "remark": "Keep this place.", "in_key": False})
+    plain = save(
+        freeform_block("Find 15% of $80.", marks=2, block_id="ff_plain"), topic="Percentage"
+    )
+    out, _ = swap_from_bank(doc, target["attrs"]["block_id"], plain)
+    placed = next(
+        n
+        for n in out["content"]["content"]
+        if n["attrs"].get("block_id") == target["attrs"]["block_id"]
+    )
+    assert placed["attrs"]["space_mm"] == 55 and placed["attrs"]["remark"] == "Keep this place."
+    assert placed["attrs"]["in_key"] is False
+
+    spaced = freeform_block("Find 20% of $80.", marks=2, block_id="ff_spaced")
+    spaced["attrs"].update({"space_mm": 30, "remark": "Mine."})
+    out, _ = swap_from_bank(doc, target["attrs"]["block_id"], save(spaced, topic="Percentage"))
+    placed = next(
+        n
+        for n in out["content"]["content"]
+        if n["attrs"].get("block_id") == target["attrs"]["block_id"]
+    )
+    assert placed["attrs"]["space_mm"] == 30 and placed["attrs"]["remark"] == "Mine."
