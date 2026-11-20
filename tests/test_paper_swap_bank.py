@@ -181,7 +181,7 @@ def test_a_question_that_does_not_fit_is_refused_with_a_reason(paper):
 
 def test_a_generated_bank_question_is_locked_so_regenerating_keeps_it(paper):
     q = _short_2(paper)
-    obj = generate("circles_medium", 3)  # a 2-mark P6 question the paper doesn't use
+    obj = generate("rate_medium", 3)  # a 2-mark question of a topic the paper doesn't use
     assert bank_options(paper, q["attrs"]["block_id"], [obj]) == [obj]
     doc, report = swap_from_bank(paper, q["attrs"]["block_id"], obj)
     assert report["locked"] is True
