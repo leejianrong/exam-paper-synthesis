@@ -1,0 +1,107 @@
+#!/bin/sh
+# The stack's database backups (EXA-180; docs/deploy/BACKUPS.md).
+#
+#   exam-backup schedule         run `now` every day at BACKUP_TIME (Singapore time); the service's command
+#   exam-backup now [PREFIX]     dump, check and upload one backup (PREFIX defaults to "exam")
+#   exam-backup list             the dumps in the bucket, oldest first
+#   exam-backup latest           the name of the newest nightly dump
+#   exam-backup restore NAME     replace the database with that dump (restore.sh calls this)
+#   exam-backup counts           rows per table, to compare before and after a restore
+#
+# Connection settings come from the environment (PGHOST, PGUSER, PGPASSWORD, PGDATABASE) and the
+# bucket from rclone's (RCLONE_CONFIG_SPACES_*), so no secret is ever on a command line or logged.
+set -eu
+
+dest="spaces:${SPACES_BUCKET:?SPACES_BUCKET is not set}/${BACKUP_PATH:-db}"
+keep="${BACKUP_KEEP:-14}"
+
+log() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $*"; }
+fail() { log "ERROR: $*" >&2; exit 1; }
+
+# Nightly dumps only: "pre-restore-…" safety dumps are neither "latest" nor pruned.
+nightlies() { rclone lsf --files-only --include 'exam-*.dump' "$dest"; }
+
+now() {
+	prefix="${1:-exam}"
+	name="$prefix-$(date -u +%Y%m%dT%H%M%SZ).dump"
+	tmp=$(mktemp -d) || fail "mktemp failed"
+	trap 'rc=$?; rm -rf "$tmp"; [ "$rc" -eq 0 ] || log "backup FAILED (exit $rc); nothing uploaded unless a line above says so"' EXIT
+	log "backup: dumping database $PGDATABASE to $name"
+	pg_dump -Fc -f "$tmp/$name" || fail "pg_dump failed"
+	# A custom-format archive whose table of contents reads back is a whole dump, not a cut-off one.
+	[ -s "$tmp/$name" ] || fail "the dump is empty"
+	pg_restore --list "$tmp/$name" >/dev/null || fail "the dump does not read back"
+	size=$(wc -c <"$tmp/$name")
+	# One PUT (or a multipart upload completed at the end): the object appears whole or not at all.
+	rclone copyto --s3-no-check-bucket "$tmp/$name" "$dest/$name" || fail "upload to $dest failed"
+	log "backup: uploaded $dest/$name ($size bytes)"
+	[ "$prefix" = exam ] && prune
+	return 0
+}
+
+prune() {
+	case "$keep" in '' | *[!0-9]* | 0) fail "BACKUP_KEEP must be a whole number of at least 1" ;; esac
+	list=$(nightlies) || fail "could not list $dest to prune"
+	old=$(printf '%s\n' "$list" | grep . | sort -r | tail -n +"$((keep + 1))") || true
+	for f in $old; do
+		rclone deletefile "$dest/$f" || fail "could not delete $f"
+		log "backup: pruned $f (keeping the newest $keep)"
+	done
+}
+
+schedule() {
+	at="${BACKUP_TIME:-03:00}"
+	case "$at" in [01][0-9]:[0-5][0-9] | 2[0-3]:[0-5][0-9]) ;; *) fail "BACKUP_TIME must be HH:MM, got '$at'" ;; esac
+	trap 'log "schedule: stopping"; exit 0' TERM INT
+	while :; do
+		t=$(date +%s)
+		next=$(date -d "$at" +%s)
+		[ "$next" -gt "$t" ] || next=$((next + 86400))
+		log "schedule: next backup at $(date -d "@$next" '+%Y-%m-%d %H:%M %Z')"
+		sleep $((next - t)) &
+		wait $!
+		# A subshell, so a failure is logged and the schedule carries on to tomorrow.
+		(now) || log "schedule: tonight's backup failed; see above"
+	done
+}
+
+restore() {
+	name="${1:?usage: exam-backup restore NAME}"
+	tmp=$(mktemp -d) || fail "mktemp failed"
+	trap 'rm -rf "$tmp"' EXIT
+	log "restore: downloading $name"
+	rclone copyto "$dest/$name" "$tmp/$name" || fail "could not download $dest/$name"
+	pg_restore --list "$tmp/$name" >/dev/null || fail "$name does not read as a pg_dump archive"
+	log "restore: recreating database $PGDATABASE"
+	psql -X -q -v ON_ERROR_STOP=1 -d postgres \
+		-c "DROP DATABASE IF EXISTS \"$PGDATABASE\" WITH (FORCE)" \
+		-c "CREATE DATABASE \"$PGDATABASE\" OWNER \"$PGUSER\"" || fail "could not recreate the database"
+	pg_restore --exit-on-error --single-transaction --no-owner -d "$PGDATABASE" "$tmp/$name" ||
+		fail "pg_restore failed; the database is empty, restore again before starting the app"
+	log "restore: $name restored"
+}
+
+counts() {
+	tables=$(psql -X -At -v ON_ERROR_STOP=1 -c \
+		"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1")
+	for t in $tables; do
+		printf '%-16s %s\n' "$t" "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM \"$t\"")"
+	done
+}
+
+cmd="${1:-}"
+[ $# -gt 0 ] && shift
+case "$cmd" in
+schedule) schedule ;;
+now) now "$@" ;;
+list) rclone lsl "$dest" | sort -k2,3 ;;
+latest)
+	l=$(nightlies) || fail "could not list $dest"
+	l=$(printf '%s\n' "$l" | grep . | sort | tail -n 1) || true
+	[ -n "$l" ] || fail "no nightly dumps in $dest"
+	echo "$l"
+	;;
+restore) restore "$@" ;;
+counts) counts ;;
+*) sed -n '3,9p' "$0" >&2 && exit 2 ;;
+esac

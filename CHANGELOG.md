@@ -10,6 +10,18 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Nightly database backups to DigitalOcean Spaces (EXA-180).** A `backup` service in
+  `deploy/compose.yaml` (`deploy/backup/`: Alpine with the Postgres 17 client and rclone 1.71,
+  128 MB) runs `pg_dump -Fc` every day at 03:00 Singapore time (`BACKUP_TIME`) and uploads it
+  as `exam-<UTC timestamp>.dump` to the bucket in `SPACES_BUCKET`. A dump is uploaded only when
+  it is whole (`pg_restore --list` reads it back); any failed step exits non-zero and logs
+  `backup FAILED`. After each good upload the job keeps the newest `BACKUP_KEEP` (14) dumps, so
+  no bucket lifecycle rule is needed. Back up now with
+  `docker compose exec backup exam-backup now`. `deploy/restore.sh` restores the newest or a
+  named dump: it asks first, stops the app, uploads a `pre-restore-…` safety dump, recreates the
+  database from the dump and starts the app again. `docs/deploy/BACKUPS.md` covers setup, daily
+  checks and the restore drill. Bucket keys reach the container only as environment variables.
+
 - **Production stack for a droplet (EXA-178).** `deploy/compose.yaml` runs the app image
   behind Caddy (automatic Let's Encrypt TLS, http → https, compression) with Postgres 17 on a
   named volume. Only Caddy publishes ports. Memory is budgeted for a 2 GB droplet (app 1.2 GB
