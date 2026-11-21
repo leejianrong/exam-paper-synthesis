@@ -16,7 +16,10 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   with root and password logins off, 2 GB swap, automatic security updates with reboots at
   03:30 SGT, Docker from its own repository with log rotation, the Google and GitHub sign-in
   apps, the first deploy, uptime and resource alerts on `/ready`, and the day-to-day commands
-  (deploy, roll back, logs, hostname change). ADR-0024 records the hosting decision and
+  (deploy, roll back, logs, hostname change). `docs/deploy/SIGN-IN.md` walks through the Google
+  and GitHub sign-in apps click by click: what only the owner can do in each console, Google's
+  Testing mode and test users for the private trial on sslip.io, the checks, the common errors,
+  local-development apps, and the move to a real domain. ADR-0024 records the hosting decision and
   supersedes ADR-0022's Fly.io + Neon; `docs/LAUNCH.md` is rewritten for the droplet; `fly.toml`
   is removed.
 

@@ -16,8 +16,10 @@ In the DigitalOcean console: **Create → Droplets**.
 - Region **Singapore (SGP1)**; image **Ubuntu 24.04 LTS x64**; size **Basic, Regular, 2 GB /
   1 vCPU** (US$12/month).
 - Authentication: **SSH key** (add your public key; never a password).
-- Turn on **Monitoring** (the free metrics agent, used for alerts in step 9). Droplet backups
-  (weekly snapshots, +20%) are optional: the database has its own nightly dump.
+- Turn on **Monitoring** (the free metrics agent, used for alerts in step 9). Leave **Droplet
+  backups** off: DigitalOcean keeps those snapshots for about four weeks, but the privacy notice
+  promises every copy of the data is gone within 14 days. The database has its own nightly dump
+  ([BACKUPS.md](BACKUPS.md)), and the droplet itself can be rebuilt from this runbook.
 - Hostname: `exam-prod`.
 
 **Check:** `ssh root@<droplet-ip>` logs in without a password prompt.
@@ -123,6 +125,9 @@ Log out and back in (for the `docker` group).
 prints `local`.
 
 ## 7. Sign-in apps
+
+The full walk-through, with every console click and the fixes for common errors, is
+[SIGN-IN.md](SIGN-IN.md). In short:
 
 Both callback URLs are `https://HOST/auth/<provider>/callback`.
 
