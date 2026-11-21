@@ -30,7 +30,8 @@ no code change.
   Postgres code already exists.
 - **Hostname:** `<droplet-ip>.sslip.io` until a domain is bought. The product will grow beyond
   PSLE maths (other subjects and syllabuses), so the domain should not name either.
-- **Edge:** no Cloudflare for now; the droplet's cloud firewall allows only 22, 80 and 443.
+- **Edge:** no Cloudflare for now; the droplet's cloud firewall allows only TCP 22, 80 and 443
+  and UDP 443 (HTTP/3).
 - **Sign-in at launch:** Google and GitHub. Microsoft stays supported in code, unconfigured.
 - **Deploys** are manual (`git pull && docker compose pull && docker compose up -d`); rollback
   pins `APP_TAG` to an earlier sha.

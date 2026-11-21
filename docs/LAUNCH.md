@@ -49,7 +49,7 @@ is the checklist below it. Hosting: one DigitalOcean droplet running Docker Comp
    confirm `/documents` is 401.
 8. **Backup drill**: run one backup by hand and restore it into a scratch database, as
    BACKUPS.md describes, so the first restore is not an emergency.
-9. **Monitoring**: the uptime check on `/ready` and the droplet alert policies (step 9 of
+9. **Monitoring**: the uptime check on `/ready` and the droplet's resource alerts (step 9 of
    DROPLET.md); stop the app once to see the alert arrive.
 10. **Load sanity**: ~10 simultaneous exports should queue/503 cleanly, not crash the box
     (watch `docker stats`; raise `EXAM_EXPORT_CONCURRENCY` or the droplet size deliberately,

@@ -37,19 +37,22 @@ Outbound: leave the defaults (all). Use this cloud firewall rather than `ufw`: D
 own iptables rules for published ports and goes around `ufw`, but it cannot go around a firewall
 outside the droplet.
 
-**Check:** from your laptop, `nc -zv <droplet-ip> 5432` and `nc -zv <droplet-ip> 8080` fail.
+**Check:** the droplet is listed on the firewall's **Droplets** tab. Then on the droplet run
+`sudo python3 -m http.server 8000` and, from your laptop, `nc -zv -w5 <droplet-ip> 8000` times
+out (Ctrl-C the server afterwards).
 
 ## 3. A deploy user and SSH hardening
 
 As `root`:
 
 ```bash
-adduser --disabled-password --gecos "" deploy
+adduser --disabled-password --comment "" deploy
 usermod -aG sudo deploy
 mkdir -p /home/deploy/.ssh && cp /root/.ssh/authorized_keys /home/deploy/.ssh/
 chown -R deploy:deploy /home/deploy/.ssh && chmod 700 /home/deploy/.ssh
 echo 'deploy ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/deploy && chmod 440 /etc/sudoers.d/deploy
-cat > /etc/ssh/sshd_config.d/99-hardening.conf <<'EOF'
+# 00-: sshd keeps the first value it reads, and DigitalOcean's 50-cloud-init.conf comes later.
+cat > /etc/ssh/sshd_config.d/00-hardening.conf <<'EOF'
 PermitRootLogin no
 PasswordAuthentication no
 KbdInteractiveAuthentication no
@@ -58,7 +61,9 @@ sshd -t && systemctl reload ssh
 ```
 
 **Check:** in a *new* terminal (keep the root one open until this works), `ssh deploy@<droplet-ip>`
-logs in and `sudo true` succeeds; `ssh root@<droplet-ip>` is refused.
+logs in and `sudo true` succeeds; `ssh root@<droplet-ip>` is refused; and
+`sudo sshd -T | grep -E 'permitrootlogin|passwordauthentication|kbdinteractive'` prints `no` for
+all three.
 
 ## 4. Swap
 
@@ -88,7 +93,7 @@ EOF
 The containers come back by themselves after a reboot (`restart: unless-stopped`). Docker's own
 packages are not in the automatic set: run `sudo apt update && sudo apt upgrade` monthly.
 
-**Check:** `sudo unattended-upgrade --dry-run --debug 2>&1 | tail -3` ends without errors.
+**Check:** `apt-config dump | grep Automatic-Reboot` shows `"true"` and `"19:30"`.
 
 ## 6. Docker, with log rotation
 
@@ -114,7 +119,7 @@ sudo systemctl restart docker
 
 Log out and back in (for the `docker` group).
 
-**Check:** `docker compose version` prints v2.x; `docker info --format '{{.LoggingDriver}}'`
+**Check:** `docker compose version` prints v2 or later; `docker info --format '{{.LoggingDriver}}'`
 prints `local`.
 
 ## 7. Sign-in apps
@@ -125,7 +130,8 @@ Both callback URLs are `https://HOST/auth/<provider>/callback`.
   `https://HOST`, callback `https://HOST/auth/github/callback`. Generate a client secret.
 - **Google**: Google Cloud console → a new project → Google Auth Platform. Branding: app name,
   support email, home page `https://HOST`, privacy policy `https://HOST/privacy`, terms
-  `https://HOST/terms` (EXA-185), and the domain under authorised domains. Audience: External.
+  `https://HOST/terms` (EXA-185), and the domain under authorised domains (on sslip.io Google
+  takes only `sslip.io` itself there, since it is not on the Public Suffix List). Audience: External.
   Clients → Create client → Web application → authorised redirect URI
   `https://HOST/auth/google/callback`. The app asks only for `openid email profile`, which
   needs no security review, but Google lets only listed test users sign in until the app is
@@ -135,6 +141,10 @@ Both callback URLs are `https://HOST/auth/<provider>/callback`.
 When the hostname changes (a domain is bought), update both apps' URLs.
 
 ## 8. First deploy
+
+Make the image public on GHCR first (GitHub → Packages → exam-paper-synthesis → Package
+settings → Change visibility → Public), or `docker compose pull` is denied. The alternative is
+`docker login ghcr.io` on the droplet with a `read:packages` token.
 
 ```bash
 sudo mkdir -p /opt/exam && sudo chown deploy:deploy /opt/exam
@@ -147,9 +157,6 @@ docker compose pull
 docker compose up -d
 ```
 
-The image must be public on GHCR first (GitHub → Packages → exam-paper-synthesis → Package
-settings → Change visibility), or log in with `docker login ghcr.io` and a `read:packages` token.
-
 Only an IPv4 address (an A record) should point at the droplet. Docker hands IPv6 visitors to
 Caddy from its bridge gateway, so they would all share one sign-in rate limit; add an AAAA record
 only together with IPv6 on the stack's network.
@@ -157,6 +164,9 @@ only together with IPv6 on the stack's network.
 **Check:**
 - `docker compose ps` shows `db`, `app`, `caddy` (and `backup`) running, `db` and `app` healthy.
 - `docker compose logs caddy | grep -i "certificate obtained"` shows the certificate for HOST.
+  On sslip.io, Let's Encrypt's weekly limit per registered domain is shared by every sslip.io
+  user; if it refuses, Caddy retries with ZeroSSL by itself (look for `zerossl` in the log).
+  Another reason to buy a domain.
 - From your laptop: `curl -fsS https://HOST/ready` prints `{"status":"ready"}`, and
   `curl -sI http://HOST/` answers `308` to `https://`.
 - If the app keeps restarting, `docker compose logs app` names each unsafe setting.
@@ -167,11 +177,11 @@ Then run the smoke test in [LAUNCH.md](../LAUNCH.md).
 
 In the DigitalOcean console:
 
-- **Monitoring → Uptime → Create Uptime check**: type HTTPS, URL `https://HOST/ready`, regions
-  including Southeast Asia. Alerts: *Downtime* (down for 2 minutes) and *SSL certificate
-  expiry* (within 14 days), to your email. `/ready` answers 503 when the database is
+- **Monitoring → Uptime → Create Uptime check**: URL `https://HOST/ready`, all four locations
+  (Asia East, Europe, USA East, USA West). Alerts: *Downtime* (down for 2 minutes) and *SSL
+  Cert Expire* (within 14 days), to your email. `/ready` answers 503 when the database is
   unreachable, so it catches a broken database as well as a stopped app.
-- **Monitoring → Create alert policy** on the droplet: memory above 90% for 5 minutes; disk
+- **Monitoring → Resource Alerts → Create** for the droplet: memory above 90% for 5 minutes; disk
   above 80% for 5 minutes; CPU above 90% for 15 minutes.
 
 **Check:** `docker compose stop app`; the downtime email arrives within a few minutes;

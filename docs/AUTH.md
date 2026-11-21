@@ -46,7 +46,7 @@ Over the limit ⇒ **429** with `Retry-After` and a plain message. Previews, con
 
 ## Database (W3b)
 
-`EXAM_DATABASE_URL` (a Postgres connection string; in production the Compose stack builds it from `POSTGRES_PASSWORD`) switches **every** store — documents, assets, bank, accounts/sessions, export ledger — to Postgres; unset, they use the SQLite files above. Tables are created on first boot (idempotent, guarded by an advisory lock). Use Neon's pooled endpoint if you like: prepared statements are off, so pgbouncer transaction mode is fine. `EXAM_DB_POOL_MAX` (default 5) sizes the per-process pool.
+`EXAM_DATABASE_URL` (a Postgres connection string; in production the Compose stack builds it from `POSTGRES_PASSWORD`) switches **every** store — documents, assets, bank, accounts/sessions, export ledger — to Postgres; unset, they use the SQLite files above. Tables are created on first boot (idempotent, guarded by an advisory lock). Prepared statements are off, so a pgbouncer pooler in transaction mode would also work. `EXAM_DB_POOL_MAX` (default 5) sizes the per-process pool.
 
 Tests: `EXAM_TEST_DATABASE_URL` enables the Postgres contract tests (each in its own throwaway schema); add `EXAM_TEST_BACKEND=postgres` to run the whole API suite on Postgres. CI does both. Locally: `docker run -d -p 55432:5432 -e POSTGRES_PASSWORD=pw -e POSTGRES_DB=exam postgres:16-alpine`.
 
