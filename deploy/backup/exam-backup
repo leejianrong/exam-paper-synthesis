@@ -1,0 +1,165 @@
+#!/bin/sh
+# The stack's database backups (EXA-180; docs/deploy/BACKUPS.md).
+#
+#   exam-backup schedule         every day at BACKUP_TIME (Singapore time): `now`, then `prune`
+#   exam-backup now [PREFIX]     dump, check and upload one backup (PREFIX defaults to "exam")
+#   exam-backup prune            delete every object in the backup folder older than 14 days
+#   exam-backup list             the dumps in the bucket, oldest first
+#   exam-backup latest           the name of the newest nightly dump
+#   exam-backup restore NAME     replace the database with that dump (restore.sh calls this)
+#   exam-backup counts           rows per table, to compare before and after a restore
+#
+# Connection settings come from the environment (PGHOST, PGUSER, PGPASSWORD, PGDATABASE) and the
+# bucket from rclone's (RCLONE_CONFIG_SPACES_*), so no secret is ever on a command line or logged.
+set -eu
+
+# The privacy notice promises each backup is deleted after 14 days: change the two together.
+# (BACKUP_MAX_AGE exists so a test can use minutes; compose does not pass it.)
+max_age="${BACKUP_MAX_AGE:-14d}"
+work=/tmp/exam-backup
+
+log() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $*"; }
+fail() {
+	log "ERROR: $*" >&2
+	exit 1
+}
+
+dest() {
+	[ -n "${SPACES_BUCKET:-}" ] || fail "SPACES_BUCKET is not set (deploy/.env)"
+	echo "spaces:$SPACES_BUCKET/${BACKUP_PATH:-db}"
+}
+
+# Nightly dumps only: "pre-restore-…" safety dumps are never "latest".
+nightlies() { rclone lsf --files-only --include 'exam-*.dump' "$(dest)"; }
+
+tables() {
+	psql -X -At -v ON_ERROR_STOP=1 -c \
+		"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1"
+}
+
+now() {
+	prefix="${1:-exam}"
+	d=$(dest)
+	name="$prefix-$(date -u +%Y%m%dT%H%M%SZ).dump"
+	mkdir -p "$work"
+	tmp=$(mktemp -d "$work/now.XXXXXX") || fail "mktemp failed"
+	trap 'rc=$?; rm -rf "$tmp"; [ "$rc" -eq 0 ] || log "backup FAILED (exit $rc); nothing uploaded unless a line above says so"' EXIT
+	t=$(tables) || fail "cannot reach database $PGDATABASE"
+	[ -n "$t" ] || fail "database $PGDATABASE has no tables; refusing to upload an empty backup"
+	log "backup: dumping database $PGDATABASE to $name"
+	pg_dump -Fc -f "$tmp/$name" || fail "pg_dump failed"
+	[ -s "$tmp/$name" ] || fail "the dump is empty"
+	# Reads every byte back (a cut-off or corrupt archive fails here), writing nothing.
+	pg_restore -f /dev/null "$tmp/$name" || fail "the dump does not read back"
+	size=$(wc -c <"$tmp/$name")
+	# One PUT (or a multipart upload completed at the end): the object appears whole or not at all.
+	rclone copyto --s3-no-check-bucket "$tmp/$name" "$d/$name" || fail "upload to $d failed"
+	log "backup: uploaded $d/$name ($size bytes)"
+}
+
+prune() {
+	d=$(dest)
+	# Upload time as the bucket records it, not the dump file's own timestamp.
+	old=$(rclone lsf -R --files-only --min-age "$max_age" --use-server-modtime "$d") ||
+		fail "could not list $d to prune"
+	for f in $old; do
+		rclone deletefile "$d/$f" || fail "could not delete $f"
+		log "prune: deleted $f (older than $max_age)"
+	done
+	log "prune: done; nothing in $d is older than $max_age"
+	# A restore that could not drop the database it replaced leaves a full copy behind; clear it
+	# so no copy of the data outlives the 14 days (the job is stopped during a restore).
+	PGOPTIONS='-c client_min_messages=warning' psql -X -q -v ON_ERROR_STOP=1 -d postgres \
+		-c "DROP DATABASE IF EXISTS \"${PGDATABASE}_old\" WITH (FORCE)" ||
+		fail "could not drop a leftover ${PGDATABASE}_old"
+}
+
+schedule() {
+	at="${BACKUP_TIME:-03:00}"
+	case "$at" in [01][0-9]:[0-5][0-9] | 2[0-3]:[0-5][0-9]) ;; *) fail "BACKUP_TIME must be HH:MM, got '$at'" ;; esac
+	for v in SPACES_BUCKET RCLONE_CONFIG_SPACES_ACCESS_KEY_ID RCLONE_CONFIG_SPACES_SECRET_ACCESS_KEY; do
+		eval "[ -n \"\${$v:-}\" ]" || fail "$v is empty: set the SPACES_* values in deploy/.env"
+	done
+	# Left by a dump that was killed part way.
+	rm -rf "$work"
+	trap 'log "schedule: stopping"; exit 0' TERM INT
+	while :; do
+		t=$(date +%s)
+		next=$(date -d "$at" +%s)
+		[ "$next" -gt "$t" ] || next=$((next + 86400))
+		log "schedule: next backup at $(date -d "@$next" '+%Y-%m-%d %H:%M %Z')"
+		sleep $((next - t)) &
+		wait $!
+		# Subshells, so a failure is logged and the schedule carries on to tomorrow. Prune runs
+		# even when the dump failed: old backups must go after 14 days regardless. Note that
+		# `set -e` is off inside `(…) ||`: every step in now/prune needs its own `|| fail`.
+		(now) || log "schedule: tonight's backup failed; see above"
+		(prune) || log "schedule: pruning failed; see above"
+	done
+}
+
+restore() {
+	name="${1:?usage: exam-backup restore NAME}"
+	d=$(dest)
+	db="$PGDATABASE"
+	scratch="${db}_restore"
+	mkdir -p "$work"
+	tmp=$(mktemp -d "$work/restore.XXXXXX") || fail "mktemp failed"
+	trap 'rm -rf "$tmp"' EXIT
+	log "restore: downloading $name"
+	rclone copyto "$d/$name" "$tmp/$name" || fail "could not download $d/$name"
+	[ -s "$tmp/$name" ] || fail "$name is not in $d (see: exam-backup list)"
+	pg_restore -f /dev/null "$tmp/$name" || fail "$name does not read back as a pg_dump archive"
+	sql() { PGOPTIONS='-c client_min_messages=warning' psql -X -q -v ON_ERROR_STOP=1 -d postgres "$@"; }
+	log "restore: loading $name into scratch database $scratch"
+	sql -c "DROP DATABASE IF EXISTS \"$scratch\" WITH (FORCE)" \
+		-c "CREATE DATABASE \"$scratch\" OWNER \"$PGUSER\"" || fail "could not create $scratch"
+	if ! pg_restore --exit-on-error --single-transaction --no-owner -d "$scratch" "$tmp/$name"; then
+		sql -c "DROP DATABASE IF EXISTS \"$scratch\" WITH (FORCE)" || true
+		fail "pg_restore failed; $db is untouched"
+	fi
+	# Only now is the live database replaced: rename it aside, put the restored one in its place.
+	log "restore: swapping $scratch in as $db"
+	sql -c "DROP DATABASE IF EXISTS \"${db}_old\" WITH (FORCE)" || fail "could not clear ${db}_old"
+	if [ -n "$(sql -At -c "SELECT 1 FROM pg_database WHERE datname = '$db'")" ]; then
+		# Waits up to 5 s for each session to end (PostgreSQL 14+), so the rename does not race it.
+		sql -c "SELECT pg_terminate_backend(pid, 5000) FROM pg_stat_activity WHERE datname = '$db' AND pid <> pg_backend_pid()" >/dev/null
+		sql -c "ALTER DATABASE \"$db\" RENAME TO \"${db}_old\"" || fail "could not rename $db; it is untouched"
+	fi
+	if ! sql -c "ALTER DATABASE \"$scratch\" RENAME TO \"$db\""; then
+		sql -c "ALTER DATABASE \"${db}_old\" RENAME TO \"$db\"" ||
+			fail "could not rename $scratch to $db, nor put ${db}_old back: rename it by hand"
+		fail "could not rename $scratch to $db; $db is back as it was"
+	fi
+	sql -c "DROP DATABASE IF EXISTS \"${db}_old\" WITH (FORCE)" || log "restore: could not drop ${db}_old"
+	log "restore: $name restored"
+}
+
+counts() {
+	t=$(tables) || fail "cannot reach database $PGDATABASE"
+	for x in $t; do
+		printf '%-16s %s\n' "$x" "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM \"$x\"")"
+	done
+}
+
+cmd="${1:-}"
+[ $# -gt 0 ] && shift
+case "$cmd" in
+schedule) schedule ;;
+now) now "$@" ;;
+prune) prune ;;
+list)
+	d=$(dest)
+	out=$(rclone lsl "$d") || fail "could not list $d"
+	printf '%s\n' "$out" | sort -k2,3
+	;;
+latest)
+	l=$(nightlies) || fail "could not list the bucket"
+	l=$(printf '%s\n' "$l" | grep . | sort | tail -n 1) || true
+	[ -n "$l" ] || fail "no nightly dumps in the bucket"
+	echo "$l"
+	;;
+restore) restore "$@" ;;
+counts) counts ;;
+*) sed -n '3,10p' "$0" >&2 && exit 2 ;;
+esac
