@@ -158,7 +158,7 @@ cd /opt/exam/deploy
 cp .env.example .env && chmod 600 .env
 nano .env    # HOST in SITE_ADDRESS and both URLs, POSTGRES_PASSWORD (openssl rand -hex 24),
              # the OAuth ids and secrets, the Spaces values (BACKUPS.md)
-docker compose pull
+docker compose pull --ignore-buildable
 docker compose up -d --build
 ```
 
@@ -196,7 +196,7 @@ In the DigitalOcean console:
 
 | Task | Command (in `/opt/exam/deploy`) |
 |------|------|
-| Deploy the latest main | `git pull && docker compose pull && docker compose up -d --build` |
+| Deploy the latest main | `git pull && docker compose pull --ignore-buildable && docker compose up -d --build` |
 | Roll back | set `APP_TAG=sha-<commit>` in `.env`, then `docker compose up -d app` |
 | Status | `docker compose ps` |
 | Logs | `docker compose logs -f --tail 100 app` (or `caddy`, `db`) |

@@ -33,8 +33,9 @@ no code change.
 - **Edge:** no Cloudflare for now; the droplet's cloud firewall allows only TCP 22, 80 and 443
   and UDP 443 (HTTP/3).
 - **Sign-in at launch:** Google and GitHub. Microsoft stays supported in code, unconfigured.
-- **Deploys** are manual (`git pull && docker compose pull && docker compose up -d --build`); rollback
-  pins `APP_TAG` to an earlier sha.
+- **Deploys** are manual
+  (`git pull && docker compose pull --ignore-buildable && docker compose up -d --build`);
+  rollback pins `APP_TAG` to an earlier sha.
 - **Data:** production starts empty; nothing is carried over from local development stores.
 
 ## Consequences

@@ -117,6 +117,8 @@ there too.
 5. Agree to the Google API Services User Data Policy → **Create**.
 6. **Branding** (left menu). For the trial, fill in only what is required, but add these now if
    the policy pages are live:
+   - The privacy and terms pages arrive with EXA-185 (PR #268); leave those two links empty
+     until it is deployed.
    - **Application home page**: `https://HOST`
    - **Application privacy policy link**: `https://HOST/privacy`
    - **Application terms of service link**: `https://HOST/terms`
@@ -137,10 +139,13 @@ there too.
 2. **Application type**: **Web application**. Name: `Exam papers (production)`.
 3. **Authorised JavaScript origins**: leave empty. The sign-in runs on the server, not in the
    browser.
-4. **Authorised redirect URIs** → **Add URI**: `https://HOST/auth/google/callback`
-5. **Create**. Copy the **Client ID** and the **Client secret** now. Google may show the secret
-   in full only at creation (you can download the JSON); you can always add a new secret on the
-   client's page and delete the old one.
+4. **Authorised redirect URIs** → **Add URI**: `https://HOST/auth/google/callback`. Google
+   usually accepts an sslip.io host here (and adds `sslip.io` to the authorised domains by
+   itself). If it refuses the URI, the trial needs a real domain for Google; GitHub sign-in
+   works either way.
+5. **Create**. Copy the **Client ID** and the **Client secret** now, or use **Download JSON** in
+   that dialog: once it closes, Google never shows the secret again. If you lose it, add a new
+   secret on the client's page and delete the old one.
 
 Google also lets one client hold several redirect URIs, so when you buy a domain you add its
 callback next to the sslip.io one and remove the old one later.
@@ -173,7 +178,7 @@ cd /opt/exam/deploy && docker compose up -d app
 | GitHub: "The redirect_uri is not associated with this application" | Same mismatch, for GitHub | Edit the app's Authorization callback URL. |
 | Google: "Access blocked: … has not completed the Google verification process" | The account is not a test user | Add it under Audience → Test users. |
 | The app's sign-in page shows no button for a provider | Its ID or secret is missing from `.env`, or the container wasn't recreated | Fill both lines, then `docker compose up -d app`. |
-| Back on the sign-in page: "The sign-in service didn't accept the request" | Wrong client secret (or ID) in `.env` | Copy it again, or generate a new secret; `docker compose up -d app`. `docker compose logs app --tail 50` shows the provider's answer. |
+| Back on the sign-in page: "The sign-in service didn't accept the request" | Wrong client secret (or ID) in `.env` | Copy it again, or generate a new secret; `docker compose up -d app`. The app's log does not record the provider's answer, so check the values against the console. |
 | Back on the sign-in page: "That sign-in took too long or was started in another tab" | More than 10 minutes on the provider's page, or two sign-ins at once | Sign in again in one tab. |
 | The app container keeps restarting | No provider is configured, so the production check refuses to boot | `docker compose logs app` names the problem; add at least one provider. |
 
@@ -181,8 +186,9 @@ cd /opt/exam/deploy && docker compose up -d app
 
 - A teacher who signs in with Google and later with GitHub **using the same verified email
   address** reaches the same account.
-- If GitHub's address is unverified or private, the GitHub sign-in becomes a separate, empty
-  account (`docs/AUTH.md`, Linking).
+- If the GitHub account's primary email is not verified, or differs from the Google address,
+  the GitHub sign-in becomes a separate, empty account (`docs/AUTH.md`, Linking). A primary
+  address that is merely hidden on the GitHub profile still links.
 - Revoking the app at Google or GitHub stops future sign-ins. It does not delete anything in
   the app: deleting the account is done from the account menu.
 
@@ -192,8 +198,8 @@ You don't need the production apps to work on your own machine. `EXAM_DEV_AUTH=1
 locally. To test real sign-in locally, register **separate** apps:
 
 - **GitHub**: a second OAuth App with callback `http://localhost:8000/auth/github/callback`.
-- **Google**: a second client in the same project (or the same client with an extra redirect
-  URI) with `http://localhost:8000/auth/google/callback`. Google allows plain http for
+- **Google**: a second client (a separate one, so the production secret never reaches a
+  laptop) with `http://localhost:8000/auth/google/callback`. Google allows plain http for
   `localhost` only.
 
 Never put production secrets on a laptop, and never commit any `.env`.
@@ -215,8 +221,9 @@ When the domain (e.g. `paperbench.dev`) points at the droplet:
    4. Under **Audience**, click **Publish app** so anyone can sign in.
    5. For the app's name and logo to show on the consent screen, Google runs a brand check,
       which usually takes a few days. Basic scopes need no security assessment.
-4. **Contact address**: set `EXAM_CONTACT_EMAIL` (e.g. `hello@<domain>`) so the privacy notice
-   names it. Then remove the sslip.io redirect URI from the Google client.
+4. **Contact address**: once the privacy pages are deployed (EXA-185, PR #268), set
+   `EXAM_CONTACT_EMAIL` (e.g. `hello@<domain>`) so they name it. Then remove the sslip.io
+   redirect URI from the Google client.
 5. **Check**: sign in with both providers from a private window, using an account that was not
    a test user.
 
