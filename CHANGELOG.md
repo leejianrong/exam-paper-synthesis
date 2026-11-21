@@ -10,6 +10,13 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **The production image is published to GHCR (EXA-179).** A new `Image` workflow builds the
+  Dockerfile on every pull request and prints Paper 2's student paper and key with the image's
+  own browser (`deploy/image_smoke.py`), so a missing system library fails in CI, not on a
+  teacher's first export. On main it pushes `ghcr.io/leejianrong/exam-paper-synthesis:latest`
+  and `:sha-<commit>`. The image installs only Chromium's headless shell: 1.82 GB instead of
+  2.68 GB, with the same printed pages (all 21 pages of the test papers render identically).
+
 - **Production stack for a droplet (EXA-178).** `deploy/compose.yaml` runs the app image
   behind Caddy (automatic Let's Encrypt TLS, http → https, compression) with Postgres 17 on a
   named volume. Only Caddy publishes ports. Memory is budgeted for a 2 GB droplet (app 1.2 GB
