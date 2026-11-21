@@ -1,0 +1,83 @@
+# Production stack for one small droplet (ADR-0024): Caddy (TLS) → app → Postgres 17.
+#   cp .env.example .env   # fill it in (see docs/LAUNCH.md)
+#   docker compose up -d
+# Only Caddy publishes ports; the app and the database are reachable on the stack's network only.
+# Memory is budgeted for a 2 GB droplet with 2 GB swap: app 1.2 GB (Chromium renders PDFs),
+# Postgres 384 MB, Caddy 128 MB, the rest for the OS and Docker.
+
+name: exam
+
+services:
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    mem_limit: 128m
+
+  app:
+    image: ${APP_IMAGE:-ghcr.io/leejianrong/exam-paper-synthesis}:${APP_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      EXAM_DATABASE_URL: postgresql://exam:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/exam
+      EXAM_PUBLIC_URL: ${EXAM_PUBLIC_URL:?set EXAM_PUBLIC_URL in .env}
+      EXAM_WEB_URL: ${EXAM_WEB_URL:?set EXAM_WEB_URL in .env}
+      EXAM_OAUTH_GOOGLE_CLIENT_ID: ${EXAM_OAUTH_GOOGLE_CLIENT_ID:-}
+      EXAM_OAUTH_GOOGLE_CLIENT_SECRET: ${EXAM_OAUTH_GOOGLE_CLIENT_SECRET:-}
+      EXAM_OAUTH_GITHUB_CLIENT_ID: ${EXAM_OAUTH_GITHUB_CLIENT_ID:-}
+      EXAM_OAUTH_GITHUB_CLIENT_SECRET: ${EXAM_OAUTH_GITHUB_CLIENT_SECRET:-}
+      EXAM_OAUTH_MICROSOFT_CLIENT_ID: ${EXAM_OAUTH_MICROSOFT_CLIENT_ID:-}
+      EXAM_OAUTH_MICROSOFT_CLIENT_SECRET: ${EXAM_OAUTH_MICROSOFT_CLIENT_SECRET:-}
+      EXAM_EXPORT_CONCURRENCY: ${EXAM_EXPORT_CONCURRENCY:-2}
+      EXAM_EXPORT_TIMEOUT_MS: ${EXAM_EXPORT_TIMEOUT_MS:-30000}
+      # Caddy replaces any X-Forwarded-For a client sends, and uvicorn (--proxy-headers) turns it
+      # into the client address, so the per-address sign-in limits see the real visitor.
+    expose:
+      - "8080"
+    # Chromium needs more than Docker's 64 MB /dev/shm for multi-page papers.
+    shm_size: 512m
+    mem_limit: 1200m
+    # Stated here too: an image built in OCI format (podman's default) drops the Dockerfile's.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: exam
+      POSTGRES_DB: exam
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    # Sized for a 2 GB box shared with Chromium; the app's pool holds at most 5 connections.
+    command: ["postgres", "-c", "shared_buffers=96MB", "-c", "max_connections=25"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exam -d exam"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    mem_limit: 384m
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

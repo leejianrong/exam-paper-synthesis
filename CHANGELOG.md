@@ -10,6 +10,16 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Production stack for a droplet (EXA-178).** `deploy/compose.yaml` runs the app image
+  behind Caddy (automatic Let's Encrypt TLS, http → https, compression) with Postgres 17 on a
+  named volume. Only Caddy publishes ports. Memory is budgeted for a 2 GB droplet (app 1.2 GB
+  with a 512 MB `/dev/shm` for Chromium, Postgres 384 MB tuned for 25 connections, Caddy
+  128 MB). `deploy/.env.example` lists every value the production gate needs; the sign-in
+  limits see the visitor's address through Caddy's `X-Forwarded-For`. `.dockerignore` keeps
+  `.env` files out of the image. The production image builds again: Playwright's bundled node
+  needs `libatomic1`, which the slim base image lacks (the build had been failing unnoticed,
+  since no CI job builds the image yet; EXA-179 adds one).
+
 - **Export to Word (EXA-90).** The Export menu has **Student paper (Word)** and **Answer key
   (Word)**: an editable .docx to change in Word. It keeps the paper's structure: the cover (its
   fields and the examiner's table as Word tables), section headers with their marks sentence
