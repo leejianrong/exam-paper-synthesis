@@ -174,8 +174,8 @@ Replaces the Fly.io + Neon hosting of ADR-0022 (ADR-0024 to follow). Owner's cho
 `pg_dump` to DO Spaces; no Cloudflare yet; Google and GitHub sign-in; start with an empty
 database. The homelab k8s idea stays a possible later move.
 
-- **in_progress** Compose stack: Caddy, app and Postgres 17 (`deploy/`), verified locally (EXA-178)
-- **todo** Publish the image to GHCR on every main merge (EXA-179)
+- **done** Compose stack: Caddy, app and Postgres 17 (`deploy/`), verified locally (EXA-178)
+- **done** Publish the image to GHCR on every main merge; headless-shell Chromium, 1.82 GB (EXA-179)
 - **in_progress** Nightly `pg_dump` to Spaces and a rehearsed restore: the `backup` service, `deploy/restore.sh`, `docs/deploy/BACKUPS.md`; verified locally against an S3 stand-in (EXA-180)
 - **todo** Droplet runbook: firewall, SSH keys, swap, upgrades, log rotation (EXA-181)
 - **todo** ADR-0024, LAUNCH.md for the droplet, retire `fly.toml` (EXA-182)

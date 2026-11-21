@@ -10,17 +10,30 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **The production image is published to GHCR (EXA-179).** A new `Image` workflow builds the
+  Dockerfile on every pull request and prints Paper 2's student paper and key with the image's
+  own browser (`deploy/image_smoke.py`), so a missing system library fails in CI, not on a
+  teacher's first export. On main it pushes `ghcr.io/leejianrong/exam-paper-synthesis:latest`
+  and `:sha-<commit>` from a separate job (pull requests keep a read-only token; main runs are
+  never cancelled, so every merge's tag exists to roll back to). The image installs only Chromium's headless shell: 1.82 GB instead of
+  2.68 GB, with the same printed pages (all 21 pages of the test papers render identically). uv in the image is pinned (0.13.9)
+  instead of `latest`. The first push creates the GHCR package as private: make it public once
+  (`deploy/.env.example` says how).
+
 - **Nightly database backups to DigitalOcean Spaces (EXA-180).** A `backup` service in
   `deploy/compose.yaml` (`deploy/backup/`: Alpine with the Postgres 17 client and rclone 1.71,
   128 MB) runs `pg_dump -Fc` every day at 03:00 Singapore time (`BACKUP_TIME`) and uploads it
   as `exam-<UTC timestamp>.dump` to the bucket in `SPACES_BUCKET`. A dump is uploaded only when
-  it is whole (`pg_restore --list` reads it back); any failed step exits non-zero and logs
-  `backup FAILED`. After each good upload the job keeps the newest `BACKUP_KEEP` (14) dumps, so
-  no bucket lifecycle rule is needed. Back up now with
-  `docker compose exec backup exam-backup now`. `deploy/restore.sh` restores the newest or a
-  named dump: it asks first, stops the app, uploads a `pre-restore-…` safety dump, recreates the
-  database from the dump and starts the app again. `docs/deploy/BACKUPS.md` covers setup, daily
-  checks and the restore drill. Bucket keys reach the container only as environment variables.
+  every byte of it reads back (`pg_restore -f /dev/null`) and the database has tables; any
+  failed step exits non-zero and logs `backup FAILED`. Every night, whether or not the dump
+  worked, the job deletes every object in the backup folder older than 14 days (safety dumps
+  too), as the privacy notice promises; a 14-day Spaces lifecycle rule is the backstop and
+  bucket versioning stays off. Back up now with `docker compose exec backup exam-backup now`.
+  `deploy/restore.sh` restores the newest or a named dump: it asks first, stops the app and the
+  backup job, uploads a `pre-restore-…` safety dump, loads the dump into a scratch database and
+  swaps it in only once it has loaded, then starts both again. `docs/deploy/BACKUPS.md` covers
+  setup, daily checks and the restore drill. Bucket keys reach the container only as
+  environment variables.
 
 - **Production stack for a droplet (EXA-178).** `deploy/compose.yaml` runs the app image
   behind Caddy (automatic Let's Encrypt TLS, http → https, compression) with Postgres 17 on a
