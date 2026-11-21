@@ -19,7 +19,7 @@ ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
     PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers \
     EXAM_ENV=production EXAM_CHROMIUM_NO_SANDBOX=1 \
     EXAM_WEB_DIST=/app/web-dist
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.9 /uv /usr/local/bin/uv
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY engine engine
