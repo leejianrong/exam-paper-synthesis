@@ -12,3 +12,6 @@ docs
 tests
 site
 *.sqlite3
+.env
+**/.env
+.claude
