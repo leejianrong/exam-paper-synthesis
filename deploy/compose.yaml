@@ -81,8 +81,10 @@ services:
       retries: 6
     mem_limit: 384m
 
-  # Nightly pg_dump to a DigitalOcean Spaces bucket, keeping the newest BACKUP_KEEP
+  # Nightly pg_dump to a DigitalOcean Spaces bucket; dumps older than 14 days are deleted
   # (docs/deploy/BACKUPS.md). Back up now: docker compose exec backup exam-backup now
+  # Empty SPACES_* values don't block other compose commands: the job refuses to start and
+  # says so in `docker compose logs backup`.
   backup:
     build: ./backup
     restart: unless-stopped
@@ -91,18 +93,19 @@ services:
       PGUSER: exam
       PGDATABASE: exam
       PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      SPACES_BUCKET: ${SPACES_BUCKET:?set SPACES_BUCKET in .env}
+      SPACES_BUCKET: ${SPACES_BUCKET:-}
       BACKUP_PATH: ${BACKUP_PATH:-db}
       BACKUP_TIME: ${BACKUP_TIME:-03:00}
-      BACKUP_KEEP: ${BACKUP_KEEP:-14}
       RCLONE_CONFIG_SPACES_TYPE: s3
       RCLONE_CONFIG_SPACES_PROVIDER: DigitalOcean
       RCLONE_CONFIG_SPACES_ENDPOINT: ${SPACES_ENDPOINT:-https://sgp1.digitaloceanspaces.com}
-      RCLONE_CONFIG_SPACES_ACCESS_KEY_ID: ${SPACES_ACCESS_KEY_ID:?set SPACES_ACCESS_KEY_ID in .env}
-      RCLONE_CONFIG_SPACES_SECRET_ACCESS_KEY: ${SPACES_SECRET_ACCESS_KEY:?set SPACES_SECRET_ACCESS_KEY in .env}
+      RCLONE_CONFIG_SPACES_ACCESS_KEY_ID: ${SPACES_ACCESS_KEY_ID:-}
+      RCLONE_CONFIG_SPACES_SECRET_ACCESS_KEY: ${SPACES_SECRET_ACCESS_KEY:-}
     depends_on:
       db:
         condition: service_healthy
+    # Lets a dump in progress finish when the service is stopped.
+    stop_grace_period: 2m
     mem_limit: 128m
 
 volumes:

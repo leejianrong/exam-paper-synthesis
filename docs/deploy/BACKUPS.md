@@ -9,6 +9,10 @@ to rehearse before launch and every few months after.
 Point-in-time recovery is out of scope: a restore brings back the database as it was at the
 last dump, so up to a day of changes can be lost.
 
+**Backups last 14 days.** The privacy notice tells users that each backup is deleted after 14
+days, so an account they delete is gone from the backups within 14 days. Everything below keeps
+that promise; don't lengthen it without changing the notice first.
+
 ## How it works
 
 - **Where it runs.** The `backup` service (`deploy/backup/`) is a small Alpine image with
@@ -21,19 +25,26 @@ last dump, so up to a day of changes can be lost.
 - **What.** `pg_dump -Fc` (Postgres's compressed custom format) of the `exam` database, named
   `exam-<UTC timestamp>.dump`, e.g. `exam-20261121T190000Z.dump` (19:00 UTC is 03:00 in
   Singapore). It goes to `<SPACES_BUCKET>/<BACKUP_PATH>/` (default folder `db`).
-- **Checks before upload.** The dump is written to the container's `/tmp` first. It is uploaded
-  only if `pg_dump` succeeded, the file is not empty and `pg_restore --list` reads its table of
-  contents back (a cut-off archive fails that). The upload is a single S3 object write, so a
-  half-sent dump never appears in the bucket.
-- **Retention.** The job keeps the newest `BACKUP_KEEP` (default 14) nightly dumps: after each
-  successful upload it deletes the older ones. Pruning counts dumps, not days, and only runs
-  after a good upload, so a run of failed nights never deletes the last good copy. No bucket
-  lifecycle rule is needed; don't add one that expires objects, or it could remove the only
-  dump left after a long outage. The `pre-restore-…` dumps that `restore.sh` makes are never
-  pruned; delete them by hand when you no longer need them.
+- **Checks before upload.** The job refuses to back up a database with no tables (say, one
+  left empty by a failed restore), so an empty dump never becomes the newest. The dump is
+  written to the container's `/tmp` first and uploaded only if `pg_dump` succeeded, the file is
+  not empty and `pg_restore -f /dev/null` reads every byte of it back (a cut-off or corrupt
+  archive fails that). The upload is a single S3 object write, so a half-sent dump never
+  appears in the bucket.
+- **Retention: 14 days, by age.** After each nightly run, *whether or not the dump worked*,
+  the job deletes every object in the backup folder that was uploaded more than 14 days ago:
+  nightly dumps, `pre-restore-…` safety dumps and anything else put there. Run it by hand with
+  `exam-backup prune`. As a backstop, the bucket has a lifecycle rule that expires objects
+  after 14 days (set up below), and **bucket versioning stays off**: with versioning on, a
+  deleted dump would live on as an old version.
+- **The catch: after a long outage the last good copy expires too.** If backups fail for more
+  than 14 days in a row, every dump is gone. That is the price of the promise, which is why a
+  failed night must be noticed within days: check the log (below) and keep the uptime alert
+  (EXA-183) working.
 - **Failures.** Any failed step exits non-zero with an `ERROR:` line and
   `backup FAILED (exit 1)`, in `docker compose logs backup`. The nightly loop logs it and tries
-  again the next night.
+  again the next night. If the `SPACES_*` values are empty, the service logs which one and
+  keeps restarting; the rest of the stack runs regardless.
 - **Secrets.** The bucket keys and the database password reach the container as environment
   variables from `deploy/.env` (rclone reads `RCLONE_CONFIG_SPACES_*`, the Postgres tools read
   `PGPASSWORD`). They are not baked into the image, passed on a command line or logged. Anyone
@@ -42,7 +53,8 @@ last dump, so up to a day of changes can be lost.
 ## Set up (once)
 
 1. In the DigitalOcean control panel, create a Spaces bucket in **SGP1**, private (file listing
-   restricted), CDN off. A name like `exam-backups-<something>`; bucket names are global.
+   restricted), CDN off, versioning off (the default). A name like `exam-backups-<something>`;
+   bucket names are global.
 2. Create a Spaces access key **limited to that bucket**, with read, write and delete
    permission (the job deletes old dumps). Copy the secret now: it is shown once.
 3. Fill in `deploy/.env` (see `deploy/.env.example`):
@@ -52,13 +64,32 @@ last dump, so up to a day of changes can be lost.
    SPACES_ENDPOINT=https://sgp1.digitaloceanspaces.com
    SPACES_ACCESS_KEY_ID=DO00...
    SPACES_SECRET_ACCESS_KEY=...
-   # optional: BACKUP_PATH=db  BACKUP_TIME=03:00  BACKUP_KEEP=14
+   # optional: BACKUP_PATH=db  BACKUP_TIME=03:00
    ```
 
-   The stack refuses to start while any of the four Spaces values is empty.
 4. Start or update the stack, which builds the backup image: `docker compose up -d --build`.
    After a change to `deploy/backup/`, run that again so the service is rebuilt.
-5. Run one backup now (next section) and check it is listed.
+5. Add the 14-day lifecycle rule and check versioning is off. The control panel has no screen
+   for lifecycle rules, so use the AWS CLI's official image against the Spaces endpoint. In
+   `deploy/`, with the keys passed by name only (never typed on the command line):
+
+   ```sh
+   set -a; . ./.env; set +a
+   export AWS_ACCESS_KEY_ID="$SPACES_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$SPACES_SECRET_ACCESS_KEY"
+   aws() { docker run --rm -i -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
+     -e AWS_DEFAULT_REGION=sgp1 amazon/aws-cli:2.31.39 --endpoint-url "$SPACES_ENDPOINT" "$@"; }
+
+   aws s3api put-bucket-lifecycle-configuration --bucket "$SPACES_BUCKET" \
+     --lifecycle-configuration '{"Rules":[{"ID":"expire-backups-14d","Status":"Enabled",
+       "Filter":{"Prefix":""},"Expiration":{"Days":14},
+       "AbortIncompleteMultipartUpload":{"DaysAfterInitiation":1}}]}'
+   aws s3api get-bucket-lifecycle-configuration --bucket "$SPACES_BUCKET"  # shows the rule
+   aws s3api get-bucket-versioning --bucket "$SPACES_BUCKET"  # prints nothing: never enabled
+   ```
+
+   The rule covers the whole bucket, so keep nothing else in it. If versioning ever shows
+   `"Status": "Enabled"`, suspend it and delete the old versions.
+6. Run one backup now (next section) and check it is listed.
 
 ## Day to day
 
@@ -77,15 +108,20 @@ docker compose exec backup exam-backup latest
 # rows per table in the live database
 docker compose exec backup exam-backup counts
 
+# delete everything older than 14 days now (the nightly run does this anyway)
+docker compose exec backup exam-backup prune
+
 # did last night's backup work?
-docker compose logs --since 24h backup | grep -E 'uploaded|FAILED|ERROR'
+docker compose logs --since 24h backup | grep -E 'uploaded|deleted|FAILED|ERROR'
 ```
 
-A good night logs two lines like these:
+A good night logs lines like these (the `deleted` ones from the 15th night on):
 
 ```
 2026-11-21T19:00:00Z backup: dumping database exam to exam-20261121T190000Z.dump
 2026-11-21T19:00:01Z backup: uploaded spaces:exam-backups-something/db/exam-20261121T190000Z.dump (13817 bytes)
+2026-11-21T19:00:02Z prune: deleted exam-20261107T190000Z.dump (older than 14d)
+2026-11-21T19:00:02Z prune: done; nothing in spaces:exam-backups-something/db is older than 14d
 ```
 
 To keep a copy off DigitalOcean, download a dump from the bucket in the control panel. A dump
@@ -106,16 +142,19 @@ It:
 1. starts the database if it is not running and waits for it;
 2. prints the dump it will restore and the row counts now;
 3. asks you to type `restore` (anything else stops it, with nothing changed);
-4. stops the app;
-5. uploads a safety dump of the current database as `pre-restore-<timestamp>.dump` (if that
-   fails it asks whether to go on);
-6. downloads the chosen dump, drops and recreates the `exam` database and loads it with
+4. stops the app and the backup job (so no nightly run happens mid-restore);
+5. uploads a safety dump of the current database as `pre-restore-<timestamp>.dump`, unless the
+   database has no tables (if the dump fails it asks whether to go on);
+6. downloads the chosen dump and loads it into a scratch database, `exam_restore`, with
    `pg_restore --single-transaction --exit-on-error`;
-7. prints the row counts after the restore;
-8. starts the app and waits until `/ready` answers.
+7. only once that has loaded, renames the live `exam` aside, renames `exam_restore` to `exam`
+   and drops the old one;
+8. prints the row counts after the restore;
+9. starts the app and the backup job and waits until `/ready` answers.
 
-If step 6 fails, the database is left empty and the app stays stopped: fix the cause and run
-`restore.sh` again. To undo a restore, restore the `pre-restore-…` dump it made.
+If the restore fails at step 6, the live database is untouched; the app and the backup job are
+started again whatever happens. To undo a restore, restore the `pre-restore-…` dump it made
+(within 14 days: it expires like any other).
 
 ## The restore drill
 
@@ -158,9 +197,8 @@ On the throwaway droplet (Docker Engine and the compose plugin installed):
      prints that owner's paper count;
    - `docker compose up -d` starts Caddy too; `https://<ip>.sslip.io/ready` answers
      `{"status":"ready"}`.
-7. Tidy up: in the bucket, delete the `pre-restore-…` dump the drill made (it is of the empty
-   database), then destroy the throwaway droplet. Its own backup job would have uploaded to
-   the same bucket at 03:00, so don't leave it running overnight.
+7. Destroy the throwaway droplet. Its own backup job would upload to the same bucket at 03:00,
+   so don't leave it running overnight.
 
 If any step fails, fix the cause (and this page) before relying on the backups.
 
@@ -171,4 +209,4 @@ domain in `.env`, restore, then run `docker compose up -d` and point DNS at the 
 
 | Date | Dump | Result |
 |------|------|--------|
-| 2026-11-21 | local rehearsal with an S3 stand-in (EXA-180) | dump uploaded; restored into a new volume; app read the rows |
+| 2026-11-21 | local rehearsal with an S3 stand-in (EXA-180) | dump uploaded; restored into a new volume; app read the rows; old objects pruned by age |
