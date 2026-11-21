@@ -41,8 +41,9 @@ that promise; don't lengthen it without changing the notice first.
   than 14 days in a row, every dump is gone. That is the price of the promise, which is why a
   failed night must be noticed within days: check the log (below) and keep the uptime alert
   (EXA-183) working.
-- **Failures.** Any failed step exits non-zero with an `ERROR:` line and
-  `backup FAILED (exit 1)`, in `docker compose logs backup`. The nightly loop logs it and tries
+- **Failures.** Any failed step exits non-zero with an `ERROR:` line, in
+  `docker compose logs backup`: a failed backup adds `backup FAILED (exit 1)`, a failed prune
+  `pruning failed`. The nightly loop logs it and tries
   again the next night. If the `SPACES_*` values are empty, the service logs which one and
   keeps restarting; the rest of the stack runs regardless.
 - **Secrets.** The bucket keys and the database password reach the container as environment
@@ -153,7 +154,8 @@ It:
 9. starts the app and the backup job and waits until `/ready` answers.
 
 If the restore fails at step 6, the live database is untouched; the app and the backup job are
-started again whatever happens. To undo a restore, restore the `pre-restore-…` dump it made
+started again however the script ends, including Ctrl-C or a dropped SSH session. If the
+final swap fails, the old database is renamed back. To undo a restore, restore the `pre-restore-…` dump it made
 (within 14 days: it expires like any other).
 
 ## The restore drill

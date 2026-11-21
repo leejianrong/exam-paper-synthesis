@@ -67,6 +67,11 @@ prune() {
 		log "prune: deleted $f (older than $max_age)"
 	done
 	log "prune: done; nothing in $d is older than $max_age"
+	# A restore that could not drop the database it replaced leaves a full copy behind; clear it
+	# so no copy of the data outlives the 14 days (the job is stopped during a restore).
+	PGOPTIONS='-c client_min_messages=warning' psql -X -q -v ON_ERROR_STOP=1 -d postgres \
+		-c "DROP DATABASE IF EXISTS \"${PGDATABASE}_old\" WITH (FORCE)" ||
+		fail "could not drop a leftover ${PGDATABASE}_old"
 }
 
 schedule() {
@@ -86,7 +91,8 @@ schedule() {
 		sleep $((next - t)) &
 		wait $!
 		# Subshells, so a failure is logged and the schedule carries on to tomorrow. Prune runs
-		# even when the dump failed: old backups must go after 14 days regardless.
+		# even when the dump failed: old backups must go after 14 days regardless. Note that
+		# `set -e` is off inside `(…) ||`: every step in now/prune needs its own `|| fail`.
 		(now) || log "schedule: tonight's backup failed; see above"
 		(prune) || log "schedule: pruning failed; see above"
 	done
@@ -116,11 +122,15 @@ restore() {
 	log "restore: swapping $scratch in as $db"
 	sql -c "DROP DATABASE IF EXISTS \"${db}_old\" WITH (FORCE)" || fail "could not clear ${db}_old"
 	if [ -n "$(sql -At -c "SELECT 1 FROM pg_database WHERE datname = '$db'")" ]; then
-		sql -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$db'" >/dev/null
+		# Waits up to 5 s for each session to end (PostgreSQL 14+), so the rename does not race it.
+		sql -c "SELECT pg_terminate_backend(pid, 5000) FROM pg_stat_activity WHERE datname = '$db' AND pid <> pg_backend_pid()" >/dev/null
 		sql -c "ALTER DATABASE \"$db\" RENAME TO \"${db}_old\"" || fail "could not rename $db; it is untouched"
 	fi
-	sql -c "ALTER DATABASE \"$scratch\" RENAME TO \"$db\"" ||
-		fail "could not rename $scratch to $db; the old data is in ${db}_old"
+	if ! sql -c "ALTER DATABASE \"$scratch\" RENAME TO \"$db\""; then
+		sql -c "ALTER DATABASE \"${db}_old\" RENAME TO \"$db\"" ||
+			fail "could not rename $scratch to $db, nor put ${db}_old back: rename it by hand"
+		fail "could not rename $scratch to $db; $db is back as it was"
+	fi
 	sql -c "DROP DATABASE IF EXISTS \"${db}_old\" WITH (FORCE)" || log "restore: could not drop ${db}_old"
 	log "restore: $name restored"
 }

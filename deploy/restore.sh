@@ -49,7 +49,10 @@ read -r answer || answer=
 # once the dump has loaded, so a failed restore leaves the old data in place.
 say "stopping the app and the backup job"
 dc stop app backup
-trap 'say "starting the app and the backup job"; dc up -d app backup' EXIT
+trap 'trap - EXIT; say "starting the app and the backup job"; dc up -d app backup' EXIT
+# dash skips the EXIT trap when killed by a signal (Ctrl-C, a dropped SSH session): turn those
+# into a normal exit so the app and the backup job still come back.
+trap 'exit 130' INT TERM HUP
 
 if [ -z "$before" ]; then
 	say "the database has no tables: no safety dump needed"
