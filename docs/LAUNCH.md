@@ -41,7 +41,7 @@ is the checklist below it. Hosting: one DigitalOcean droplet running Docker Comp
    design; do not add any shared bank of it.
 5. **Sign-in apps**: Google and GitHub, step 7 of DROPLET.md, callbacks
    `https://HOST/auth/<provider>/callback`. Publish the Google app when ready for the public.
-6. **GHCR package public** (one click after the first main build), then the first deploy: step
+6. **First deploy** (the GHCR image is already public): step
    8 of DROPLET.md.
 7. **Smoke test on the real host**: sign in with each provider; create a paper; add a generated,
    a bank (import a file) and a free-form question with an image and an equation; export

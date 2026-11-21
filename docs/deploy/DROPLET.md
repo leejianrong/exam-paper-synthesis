@@ -147,9 +147,9 @@ When the hostname changes (a domain is bought), update both apps' URLs.
 
 ## 8. First deploy
 
-Make the image public on GHCR first (GitHub → Packages → exam-paper-synthesis → Package
-settings → Change visibility → Public), or `docker compose pull` is denied. The alternative is
-`docker login ghcr.io` on the droplet with a `read:packages` token.
+The app image on GHCR is public, so no registry login is needed. If `docker compose pull` is
+ever denied, check GitHub → Packages → exam-paper-synthesis → Package settings → visibility.
+The backup job's small image is built on the droplet from `deploy/backup/` (hence `--build`).
 
 ```bash
 sudo mkdir -p /opt/exam && sudo chown deploy:deploy /opt/exam
@@ -159,7 +159,7 @@ cp .env.example .env && chmod 600 .env
 nano .env    # HOST in SITE_ADDRESS and both URLs, POSTGRES_PASSWORD (openssl rand -hex 24),
              # the OAuth ids and secrets, the Spaces values (BACKUPS.md)
 docker compose pull
-docker compose up -d
+docker compose up -d --build
 ```
 
 Only an IPv4 address (an A record) should point at the droplet. Docker hands IPv6 visitors to
@@ -196,7 +196,7 @@ In the DigitalOcean console:
 
 | Task | Command (in `/opt/exam/deploy`) |
 |------|------|
-| Deploy the latest main | `git pull && docker compose pull && docker compose up -d` |
+| Deploy the latest main | `git pull && docker compose pull && docker compose up -d --build` |
 | Roll back | set `APP_TAG=sha-<commit>` in `.env`, then `docker compose up -d app` |
 | Status | `docker compose ps` |
 | Logs | `docker compose logs -f --tail 100 app` (or `caddy`, `db`) |
