@@ -1,9 +1,10 @@
-# Production stack for one small droplet (ADR-0024): Caddy (TLS) → app → Postgres 17.
+# Production stack for one small droplet (EXA-E16; ADR-0024 to follow): Caddy (TLS) → app → Postgres 17.
 #   cp .env.example .env   # fill it in (see docs/LAUNCH.md)
 #   docker compose up -d
 # Only Caddy publishes ports; the app and the database are reachable on the stack's network only.
 # Memory is budgeted for a 2 GB droplet with 2 GB swap: app 1.2 GB (Chromium renders PDFs),
-# Postgres 384 MB, Caddy 128 MB, the rest for the OS and Docker.
+# Postgres 384 MB, Caddy 128 MB, the rest for the OS and Docker. Chromium's /dev/shm use counts
+# against the app's limit, and each container may also swap up to its own limit.
 
 name: exam
 
@@ -43,6 +44,8 @@ services:
       EXAM_EXPORT_TIMEOUT_MS: ${EXAM_EXPORT_TIMEOUT_MS:-30000}
       # Caddy replaces any X-Forwarded-For a client sends, and uvicorn (--proxy-headers) turns it
       # into the client address, so the per-address sign-in limits see the real visitor.
+      # That holds for IPv4 only: Docker proxies IPv6 clients from the bridge gateway, so give
+      # the domain no AAAA record unless the stack's network has IPv6 enabled.
     expose:
       - "8080"
     # Chromium needs more than Docker's 64 MB /dev/shm for multi-page papers.
@@ -71,7 +74,8 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U exam -d exam"]
+      # Over TCP: on first boot the init server listens on the socket only, then restarts.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U exam -d exam"]
       interval: 10s
       timeout: 5s
       retries: 6
