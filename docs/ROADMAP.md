@@ -176,7 +176,7 @@ database. The homelab k8s idea stays a possible later move.
 
 - **done** Compose stack: Caddy, app and Postgres 17 (`deploy/`), verified locally (EXA-178)
 - **done** Publish the image to GHCR on every main merge; headless-shell Chromium, 1.82 GB (EXA-179)
-- **todo** Nightly `pg_dump` to Spaces and a rehearsed restore (EXA-180)
+- **in_progress** Nightly `pg_dump` to Spaces and a rehearsed restore: the `backup` service, `deploy/restore.sh`, `docs/deploy/BACKUPS.md`; verified locally against an S3 stand-in (EXA-180)
 - **todo** Droplet runbook: firewall, SSH keys, swap, upgrades, log rotation (EXA-181)
 - **todo** ADR-0024, LAUNCH.md for the droplet, retire `fly.toml` (EXA-182)
 - **todo** Uptime check on `/ready` (EXA-183)

@@ -3,7 +3,7 @@
 #   docker compose up -d
 # Only Caddy publishes ports; the app and the database are reachable on the stack's network only.
 # Memory is budgeted for a 2 GB droplet with 2 GB swap: app 1.2 GB (Chromium renders PDFs),
-# Postgres 384 MB, Caddy 128 MB, the rest for the OS and Docker. Chromium's /dev/shm use counts
+# Postgres 384 MB, Caddy 128 MB, backups 128 MB, the rest for the OS and Docker. Chromium's /dev/shm use counts
 # against the app's limit, and each container may also swap up to its own limit.
 
 name: exam
@@ -80,6 +80,33 @@ services:
       timeout: 5s
       retries: 6
     mem_limit: 384m
+
+  # Nightly pg_dump to a DigitalOcean Spaces bucket; dumps older than 14 days are deleted
+  # (docs/deploy/BACKUPS.md). Back up now: docker compose exec backup exam-backup now
+  # Empty SPACES_* values don't block other compose commands: the job refuses to start and
+  # says so in `docker compose logs backup`.
+  backup:
+    build: ./backup
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: exam
+      PGDATABASE: exam
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      SPACES_BUCKET: ${SPACES_BUCKET:-}
+      BACKUP_PATH: ${BACKUP_PATH:-db}
+      BACKUP_TIME: ${BACKUP_TIME:-03:00}
+      RCLONE_CONFIG_SPACES_TYPE: s3
+      RCLONE_CONFIG_SPACES_PROVIDER: DigitalOcean
+      RCLONE_CONFIG_SPACES_ENDPOINT: ${SPACES_ENDPOINT:-https://sgp1.digitaloceanspaces.com}
+      RCLONE_CONFIG_SPACES_ACCESS_KEY_ID: ${SPACES_ACCESS_KEY_ID:-}
+      RCLONE_CONFIG_SPACES_SECRET_ACCESS_KEY: ${SPACES_SECRET_ACCESS_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    # Lets a dump in progress finish when the service is stopped.
+    stop_grace_period: 2m
+    mem_limit: 128m
 
 volumes:
   pgdata:

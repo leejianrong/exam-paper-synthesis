@@ -20,6 +20,21 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   instead of `latest`. The first push creates the GHCR package as private: make it public once
   (`deploy/.env.example` says how).
 
+- **Nightly database backups to DigitalOcean Spaces (EXA-180).** A `backup` service in
+  `deploy/compose.yaml` (`deploy/backup/`: Alpine with the Postgres 17 client and rclone 1.71,
+  128 MB) runs `pg_dump -Fc` every day at 03:00 Singapore time (`BACKUP_TIME`) and uploads it
+  as `exam-<UTC timestamp>.dump` to the bucket in `SPACES_BUCKET`. A dump is uploaded only when
+  every byte of it reads back (`pg_restore -f /dev/null`) and the database has tables; any
+  failed step exits non-zero and logs `backup FAILED`. Every night, whether or not the dump
+  worked, the job deletes every object in the backup folder older than 14 days (safety dumps
+  too), as the privacy notice promises; a 14-day Spaces lifecycle rule is the backstop and
+  bucket versioning stays off. Back up now with `docker compose exec backup exam-backup now`.
+  `deploy/restore.sh` restores the newest or a named dump: it asks first, stops the app and the
+  backup job, uploads a `pre-restore-…` safety dump, loads the dump into a scratch database and
+  swaps it in only once it has loaded, then starts both again. `docs/deploy/BACKUPS.md` covers
+  setup, daily checks and the restore drill. Bucket keys reach the container only as
+  environment variables.
+
 - **Production stack for a droplet (EXA-178).** `deploy/compose.yaml` runs the app image
   behind Caddy (automatic Let's Encrypt TLS, http → https, compression) with Postgres 17 on a
   named volume. Only Caddy publishes ports. Memory is budgeted for a 2 GB droplet (app 1.2 GB
