@@ -5,7 +5,7 @@
   // Deleting the account confirms in a dialog that needs the word DELETE typed.
   import ConfirmDialog from '../ConfirmDialog.svelte'
   import Menu, { type MenuItem } from '../Menu.svelte'
-  import { deleteAccount, exportAccountData, session, signOut } from '../session'
+  import { deleteAccount, exportAccountData, policyUrl, session, signOut } from '../session'
 
   let confirming = $state(false)
   let busy = $state(false)
@@ -33,6 +33,11 @@
             hint: 'A zip of your papers, bank questions and images.',
             disabled: downloading,
             onSelect: download,
+          },
+          {
+            label: 'Privacy and terms',
+            hint: 'What is kept about you, and the terms of use.',
+            onSelect: () => void window.open(policyUrl('privacy'), '_blank', 'noopener'),
           },
           { label: 'Sign out', icon: 'signout', onSelect: () => void signOut() },
           { label: 'Delete my account…', icon: 'trash', danger: true, separator: true, onSelect: startDelete },

@@ -10,6 +10,15 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Privacy notice and terms (EXA-185).** `/privacy` and `/terms` are plain pages anyone can
+  read signed out (Google's consent screen links to them): what is kept (the sign-in name and
+  email, papers, bank, images, export times, one sign-in cookie, short-lived server logs), that
+  it is private and never sold or used for adverts or training, where it lives (DigitalOcean,
+  Singapore; backups kept 14 days), how to download or delete it, fair use, the export
+  allowance, no warranty, Singapore law. The contact address comes from `EXAM_CONTACT_EMAIL`.
+  The sign-in screen links both; the account menu has *Privacy and terms*
+  (`api/app/routes_legal.py`).
+
 - **The production image is published to GHCR (EXA-179).** A new `Image` workflow builds the
   Dockerfile on every pull request and prints Paper 2's student paper and key with the image's
   own browser (`deploy/image_smoke.py`), so a missing system library fails in CI, not on a

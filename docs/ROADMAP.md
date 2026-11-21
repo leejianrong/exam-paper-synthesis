@@ -180,6 +180,7 @@ database. The homelab k8s idea stays a possible later move.
 - **todo** Droplet runbook: firewall, SSH keys, swap, upgrades, log rotation (EXA-181)
 - **todo** ADR-0024, LAUNCH.md for the droplet, retire `fly.toml` (EXA-182)
 - **todo** Uptime check on `/ready` (EXA-183)
+- **in_progress** Privacy notice and terms pages, wording for the owner to approve (EXA-185)
 - **todo** (owner) Provision the droplet, first deploy and smoke test (EXA-184)
 
 ## Ongoing: Foundation & CI/CD (in progress)
