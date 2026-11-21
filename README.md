@@ -39,8 +39,8 @@ site/       Static landing page
 
 The engine is UI/HTTP-agnostic and is imported by the API and the `mathgen` CLI
 as a **uv workspace path dependency** — one implementation, no duplication (see
-[ADR-0016](docs/adr/0016-tech-stack-specifics.md)). Production hosting (Docker
-image, Fly + Neon) is described in [`docs/LAUNCH.md`](docs/LAUNCH.md); sign-in
+[ADR-0016](docs/adr/0016-tech-stack-specifics.md)). Production hosting (a Docker
+Compose stack on one DigitalOcean droplet, ADR-0024) is described in [`docs/LAUNCH.md`](docs/LAUNCH.md); sign-in
 in [`docs/AUTH.md`](docs/AUTH.md).
 
 ## Prerequisites

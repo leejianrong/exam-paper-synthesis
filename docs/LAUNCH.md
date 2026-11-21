@@ -1,16 +1,19 @@
-# Launch checklist (W4)
+# Launch checklist
 
 What the code does for you is listed first; what only **you** can do (accounts, secrets, DNS)
-is the checklist below it. Target: October 2026, Fly.io + Neon (ADR-0022).
-
-> A migration off Fly + Neon to a self-hosted k8s homelab is planned (Pandan PAN-130,
-> with Cloudflare edge setup in PAN-105). This checklist describes the current Fly path.
+is the checklist below it. Hosting: one DigitalOcean droplet running Docker Compose
+([ADR-0024](adr/0024-droplet-compose-hosting.md)); the server set-up is in
+[deploy/DROPLET.md](deploy/DROPLET.md), backups in [deploy/BACKUPS.md](deploy/BACKUPS.md).
 
 ## Already in the repo
 
-- **One production image** (`Dockerfile`): builds the web app, installs the API and headless
-  Chromium, runs as a non-root user, serves the SPA and the API on one origin (first-party
-  cookies, no CORS). `fly.toml` runs it on a 2 GB machine with `/ready` as the health check.
+- **One production image** (`Dockerfile`): builds the web app, installs the API and Chromium's
+  headless shell, runs as a non-root user, serves the SPA and the API on one origin (first-party
+  cookies, no CORS). The `Image` workflow builds it on every pull request, prints a paper with
+  it, and on main pushes `ghcr.io/leejianrong/exam-paper-synthesis:latest` and `:sha-<commit>`.
+- **The stack** (`deploy/compose.yaml`): Caddy (automatic TLS, the only published ports) → the
+  app (`shm_size` 512 MB for Chromium, a memory limit, a health check) → Postgres 17 on a
+  volume; a nightly backup to DigitalOcean Spaces. `deploy/.env.example` lists every value.
 - **Refuses to boot unsafe** (`EXAM_ENV=production`, set in the image): dev identity stub on,
   no `EXAM_DATABASE_URL`, non-https public/web URL, or no sign-in provider ⇒ startup error that
   names each problem. API docs/OpenAPI are off in production.
@@ -25,34 +28,36 @@ is the checklist below it. Target: October 2026, Fly.io + Neon (ADR-0022).
 
 ## Before the first user (you)
 
-1. **Neon**: create the project; copy the **pooled** connection string (`sslmode=require`).
-   Turn on point-in-time restore (the free tier's window is short — note it; upgrade or add a
-   nightly `pg_dump` if you want longer retention).
-2. **OAuth apps** (`docs/AUTH.md`): Google, Microsoft, GitHub, each with callback
-   `https://<host>/auth/<provider>/callback`.
-3. **Fly**: `fly launch --no-deploy` (adjust `app`, region, URLs in `fly.toml`), then
-   `fly secrets set EXAM_DATABASE_URL=… EXAM_OAUTH_GOOGLE_CLIENT_ID=… EXAM_OAUTH_GOOGLE_CLIENT_SECRET=…`
-   (and Microsoft/GitHub), then `fly deploy`. The app will not start until the environment is
-   right — read the error it prints.
-4. **Smoke test on the real host**: sign in with each provider; create a paper; add a generated,
-   a bank (import a file) and a free-form question with an image and an equation; export student,
-   key and full PDFs; check the PDF fonts and the figure; sign out and confirm `/documents` is 401.
-5. **Cloudflare edge (KAN-305)**: proxy the domain, TLS "Full (strict)", WAF/rate-limit rules on
-   `/auth/*` and `/export` paths, cache static assets. Then set `EXAM_PUBLIC_URL`/`EXAM_WEB_URL`
-   to the public domain and update the OAuth callback URLs.
-6. **Backups drill**: restore a Neon branch to a point in time once, so the first time is not an
-   emergency.
-7. **Policy pages**: privacy notice (what is stored: email, name, papers, images; no passwords),
-   terms (free, export limit, private content), and a contact address. Both privacy promises are
-   built: `GET /account/export` (zip of JSON + images) and `DELETE /account` (see AUTH.md); the
-   notice can link them from the account menu. Sourced past-paper content
-   is "internal practice use only" — it stays private to its owner by design; do not add any
-   shared bank of it.
-8. **Monitoring**: an uptime check on `/ready`; Fly metrics/alerts for memory (Chromium) and 5xx;
-   log review for `export is busy` (503) and 429 volume to tune the limits.
-9. **Load sanity**: ~10 simultaneous exports should queue/503 cleanly, not crash the machine
-   (raise the VM size or `EXAM_EXPORT_CONCURRENCY` deliberately, not by accident).
+1. **Domain (optional at first)**: until one is bought, HOST is `<droplet-ip>.sslip.io`. Buying
+   one before going public avoids changing the URL later and makes Google sign-in simpler.
+2. **Droplet**: steps 1–6 of [DROPLET.md](deploy/DROPLET.md) (droplet, cloud firewall, deploy
+   user, swap, automatic updates, Docker with log rotation).
+3. **Spaces bucket and keys** for backups ([BACKUPS.md](deploy/BACKUPS.md)).
+4. **Policy pages** (EXA-185): `/privacy` and `/terms` live, with the contact address you chose.
+   Google's consent screen links to them. What they must say: what is stored (email, name,
+   papers, images; no passwords), the export allowance, that content is private to its owner,
+   and the account export (`GET /account/export`) and delete (`DELETE /account`) options.
+   Sourced past-paper content is "internal practice use only": it stays private to its owner by
+   design; do not add any shared bank of it.
+5. **Sign-in apps**: Google and GitHub, step 7 of DROPLET.md, callbacks
+   `https://HOST/auth/<provider>/callback`. Publish the Google app when ready for the public.
+6. **GHCR package public** (one click after the first main build), then the first deploy: step
+   8 of DROPLET.md.
+7. **Smoke test on the real host**: sign in with each provider; create a paper; add a generated,
+   a bank (import a file) and a free-form question with an image and an equation; export
+   student, key and full PDFs and a Word file; check the PDF fonts and the figure; sign out and
+   confirm `/documents` is 401.
+8. **Backup drill**: run one backup by hand and restore it into a scratch database, as
+   BACKUPS.md describes, so the first restore is not an emergency.
+9. **Monitoring**: the uptime check on `/ready` and the droplet alert policies (step 9 of
+   DROPLET.md); stop the app once to see the alert arrive.
+10. **Load sanity**: ~10 simultaneous exports should queue/503 cleanly, not crash the box
+    (watch `docker stats`; raise `EXAM_EXPORT_CONCURRENCY` or the droplet size deliberately,
+    not by accident).
 
 ## Known follow-ups (not blockers)
 
+- Cloudflare in front (WAF/rate rules on `/auth/*` and exports; set `EXAM_CLIENT_IP_HEADER` to
+  `CF-Connecting-IP` and allow only Cloudflare's addresses to 80/443).
 - Object storage for images if Postgres size becomes a concern (the `AssetStore` protocol allows it).
+- A homelab Kubernetes move (same image and environment) if the owner wants it later.

@@ -1,6 +1,7 @@
 # ADR-0022: Hosted multi-teacher SaaS — Fly.io + Neon Postgres, tenant-scoped from day one
 
-- Status: Accepted
+- Status: Accepted; hosting (Fly.io + Neon) superseded by ADR-0024 (one DigitalOcean droplet,
+  Docker Compose). Tenancy, sign-in and content visibility still hold.
 - Deciders: project owner
 - Supersedes: ADR-0017 (local single-user SQLite bank)
 - Related: ADR-0001 (single-user/no server state — now reversed), ADR-0021, `docs/planning/editor/WYSIWYG.md`

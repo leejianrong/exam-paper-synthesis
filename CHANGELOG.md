@@ -10,6 +10,16 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Droplet runbook and launch checklist (EXA-181, EXA-182, EXA-183).**
+  `docs/deploy/DROPLET.md` sets up the production server step by step, each with a check: the
+  SGP1 droplet, a cloud firewall (22/80/443 only; Docker goes around `ufw`), a `deploy` user
+  with root and password logins off, 2 GB swap, automatic security updates with reboots at
+  03:30 SGT, Docker from its own repository with log rotation, the Google and GitHub sign-in
+  apps, the first deploy, uptime and resource alerts on `/ready`, and the day-to-day commands
+  (deploy, roll back, logs, hostname change). ADR-0024 records the hosting decision and
+  supersedes ADR-0022's Fly.io + Neon; `docs/LAUNCH.md` is rewritten for the droplet; `fly.toml`
+  is removed.
+
 - **Production stack for a droplet (EXA-178).** `deploy/compose.yaml` runs the app image
   behind Caddy (automatic Let's Encrypt TLS, http → https, compression) with Postgres 17 on a
   named volume. Only Caddy publishes ports. Memory is budgeted for a 2 GB droplet (app 1.2 GB
