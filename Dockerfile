@@ -19,16 +19,17 @@ ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
     PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers \
     EXAM_ENV=production EXAM_CHROMIUM_NO_SANDBOX=1 \
     EXAM_WEB_DIST=/app/web-dist
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.9 /uv /usr/local/bin/uv
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY engine engine
 COPY api api
 COPY cli cli
-# Playwright's bundled node needs libatomic, which the slim image lacks.
+# Playwright's bundled node needs libatomic, which the slim image lacks. Only Chromium's
+# headless shell is installed: exports never open a headed browser (EXA-179).
 RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 \
  && uv sync --frozen --no-dev --package exam-api \
- && uv run --no-sync playwright install --with-deps chromium \
+ && uv run --no-sync playwright install --with-deps --only-shell chromium \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=web /src/web/dist /app/web-dist
 RUN useradd --create-home --uid 10001 app && chown -R app /app /opt/pw-browsers
