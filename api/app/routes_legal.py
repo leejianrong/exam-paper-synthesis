@@ -86,46 +86,68 @@ def _page(title: str, body: str) -> HTMLResponse:
 
 
 PRIVACY = """
-<p>{app} is a free tool for teachers to make maths exam papers. It is run by an independent
-developer in Singapore. This notice says what it keeps about you, why, and how to get it back
-or delete it. We handle personal data in line with Singapore's Personal Data Protection Act.</p>
+<p>{app} is a free tool for teachers to make maths exam papers. It is meant for teachers, not
+for students or children. It is run by an independent developer in Singapore, who is also its
+data protection officer (contact below). This notice says what it keeps about you, why, for how
+long, and how to get it back or delete it. We handle personal data in line with Singapore's
+Personal Data Protection Act.</p>
 
 <h2>What we keep</h2>
 <ul>
-<li><strong>Your account</strong>: the name and email address your sign-in provider (Google or
-GitHub) gives us, and the provider's id for you. We never see or store a password.</li>
-<li><strong>Your work</strong>: the papers you make, the questions in your question bank, the
-images you upload and your settings.</li>
+<li><strong>Your account</strong>: from your sign-in provider (Google or GitHub), your name,
+your email address, whether the provider has verified that address, and the provider's id for
+you; and when your account was made. We never see or store a password.</li>
+<li><strong>Your work</strong>: the papers you make and their folders, the questions in your
+question bank, the images you upload and your settings.</li>
 <li><strong>Your export allowance</strong>: the time of each PDF or Word export, to apply the
-daily limit.</li>
-<li><strong>A sign-in cookie</strong>: one first-party cookie that keeps you signed in. There
-are no advertising or tracking cookies and no third-party analytics.</li>
-<li><strong>Server logs</strong>: the address and time of each request, kept for a short time
-to keep the service running and to stop abuse. Old logs are overwritten automatically.</li>
+daily limit. Each record is removed after 24 hours.</li>
+<li><strong>Sign-in records and cookies</strong>: one first-party cookie keeps you signed in for
+up to 30 days; the server keeps a record of that session (a scrambled copy of the cookie and its
+expiry date). Two more first-party cookies live for at most 10 minutes while you sign in, to
+protect the sign-in step. There are no advertising or tracking cookies and no third-party
+analytics.</li>
+<li><strong>Error logs</strong>: when something goes wrong, the server notes the error. It does
+not keep a log of each visit or of visitors' addresses.</li>
 </ul>
+
+<h2>Information from Google</h2>
+<p>When you sign in with Google we ask only for your basic profile: your name, your email
+address and your Google account id (the <code>openid email profile</code> scopes). We use it
+only to sign you in and to show you who is signed in. We do not share it with anyone except the
+hosting company that stores it for us, and deleting your account deletes it. Our use of
+information received from Google APIs adheres to the
+<a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services
+User Data Policy</a>, including its Limited Use requirements.</p>
 
 <h2>How it is used</h2>
 <p>Only to run the service for you: to show you your papers, make your PDFs and Word files, and
 keep accounts apart. Your papers, questions and images are private to your account. We do not
 sell your data, show adverts, or use your work to train any model.</p>
 
-<h2>Where it is kept</h2>
-<p>On a server run by DigitalOcean in Singapore, with a nightly backup of the database in
-DigitalOcean's storage in Singapore. Backups are kept for 14 days. Signing in goes through
-Google or GitHub, whose own privacy policies apply to that step.</p>
+<h2>Where it is kept, and for how long</h2>
+<p>On a server in Singapore rented from DigitalOcean, a US company that stores the data for us
+and does not use it. The database is backed up every night to DigitalOcean storage in
+Singapore, and each backup is deleted after 14 days. Signing in goes through Google or GitHub,
+which handle that step on their own systems, largely in the United States, under their own
+privacy policies.</p>
+<p>We keep your account and your work for as long as you have an account. When you delete it,
+everything is removed from the live database at once, and from the backups as they expire,
+within 14 days.</p>
 
 <h2>Your choices</h2>
 <ul>
 <li><strong>Download your data</strong>: in the app, open the account menu (your initials, top
 right) and choose <em>Download my data</em> for a zip of your papers, bank questions and
 images.</li>
+<li><strong>Correct your details</strong>: your name and email come from Google or GitHub;
+change them there and they update the next time you sign in, or write to us.</li>
 <li><strong>Delete your account</strong>: choose <em>Delete my account…</em> in the same menu.
-It removes your account, papers, bank, images and sign-in links at once; copies in backups
-disappear as the backups expire, within 14 days.</li>
+It removes your account, papers, folders, bank, images, settings, export records and sign-in
+links at once. This is also how you withdraw your consent to us keeping your data.</li>
 </ul>
 
 <h2>Contact</h2>
-<p>Questions or requests about your data: {contact}</p>
+<p>Questions or requests about your data, for the data protection officer: {contact}</p>
 
 <h2>Changes</h2>
 <p>If this notice changes, the date at the top changes too. A change that affects what we keep
@@ -137,8 +159,9 @@ TERMS = """
 
 <h2>The service</h2>
 <p>{app} is free. It generates maths questions with worked answers, lets you write your own,
-and exports papers as PDF and Word files. Each account may make 30 exports a day and 5 a
-minute, so that one account cannot slow the service for everyone.</p>
+and exports papers as PDF and Word files. Each account may make 30 exports in any 24 hours
+and 5 a minute (the limits may change), so that one account cannot slow the service for
+everyone.</p>
 
 <h2>Your content</h2>
 <ul>

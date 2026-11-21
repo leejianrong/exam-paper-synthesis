@@ -11,11 +11,15 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 ### Added
 
 - **Privacy notice and terms (EXA-185).** `/privacy` and `/terms` are plain pages anyone can
-  read signed out (Google's consent screen links to them): what is kept (the sign-in name and
-  email, papers, bank, images, export times, one sign-in cookie, short-lived server logs), that
-  it is private and never sold or used for adverts or training, where it lives (DigitalOcean,
-  Singapore; backups kept 14 days), how to download or delete it, fair use, the export
-  allowance, no warranty, Singapore law. The contact address comes from `EXAM_CONTACT_EMAIL`.
+  read signed out (Google's consent screen links to them). The privacy notice covers what is
+  kept and for how long (the sign-in profile, papers, folders, bank, images, settings, export
+  times for 24 hours, the 30-day session and the two 10-minute sign-in cookies, error logs only),
+  the Google user data and the Limited Use statement, that nothing is sold or used for adverts or
+  training, where it lives (DigitalOcean in Singapore, backups deleted after 14 days; Google and
+  GitHub largely in the US), how to download, correct or delete it, and the data protection
+  officer. The terms cover fair use, the export allowance, no warranty and Singapore law. The
+  image no longer writes a per-request access log (uvicorn `--no-access-log`), so the notice
+  can promise no log of visits or addresses. The contact address comes from `EXAM_CONTACT_EMAIL`.
   The sign-in screen links both; the account menu has *Privacy and terms*
   (`api/app/routes_legal.py`).
 

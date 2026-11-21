@@ -29,7 +29,7 @@ def test_privacy_names_what_is_kept_and_the_ways_out(client: TestClient) -> None
         "Download my data",
         "Delete my account",
         "Singapore",
-        "Backups are kept for 14 days",
+        "each backup is deleted after 14 days",
     ):
         assert phrase in text
 
@@ -49,3 +49,16 @@ def test_without_a_contact_address_the_pages_say_so(
 ) -> None:
     monkeypatch.delenv("EXAM_CONTACT_EMAIL", raising=False)
     assert "A contact address will be published here" in client.get("/privacy").text
+
+
+def test_policy_routes_win_over_the_built_web_app(tmp_path) -> None:
+    from app.main import mount_web
+    from app.routes_legal import router
+    from fastapi import FastAPI
+
+    (tmp_path / "index.html").write_text("<p>spa</p>")
+    shell = FastAPI()
+    shell.include_router(router)
+    assert mount_web(shell, tmp_path)
+    assert "<h1>Privacy notice</h1>" in TestClient(shell).get("/privacy").text
+    assert "<h1>Terms of use</h1>" in TestClient(shell).get("/terms").text
