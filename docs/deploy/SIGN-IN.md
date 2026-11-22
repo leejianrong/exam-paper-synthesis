@@ -46,9 +46,15 @@ is a command on the droplet.
   ```
 
   Then only someone whose Google or GitHub account has a **verified** email on the list can
-  sign in or create an account, with either provider. Anyone else goes back to the sign-in
+  sign in or create an account, with Google or GitHub. Anyone else goes back to the sign-in
   page with "This server is open to invited teachers only". Taking an address off the list
   (then `docker compose up -d app`) ends that person's sessions at once.
+- The rules: an entry needs an `@` (the app refuses to start otherwise); `@school.edu.sg` covers
+  exactly that domain, not `a.school.edu.sg`; a GitHub account counts by its primary verified
+  address only; addresses must match exactly (`ann+test@…` is a different address). A `@domain`
+  entry trusts that domain: someone who still has a verified address there still gets in.
+- The list guards accounts and everyone's papers. The question generator's own pages that need
+  no account stay reachable to anyone with the URL; they hold no one's data.
 - At the public launch, empty `EXAM_ALLOWED_EMAILS` and run `docker compose up -d app`. Also
   publish the Google app (see the end of this guide).
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 
+from . import allowlist
 from .oauth import enabled_providers
 
 
@@ -28,6 +29,11 @@ def production_problems() -> list[str]:
         problems.append("EXAM_PUBLIC_URL must be the https:// URL users reach (Secure cookies)")
     if not os.environ.get("EXAM_WEB_URL", "").startswith("https://"):
         problems.append("EXAM_WEB_URL must be the https:// URL of the web app")
+    if bad := allowlist.bad_entries():
+        problems.append(
+            "EXAM_ALLOWED_EMAILS entries need an @ (an address, or @domain for a whole domain): "
+            + ", ".join(bad)
+        )
     if not enabled_providers():
         problems.append("no sign-in provider is configured (EXAM_OAUTH_*_CLIENT_ID / _SECRET)")
     return problems

@@ -4,10 +4,17 @@
 entries (``ann@school.edu.sg, @example.org``). When it is set, only a person whose sign-in
 provider vouches for (verifies) an email on the list may sign in, create an account, or keep
 using a session; everyone else is refused before any account is made. Unset or blank, sign-in is
-open to everyone, which is how the public launch runs.
+open to everyone, which is how the public launch runs. ``@school.edu.sg`` matches that domain
+exactly, not its subdomains. It guards accounts and sessions; the engine's own routes that need
+no account (``/generate``, ``/render/…``) stay reachable, as they hold no one's data.
 """
 
 import os
+
+
+def bad_entries() -> list[str]:
+    """Entries that can never match (no ``@``): a typo such as ``school.edu.sg``."""
+    return [e for e in _entries() if "@" not in e]
 
 
 def _entries() -> list[str]:

@@ -349,3 +349,52 @@ def test_a_session_stops_working_when_its_address_leaves_the_list(monkeypatch):
     assert client.get("/documents").status_code == 401
     monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "")
     assert client.get("/documents").status_code == 200
+
+
+def test_invite_only_hides_microsoft_which_never_verifies(monkeypatch):
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "ann@example.com")
+    names = [p["name"] for p in make_client({}).get("/auth/providers").json()["providers"]]
+    assert "microsoft" not in names and {"google", "github"} <= set(names)
+    done = sign_in(make_client(MICROSOFT_OK), "microsoft")
+    assert done.headers["location"] == f"{WEB}/#/login?error=invite_only"
+
+
+def test_a_domain_entry_does_not_cover_subdomains_or_secondary_addresses(monkeypatch):
+    sub = {
+        **GOOGLE_OK,
+        "openidconnect.googleapis.com": (
+            200,
+            {"sub": "g-7", "email": "ann@a.school.edu.sg", "email_verified": True, "name": "A"},
+        ),
+    }
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "@school.edu.sg")
+    assert sign_in(make_client(sub), "google").headers["location"].endswith("error=invite_only")
+    # GitHub: only the primary verified address counts, not another verified one on the account.
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "other@example.com")
+    assert (
+        sign_in(make_client(GITHUB_OK), "github").headers["location"].endswith("error=invite_only")
+    )
+
+
+def test_a_listed_provider_email_on_an_account_stored_under_another_is_refused(monkeypatch):
+    # The account is made as ann@example.com; later its GitHub identity reports a listed address.
+    sign_in(make_client(GOOGLE_OK), "google")
+    sign_in(make_client(GITHUB_OK), "github")  # links to the same account (verified match)
+    moved = {
+        **GITHUB_OK,
+        "api.github.com/user/emails": (
+            200,
+            [{"email": "ann@school.edu.sg", "primary": True, "verified": True}],
+        ),
+    }
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "ann@school.edu.sg")
+    done = sign_in(make_client(moved), "github")
+    assert done.headers["location"] == f"{WEB}/#/login?error=invite_only"
+    assert not any(c.startswith("exam_session=") for c in done.headers.get_list("set-cookie"))
+
+
+def test_production_refuses_an_invite_entry_without_an_at(monkeypatch):
+    from app.config import production_problems
+
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "ann@example.com, school.edu.sg")
+    assert any("school.edu.sg" in p for p in production_problems())
