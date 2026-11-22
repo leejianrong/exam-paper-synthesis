@@ -142,6 +142,7 @@ const SIGN_IN: Record<string, string> = {
   provider: "The sign-in service didn't accept the request. Try again in a moment.",
   rate_limited: 'Too many sign-in attempts. Try again in a few minutes.',
   not_configured: "That way of signing in isn't available on this server.",
+  invite_only: 'This server is open to invited teachers only. Sign in with the email address you were invited with.',
 }
 
 /** The words for a failed sign-in, by the API's error code ('' = nothing failed). */

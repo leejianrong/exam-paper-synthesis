@@ -286,3 +286,66 @@ def test_cors_allows_the_web_origin_with_credentials_only():
         headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "GET"},
     )
     assert "access-control-allow-origin" not in evil.headers
+
+
+# --- EXA-186: invite-only sign-in ------------------------------------------------------------
+
+
+def test_invite_only_lets_a_listed_verified_email_in(monkeypatch):
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", " Ann@Example.com , someone@else.org")
+    client = make_client(GOOGLE_OK)
+    done = sign_in(client, "google")
+    assert done.headers["location"] == f"{WEB}/#/"
+    assert client.get("/auth/me").status_code == 200
+
+
+def test_invite_only_accepts_a_whole_domain(monkeypatch):
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "@example.com")
+    client = make_client(GITHUB_OK)
+    assert sign_in(client, "github").headers["location"] == f"{WEB}/#/"
+
+
+def test_invite_only_refuses_others_before_any_account_is_made(monkeypatch):
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "bob@example.com, @school.edu.sg")
+    from app.accounts import get_account_store
+
+    store, logins = get_account_store(), []
+
+    class Watched:
+        def __getattr__(self, name):
+            return getattr(store, name)
+
+        def login(self, profile):
+            logins.append(profile)
+            return store.login(profile)
+
+    client = make_client(GOOGLE_OK)
+    app.dependency_overrides[get_account_store] = Watched
+    done = sign_in(client, "google")
+    assert done.headers["location"] == f"{WEB}/#/login?error=invite_only"
+    assert not any(c.startswith("exam_session=") for c in done.headers.get_list("set-cookie"))
+    assert logins == []
+
+
+def test_invite_only_refuses_an_unverified_email_even_when_listed(monkeypatch):
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "ann@example.com")
+    unverified = {
+        **GOOGLE_OK,
+        "openidconnect.googleapis.com": (
+            200,
+            {"sub": "g-101", "email": "ann@example.com", "email_verified": False, "name": "Ann"},
+        ),
+    }
+    done = sign_in(make_client(unverified), "google")
+    assert done.headers["location"] == f"{WEB}/#/login?error=invite_only"
+
+
+def test_a_session_stops_working_when_its_address_leaves_the_list(monkeypatch):
+    client = make_client(GOOGLE_OK)
+    sign_in(client, "google")
+    assert client.get("/documents").status_code == 200
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "bob@example.com")
+    assert client.get("/auth/me").status_code == 401
+    assert client.get("/documents").status_code == 401
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "")
+    assert client.get("/documents").status_code == 200

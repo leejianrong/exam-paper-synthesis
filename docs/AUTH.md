@@ -11,6 +11,7 @@ Social sign-in only (ADR-0022): **Google, Microsoft, GitHub**. No passwords are 
 | `EXAM_WEB_URL` | The web app's URL (default `http://localhost:5173`). The only place the API ever redirects to, and the default CORS origin. |
 | `EXAM_CORS_ORIGINS` | Optional comma-separated override of the allowed web origins. |
 | `EXAM_AUTH_PATH` | SQLite accounts DB (default `~/.exam_engine/accounts.sqlite3`; Postgres arrives in W3b). |
+| `EXAM_ALLOWED_EMAILS` | Optional invite list (EXA-186): comma-separated addresses and `@domain` entries, case-insensitive. Set ⇒ only an identity whose provider verifies an email on the list (so never Microsoft, which does not assert verification) may sign in or keep a session (a refused sign-in returns `error=invite_only` before any account is made or linked; a session of an address taken off the list is a 401 from then on). Unset or empty ⇒ open to everyone. |
 | `EXAM_DEV_AUTH=1` | Local development stub: no sign-in, owner = `X-Dev-Owner` (default `local`). A valid session still wins. **Never set in production** — without it, anonymous requests are 401. If the login page is ever reached with it on, it shows a dashed "Development only" panel with "Continue without signing in" (EXA-170). |
 
 ## Register with each provider

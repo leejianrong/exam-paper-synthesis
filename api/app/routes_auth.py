@@ -21,6 +21,7 @@ from fastapi.responses import RedirectResponse, Response
 
 from . import ratelimit, usage
 from .accounts import SESSION_TTL, AccountStore, get_account_store
+from .allowlist import allowed
 from .auth import SESSION_COOKIE, current_owner
 from .oauth import (
     PROVIDERS,
@@ -145,6 +146,9 @@ def callback(
         ratelimit.record_sign_in_failure(request)
         return _fail("provider")
 
+    # EXA-186: on an invite-only server, refuse before any account is made or linked.
+    if not allowed(profile.email, profile.email_verified):
+        return _fail("invite_only")
     user = accounts.login(profile)
     token = accounts.create_session(user["id"])
     resp = RedirectResponse(f"{web_url()}/#/", status_code=302)
@@ -166,7 +170,7 @@ def callback(
 def me(request: Request, accounts: Accounts) -> dict:
     token = request.cookies.get(SESSION_COOKIE)
     user = accounts.user_for_session(token) if token else None
-    if user is not None:
+    if user is not None and allowed(user["email"], user["email_verified"]):
         return {"id": user["id"], "email": user["email"], "name": user["name"], "dev": False}
     if os.environ.get("EXAM_DEV_AUTH") == "1":
         owner = (request.headers.get("x-dev-owner") or "local").strip()

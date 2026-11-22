@@ -38,10 +38,19 @@ is a command on the droplet.
 
 - **Google** stays in *Testing* mode, so only the people you list as test users (up to 100) can
   sign in with Google.
-- **GitHub** has no such list: anyone with a GitHub account who finds the URL can sign in.
-  The sslip.io address is not published anywhere, but it is not secret either.
-- **For a strictly closed trial**, leave the two GitHub lines in `.env` empty at first. The
-  sign-in page then shows Google only. Add GitHub when you open up.
+- **GitHub** has no such list of its own, so the app has one: set `EXAM_ALLOWED_EMAILS` in
+  `.env` to the invited addresses, and `@domain` entries for whole schools:
+
+  ```
+  EXAM_ALLOWED_EMAILS=you@gmail.com, teacher@example.org, @school.edu.sg
+  ```
+
+  Then only someone whose Google or GitHub account has a **verified** email on the list can
+  sign in or create an account, with either provider. Anyone else goes back to the sign-in
+  page with "This server is open to invited teachers only". Taking an address off the list
+  (then `docker compose up -d app`) ends that person's sessions at once.
+- At the public launch, empty `EXAM_ALLOWED_EMAILS` and run `docker compose up -d app`. Also
+  publish the Google app (see the end of this guide).
 
 ## GitHub
 
