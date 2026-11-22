@@ -31,7 +31,7 @@ def production_problems() -> list[str]:
         problems.append("EXAM_WEB_URL must be the https:// URL of the web app")
     if bad := allowlist.bad_entries():
         problems.append(
-            "EXAM_ALLOWED_EMAILS entries need an @ (an address, or @domain for a whole domain): "
+            "EXAM_ALLOWED_EMAILS entries must be an address or @domain (e.g. @school.edu.sg): "
             + ", ".join(bad)
         )
     if not enabled_providers():

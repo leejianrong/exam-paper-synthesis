@@ -396,5 +396,8 @@ def test_a_listed_provider_email_on_an_account_stored_under_another_is_refused(m
 def test_production_refuses_an_invite_entry_without_an_at(monkeypatch):
     from app.config import production_problems
 
-    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "ann@example.com, school.edu.sg")
-    assert any("school.edu.sg" in p for p in production_problems())
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "ann@example.com, school.edu.sg, @, bob@")
+    problem = next(p for p in production_problems() if "EXAM_ALLOWED_EMAILS" in p)
+    assert "school.edu.sg" in problem and "bob@" in problem and "ann@example.com" not in problem
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "ann@example.com, @school.edu.sg")
+    assert not any("EXAM_ALLOWED_EMAILS" in p for p in production_problems())

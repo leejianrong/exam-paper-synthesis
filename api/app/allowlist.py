@@ -10,11 +10,14 @@ no account (``/generate``, ``/render/…``) stay reachable, as they hold no one'
 """
 
 import os
+import re
+
+_ENTRY = re.compile(r"[^@\s]*@[^@\s]+\.[^@\s]+")
 
 
 def bad_entries() -> list[str]:
-    """Entries that can never match (no ``@``): a typo such as ``school.edu.sg``."""
-    return [e for e in _entries() if "@" not in e]
+    """Entries that can never match, such as ``school.edu.sg``, ``@`` or ``ann@``."""
+    return [e for e in _entries() if not _ENTRY.fullmatch(e)]
 
 
 def _entries() -> list[str]:

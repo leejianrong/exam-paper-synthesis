@@ -49,10 +49,13 @@ is a command on the droplet.
   sign in or create an account, with Google or GitHub. Anyone else goes back to the sign-in
   page with "This server is open to invited teachers only". Taking an address off the list
   (then `docker compose up -d app`) ends that person's sessions at once.
-- The rules: an entry needs an `@` (the app refuses to start otherwise); `@school.edu.sg` covers
+- The rules: an entry is a full address or `@domain` (the app refuses to start otherwise); `@school.edu.sg` covers
   exactly that domain, not `a.school.edu.sg`; a GitHub account counts by its primary verified
-  address only; addresses must match exactly (`ann+test@…` is a different address). A `@domain`
-  entry trusts that domain: someone who still has a verified address there still gets in.
+  address only; and a teacher whose account was first made with a different address (say they
+  signed up with Google as `ann@gmail.com`, then linked GitHub) is checked against **that**
+  address too, so list both; addresses must match exactly (`ann+test@…` is a different
+  address). A `@domain` entry trusts that domain: someone who still has a verified address
+  there still gets in.
 - The list guards accounts and everyone's papers. The question generator's own pages that need
   no account stay reachable to anyone with the URL; they hold no one's data.
 - At the public launch, empty `EXAM_ALLOWED_EMAILS` and run `docker compose up -d app`. Also
