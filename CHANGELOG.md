@@ -10,6 +10,14 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Invite-only sign-in for the private trial (EXA-186).** `EXAM_ALLOWED_EMAILS` (addresses and
+  `@domain` entries) closes sign-in to everyone else, with Google or GitHub: only a verified
+  email on the list may sign in, nobody else gets an account, and taking an address off the
+  list ends its sessions at once. The sign-in page says "This server is open to invited
+  teachers only"; the Microsoft button is hidden while the list is set (Microsoft never verifies
+  an email), and in production an entry without an `@` stops the server from starting. Empty =
+  open to all (`api/app/allowlist.py`; `docs/deploy/SIGN-IN.md`).
+
 - **Droplet runbook and launch checklist (EXA-181, EXA-182, EXA-183).**
   `docs/deploy/DROPLET.md` sets up the production server step by step, each with a check: the
   SGP1 droplet, a cloud firewall (22/80/443 only; Docker goes around `ufw`), a `deploy` user
