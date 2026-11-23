@@ -29,6 +29,13 @@ describe('LoginPage', () => {
     expect(screen.getByText(/maths papers with answer keys/)).toBeInTheDocument()
   })
 
+  it('links the terms and the privacy notice, which are readable signed out', async () => {
+    providers([])
+    render(LoginPage)
+    expect(screen.getByRole('link', { name: 'terms' })).toHaveAttribute('href', 'http://localhost:8000/terms')
+    expect(screen.getByRole('link', { name: 'privacy notice' })).toHaveAttribute('href', 'http://localhost:8000/privacy')
+  })
+
   it("offers only the configured providers, in each provider's own wording", async () => {
     providers([
       { name: 'google', label: 'Google' },
@@ -135,7 +142,7 @@ describe('LoginPage', () => {
 
 describe('signInErrorText', () => {
   it('words every code the API sends, without apologising', () => {
-    for (const code of ['denied', 'state', 'provider', 'rate_limited', 'not_configured', 'other']) {
+    for (const code of ['denied', 'state', 'provider', 'rate_limited', 'not_configured', 'invite_only', 'other']) {
       const text = signInErrorText(code)
       expect(text).toMatch(/^[A-Z].*\.$/)
       expect(text).not.toMatch(/sorry|please|oops/i)

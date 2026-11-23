@@ -10,8 +10,10 @@ import json
 from pathlib import Path
 
 import pytest
+from documents import freeform_block, math_node
 from exam_engine.bank import Bank
 from exam_engine.errors import BankDuplicateId, BankObjectNotFound
+from exam_engine.own_question import to_canonical
 
 SOURCED = Path(__file__).parent / "fixtures" / "sourced"
 
@@ -135,3 +137,19 @@ def test_set_reviewed_flips_both_ways_idempotently_and_only_for_the_owner(open_b
     assert not reviewed(bob)  # another owner's copy is untouched
     with pytest.raises(BankObjectNotFound):
         alice.set_reviewed("sourced:nope", True)
+
+
+def test_a_teachers_own_question_keeps_its_block(open_bank):
+    """EXA-90: the saved block comes back verbatim, on either backend, for its owner only."""
+    block = freeform_block("Find a half of 24.", marks=2, answer="12", block_id="ff_contract")
+    block["content"][0]["content"].append(math_node())
+    obj = to_canonical(block, topic="Fractions", level="P5", difficulty="easy")
+    bank = open_bank("alice")
+    bank.add(obj)
+    stored = bank.get(obj["id"])
+    assert stored["freeform"] == obj["freeform"] and stored["source_type"] == "sourced"
+    assert [o["id"] for o in bank.search(topic="Fractions", source_type="sourced")] == [obj["id"]]
+    with pytest.raises(BankDuplicateId):
+        bank.add(obj)
+    with pytest.raises(BankObjectNotFound):
+        open_bank("bob").get(obj["id"])

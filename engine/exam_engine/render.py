@@ -32,8 +32,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import NamedTuple
 
-from . import diagram, expression
+from . import diagram, expression, tick_table
 from .document import (
+    GROUP_STEM,
     MARKS_PLACEMENTS,
     QUESTION_TYPES,
     block_marks,
@@ -47,7 +48,10 @@ from .document import (
     paper_outline,
     paper_part,
     paper_placement,
+    stem_groups,
+    stem_sentence,
 )
+from .palette import ANSWER
 from .units import printed_unit
 
 # ---------------------------------------------------------------------------
@@ -220,6 +224,8 @@ def _fmt_answer(answer: dict) -> str:
         return ", ".join(_esc(v) for v in answer.get("values", []))
     if atype == "text":
         return _esc(answer.get("text", ""))
+    if atype == "tick_table":
+        return _esc(tick_table.summary(answer))
     if atype == "choice":
         correct = answer.get("correct")
         opt = next((o for o in answer.get("options", []) if o.get("label") == correct), None)
@@ -257,6 +263,36 @@ def _render_options(answer: dict, *, reveal_correct: bool) -> list[str]:
         out.append("</li>")
     out.append("</ol>")
     return out
+
+
+_TICK = (
+    '<svg class="tick" viewBox="0 0 16 16" width="16" height="16" role="img" aria-label="tick">'
+    f'<path d="M2.5 8.5l3.5 3.5L13.5 3.5" fill="none" stroke="{ANSWER}" stroke-width="2.2"/></svg>'
+)
+
+
+def _render_tick_table(answer: dict, *, reveal: bool) -> str:
+    """A ``tick_table`` answer (EXA-158): the statements with a box per column, empty on the
+    student paper and ticked in the key."""
+    columns = answer["columns"]
+    heads = "".join(f'<th scope="col">{_esc(c)}</th>' for c in columns)
+    rows = "".join(
+        f'<tr><td class="tick-statement">{_mathify(r["statement"])}</td>'
+        + "".join(
+            f'<td class="tick-box">{_TICK if reveal and r["tick"] == c else ""}</td>'
+            for c in columns
+        )
+        + "</tr>"
+        for r in answer["rows"]
+    )
+    return (
+        '<table class="tick-table"><thead><tr><th scope="col">Statement</th>'
+        f"{heads}</tr></thead><tbody>{rows}</tbody></table>"
+    )
+
+
+# Answers the pupil gives on the question itself: no Ans: line and no working space.
+_NO_LINE = ("choice", "construction", "tick_table")
 
 
 # ---------------------------------------------------------------------------
@@ -370,7 +406,7 @@ def _render_part_head(
     marks = part.get("marks")
     # On a paper the [n] sits beside the question and/or the Ans: line (the key always has it).
     # A part with no Ans: line (MCQ, construction) has nowhere else, so it keeps it here.
-    has_line = (part.get("answer") or {}).get("type") not in ("choice", "construction")
+    has_line = (part.get("answer") or {}).get("type") not in _NO_LINE
     if marks is not None and _marks_beside(layout, answer_key, has_line):
         out.append(f'<span class="marks">[{marks}]</span>')
     out.append("</div>")
@@ -383,6 +419,8 @@ def _render_part_head(
     answer = part.get("answer") or {}
     if answer.get("type") == "choice":
         out.extend(_render_options(answer, reveal_correct=answer_key))
+    elif answer.get("type") == "tick_table":
+        out.append(_render_tick_table(answer, reveal=answer_key))
     return out
 
 
@@ -417,7 +455,7 @@ def _render_solution(
         # Anything the student had to add is drawn in the answer accent.
         svg = diagram.render_svg(answer["diagram"], given=part.get("diagram") or q_diagram)
         out.append(f'<figure class="diagram answer-diagram">{svg}</figure>')
-    else:
+    elif answer["type"] != "tick_table":  # the ticked table is the answer, printed with the part
         out.append(f'<p class="final-answer">Answer: {_fmt_answer(answer)}</p>')
 
     if show_scheme:
@@ -512,10 +550,7 @@ def _render_question_item(
             out.extend(
                 _render_solution(part, q_diagram, show_scheme=key is None or key.show_scheme)
             )
-        elif answer_area and (part.get("answer") or {}).get("type") not in (
-            "choice",
-            "construction",
-        ):
+        elif answer_area and (part.get("answer") or {}).get("type") not in _NO_LINE:
             # MCQ parts have nothing to hand-write beyond circling a letter
             # (the options themselves were already rendered by
             # _render_part_head) — only constructed-response parts get a
@@ -553,6 +588,8 @@ def _render_key_only_item(obj: dict, tag: str, key: KeyOptions) -> list[str]:
             out.append(f'<figure class="diagram">{diagram.render_svg(spec)}</figure>')
     for part in parts:
         out.append(_key_only_head(part.get("label") if len(parts) > 1 else None, part.get("marks")))
+        if part["answer"]["type"] == "tick_table":
+            out.append(_render_tick_table(part["answer"], reveal=True))
         out.extend(_render_solution(part, q_diagram, show_scheme=key.show_scheme))
     out.append(f"</{tag}>")
     return out
@@ -752,6 +789,17 @@ def _render_rich_block(node: dict, assets: AssetResolver | None = None) -> str:
     raise ValueError(f"not a rich-text node: {kind!r}")  # pragma: no cover - schema-gated
 
 
+def _render_group_stem(
+    node: dict, numbers: list[int], assets: AssetResolver | None, tag: str = "div"
+) -> str:
+    """A shared stem (EXA-90): the lead line derived from its questions' numbers, then the
+    authored text and figures. It is not numbered and keeps with the question after it."""
+    lead = stem_sentence(numbers)
+    head = f'<p class="group-lead">{lead}</p>' if lead else ""
+    body = "".join(_render_rich_block(c, assets) for c in node["content"])
+    return f'<{tag} class="group-stem">{head}<div class="group-body">{body}</div></{tag}>'
+
+
 def _render_freeform_item(
     node: dict,
     *,
@@ -887,14 +935,18 @@ def _render_numbered_blocks(
     placement: str = "answer",
     key: KeyOptions | None = None,
     numbers: list[int] | None = None,
+    stems: dict[int, str] | None = None,
 ) -> str:
     """The ``<ol class="questions">`` body for document question blocks (both kinds).
 
     ``numbers`` gives each block's number on the paper; the answer key passes it so a question
-    left out of the key does not renumber the ones after it.
+    left out of the key does not renumber the ones after it. ``stems`` maps a block's index to
+    the shared stem printed before it (EXA-90).
     """
     out: list[str] = ['<ol class="questions">']
     for i, node in enumerate(blocks):
+        if stems and i in stems:
+            out.append(stems[i])
         if node["type"] == "freeformQuestion":
             item = _render_freeform_item(
                 node,
@@ -1049,9 +1101,17 @@ def _render_document_body(
     content = doc["content"]["content"]
     kinds = ("freeformQuestion", "templatedQuestion")
     last_q = max((i for i, n in enumerate(content) if n["type"] in kinds), default=-1)
+    groups = stem_groups(doc)
     first_in_section = True
     for i, node in enumerate(content):
-        if node["type"] == "coverPage":
+        if node["type"] == GROUP_STEM:
+            stem = _render_group_stem(node, groups[i], assets)
+            if own_page and not first_in_section:
+                # a structured question starts a page: its stem goes to the top of that page
+                stem = stem.replace('class="group-stem"', 'class="group-stem own-page"', 1)
+                first_in_section = True  # so the question after the stem does not break again
+            out.append(_in_margin(stem, marking))
+        elif node["type"] == "coverPage":
             out.append(_render_cover(node["attrs"], doc, title=title, marks=marks))
         elif node["type"] == "blankPage":
             out.append(_render_blank_page(node["attrs"]))
@@ -1415,7 +1475,12 @@ def _templated_key_work(obj: dict, key: KeyOptions) -> str:
             lead = f'<span class="ans-part">({_esc(label)})</span> ' if label and i == 0 else ""
             piece.append(f'<p class="key-step">{lead}{_mathify(step["text"])}</p>')
         answer = part["answer"]
-        if answer["type"] == "construction":
+        if answer["type"] == "tick_table":
+            # the ticked table is the answer: no "Ans:" line, the marks right under it
+            piece.append(_render_tick_table(answer, reveal=True))
+            if marks := _key_marks(part.get("marks"), key):
+                piece.append(f'<p class="key-ans">{marks}</p>')
+        elif answer["type"] == "construction":
             marks = _key_marks(part.get("marks"), key)
             if (label and not part.get("solution_steps")) or marks:
                 # no step carried the part label: the "Ans:" line names the part (and its marks)
@@ -1459,7 +1524,7 @@ def _answer_only(node: dict, key: KeyOptions) -> str | None:
     if node["type"] == "templatedQuestion":
         obj = node["attrs"]["question"]
         parts = obj["question"]["parts"]
-        if len(parts) > 1 or parts[0]["answer"]["type"] == "construction":
+        if len(parts) > 1 or parts[0]["answer"]["type"] in ("construction", "tick_table"):
             return None
         if any(
             diagram.hides_worked_model(obj, spec)
@@ -1563,6 +1628,16 @@ def render_document_html(
     key_opts = _key_options(doc)
     numbered = [(n, b) for n, b in enumerate(blocks, number_from(doc)) if in_key(b)]
     key_blocks = [b for _, b in numbered]
+    # A shared stem prints in the full key above the first of its questions there (EXA-90),
+    # when the key repeats the question text.
+    key_stems: dict[int, str] = {}
+    if key_opts.show_question:
+        content = doc["content"]["content"]
+        groups = stem_groups(doc)
+        for at, numbers in groups.items():
+            first = next((k for k, (n, _) in enumerate(numbered) if n in numbers), None)
+            if first is not None:
+                key_stems[first] = _render_group_stem(content[at], numbers, assets, tag="li")
     # The key counts up by itself unless a question was left out: then it keeps the paper's numbers.
     all_numbers = [n for n, _ in numbered]
     key_numbers = None if all_numbers == list(range(1, len(all_numbers) + 1)) else all_numbers
@@ -1578,6 +1653,7 @@ def render_document_html(
             placement=paper_placement(doc),
             key=key_opts,
             numbers=key_numbers,
+            stems=key_stems,
         )
     )
 

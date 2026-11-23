@@ -32,10 +32,13 @@ Related decisions: ADR-0004 (object), ADR-0012 (diagram union), ADR-0013 (multi-
 | `question` | `{ stem?, diagram?, parts[], total_marks }` |
 | `source` / `license` | required for `sourced` |
 | `validation` | `{ status, checks{} }` |
-| `provenance` | `{ created_by, llm_used, created_at?, parent_id?, version }` |
+| `provenance` | `{ created_by, llm_used, created_at?, parent_id?, version }`; `created_by` ∈ `engine \| ingested \| teacher` |
+| `freeform` | a teacher's own question: its editor block, verbatim (1.15.0, see below) |
 
 Conditional rules (JSON Schema `if/then`): `generated` ⇒ `blueprint_code` +
-`parameters` required; `sourced` ⇒ `source` + `license` required.
+`parameters` required; `sourced` ⇒ `source` + `license` required;
+`provenance.created_by: "teacher"` ⇒ `sourced` with a `freeform` block, and no other object
+has one.
 
 ## Multi-part
 
@@ -59,7 +62,8 @@ and the worksheet's answer-space blank falls back to a sensible default size.
 `answer` and `diagram` are **tagged unions** keyed by `type` — read `type`, apply
 that variant's strict sub-schema.
 
-- **answer.type** ∈ `integer | decimal | fraction | ratio | quantity | set | text | choice`
+- **answer.type** ∈ `integer | decimal | fraction | ratio | quantity | set | text | choice |
+  construction | expression | tick_table`
 - **diagram.type** ∈ `bar_model | bar_model_before_after | geometry_figure | shaded_fraction | raster`
   (`raster` = an image reference, used by sourced/scanned diagrams). The generated
   families render to inline `<svg>`; `raster` renders to an `<img src="{asset_ref}"
@@ -90,7 +94,7 @@ that variant's strict sub-schema.
 
 Units on numeric/`quantity` answers come from a **controlled vocabulary** (see the
 `unit` enum in the schema), not free text. Schema **1.3.0** adds the speed units
-`km/h`, `m/s`, and `m/min` (for the Speed ladder); **1.16.0** adds `l/min`, printed `ℓ/min`
+`km/h`, `m/s`, and `m/min` (for the Speed ladder); **1.17.0** adds `l/min`, printed `ℓ/min`
 (the rate of flow read off a tank graph, EXA-158).
 
 ## The `geometry_figure` diagram (schema 1.3.0)
@@ -176,11 +180,11 @@ It is valid anywhere a `diagram` is (stem, part, MCQ option).
   pie must sum to 100). `show_value: false` draws the sector at its true size and labels it,
   but **never prints its number** — the usual "find the missing percentage" shape. This hides the *text* only: the wedge's angle and the 100% total still determine the value, exactly as on the printed paper, so it is not a secrecy mechanism.
 - A **bar** chart's axis must start at 0 (a truncated or negative axis misleads); a line axis may not. Every number must print exactly (≤ 3 decimals) and be finite.
-- **Numeric time axis (schema 1.16.0, EXA-158).** A `line` may give `x_axis{title?, min, max,
+- **Numeric time axis (schema 1.17.0, EXA-158 part 2).** A `line` may give `x_axis{title?, min, max,
   step}` instead of `categories`, with each series as `points[[x, y], ...]` in increasing `x`
   (not `values`). It draws vertical gridlines at every `x` step and joins the points with
   straight lines, e.g. the water in a tank over time. Only a line may have a numeric `x` axis.
-- **Fraction pie (1.16.0, EXA-158).** `value_unit: "fraction"`: each sector's `value` is a whole
+- **Fraction pie (1.17.0, EXA-158 part 2).** `value_unit: "fraction"`: each sector's `value` is a whole
   number of equal parts and prints as `value / total` in lowest terms, stacked under the sector's
   name (a hidden one prints the name only).
 - Mixing the two shapes (a pie with `series`, a bar with `sectors`) is a schema error.
@@ -299,6 +303,11 @@ these fields keeps its options: no `key_options` is the worked solutions with M/
 exactly as before. A paper saved with the compact key before 1.16.0 keeps its M/A lines and
 1-mark working but prints in the new school layout (header from the cover, padded grid, one
 row per multi-part question, no section titles).
+
+A shared stem (document schema 1.18.0, EXA-90) is a `groupStem` block in the *document*, not a
+field of a question: text and figures before the next `count` questions, with a lead line derived
+from their numbers. The questions it covers are ordinary canonical objects (or free-form blocks);
+nothing in the canonical schema changes. See `docs/planning/editor/SHARED-STEM-SHAPING.md`.
 
 ---
 
@@ -471,6 +480,21 @@ question sharing one stem-level `geometry_figure` `diagram`, with two angles
 each bound to its own part via `part_label`, where one part also omits
 `marks`/`marking_scheme`).
 
+## A teacher's own question: `freeform` (schema 1.15.0)
+
+"Save to your bank…" on a question the teacher wrote in a paper (EXA-90, ADR-0023) stores it as
+a `sourced` object with `provenance.created_by: "teacher"` and the paper's `freeformQuestion`
+block, verbatim, in `freeform` (body, lettered parts, images by asset id, inline maths, marks,
+Ans: units and written answers; paper-only attributes such as the slot, lock and key setting are
+left behind). `question` is a plain-text summary of the block (maths as `\(…\)`, a picture as
+`[picture]`, each written answer as a `text` answer) for lists and pickers. The load gate
+(`exam_engine.own_question.check`) validates the block against the document schema and checks
+that `question.total_marks` and the number of parts agree with it. Inserting it into a paper
+(`own_question.to_block`) gives the block back under a new block id, with `bank_id` naming the
+bank copy. It arrives unreviewed (ADR-0019) and is never verified. Its id is `own-<block_id>`;
+the gate keeps `own-` ids for teachers' questions only. `question` must equal the block's summary,
+and the block may not carry a paper's attributes (`slot`, `locked`, `in_key`, `bank_id`).
+
 ## `diagram.type: "cube_stack"` (schema 1.12.0)
 
 Additive (tier-2 slice T6); every 1.11.0 object still validates. A stack of unit cubes given as
@@ -518,3 +542,28 @@ and cell `(col, row)` has its top-left corner at point `(col, row)`.
   of non-zero length, distinct points and unique letters. Valid in MCQ options and `panels`.
   Server-side rendering only (`exam_engine.grid`); a point's letter goes inside a square next to
   it, clear of every grid line (`label_layout`).
+
+## `answer.type: "tick_table"` (schema 1.16.0)
+
+Additive (EXA-158); every 1.14.0 object still validates. The True / False / Not possible to tell
+table of real P5–P6 papers: a list of statements, each ticked in exactly one column.
+
+- `{ type, columns, rows[{statement, tick}] }`. `columns` (2–3, unique) come from the fixed set
+  `True`, `False`, `Not possible to tell`, in print order; 1–8 `rows`.
+- The statements and columns are question content: the student paper prints a ruled table with
+  an empty box under each column (no working space, no Ans: line; the marks sit beside the
+  question). Only each row's `tick` is the key: the full key and the school key print the same
+  table with a tick in the right box (`render._render_tick_table`, an inline SVG tick in the
+  print palette). Where a table cannot be drawn (a key's multiple-choice answer grid) the engine
+  prints the ticks in row order (`tick_table.summary`); the web's Classic page lists each
+  statement with its tick (`fmtAnswer` in `web/src/lib/format.ts`).
+- Load gate (`exam_engine.tick_table.check_tick_table_consistency`): every tick names one of the
+  table's columns, and no statement appears twice.
+- Never converted to multiple choice (`mcq.to_mcq` refuses it; the paper generator never puts it
+  in an MCQ slot). `document.verify_snapshot` re-solves a generated one and compares the columns
+  and the ticks in row order, so a changed tick (or rows put in another order) is refused; the
+  statements' words are wording (EXA-157): `wording_differences` reports a changed statement as
+  `statements` and the question loses its verified claim. `convert.to_freeform` puts
+  the statements in the question body and the ticks in the written answer.
+- Blueprint: `average_statements` (P5 Average, 2 marks: B1 for two rows right, B1 more for all
+  three, as school keys mark these tables).

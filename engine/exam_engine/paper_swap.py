@@ -25,7 +25,9 @@ and empty placeholders).
 ``regenerate_unlocked(doc, level, seed)`` refills every generated question and every
 still-empty placeholder whose ``locked`` is not true. Locked questions, bank (sourced)
 questions and anything the teacher wrote — free-form questions, placeholders with something
-in them — are kept exactly as they are.
+in them — are kept exactly as they are. So are the questions under a shared stem (EXA-90),
+generated or placeholder: they were written or chosen for that stem, and a new question in their
+place would not use it. Swapping one of them is still the teacher's call.
 
 Every choice follows the generator's rung rule first (EXA-146, ``paper.rung_shortfall``): a
 candidate whose rung fits the slot's marks beats one that falls short, whatever the order of
@@ -52,7 +54,14 @@ from __future__ import annotations
 import copy
 import random
 
-from .document import QUESTION_TYPES, has_content, is_unfilled_placeholder
+from . import own_question
+from .document import (
+    GROUP_STEM,
+    QUESTION_TYPES,
+    has_content,
+    is_unfilled_placeholder,
+    stem_members,
+)
 from .paper import (
     KINDS,
     LEVELS,
@@ -422,7 +431,13 @@ def _bank_refusal(blocks: list[dict], idx: int, slot: dict, obj: dict, level: st
     """Why the bank question ``obj`` can't take the place of ``blocks[idx]`` (None: it can).
     The paper's rules hold: the slot's marks and kind, nothing above the paper's level, no
     question (or blueprint) twice."""
-    in_paper = {n["attrs"]["question"]["id"] for n in blocks if n["type"] == "templatedQuestion"}
+    in_paper = {
+        n["attrs"]["question"]["id"]
+        if n["type"] == "templatedQuestion"
+        else n["attrs"].get("bank_id")
+        for n in blocks
+        if n["type"] in QUESTION_TYPES
+    }
     if obj["id"] in in_paper:
         return "That question is already in this paper."
     code = obj.get("blueprint_code")
@@ -480,14 +495,27 @@ def swap_from_bank(
         raise SwapNotPossible(why)
     multipart = len(obj["question"]["parts"]) > 1
     new_slot = _filled_slot(slot, multipart) if node["attrs"].get("slot") else None
+    topic = obj.get("syllabus", {}).get("topic")
+    report = {"block_id": block_id, "mode": "bank", "marks": slot["marks"], "bank_id": obj["id"]}
+    if obj.get("freeform"):  # the teacher's own question goes back in as they wrote it (EXA-90)
+        own = own_question.to_block(obj, block_id)
+        # The place keeps its key setting, as a templated swap does; its working space and
+        # remark fill in only where the teacher's question has none of its own.
+        kept = _kept(node)
+        own["attrs"].update({k: kept[k] for k in ("in_key",) if k in kept})
+        for k in ("space_mm", "remark"):
+            if k in kept and own["attrs"].get(k) is None:
+                own["attrs"][k] = kept[k]
+        if new_slot is not None:
+            own["attrs"]["slot"] = new_slot
+        blocks[idx] = own
+        return out, {**report, "topic": topic, "placeholder": False, "locked": False}
     blocks[idx] = _question_block(node, copy.deepcopy(obj), new_slot)
     # A generated bank question would otherwise be refilled by the next "Regenerate unlocked"
     # (or R): the teacher picked it, so it is locked. Sourced ones are never refilled anyway.
     locked = obj.get("source_type") == "generated"
     if locked:
         blocks[idx]["attrs"]["locked"] = True
-    topic = obj.get("syllabus", {}).get("topic")
-    report = {"block_id": block_id, "mode": "bank", "marks": slot["marks"], "bank_id": obj["id"]}
     return out, {**report, "topic": topic, "placeholder": False, "locked": locked}
 
 
@@ -509,7 +537,12 @@ def regenerate_unlocked(doc: dict, level: str | None, seed: int) -> tuple[dict, 
     out = copy.deepcopy(doc)
     blocks = out["content"]["content"]
     modes = _section_modes(blocks)
-    targets = [i for i, n in enumerate(blocks) if _refillable(n)]
+    # A question that shares a stem (EXA-90) was written or chosen for it: a new question in its
+    # place would not use the stem, so regenerating keeps it, as if locked (placeholders too).
+    grouped = {
+        m for i, n in enumerate(blocks) if n["type"] == GROUP_STEM for m in stem_members(blocks, i)
+    }
+    targets = [i for i, n in enumerate(blocks) if _refillable(n) and i not in grouped]
     paper = _Paper(blocks, level, skip=set(targets))
     rng = random.Random(f"regenerate|{level}|{seed}")
     report = {"replaced": 0, "placeholders": 0, "kept": 0}

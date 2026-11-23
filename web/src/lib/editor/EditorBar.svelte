@@ -12,7 +12,7 @@
   import { GLOBAL_KEYS } from './shortcuts'
   import Menu, { type MenuItem } from '../Menu.svelte'
   import AccountMenu from './AccountMenu.svelte'
-  import type { ExportMode } from './docsApi'
+  import type { ExportFormat, ExportMode } from './docsApi'
   import type { Quota } from '../session'
 
   type Status = 'saved' | 'dirty' | 'saving' | 'conflict' | 'error'
@@ -51,7 +51,7 @@
     placeholdersLeft?: number
     onShowPlaceholders?: () => void
     onPreview: () => void
-    onExport: (mode: ExportMode) => void
+    onExport: (mode: ExportMode, format?: ExportFormat) => void
     onRename: () => void
     /** What the page shows: the paper, or its answer key as it prints. */
     view?: 'paper' | 'key'
@@ -78,6 +78,18 @@
       hint: hasQuestions ? undefined : 'Add a question first: the key has nothing to show yet.',
     },
     { label: 'Paper and key together (PDF)', onSelect: () => onExport('full') },
+    {
+      label: 'Student paper (Word)',
+      onSelect: () => onExport('student', 'docx'),
+      separator: true,
+      hint: 'An editable .docx to change in Word',
+    },
+    {
+      label: 'Answer key (Word)',
+      onSelect: () => onExport('key', 'docx'),
+      disabled: !hasQuestions,
+      hint: hasQuestions ? 'An editable .docx to change in Word' : 'Add a question first: the key has nothing to show yet.',
+    },
   ])
 </script>
 
@@ -136,7 +148,7 @@
       />{/snippet}
     {#snippet footer()}
       {#if quota && typeof quota.left_day === 'number'}
-        <span title="PDF exports left in the last 24 hours">{quota.left_day} exports left today</span>
+        <span title="Exports (PDF or Word) left in the last 24 hours">{quota.left_day} exports left today</span>
       {:else}
         <span>PDFs are A4, ready to print</span>
       {/if}

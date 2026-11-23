@@ -19,14 +19,17 @@ ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
     PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers \
     EXAM_ENV=production EXAM_CHROMIUM_NO_SANDBOX=1 \
     EXAM_WEB_DIST=/app/web-dist
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.9 /uv /usr/local/bin/uv
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY engine engine
 COPY api api
 COPY cli cli
-RUN uv sync --frozen --no-dev --package exam-api \
- && uv run --no-sync playwright install --with-deps chromium \
+# Playwright's bundled node needs libatomic, which the slim image lacks. Only Chromium's
+# headless shell is installed: exports never open a headed browser (EXA-179).
+RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 \
+ && uv sync --frozen --no-dev --package exam-api \
+ && uv run --no-sync playwright install --with-deps --only-shell chromium \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=web /src/web/dist /app/web-dist
 RUN useradd --create-home --uid 10001 app && chown -R app /app /opt/pw-browsers
@@ -34,4 +37,5 @@ USER app
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
   CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health').status==200 else 1)"
-CMD ["uv", "run", "--no-sync", "uvicorn", "app.main:app", "--app-dir", "api", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]
+# No per-request access log: the privacy notice promises no log of visits or addresses (EXA-185).
+CMD ["uv", "run", "--no-sync", "uvicorn", "app.main:app", "--app-dir", "api", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*", "--no-access-log"]

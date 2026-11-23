@@ -35,6 +35,7 @@
   import type { BankItem } from '../api'
   import AddQuestion from './AddQuestion.svelte'
   import AnswerDialog from './AnswerDialog.svelte'
+  import SaveToBankDialog from './SaveToBankDialog.svelte'
   import BankSwapDialog from './BankSwapDialog.svelte'
   import KeyView from './KeyView.svelte'
   import { answerWritten, keyNumbers } from './keyRows'
@@ -43,6 +44,7 @@
   import {
     buildDocument,
     freeformNode,
+    ownBankNode,
     numberedNodes,
     paperOutline,
     totalMarks,
@@ -61,6 +63,7 @@
     saveDocument,
     swapQuestion,
     unfilledDetail,
+    type ExportFormat,
     type ExportMode,
     type Folder,
     type SwapMode,
@@ -83,6 +86,7 @@
   } from './paperOps'
   import PrintWarning from './PrintWarning.svelte'
   import { Section, outline } from './sections'
+  import { GroupStem, insertStem } from './groupStem'
   import { loadQuota, type Quota } from '../session'
   import { TemplatedQuestion, questionNode } from './templatedQuestion'
   import {
@@ -123,7 +127,7 @@
   let deleted = false
   let deletedTimer: ReturnType<typeof setTimeout> | undefined
   /** EXA-137: the export refused a paper with empty placeholders; ask before printing it. */
-  let unfilled: { mode: ExportMode; questions: number[] } | null = null
+  let unfilled: { mode: ExportMode; format: ExportFormat; questions: number[]; stems: number } | null = null
   let quota: Quota | null = null
   let selectedId: string | null = null // the block the author is in (for the inspector)
   let previewHtml: string | null = null
@@ -163,6 +167,8 @@
   let keyView: KeyView | undefined
   /** "Edit answer…": the own question whose answer is open. */
   let answerFor: string | null = null
+  /** "Save to your bank…" (EXA-90): the own question being filed in the bank. */
+  let bankSaveFor: string | null = null
 
   /** Show a failed action in plain words (EXA-165), with Try again when it may work now. */
   function failed(e: unknown, action: string, retry?: () => void) {
@@ -187,6 +193,9 @@
   $: blocks = numberedNodes(content)
   $: marks = totalMarks(content)
   $: coverPresent = content.content?.[0]?.type === 'coverPage'
+  // "Primary 6", "P6": the level a question saved from this paper starts at (EXA-90)
+  $: paperLevel = /\b(?:P|Primary\s*)([56])\b/i.exec(String(coverPresent ? (content.content?.[0]?.attrs?.level ?? '') : ''))?.[1]
+  $: bankSaveBlock = bankSaveFor === null ? undefined : blocks.find((b) => b.attrs?.block_id === bankSaveFor)
   $: placeholdersLeft = unfilledPlaceholders(content)
   $: canRegenerate = hasGeneratedSlots(content)
   // The generator's report (P8a), shown once on the paper it made.
@@ -523,6 +532,7 @@
           Section.configure({ onEdit: (pos: number) => void openBlockSettings(pos) }),
           CoverPage.configure({ onEdit: (pos: number) => void openBlockSettings(pos) }),
           BlankPage,
+          GroupStem,
           BlockSelectionGuard,
           BlockShortcuts,
           FreeformQuestion.configure({
@@ -530,6 +540,7 @@
             onSwap: swapBlock,
             onDeleted: questionDeleted,
             onEditAnswer: (blockId: string) => (answerFor = blockId),
+            onSaveToBank: (blockId: string) => (bankSaveFor = blockId),
           }),
           TemplatedQuestion.configure({
             onAddBelow: (pos: number) => (pickerAt = pos),
@@ -625,6 +636,12 @@
 
   function insertQuestion(q: Question) {
     if (!editor) return
+    if (q.freeform) {
+      // the teacher's own question goes in as they wrote it, to edit like any of theirs (EXA-90)
+      insertFreeform(editor, insertionPoint(editor), ownBankNode(q))
+      pickerAt = undefined
+      return
+    }
     editor.chain().insertContentAt(insertionPoint(editor), questionNode(q)).scrollIntoView().run()
     editor.view.focus() // now, not a frame later (TipTap's focus() defers; keys would be lost)
     pickerAt = undefined
@@ -824,6 +841,12 @@
           onSelect: () => inPaper((e) => insertBlockSafely(e, { type: 'section', attrs: { title: '' } })),
         },
         {
+          label: 'Shared stem',
+          icon: 'stem',
+          hint: 'Text or a figure that the next questions all use ("Use the table below to answer Questions 12 and 13")',
+          onSelect: () => inPaper((e) => insertStem(e)),
+        },
+        {
           label: 'Cover page',
           icon: 'cover',
           disabled: coverPresent,
@@ -945,23 +968,26 @@
     else if (cmd === 'equation') onPaper(() => act.inText && addEquation())
   }
 
-  async function download(mode: ExportMode, allowPlaceholders = false) {
+  async function download(mode: ExportMode, allowPlaceholders = false, format: ExportFormat = 'pdf') {
     busy = `export-${mode}`
     showError('')
     unfilled = null
     try {
       await autosaver?.flush()
-      const blob = await exportDocument(id, mode, allowPlaceholders)
+      const blob = await exportDocument(id, mode, allowPlaceholders, format)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${title || 'paper'}-${mode}.pdf`
+      a.download = `${title || 'paper'}-${mode}.${format}`
       a.click()
       URL.revokeObjectURL(url)
     } catch (e) {
       const empty = unfilledDetail(e)
-      if (empty) unfilled = { mode, questions: empty.questions }
-      else failed(e, "Couldn't export the PDF", () => void download(mode, allowPlaceholders))
+      if (empty) unfilled = { mode, format, questions: empty.questions, stems: empty.lone_stems ?? 0 }
+      else {
+        const what = format === 'docx' ? 'the Word file' : 'the PDF'
+        failed(e, `Couldn't export ${what}`, () => void download(mode, allowPlaceholders, format))
+      }
     } finally {
       busy = ''
       void loadQuota().then((q) => (quota = q))
@@ -1109,7 +1135,7 @@
     {placeholdersLeft}
     onShowPlaceholders={showPlaceholders}
     onPreview={() => preview('full')}
-    onExport={(mode) => download(mode)}
+    onExport={(mode, format) => download(mode, false, format)}
     onRename={rename}
     {view}
     onView={(v) => void showView(v)}
@@ -1403,6 +1429,19 @@
   />
 {/if}
 
+{#if bankSaveFor !== null && bankSaveBlock}
+  <SaveToBankDialog
+    block={bankSaveBlock}
+    level={paperLevel ? `P${paperLevel}` : ''}
+    onSaved={({ status, id: bankId }) => {
+      if (bankSaveFor) setBlockAttrs(bankSaveFor, ['freeformQuestion'], { bank_id: bankId })
+      notice = status === 'replaced' ? 'Updated the copy in your bank.' : 'Saved to your bank.'
+      bankSaveFor = null
+    }}
+    onClose={() => (bankSaveFor = null)}
+  />
+{/if}
+
 {#if verifiedOpen}
   <Dialog title="What “verified” means" width="30rem" onClose={() => (verifiedOpen = false)}>
     <div class="verified">
@@ -1444,8 +1483,9 @@
 {#if unfilled}
   <PrintWarning
     questions={unfilled.questions}
+    stems={unfilled.stems}
     on:fill={fillPlaceholders}
-    on:print={() => unfilled && download(unfilled.mode, true)}
+    on:print={() => unfilled && download(unfilled.mode, true, unfilled.format)}
     on:cancel={() => (unfilled = null)}
   />
 {/if}
@@ -1892,6 +1932,60 @@
     margin: 0.3rem 0 0;
     font-size: 0.9rem;
     color: var(--ink-soft);
+  }
+  /* A shared stem (EXA-90): its lead line is derived; its questions carry a bar down the left. */
+  .surface :global(.group-stem-block) {
+    margin: var(--s3) 0 var(--s2);
+    padding: var(--s2) var(--s3);
+    border-left: 3px solid var(--line);
+    background: color-mix(in srgb, var(--wash) 50%, transparent);
+    border-radius: 0 var(--r-md) var(--r-md) 0;
+  }
+  .surface :global(.group-head) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.25rem 0.75rem;
+  }
+  .surface :global(.group-lead) {
+    margin: 0;
+    font-weight: 600;
+  }
+  .surface :global(.group-lead.empty) {
+    font-weight: 500;
+    color: var(--ink-faint);
+  }
+  .surface :global(.group-controls) {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+  .surface :global(.group-btn) {
+    min-width: 1.6rem;
+    padding: 0.1rem 0.45rem;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm, 4px);
+    background: var(--page);
+    color: var(--ink);
+    font: inherit;
+    cursor: pointer;
+  }
+  .surface :global(.group-btn:disabled) {
+    opacity: 0.45;
+    cursor: default;
+  }
+  .surface :global(.group-btn:focus-visible) {
+    outline: 2px solid var(--verify);
+    outline-offset: 1px;
+  }
+  .surface :global(.group-body > :first-child) {
+    margin-top: var(--s1, 0.25rem);
+  }
+  .surface :global(.in-group) {
+    box-shadow: inset 3px 0 0 var(--line);
   }
   .surface :global(.cover-block) {
     margin: 0 0 1.2rem;

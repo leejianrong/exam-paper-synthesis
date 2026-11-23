@@ -1,6 +1,6 @@
 """T1 — the ``chart`` diagram (schema 1.7.0): bar / line / pie.
 
-Schema 1.16.0 (EXA-158) adds a line graph over a numeric x axis (``x_axis`` min/max/step and
+Schema 1.17.0 (EXA-158 part 2) adds a line graph over a numeric x axis (``x_axis`` min/max/step and
 ``points`` per series: the water in a tank over time) and a ``fraction`` pie (each sector a
 whole number of equal parts, printed as a stacked fraction in lowest terms).
 

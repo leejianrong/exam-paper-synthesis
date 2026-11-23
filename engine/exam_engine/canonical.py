@@ -19,11 +19,12 @@ from .net import check_net_consistency
 from .number_line import check_number_line_consistency
 from .schema import validate_diagram, validate_object
 from .solid import check_solid_consistency
+from .tick_table import check_tick_table_consistency
 
 if TYPE_CHECKING:  # avoid an import cycle at runtime
     from .blueprints.base import BlueprintSpec
 
-SCHEMA_VERSION = "1.16.0"
+SCHEMA_VERSION = "1.17.0"
 
 
 class CanonicalValidationError(Exception):
@@ -36,10 +37,18 @@ class CanonicalValidationError(Exception):
 
 def load(obj: dict) -> dict:
     """Validate on entry; reject invalid objects (R6.1/R6.2). Returns the object."""
-    errors = validate_object(obj) or _diagram_errors(obj) + _answer_errors(obj)
+    errors = validate_object(obj) or _diagram_errors(obj) + _answer_errors(obj) + _own_errors(obj)
     if errors:
         raise CanonicalValidationError(errors)
     return obj
+
+
+def _own_errors(obj: dict) -> list[str]:
+    """A teacher's own question (schema 1.15.0, EXA-90): its block must be a valid one, and
+    ``own-`` ids belong to such questions only (so saving one can never replace an import)."""
+    from .own_question import check  # runtime import: own_question builds on this module
+
+    return check(obj)
 
 
 _ORDER_HINT = (
@@ -48,14 +57,20 @@ _ORDER_HINT = (
 )
 
 
+_ANSWER_CHECKS = {
+    "expression": check_expression_consistency,
+    "tick_table": check_tick_table_consistency,
+}
+
+
 def _answer_errors(obj: dict) -> list[str]:
-    """Semantic gate for ``expression`` answers (schema 1.11.0)."""
+    """Semantic gate for ``expression`` (schema 1.11.0) and ``tick_table`` (1.16.0) answers."""
     return [
-        f"question.parts[{i}].answer: expression inconsistent: {name}"
+        f"question.parts[{i}].answer: {atype} inconsistent: {name}"
         + (_ORDER_HINT if name == "terms_in_canonical_order" else "")
         for i, part in enumerate(obj["question"]["parts"])
-        if (part.get("answer") or {}).get("type") == "expression"
-        for name, ok in check_expression_consistency(part["answer"]).items()
+        if (atype := (part.get("answer") or {}).get("type")) in _ANSWER_CHECKS
+        for name, ok in _ANSWER_CHECKS[atype](part["answer"]).items()
         if not ok
     ]
 

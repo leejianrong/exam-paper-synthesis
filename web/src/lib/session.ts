@@ -69,6 +69,11 @@ export async function loadProviders(): Promise<{ providers: ProviderInfo[]; dev:
   return (await res.json()) as { providers: ProviderInfo[]; dev: boolean }
 }
 
+/** The privacy notice or terms (EXA-185): server pages on the API's origin, readable signed out. */
+export function policyUrl(page: 'privacy' | 'terms'): string {
+  return `${BASE}/${page}`
+}
+
 export function loginUrl(provider: string): string {
   return `${BASE}/auth/${encodeURIComponent(provider)}/login`
 }

@@ -25,11 +25,11 @@ Ongoing (un-prefixed) epics: **Foundation & CI/CD**, **Product shaping & docs**,
 
 Post-MVP epics on the board (not yet itemised below; the board is the live source):
 **M8** diagram & difficulty polish (E12, done), **Editor: bank + schema v2** (E13, done),
-**Editor: WYSIWYG document editor + SaaS** (E14, deferred stories remain: EXA-90; EXA-33, swap from the bank, done; EXA-89, tier-2 "Edit numbers…" on 11 blueprints, in review),
+**Editor: WYSIWYG document editor + SaaS** (E14, deferred stories remain: EXA-90 part 3, grouped shared-stem blocks, in review; EXA-33, swap from the bank, done; EXA-90 part 1, save your own question to the bank, done; EXA-90 part 2, export to Word (.docx), in review; EXA-89, tier-2 "Edit numbers…" on 11 blueprints, in review),
 and **Paper format** (E15, P1–P5, P6a–d, P7, P8a, P8b and P8d done (P6d = a page summary in the Preview; live frames on the editing surface not built); P8c first three multi-part blueprints done (generator and swap wiring), then five heuristic ones (supposition, fraction of a remainder, LCM packs, ages, equal number vs amount) so Section B has 8 multi-part questions (EXA-143); starter templates carry the generated paper's cover (level left blank); P8e in progress: the P5 `average` ladder (EXA-117), then `whole_numbers`, `decimals`, `rate` (P5) and `algebra` (P6) (EXA-121), then five 1-mark Booklet A blueprints so Booklet A has no placeholders (EXA-145), then the P6 `circles` ladder (EXA-149), then five 2-mark medium rungs (ratio, percentage, speed, both geometry ladders) so Booklet B's 2-mark slots take medium questions (EXA-154) — see
 [`planning/editor/PAPER-FORMAT.md`](planning/editor/PAPER-FORMAT.md) and [`planning/editor/P8-SHAPING.md`](planning/editor/P8-SHAPING.md)).
 A comparison of generated papers with four real 2025 P6 prelims (O4, EXA-128) is in
-[`planning/editor/REAL-PAPER-COMPARISON.md`](planning/editor/REAL-PAPER-COMPARISON.md): its layout gaps are EXA-134–142 (done: EXA-134, Booklet B numbers on from 16; EXA-137, a paper with empty placeholders asks before it prints; EXA-135, papers print monochrome; EXA-136, figure labels clear of lines; EXA-139, real section headers, per-section marks placement and a short right-aligned Ans: line, shown per section on the editing page too (EXA-152); EXA-151, the editor shows the engine's figures too; EXA-138, page numbers, "Go on" and end markers, pages filled with working space, one marking strip per page; EXA-140, real cover pages with the set's examiner's table, the page-count line and a blank back of the cover; EXA-141, MCQ options in one column, numbers in ascending order, the OAS sentence in the Booklet A header; EXA-142, a compact school-style answer key and cm²/×/− in key text, the default for new papers since EXA-159) and its content gaps EXA-143–150 (done: EXA-146, the generator matches the rung to the slot's marks; EXA-153, an exam set spreads its topics over the whole set; EXA-156, an MCQ's answer is no longer mostly the smallest or largest option; EXA-149, a Circles ladder; EXA-154, 2-mark medium rungs for five more topics; EXA-150, folded-paper, composite, reflex and two-part angle questions; EXA-147, cube-stack and net questions; EXA-148, data-table blueprints: postage, rental, tariff with GST; tick tables still to do; EXA-158 part 2, tank line graphs and pie charts in fractions or percentages; EXA-144, square-grid questions on a new `grid` figure; EXA-155, π-terms multiple choice). EXA-157: a generated question whose printed wording, figure or worked answer is not the engine's loses its verified claim.
+[`planning/editor/REAL-PAPER-COMPARISON.md`](planning/editor/REAL-PAPER-COMPARISON.md): its layout gaps are EXA-134–142 (done: EXA-134, Booklet B numbers on from 16; EXA-137, a paper with empty placeholders asks before it prints; EXA-135, papers print monochrome; EXA-136, figure labels clear of lines; EXA-139, real section headers, per-section marks placement and a short right-aligned Ans: line, shown per section on the editing page too (EXA-152); EXA-151, the editor shows the engine's figures too; EXA-138, page numbers, "Go on" and end markers, pages filled with working space, one marking strip per page; EXA-140, real cover pages with the set's examiner's table, the page-count line and a blank back of the cover; EXA-141, MCQ options in one column, numbers in ascending order, the OAS sentence in the Booklet A header; EXA-142, a compact school-style answer key and cm²/×/− in key text, the default for new papers since EXA-159) and its content gaps EXA-143–150 (done: EXA-146, the generator matches the rung to the slot's marks; EXA-153, an exam set spreads its topics over the whole set; EXA-156, an MCQ's answer is no longer mostly the smallest or largest option; EXA-149, a Circles ladder; EXA-154, 2-mark medium rungs for five more topics; EXA-150, folded-paper, composite, reflex and two-part angle questions; EXA-147, cube-stack and net questions; EXA-148, data-table blueprints: postage, rental, tariff with GST; EXA-158, True / False / Not possible to tell tick tables (a new `tick_table` answer, schema 1.16.0, and `average_statements`); EXA-158 part 2, tank line graphs and pie charts in fractions or percentages (schema 1.17.0); EXA-144, square-grid questions on a new `grid` figure; EXA-155, π-terms multiple choice). EXA-157: a generated question whose printed wording, figure or worked answer is not the engine's loses its verified claim.
 From the P7–P8 acceptance run: **Organise and create** (O1 settings, O2 folders, O3 the + New wizard, O4 a comparison with real papers — done, see above; O1 done; O2 folders built: API and the folder view on "Your papers"; O3 the + New wizard built, with a server-derived `paper_part` (its folder chips were removed in EXA-166)) — see
 [`planning/editor/ORGANIZE-SHAPING.md`](planning/editor/ORGANIZE-SHAPING.md).
 The editor and app UI redesign (EXA-159–170) is planned in
@@ -166,6 +166,24 @@ cards built in parallel in treehouse worktrees, landed serially on green CI.
 
 ---
 
+## Hosting: Docker Compose on a DigitalOcean droplet (EXA-E16, in progress)
+
+Replaces the Fly.io + Neon hosting of ADR-0022 (ADR-0024). Owner's choices
+(2026-11-21): a 2 GB SGP1 droplet; Caddy for TLS on `<ip>.sslip.io` until a domain is bought
+(the name must suit subjects beyond PSLE maths); Postgres 17 in a container with nightly
+`pg_dump` to DO Spaces; no Cloudflare yet; Google and GitHub sign-in; start with an empty
+database. The homelab k8s idea stays a possible later move.
+
+- **done** Compose stack: Caddy, app and Postgres 17 (`deploy/`), verified locally (EXA-178)
+- **done** Publish the image to GHCR on every main merge; headless-shell Chromium, 1.82 GB (EXA-179)
+- **done** Nightly `pg_dump` to Spaces and a rehearsed restore: the `backup` service, `deploy/restore.sh`, `docs/deploy/BACKUPS.md`; verified locally against an S3 stand-in (EXA-180)
+- **done** Droplet runbook: firewall, SSH keys, swap, upgrades, log rotation, sign-in apps (`docs/deploy/DROPLET.md`, `SIGN-IN.md`, EXA-181)
+- **done** ADR-0024, LAUNCH.md for the droplet, retire `fly.toml` (EXA-182)
+- **done** Uptime check on `/ready`: written in the runbook, set up by the owner at launch (EXA-183)
+- **done** Invite-only sign-in for the private trial, `EXAM_ALLOWED_EMAILS` (EXA-186)
+- **done** Privacy notice and terms pages at `/privacy` and `/terms` (EXA-185)
+- **todo** (owner) Provision the droplet, first deploy and smoke test (EXA-184)
+
 ## Ongoing: Foundation & CI/CD (in progress)
 
 Cross-cutting engineering foundation. Open PRs #8-10.
@@ -191,6 +209,9 @@ Cross-cutting engineering foundation. Open PRs #8-10.
 
 - **done** Pull alternative from internal bank on swap (R6.4, EXA-33): "Swap from your bank…" on a
   generated question or placeholder of a paper (built on P8d's swap, not as a V8 slice).
+- **done** Promote a free-form question to the bank (EXA-90 part 1): "Save to your bank…" on a
+  teacher's own question; it comes back unchanged from "From my bank" and the bank swap
+  (ADR-0023). Still deferred in EXA-90: .docx export; grouped shared-stem blocks are part 3 (in review).
 
 ---
 

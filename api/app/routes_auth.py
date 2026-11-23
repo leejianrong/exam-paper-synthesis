@@ -21,6 +21,7 @@ from fastapi.responses import RedirectResponse, Response
 
 from . import ratelimit, usage
 from .accounts import SESSION_TTL, AccountStore, get_account_store
+from .allowlist import allowed, is_invite_only
 from .auth import SESSION_COOKIE, current_owner
 from .oauth import (
     PROVIDERS,
@@ -73,7 +74,12 @@ def _fail(code: str, *, retry_after: int | None = None) -> RedirectResponse:
 @router.get("/providers")
 def providers() -> dict:
     return {
-        "providers": [{"name": p.name, "label": p.label} for p in enabled_providers()],
+        "providers": [
+            {"name": p.name, "label": p.label}
+            for p in enabled_providers()
+            # Microsoft never asserts a verified email, so it can never pass an invite list.
+            if not (p.name == "microsoft" and is_invite_only())
+        ],
         "dev": os.environ.get("EXAM_DEV_AUTH") == "1",
     }
 
@@ -145,7 +151,14 @@ def callback(
         ratelimit.record_sign_in_failure(request)
         return _fail("provider")
 
+    # EXA-186: on an invite-only server, refuse before any account is made or linked.
+    if not allowed(profile.email, profile.email_verified):
+        return _fail("invite_only")
     user = accounts.login(profile)
+    # The session check reads the account's stored email, which can differ from this provider's
+    # (an account linked earlier keeps its first verified address): refuse here, not on every page.
+    if not allowed(user["email"], user["email_verified"]):
+        return _fail("invite_only")
     token = accounts.create_session(user["id"])
     resp = RedirectResponse(f"{web_url()}/#/", status_code=302)
     resp.set_cookie(
@@ -166,7 +179,7 @@ def callback(
 def me(request: Request, accounts: Accounts) -> dict:
     token = request.cookies.get(SESSION_COOKIE)
     user = accounts.user_for_session(token) if token else None
-    if user is not None:
+    if user is not None and allowed(user["email"], user["email_verified"]):
         return {"id": user["id"], "email": user["email"], "name": user["name"], "dev": False}
     if os.environ.get("EXAM_DEV_AUTH") == "1":
         owner = (request.headers.get("x-dev-owner") or "local").strip()
