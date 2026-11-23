@@ -9,43 +9,61 @@ Every step ends with a **Check**. Commands run on the droplet as the `deploy` us
 step says otherwise. `HOST` below is the hostname users reach: `<droplet-ip>.sslip.io` until a
 domain is bought, then the domain.
 
-## 1. Create the droplet
+## 1. Create the droplet (doctl)
 
-In the DigitalOcean console: **Create → Droplets**.
+From your laptop, with [doctl](https://docs.digitalocean.com/reference/doctl/how-to/install/)
+installed. Sign it in once with an API token (**API → Tokens → Generate New Token**; a custom
+scope with create, read, update and delete on *droplet*, *firewall*, *ssh_key*, *tag* and
+*monitoring*, or full access, with an expiry):
 
-- Region **Singapore (SGP1)**; image **Ubuntu 24.04 LTS x64**; size **Basic, Regular, 2 GB /
-  1 vCPU** (US$12/month).
-- Authentication: **SSH key** (add your public key; never a password).
-- Turn on **Monitoring** (the free metrics agent, used for alerts in step 9). Leave **Droplet
-  backups** off: DigitalOcean keeps those snapshots for about four weeks, but the privacy notice
-  promises every copy of the data is gone within 14 days. The database has its own nightly dump
-  ([BACKUPS.md](BACKUPS.md)), and the droplet itself can be rebuilt from this runbook.
-- Hostname: `exam-prod`.
+```bash
+doctl auth init          # paste the token at the prompt; it is stored in doctl's own config
+deploy/provision.sh      # or SSH_FROM=<your-ip>/32 deploy/provision.sh
+```
 
-**Check:** `ssh root@<droplet-ip>` logs in without a password prompt.
+`deploy/provision.sh` imports your SSH key (`~/.ssh/id_ed25519.pub`), creates the cloud firewall
+(step 2) and a **Basic 1 GB / 1 vCPU** droplet (`s-1vcpu-1gb`, US$6/month) in **Singapore (SGP1)**
+on **Ubuntu 24.04**, named `exam-prod`, with **Monitoring** on (the free metrics agent, used for
+alerts in step 9) and **Droplet backups** off: DigitalOcean keeps those snapshots for about four
+weeks, but the privacy notice promises every copy of the data is gone within 14 days. The
+database has its own nightly dump ([BACKUPS.md](BACKUPS.md)), and the droplet itself can be
+rebuilt from this runbook. It refuses to run if a droplet with that name already exists.
+
+On its first boot the droplet runs `deploy/cloud-init.yaml`, which does steps 3–6 below and
+clones the repo into `/opt/exam`, in a few minutes. The steps say what it did, so the droplet can
+also be set up by hand (create it in the console, then run each block as root), and each has a
+**Check** to run once it has finished:
+
+```bash
+ssh deploy@<droplet-ip> 'test -f /var/lib/exam-setup-done && echo ready || sudo tail -3 /var/log/cloud-init-output.log'
+```
+
+If it prints an error instead of `ready`, `sudo less /var/log/cloud-init-output.log` shows which
+command failed; run that step's block by hand.
 
 ## 2. Cloud firewall
 
-**Networking → Firewalls → Create Firewall**, applied to the droplet. Inbound rules:
+Created by `provision.sh` as `exam-prod-firewall`, applied by the droplet's tag (`exam-prod`), so
+a rebuilt droplet with the same tag is covered too. Inbound rules:
 
 | Type | Protocol | Port | Sources |
 |------|----------|------|---------|
-| SSH | TCP | 22 | your own IP address if it is stable, else all |
-| HTTP | TCP | 80 | all IPv4 (Let's Encrypt and the http → https redirect) |
-| HTTPS | TCP | 443 | all IPv4 |
-| Custom | UDP | 443 | all IPv4 (HTTP/3) |
+| SSH | TCP | 22 | `SSH_FROM`: your own IP address if it is stable, else all (the default) |
+| HTTP | TCP | 80 | all (Let's Encrypt and the http → https redirect) |
+| HTTPS | TCP | 443 | all |
+| Custom | UDP | 443 | all (HTTP/3) |
 
-Outbound: leave the defaults (all). Use this cloud firewall rather than `ufw`: Docker writes its
-own iptables rules for published ports and goes around `ufw`, but it cannot go around a firewall
-outside the droplet.
+Outbound: everything. Use this cloud firewall rather than `ufw`: Docker writes its own iptables
+rules for published ports and goes around `ufw`, but it cannot go around a firewall outside the
+droplet. To change the SSH source later: **Networking → Firewalls → exam-prod-firewall**.
 
-**Check:** the droplet is listed on the firewall's **Droplets** tab. Then on the droplet run
-`sudo python3 -m http.server 8000` and, from your laptop, `nc -zv -w5 <droplet-ip> 8000` times
-out (Ctrl-C the server afterwards).
+**Check:** `doctl compute firewall list` shows `exam-prod-firewall` with tag `exam-prod`. Then on
+the droplet run `sudo python3 -m http.server 8000` and, from your laptop,
+`nc -zv -w5 <droplet-ip> 8000` times out (Ctrl-C the server afterwards).
 
 ## 3. A deploy user and SSH hardening
 
-As `root`:
+What cloud-init ran, as `root`:
 
 ```bash
 adduser --disabled-password --comment "" deploy
@@ -62,31 +80,30 @@ EOF
 sshd -t && systemctl reload ssh
 ```
 
-**Check:** in a *new* terminal (keep the root one open until this works), `ssh deploy@<droplet-ip>`
-logs in and `sudo true` succeeds; `ssh root@<droplet-ip>` is refused; and
-`sudo sshd -T | grep -E 'permitrootlogin|passwordauthentication|kbdinteractive'` prints `no` for
-all three.
+**Check:** `ssh deploy@<droplet-ip>` logs in and `sudo true` succeeds; `ssh root@<droplet-ip>` is
+refused; and `sudo sshd -T | grep -E 'permitrootlogin|passwordauthentication|kbdinteractive'`
+prints `no` for all three.
 
 ## 4. Swap
 
-The droplet has no swap; Chromium's peaks are safer with 2 GB of it.
+A 1 GB droplet relies on swap for Chromium's peaks; cloud-init adds 2 GB of it:
 
 ```bash
-sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
-sudo mkswap /swapfile && sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-swap.conf && sudo sysctl --system
+fallocate -l 2G /swapfile && chmod 600 /swapfile
+mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+echo 'vm.swappiness=10' > /etc/sysctl.d/99-swap.conf && sysctl --system
 ```
 
 **Check:** `free -h` shows `Swap: 2.0Gi`.
 
 ## 5. Automatic security updates
 
-Ubuntu installs security updates daily by default (`unattended-upgrades`). Let it reboot when an
-update needs one, at 03:30 Singapore time (19:30 UTC; the droplet's clock is UTC):
+Ubuntu installs security updates daily by default (`unattended-upgrades`). cloud-init lets it
+reboot when an update needs one, at 03:30 Singapore time (19:30 UTC; the droplet's clock is UTC):
 
 ```bash
-sudo tee /etc/apt/apt.conf.d/52unattended-upgrades-local <<'EOF'
+tee /etc/apt/apt.conf.d/52unattended-upgrades-local <<'EOF'
 Unattended-Upgrade::Automatic-Reboot "true";
 Unattended-Upgrade::Automatic-Reboot-Time "19:30";
 EOF
@@ -99,27 +116,22 @@ packages are not in the automatic set: run `sudo apt update && sudo apt upgrade`
 
 ## 6. Docker, with log rotation
 
-Docker's apt repository (not Ubuntu's older `docker.io`):
+Docker's apt repository (not Ubuntu's older `docker.io`), with container logs rotated (the
+`daemon.json` is written before Docker starts, so it applies to every container):
 
 ```bash
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+echo '{"log-driver": "local", "log-opts": {"max-size": "10m", "max-file": "5"}}' > /etc/docker/daemon.json
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-  | sudo tee /etc/apt/sources.list.d/docker.list
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-sudo usermod -aG docker deploy
+  > /etc/apt/sources.list.d/docker.list
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+usermod -aG docker deploy
 ```
 
-Rotate container logs (before the first `up`: it applies to containers created afterwards):
-
-```bash
-echo '{"log-driver": "local", "log-opts": {"max-size": "10m", "max-file": "5"}}' \
-  | sudo tee /etc/docker/daemon.json
-sudo systemctl restart docker
-```
-
-Log out and back in (for the `docker` group).
+(Done by hand on a running Docker, `sudo systemctl restart docker` afterwards, then log out and
+back in for the `docker` group.)
 
 **Check:** `docker compose version` prints v2 or later; `docker info --format '{{.LoggingDriver}}'`
 prints `local`.
@@ -151,9 +163,11 @@ The app image on GHCR is public, so no registry login is needed. If `docker comp
 ever denied, check GitHub → Packages → exam-paper-synthesis → Package settings → visibility.
 The backup job's small image is built on the droplet from `deploy/backup/` (hence `--build`).
 
+cloud-init has already cloned the repo into `/opt/exam` (by hand:
+`sudo mkdir -p /opt/exam && sudo chown deploy:deploy /opt/exam && git clone --depth 1
+https://github.com/leejianrong/exam-paper-synthesis.git /opt/exam`).
+
 ```bash
-sudo mkdir -p /opt/exam && sudo chown deploy:deploy /opt/exam
-git clone --depth 1 https://github.com/leejianrong/exam-paper-synthesis.git /opt/exam
 cd /opt/exam/deploy
 cp .env.example .env && chmod 600 .env
 nano .env    # HOST in SITE_ADDRESS and both URLs, POSTGRES_PASSWORD (openssl rand -hex 24),
@@ -180,17 +194,50 @@ Then run the smoke test in [LAUNCH.md](../LAUNCH.md).
 
 ## 9. Monitoring (EXA-183)
 
-In the DigitalOcean console:
+From your laptop, with `HOST` and your email address filled in:
 
-- **Monitoring → Uptime → Create Uptime check**: URL `https://HOST/ready`, all four locations
-  (Asia East, Europe, USA East, USA West). Alerts: *Downtime* (down for 2 minutes) and *SSL
-  Cert Expire* (within 14 days), to your email. `/ready` answers 503 when the database is
-  unreachable, so it catches a broken database as well as a stopped app.
-- **Monitoring → Resource Alerts → Create** for the droplet: memory above 90% for 5 minutes; disk
-  above 80% for 5 minutes; CPU above 90% for 15 minutes.
+```bash
+HOST=<droplet-ip>.sslip.io; EMAIL=you@example.com
+# Uptime check on /ready from all four locations, with downtime and certificate alerts.
+check=$(doctl monitoring uptime create exam-ready --target "https://$HOST/ready" --type https \
+  --regions us_east,us_west,eu_west,se_asia --format ID --no-header)
+doctl monitoring uptime alert create "$check" --name "exam down" --type down \
+  --comparison less_than --threshold 1 --period 2m --emails "$EMAIL"
+doctl monitoring uptime alert create "$check" --name "exam certificate" --type ssl_expiry \
+  --threshold 14 --period 2m --emails "$EMAIL"
+# Resource alerts for every droplet tagged exam-prod.
+for a in "memory_utilization_percent 90 5m" "disk_utilization_percent 80 5m" "cpu 90 15m"; do
+  set -- $a
+  doctl monitoring alert create --type "v1/insights/droplet/$1" --compare GreaterThan \
+    --value "$2" --window "$3" --tags exam-prod --emails "$EMAIL" --description "exam-prod $1"
+done
+```
+
+`/ready` answers 503 when the database is unreachable, so the uptime check catches a broken
+database as well as a stopped app. On a 1 GB droplet the memory alert at 90% may fire during an
+export now and then; one that lasts the full 5 minutes means it is time to scale up (below).
+(The same checks can be made in the console: **Monitoring → Uptime** and **Resource Alerts**.)
 
 **Check:** `docker compose stop app`; the downtime email arrives within a few minutes;
 `docker compose start app`; the recovery email follows.
+
+## Scaling up
+
+The droplet starts at 1 GB with one PDF render at a time (`EXAM_EXPORT_CONCURRENCY=1`), which is
+enough for a few teachers: a second export waits for the first, which takes under a second. Move
+to 2 GB when the memory alert keeps firing, `free -h` shows swap in steady use, or teachers see
+"The server is busy". From your laptop (about a minute of downtime; the disk is kept as it is,
+so the move can be undone):
+
+```bash
+id=$(doctl compute droplet list --format ID,Name --no-header | awk '$2 == "exam-prod" {print $1}')
+doctl compute droplet-action power-off "$id" --wait
+doctl compute droplet-action resize "$id" --size s-1vcpu-2gb --wait
+doctl compute droplet-action power-on "$id" --wait
+```
+
+Then on the droplet, in `/opt/exam/deploy/.env`, uncomment the 2 GB memory limits at the end and
+set `EXAM_EXPORT_CONCURRENCY=2`, and run `docker compose up -d`.
 
 ## Day to day
 

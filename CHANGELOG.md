@@ -10,6 +10,15 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **A 1 GB droplet to start, created with doctl (EXA-184).** `deploy/provision.sh` makes the
+  production droplet (Basic 1 GB, Singapore, Ubuntu 24.04) and its cloud firewall with `doctl`,
+  and `deploy/cloud-init.yaml` prepares it on first boot: the deploy user and SSH hardening,
+  2 GB swap, automatic security updates, Docker with log rotation and a checkout of the repo.
+  The Compose stack now fits 1 GB: one PDF render at a time (`EXAM_EXPORT_CONCURRENCY=1`; one
+  render peaks at ~370 MB), app 768 MB, Postgres 256 MB. The limits come from `.env`, and
+  `docs/deploy/DROPLET.md` says how to resize to 2 GB and raise them; the monitoring alerts can
+  be made with doctl too.
+
 - **One answer key for a whole exam set (EXA-168, UI redesign S10).** A folder that holds an exam
   set (one Booklet A, one Booklet B and one Paper 2) has **Download the set’s answer key** in its
   ⋯ menu on Your papers: one PDF with the school, level, subject and exam from the covers at the

@@ -2,9 +2,11 @@
 #   cp .env.example .env   # fill it in (see docs/LAUNCH.md)
 #   docker compose up -d
 # Only Caddy publishes ports; the app and the database are reachable on the stack's network only.
-# Memory is budgeted for a 2 GB droplet with 2 GB swap: app 1.2 GB (Chromium renders PDFs),
-# Postgres 384 MB, Caddy 128 MB, backups 128 MB, the rest for the OS and Docker. Chromium's /dev/shm use counts
-# against the app's limit, and each container may also swap up to its own limit.
+# Memory is budgeted for a 1 GB droplet with 2 GB swap, one PDF render at a time: app 768 MB
+# (the API ~70-150 MB, one Chromium ~370 MB at its peak), Postgres 256 MB, Caddy and backups
+# 128 MB each; the limits are caps, not reservations. Chromium's /dev/shm use counts against the
+# app's limit, and each container may also swap up to its own limit. On a 2 GB droplet, raise
+# them in .env (the values are in .env.example).
 
 name: exam
 
@@ -42,7 +44,7 @@ services:
       EXAM_OAUTH_MICROSOFT_CLIENT_SECRET: ${EXAM_OAUTH_MICROSOFT_CLIENT_SECRET:-}
       EXAM_ALLOWED_EMAILS: ${EXAM_ALLOWED_EMAILS:-}
       EXAM_CONTACT_EMAIL: ${EXAM_CONTACT_EMAIL:-}
-      EXAM_EXPORT_CONCURRENCY: ${EXAM_EXPORT_CONCURRENCY:-2}
+      EXAM_EXPORT_CONCURRENCY: ${EXAM_EXPORT_CONCURRENCY:-1}
       EXAM_EXPORT_TIMEOUT_MS: ${EXAM_EXPORT_TIMEOUT_MS:-30000}
       # Caddy replaces any X-Forwarded-For a client sends, and uvicorn (--proxy-headers) turns it
       # into the client address, so the per-address sign-in limits see the real visitor.
@@ -51,8 +53,8 @@ services:
     expose:
       - "8080"
     # Chromium needs more than Docker's 64 MB /dev/shm for multi-page papers.
-    shm_size: 512m
-    mem_limit: 1200m
+    shm_size: ${APP_SHM_SIZE:-256m}
+    mem_limit: ${APP_MEM_LIMIT:-768m}
     # Stated here too: an image built in OCI format (podman's default) drops the Dockerfile's.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
@@ -71,8 +73,8 @@ services:
       POSTGRES_USER: exam
       POSTGRES_DB: exam
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-    # Sized for a 2 GB box shared with Chromium; the app's pool holds at most 5 connections.
-    command: ["postgres", "-c", "shared_buffers=96MB", "-c", "max_connections=25"]
+    # Sized for a small box shared with Chromium; the app's pool holds at most 5 connections.
+    command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS:-64MB}", "-c", "max_connections=25"]
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -81,7 +83,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
-    mem_limit: 384m
+    mem_limit: ${DB_MEM_LIMIT:-256m}
 
   # Nightly pg_dump to a DigitalOcean Spaces bucket; dumps older than 14 days are deleted
   # (docs/deploy/BACKUPS.md). Back up now: docker compose exec backup exam-backup now
