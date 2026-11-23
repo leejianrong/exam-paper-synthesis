@@ -1,0 +1,64 @@
+code: tap_tank_structured
+syllabus:
+  level: P5
+  strand: "Measurement"
+  topic: "Volume"
+  subtopic: "Structured: how long a tap takes to fill a tank, then the water level after some minutes"
+  skill_codes: ["MEAS.VOL.TANK.TAP"]    # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Multiple concepts"]
+marks: 4                                # the question total; each part's marks are below
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [length, width, height, rate, minutes]
+  properties:
+    length: { type: integer, minimum: 20, maximum: 80 }
+    width: { type: integer, minimum: 20, maximum: 80 }
+    height: { type: integer, minimum: 20, maximum: 60 }
+    rate: { type: integer, minimum: 2, maximum: 12 }       # litres a minute
+    minutes: { type: integer, minimum: 1, maximum: 39 }
+# Every parameter_schema property needs a role (W1a).
+param_roles:
+  length:  { role: number }
+  width:   { role: number }
+  height:  { role: number }
+  rate:    { role: number }
+  minutes: { role: number }
+# P8c multi-part: shared stem here, each part's text/marks/scheme/steps/answer under `parts`.
+story_templates:
+  - stem: >
+      An empty rectangular tank measures {length} cm by {width} cm by {height} cm. Water
+      flows into it from a tap at {rate} ℓ per minute. (1 ℓ = 1000 cm³)
+parts:
+  - label: a
+    marks: 2
+    text: "How many minutes does it take to fill the tank completely?"
+    solution_template:
+      steps:
+        - text: "Capacity of the tank = {length} × {width} × {height} = {volume} cm³ = {capacity} ℓ."
+          expr: "{length}*{width}*{height}"
+        - text: "Time to fill the tank = {capacity} ÷ {rate} = {fill_time} min."
+          expr: "{capacity}/{rate}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Finds the capacity of the tank in litres." }
+      - { mark: 1, type: A, description: "Correct time in minutes." }
+    answer: { type: integer, unit: "min" }
+  - label: b
+    marks: 2
+    text: >
+      The tank is emptied. Then the tap is turned on again for {minutes} minutes only.
+      What is the height of the water in the tank?
+    solution_template:
+      steps:
+        - text: "Water in {minutes} min = {minutes} × {rate} = {poured} ℓ = {poured_cm3} cm³."
+          expr: "{minutes}*{rate}*1000"
+        - text: "Height of the water = {poured_cm3} ÷ ({length} × {width}) = {poured_cm3} ÷ {base} = {level} cm."
+          expr: "{poured_cm3}/{base}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Finds the volume of water in cm³." }
+      - { mark: 1, type: A, description: "Divides by the base area: correct height with the cm unit." }
+    answer: { type: integer, unit: "cm" }
+diagram: solid

@@ -1,0 +1,3 @@
+{"params": {"length": 12, "width": 9, "path": 1, "price": 8}, "expected": {"answers": [{"type": "integer", "value": 46, "unit": "m^2"}, {"type": "quantity", "value": 400, "unit": "$"}], "marks": [2, 2], "total_marks": 4}}
+{"params": {"length": 15, "width": 9, "path": 1, "price": 15}, "expected": {"answers": [{"type": "integer", "value": 52, "unit": "m^2"}, {"type": "quantity", "value": 840, "unit": "$"}], "marks": [2, 2], "total_marks": 4}}
+{"params": {"length": 26, "width": 7, "path": 2, "price": 8}, "expected": {"answers": [{"type": "integer", "value": 148, "unit": "m^2"}, {"type": "quantity", "value": 656, "unit": "$"}], "marks": [2, 2], "total_marks": 4}}
