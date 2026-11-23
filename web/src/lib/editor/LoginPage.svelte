@@ -8,7 +8,7 @@
   import ErrorNote from '../ErrorNote.svelte'
   import Icon from '../Icon.svelte'
   import { canRetry, errorText, plainMessage, signInErrorText } from '../errors'
-  import { loadProviders, loadSession, loginUrl, session, type ProviderInfo } from '../session'
+  import { loadProviders, loadSession, loginUrl, policyUrl, session, type ProviderInfo } from '../session'
   import ProviderMark from './ProviderMark.svelte'
 
   /** The API's sign-in error code from `#/login?error=…`, or ''. */
@@ -108,6 +108,11 @@
         {/if}
       {/if}
     </section>
+
+    <p class="legal">
+      By signing in you agree to the <a href={policyUrl('terms')}>terms</a>. See how your data is kept in the
+      <a href={policyUrl('privacy')}>privacy notice</a>.
+    </p>
   </div>
 </main>
 
@@ -187,6 +192,11 @@
   .note {
     margin: 0;
     color: var(--ink-soft);
+  }
+  .legal {
+    margin: var(--s4) 0 0;
+    color: var(--ink-soft);
+    font-size: 0.875rem;
   }
   /* the dev stub: dashed and labelled, so nobody takes it for a real way in */
   .dev {
