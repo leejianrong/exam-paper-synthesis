@@ -16,13 +16,16 @@ no code change.
 
 ## Decision
 
-- **Host:** one DigitalOcean droplet in SGP1, Basic 2 GB / 1 vCPU, Ubuntu 24.04, 2 GB swap,
-  set up by hand from `docs/deploy/DROPLET.md`.
+- **Host:** one DigitalOcean droplet in SGP1, Basic 1 GB / 1 vCPU (amended 2026-11-23, was
+  2 GB: one PDF render peaks at ~370 MB, so a 1 GB box with one render at a time and 2 GB swap is
+  enough while the owner is the only user; resize to 2 GB when use grows), Ubuntu 24.04,
+  created with `doctl` by `deploy/provision.sh` and prepared on first boot by
+  `deploy/cloud-init.yaml`, following `docs/deploy/DROPLET.md`.
 - **Stack:** Docker Compose (`deploy/compose.yaml`): **Caddy** terminates TLS with automatic
   Let's Encrypt certificates and is the only service with published ports; the **app** image is
   pulled from GHCR (published by `.github/workflows/image.yml` on every merge to main, tagged
   `:latest` and `:sha-<commit>`); **Postgres 17** runs in a container on a named volume. Each
-  service has a memory limit sized for the 2 GB box.
+  service has a memory limit sized for the 1 GB box, raised from `.env` after a resize.
 - **Database:** Postgres in the stack, not a managed database: cheapest, and the app's pool needs
   at most 5 connections. Nightly `pg_dump` to a DigitalOcean Spaces bucket, with a rehearsed
   restore (`docs/deploy/BACKUPS.md`). SQLite in production was considered and rejected: it
