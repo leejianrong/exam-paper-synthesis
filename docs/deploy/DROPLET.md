@@ -12,9 +12,10 @@ domain is bought, then the domain.
 ## 1. Create the droplet (doctl)
 
 From your laptop, with [doctl](https://docs.digitalocean.com/reference/doctl/how-to/install/)
-installed. Sign it in once with an API token (**API → Tokens → Generate New Token**; a custom
-scope with create, read, update and delete on *droplet*, *firewall*, *ssh_key*, *tag* and
-*monitoring*, or full access, with an expiry):
+installed. Sign it in once with an API token (**API → Tokens → Generate New Token**, with an
+expiry): full access is simplest; a custom-scoped token needs *account* (read) and create, read,
+update and delete on *droplet*, *firewall*, *ssh_key*, *tag*, *monitoring* and *uptime* (the
+console adds the read scopes these depend on):
 
 ```bash
 doctl auth init          # paste the token at the prompt; it is stored in doctl's own config
@@ -38,8 +39,10 @@ also be set up by hand (create it in the console, then run each block as root), 
 ssh deploy@<droplet-ip> 'test -f /var/lib/exam-setup-done && echo ready || sudo tail -3 /var/log/cloud-init-output.log'
 ```
 
-If it prints an error instead of `ready`, `sudo less /var/log/cloud-init-output.log` shows which
-command failed; run that step's block by hand.
+The set-up script (`/usr/local/sbin/exam-setup`) stops at the first failure. If the check prints
+log lines instead of `ready`, `sudo less /var/log/cloud-init-output.log` shows which command
+failed; fix the cause and run `sudo /usr/local/sbin/exam-setup` again (every step is safe to
+repeat), or do the remaining steps by hand.
 
 ## 2. Cloud firewall
 
@@ -120,6 +123,7 @@ Docker's apt repository (not Ubuntu's older `docker.io`), with container logs ro
 `daemon.json` is written before Docker starts, so it applies to every container):
 
 ```bash
+mkdir -p /etc/docker
 echo '{"log-driver": "local", "log-opts": {"max-size": "10m", "max-file": "5"}}' > /etc/docker/daemon.json
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
@@ -206,11 +210,13 @@ doctl monitoring uptime alert create "$check" --name "exam down" --type down \
 doctl monitoring uptime alert create "$check" --name "exam certificate" --type ssl_expiry \
   --threshold 14 --period 2m --emails "$EMAIL"
 # Resource alerts for every droplet tagged exam-prod.
-for a in "memory_utilization_percent 90 5m" "disk_utilization_percent 80 5m" "cpu 90 15m"; do
-  set -- $a
+alert() {  # metric, percent, window (5m, 10m, 30m or 1h)
   doctl monitoring alert create --type "v1/insights/droplet/$1" --compare GreaterThan \
     --value "$2" --window "$3" --tags exam-prod --emails "$EMAIL" --description "exam-prod $1"
-done
+}
+alert memory_utilization_percent 90 5m
+alert disk_utilization_percent 80 5m
+alert cpu 90 10m
 ```
 
 `/ready` answers 503 when the database is unreachable, so the uptime check catches a broken

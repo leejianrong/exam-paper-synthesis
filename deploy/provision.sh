@@ -35,7 +35,9 @@ if ! doctl compute ssh-key get "$fp" >/dev/null 2>&1; then
   echo "Imported the SSH key $SSH_PUBKEY"
 fi
 
-# The firewall first, by tag, so the droplet is covered from its first boot.
+# The firewall first, by tag, so the droplet is covered from its first boot. A firewall can
+# only name a tag that exists; creating one that does is harmless.
+doctl compute tag create "$TAG" >/dev/null
 all='address:0.0.0.0/0,address:::/0'
 if ! doctl compute firewall list --format Name --no-header | grep -qx "$NAME-firewall"; then
   ssh_addresses=address:${SSH_FROM//,/,address:}

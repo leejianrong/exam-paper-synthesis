@@ -2,10 +2,9 @@
 # First-boot set-up of the production droplet: steps 3-6 of docs/deploy/DROPLET.md (a deploy
 # user and SSH hardening, swap, automatic security updates, Docker with log rotation), then a
 # checkout of the repo in /opt/exam. Passed by deploy/provision.sh as the droplet's user data.
-# It runs once, as root, a few minutes after the droplet starts; when it has finished,
-# /var/lib/exam-setup-done exists. Progress and errors: /var/log/cloud-init-output.log.
-
-package_update: true
+# It runs once, as root, a few minutes after the droplet starts. The script stops at the first
+# failure, so /var/lib/exam-setup-done exists only when every step worked. Progress and errors:
+# /var/log/cloud-init-output.log.
 
 write_files:
   # Reboot after an update that needs one at 03:30 Singapore time (19:30 UTC).
@@ -20,31 +19,51 @@ write_files:
   - path: /etc/docker/daemon.json
     content: |
       {"log-driver": "local", "log-opts": {"max-size": "10m", "max-file": "5"}}
+  - path: /usr/local/sbin/exam-setup
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -euxo pipefail
+
+      # The deploy user, with root's SSH key (the one provision.sh gave the droplet).
+      id deploy >/dev/null 2>&1 || adduser --disabled-password --comment "" deploy
+      usermod -aG sudo deploy
+      install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
+      install -m 600 -o deploy -g deploy /root/.ssh/authorized_keys /home/deploy/.ssh/authorized_keys
+      echo 'deploy ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/deploy && chmod 440 /etc/sudoers.d/deploy
+
+      # SSH hardening, only once the deploy user has a key. 00-: sshd keeps the first value it
+      # reads, and DigitalOcean's 50-cloud-init.conf comes later. Ubuntu 24.04 starts ssh on
+      # demand, so it may not be running yet; its next start reads the new file.
+      test -s /home/deploy/.ssh/authorized_keys
+      printf 'PermitRootLogin no\nPasswordAuthentication no\nKbdInteractiveAuthentication no\n' \
+        > /etc/ssh/sshd_config.d/00-hardening.conf
+      systemctl try-reload-or-restart ssh
+
+      # 2 GB of swap: a 1 GB droplet relies on it for Chromium's peaks.
+      if ! swapon --show | grep -q /swapfile; then
+        fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+        grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+      fi
+      sysctl --system >/dev/null
+
+      # Docker from Docker's own apt repository. The first boot's automatic updates may hold
+      # apt's locks for a while: retry the update, wait for the install.
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+        > /etc/apt/sources.list.d/docker.list
+      for _ in 1 2 3 4 5 6 7 8 9 10; do apt-get update && break; sleep 30; done
+      DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=600 install -y \
+        docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      usermod -aG docker deploy
+
+      # The repo, ready for step 8 (fill in deploy/.env, then docker compose up).
+      install -d -o deploy -g deploy /opt/exam
+      test -d /opt/exam/.git || sudo -u deploy git clone --depth 1 \
+        https://github.com/leejianrong/exam-paper-synthesis.git /opt/exam
+
+      touch /var/lib/exam-setup-done
 
 runcmd:
-  # The deploy user, with root's SSH key (the one provision.sh gave the droplet).
-  - adduser --disabled-password --comment "" deploy
-  - usermod -aG sudo deploy
-  - mkdir -p /home/deploy/.ssh && cp /root/.ssh/authorized_keys /home/deploy/.ssh/
-  - chown -R deploy:deploy /home/deploy/.ssh && chmod 700 /home/deploy/.ssh
-  - echo 'deploy ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/deploy && chmod 440 /etc/sudoers.d/deploy
-  # SSH hardening, only once the deploy user can log in. 00-: sshd keeps the first value it
-  # reads, and DigitalOcean's 50-cloud-init.conf comes later.
-  - printf 'PermitRootLogin no\nPasswordAuthentication no\nKbdInteractiveAuthentication no\n' > /etc/ssh/sshd_config.d/00-hardening.conf
-  - sshd -t && systemctl reload ssh
-  # 2 GB of swap: a 1 GB droplet relies on it for Chromium's peaks.
-  - fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
-  - echo '/swapfile none swap sw 0 0' >> /etc/fstab
-  - sysctl --system
-  # Docker from Docker's own apt repository. The lock timeout waits out the first boot's
-  # automatic updates instead of failing.
-  - install -m 0755 -d /etc/apt/keyrings
-  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
-  - apt-get -o DPkg::Lock::Timeout=600 update
-  - DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=600 install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-  - usermod -aG docker deploy
-  # The repo, ready for step 8 (fill in deploy/.env, then docker compose up).
-  - mkdir -p /opt/exam && chown deploy:deploy /opt/exam
-  - sudo -u deploy git clone --depth 1 https://github.com/leejianrong/exam-paper-synthesis.git /opt/exam
-  - touch /var/lib/exam-setup-done
+  - /usr/local/sbin/exam-setup
