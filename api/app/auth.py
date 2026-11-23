@@ -18,6 +18,8 @@ import re
 
 from fastapi import Header, HTTPException, Request
 
+from .allowlist import allowed
+
 _OWNER_RE = re.compile(r"^[A-Za-z0-9_.@-]{1,64}$")
 
 SESSION_COOKIE = "exam_session"
@@ -29,7 +31,8 @@ def current_owner(request: Request, x_dev_owner: str | None = Header(default=Non
         from .accounts import get_account_store  # lazy: no account DB for anonymous requests
 
         user = get_account_store().user_for_session(token)
-        if user is not None:
+        # EXA-186: a session of an address taken off the invite list stops working at once.
+        if user is not None and allowed(user["email"], user["email_verified"]):
             return user["id"]
     if os.environ.get("EXAM_DEV_AUTH") != "1":
         raise HTTPException(status_code=401, detail="authentication required")

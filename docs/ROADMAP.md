@@ -166,6 +166,23 @@ cards built in parallel in treehouse worktrees, landed serially on green CI.
 
 ---
 
+## Hosting: Docker Compose on a DigitalOcean droplet (EXA-E16, in progress)
+
+Replaces the Fly.io + Neon hosting of ADR-0022 (ADR-0024). Owner's choices
+(2026-11-21): a 2 GB SGP1 droplet; Caddy for TLS on `<ip>.sslip.io` until a domain is bought
+(the name must suit subjects beyond PSLE maths); Postgres 17 in a container with nightly
+`pg_dump` to DO Spaces; no Cloudflare yet; Google and GitHub sign-in; start with an empty
+database. The homelab k8s idea stays a possible later move.
+
+- **done** Compose stack: Caddy, app and Postgres 17 (`deploy/`), verified locally (EXA-178)
+- **done** Publish the image to GHCR on every main merge; headless-shell Chromium, 1.82 GB (EXA-179)
+- **done** Nightly `pg_dump` to Spaces and a rehearsed restore: the `backup` service, `deploy/restore.sh`, `docs/deploy/BACKUPS.md`; verified locally against an S3 stand-in (EXA-180)
+- **done** Droplet runbook: firewall, SSH keys, swap, upgrades, log rotation, sign-in apps (`docs/deploy/DROPLET.md`, `SIGN-IN.md`, EXA-181)
+- **done** ADR-0024, LAUNCH.md for the droplet, retire `fly.toml` (EXA-182)
+- **done** Uptime check on `/ready`: written in the runbook, set up by the owner at launch (EXA-183)
+- **in_progress** Invite-only sign-in for the private trial, `EXAM_ALLOWED_EMAILS` (EXA-186)
+- **todo** (owner) Provision the droplet, first deploy and smoke test (EXA-184)
+
 ## Ongoing: Foundation & CI/CD (in progress)
 
 Cross-cutting engineering foundation. Open PRs #8-10.

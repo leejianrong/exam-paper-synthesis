@@ -135,7 +135,7 @@ describe('LoginPage', () => {
 
 describe('signInErrorText', () => {
   it('words every code the API sends, without apologising', () => {
-    for (const code of ['denied', 'state', 'provider', 'rate_limited', 'not_configured', 'other']) {
+    for (const code of ['denied', 'state', 'provider', 'rate_limited', 'not_configured', 'invite_only', 'other']) {
       const text = signInErrorText(code)
       expect(text).toMatch(/^[A-Z].*\.$/)
       expect(text).not.toMatch(/sorry|please|oops/i)
