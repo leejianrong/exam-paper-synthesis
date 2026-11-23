@@ -8,6 +8,16 @@ import { API } from './ports.js'
  * own), lock one, and "Regenerate unlocked" keeps the locked question while the sections stay
  * at their marks targets. Needs the API with EXAM_DEV_AUTH (playwright.config.js).
  */
+/** A question's text, once it has loaded. Most questions show an editable body (`.qbody`); a
+ *  multi-part or tick-table question shows the server's printed fragment in a shadow root,
+ *  which arrives a moment later, so wait until it has text. */
+async function stemText(block) {
+  const body = block.locator('.qbody, [data-testid="fragment"]').first()
+  const read = () => body.evaluate((el) => (el.shadowRoot ?? el).textContent ?? '')
+  await expect.poll(async () => (await read()).trim()).not.toBe('')
+  return read()
+}
+
 test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   await page.goto('/')
   await generateSinglePaper(page, 'Paper 2', 'P6')
@@ -36,8 +46,7 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   // the block's form controls (working-space and unit menus) laid out line by line. Always
   // read it with textContent(), never toHaveText(): toHaveText also reads the KaTeX shadow
   // roots, so a stem with maths ("$x") would read "$xxxx" there and never match.
-  const stemOf = (block) => block.locator('.qbody')
-  const textOf = (block) => stemOf(block).textContent()
+  const textOf = stemText
   const lockedStem = await textOf(first)
 
   // Question 2: "Replace with my own question" leaves a 2-mark placeholder; the section stays
@@ -107,12 +116,12 @@ test('typing on a selected question does nothing; Shift+Enter starts a paragraph
   await expect(page.getByText(/Swapped in a/)).toBeVisible()
   // the swap leaves the swapped question selected, with the editor focused
   await expect(page.locator('.ProseMirror-selectednode')).toHaveCount(1)
-  const stem = await third.locator('.qbody').textContent()
+  const stem = await stemText(third)
   const paras = page.locator('.surface .ProseMirror > p').filter({ hasText: /\S/ })
   await page.keyboard.type('a7 ')
   await page.keyboard.insertText('typed')
   expect(await blocks.count()).toBe(17)
-  expect(await third.locator('.qbody').textContent()).toBe(stem)
+  expect(await stemText(third)).toBe(stem)
   await expect(page.locator('.ProseMirror-selectednode')).toHaveCount(1)
   await expect(paras).toHaveCount(0)
   // the pill says how to write below it

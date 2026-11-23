@@ -6,14 +6,14 @@
   import MathText from '../MathText.svelte'
   import type { Question } from '../types'
   import { paperSettings } from './paperSettings'
-  import { DEFAULT_PLACEMENT, marksBeside } from './layout'
+  import { DEFAULT_PLACEMENT, marksBeside, onQuestion } from './layout'
   import type { SectionPlacement } from './doc'
 
   export let q: Question
   /** The section's effective placement on the page; unset (the picker) follows the paper. */
   export let placement: SectionPlacement | null = null
   $: part = q.question.parts[0]
-  $: hasLine = !['choice', 'construction'].includes(part.answer?.type ?? '')
+  $: hasLine = !onQuestion(part.answer?.type)
   $: shown = placement ?? $paperSettings.marks_placement ?? DEFAULT_PLACEMENT
 </script>
 
