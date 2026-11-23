@@ -178,7 +178,12 @@ def to_freeform(obj: dict) -> dict:
 
         # The written answer: the printed answer, then how to get there.
         pa = part["answer"]
-        if pa["type"] == "construction":
+        if pa["type"] == "tick_table":  # the statements go in the body, the ticks in the answer
+            body.append(_para(" / ".join(pa["columns"])))
+            body.append(_list("orderedList", [r["statement"] for r in pa["rows"]]))
+            answer.append(_para(f"{label}Answer:"))
+            answer.append(_list("orderedList", [r["tick"] for r in pa["rows"]]))
+        elif pa["type"] == "construction":
             answer.append(_para(f"{label}Answer: see the figure."))
             answer.append(_figure(pa["diagram"], "answer figure", "Completed construction"))
         else:

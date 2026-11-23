@@ -26,7 +26,16 @@ describe('AccountMenu', () => {
     await openMenu()
     expect(screen.getByText('ann@example.com')).toBeInTheDocument()
     const names = screen.getAllByRole('menuitem').map((m) => m.textContent?.trim())
-    expect(names).toEqual(['Settings', 'Download my data', 'Sign out', 'Delete my account…'])
+    expect(names).toEqual(['Settings', 'Download my data', 'Privacy and terms', 'Sign out', 'Delete my account…'])
+  })
+
+  it('opens the privacy notice in a new tab', async () => {
+    const open = vi.fn()
+    vi.stubGlobal('open', open)
+    render(AccountMenu)
+    await openMenu()
+    await fireEvent.click(screen.getByRole('menuitem', { name: /Privacy and terms/ }))
+    expect(open).toHaveBeenCalledWith('http://localhost:8000/privacy', '_blank', 'noopener')
   })
 
   it('offers only Settings to the development stub', async () => {

@@ -135,3 +135,32 @@ export function makeTableQuestion(over: Partial<Question> = {}): Question {
     ...over,
   }
 }
+
+/** A generated True / False / Not possible to tell question (EXA-158, average_statements). */
+export function makeTickTableQuestion(): Question {
+  const base = makeQuestion(
+    { id: 'average_statements:1', blueprint_code: 'average_statements', available_ops: ['regenerate'] },
+    'Jars P, Q and R each contain some sweets. The average number of sweets in the 3 jars is 24. For each statement, put a tick in the correct box.',
+  )
+  const part = base.question.parts[0]
+  return {
+    ...base,
+    question: {
+      total_marks: 2,
+      parts: [
+        {
+          ...part,
+          marks: 2,
+          answer: {
+            type: 'tick_table',
+            columns: ['True', 'False', 'Not possible to tell'],
+            rows: [
+              { statement: 'Jars P, Q and R contain 72 sweets altogether.', tick: 'True' },
+              { statement: 'Jar Q contains exactly 20 sweets.', tick: 'Not possible to tell' },
+            ],
+          },
+        },
+      ],
+    },
+  }
+}

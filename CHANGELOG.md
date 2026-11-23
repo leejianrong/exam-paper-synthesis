@@ -19,6 +19,18 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   (it always left one 4-mark gap), so every paper template fills at P5 and P6. A paper takes
   multi-part questions of its own level only, so a P6 Paper 2 is unchanged.
 
+- **True / False / Not possible to tell tables (EXA-158).** A question can now ask the pupil to
+  tick one box per statement, as real P5–P6 papers do: a new `tick_table` answer (canonical
+  schema 1.16.0). The student paper prints the statements in a ruled table with an empty box
+  under True, False and Not possible to tell; the full key and the school key print the same
+  table with the ticks. A new P5 Average blueprint, `average_statements` (2 marks), gives three
+  statements about containers whose average is known ("At least one of the jars P, Q and R
+  contains 25 sweets or more"); "Not possible to tell" is ticked only when the facts allow it
+  either way, and the key's working shows two fillings that disagree. The paper generator can
+  place it in a 2-mark short-answer or structured slot, never as multiple choice; the editor
+  shows it as it prints. A changed tick is refused like any changed answer; a changed statement only
+  takes the verified claim away, like other changed wording (EXA-157).
+
 - **Invite-only sign-in for the private trial (EXA-186).** `EXAM_ALLOWED_EMAILS` (addresses and
   `@domain` entries) closes sign-in to everyone else, with Google or GitHub: only a verified
   email on the list may sign in, nobody else gets an account, and taking an address off the
@@ -26,6 +38,18 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   teachers only"; the Microsoft button is hidden while the list is set (Microsoft never verifies
   an email), and in production an entry without an `@` stops the server from starting. Empty =
   open to all (`api/app/allowlist.py`; `docs/deploy/SIGN-IN.md`).
+- **Privacy notice and terms (EXA-185).** `/privacy` and `/terms` are plain pages anyone can
+  read signed out (Google's consent screen links to them). The privacy notice covers what is
+  kept and for how long (the sign-in profile, papers, folders, bank, images, settings, export
+  times for 24 hours, the 30-day session and the two 10-minute sign-in cookies, error logs only),
+  the Google user data and the Limited Use statement, that nothing is sold or used for adverts or
+  training, where it lives (DigitalOcean in Singapore, backups deleted after 14 days; Google and
+  GitHub largely in the US), how to download, correct or delete it, and the data protection
+  officer. The terms cover fair use, the export allowance, no warranty and Singapore law. The
+  image no longer writes a per-request access log (uvicorn `--no-access-log`), so the notice
+  can promise no log of visits or addresses. The contact address comes from `EXAM_CONTACT_EMAIL`.
+  The sign-in screen links both; the account menu has *Privacy and terms*
+  (`api/app/routes_legal.py`).
 
 - **Droplet runbook and launch checklist (EXA-181, EXA-182, EXA-183).**
   `docs/deploy/DROPLET.md` sets up the production server step by step, each with a check: the

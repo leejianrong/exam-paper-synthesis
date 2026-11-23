@@ -3,6 +3,7 @@
 from . import (
     algebra,  # noqa: F401
     average,  # noqa: F401
+    average_statements,  # noqa: F401
     circles,  # noqa: F401
     decimals,  # noqa: F401
     fractions_easy,  # noqa: F401
@@ -46,6 +47,7 @@ from . import (
 __all__ = [
     "algebra",
     "average",
+    "average_statements",
     "decimals",
     "fractions_easy",
     "fractions_hard",
