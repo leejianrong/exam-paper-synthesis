@@ -1,4 +1,4 @@
 # False positives, by gitleaks fingerprint (commit:file:rule:line). Each one checked by hand.
-# tests/test_api_set_key.py: `f"/folders/{folder}/key", headers=ALICE` — a URL path and the
-# dev-stub owner header {"X-Dev-Owner": "alice"}, not a key.
+# tests/test_api_set_key.py line 220: the set-key URL path followed by the dev-stub owner
+# header (the test user alice), not a credential.
 d20dcab138e96777c94cea4286c27e613c9b92cc:tests/test_api_set_key.py:generic-api-key:220
