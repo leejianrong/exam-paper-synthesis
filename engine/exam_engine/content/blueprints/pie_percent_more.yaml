@@ -1,0 +1,44 @@
+code: pie_percent_more
+syllabus:
+  level: P6
+  strand: "Data Analysis"
+  topic: "Statistics (Charts)"
+  subtopic: "Pie chart in percentages: how much more on one sector than another"
+  skill_codes: ["DATA.PIE.PERCENT"]     # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: medium
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Representation"]
+marks: 2
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, total, percents, more, less]
+  properties:
+    name: { type: string }
+    total: { type: integer, minimum: 100, maximum: 600 }
+    percents: { type: array, minItems: 4, maxItems: 5, items: { type: integer, minimum: 10 } }
+    more: { type: integer, minimum: 0, maximum: 4 }
+    less: { type: integer, minimum: 0, maximum: 4 }
+param_roles:
+  name: { role: name }
+  total: { role: number }
+  percents: { role: number }
+  more: { role: number }
+  less: { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{expr1}"
+    - text: "{step2}"
+      expr: "{expr2}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Finds the difference between the two percentages." }
+  - { mark: 1, type: A, description: "Correct amount with the $ unit." }
+answer:
+  type: integer
+  unit: "$"
+diagram: chart

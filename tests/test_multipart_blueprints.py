@@ -35,6 +35,7 @@ CODES = {
     "lcm_packs_structured": ("Whole Numbers", [1, 2]),
     "age_difference_structured": ("Ratio", [1, 2]),
     "equal_number_amount_structured": ("Money", [2, 2]),
+    "tank_graph_structured": ("Statistics (Charts)", [2, 2]),  # EXA-158
     # EXA-117: the P5 ones
     "tap_tank_structured": ("Volume", [2, 2]),
     "savings_structured": ("Money", [2, 2]),

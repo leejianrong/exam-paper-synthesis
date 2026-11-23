@@ -37,7 +37,7 @@ def _answer(obj: dict) -> dict:
 
 def test_objects_are_schema_valid_deterministic_and_varied():
     obj = _obj()
-    assert obj["schema_version"] == "1.16.0"
+    assert obj["schema_version"] == "1.17.0"
     assert canonical.load(copy.deepcopy(obj)) == obj
     assert generate(CODE, 3) == obj
     assert len({json.dumps(_answer(generate(CODE, s))) for s in range(1, 21)}) == 20

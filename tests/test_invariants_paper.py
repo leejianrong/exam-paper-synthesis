@@ -506,9 +506,12 @@ def test_what_todays_content_fills():
     assert fill("p1_booklet_a", "P5") == (15, 0)  # 13 one-mark at P5 (cubes_count, EXA-147)
     assert fill("p1_booklet_b", "P6") == (15, 0)
     assert fill("p1_booklet_b", "P5") == (15, 0)  # all 10 P5 two-mark mediums (EXA-147, 148, 154)
-    assert fill("p2", "P6") == (17, 0)  # Section B: 10 multi-part + 2 single-part stand-ins
+    assert fill("p2", "P6") == (
+        16,
+        0,
+    )  # Section B: 11 multi-part (tank graph, EXA-158), no stand-in
     _, r = generate_paper("p2", "P6", 1)
-    assert [(s["multipart"], s["stand_ins"]) for s in r["sections"]] == [(0, 0), (10, 2)]
+    assert [(s["multipart"], s["stand_ins"]) for s in r["sections"]] == [(0, 0), (11, 0)]
     # Section B: the 3 P5 multi-part questions (EXA-117) + 12 stand-ins, no placeholder
     assert fill("p2", "P5") == (20, 0)
     _, r = generate_paper("p2", "P5", 1)

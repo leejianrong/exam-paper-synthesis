@@ -19,6 +19,22 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   (it always left one 4-mark gap), so every paper template fills at P5 and P6. A paper takes
   multi-part questions of its own level only, so a P6 Paper 2 is unchanged.
 
+- **Tank line graphs and pie charts in fractions or percentages (EXA-158, part 2).** Five new
+  P6 Statistics (Charts) blueprints, on no ladder: `pie_fraction` (1 mark: the fraction of the
+  unlabelled sector), `pie_percent_more` (2 marks: how much more was spent on one sector than
+  another, from a percentage pie and the total), `pie_fraction_amount` (3 marks: one sector's
+  amount gives the whole, then the unlabelled sector's share), `tank_graph` (2 marks: the water
+  that flowed in between two times, or the rate in ℓ/min, read off a line graph of the volume
+  in a tank) and the two-part `tank_graph_structured` for Paper 2 (the rate, then how many
+  minutes until the tank of a given capacity is full; the graph prints after the shared
+  stem, before (a), via a new blueprint option `figure_in_stem`). The `chart` figure (canonical schema
+  1.17.0) gains a numeric time axis with vertical gridlines, each line given as its corners,
+  and a fraction pie that prints each sector as a stacked fraction; the unit `l/min` prints as
+  ℓ/min. The invariant tests read every answer back off the drawn SVG: the graph's corners from
+  the gridlines and tick labels, the pie's shares from its arcs. The paper generator places all but `pie_fraction_amount`
+  (3 marks): Paper 2 Section A takes 2-mark questions and Section B already has the tank
+  question for the topic, so it is for adding by hand for now.
+
 - **True / False / Not possible to tell tables (EXA-158).** A question can now ask the pupil to
   tick one box per statement, as real P5–P6 papers do: a new `tick_table` answer (canonical
   schema 1.16.0). The student paper prints the statements in a ruled table with an empty box

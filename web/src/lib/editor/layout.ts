@@ -137,6 +137,7 @@ export const UNIT_CHOICES: Array<{ value: string; label: string }> = [
   { value: "km/h", label: "km/h" },
   { value: "m/s", label: "m/s" },
   { value: "m/min", label: "m/min" },
+  { value: "l/min", label: "ℓ/min" },
   { value: "marbles", label: "marbles" },
   { value: "items", label: "items" },
   { value: "people", label: "people" },
