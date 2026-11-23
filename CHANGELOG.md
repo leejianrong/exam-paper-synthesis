@@ -10,6 +10,13 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **Invite-only sign-in for the private trial (EXA-186).** `EXAM_ALLOWED_EMAILS` (addresses and
+  `@domain` entries) closes sign-in to everyone else, with Google or GitHub: only a verified
+  email on the list may sign in, nobody else gets an account, and taking an address off the
+  list ends its sessions at once. The sign-in page says "This server is open to invited
+  teachers only"; the Microsoft button is hidden while the list is set (Microsoft never verifies
+  an email), and in production an entry without an `@` stops the server from starting. Empty =
+  open to all (`api/app/allowlist.py`; `docs/deploy/SIGN-IN.md`).
 - **Privacy notice and terms (EXA-185).** `/privacy` and `/terms` are plain pages anyone can
   read signed out (Google's consent screen links to them). The privacy notice covers what is
   kept and for how long (the sign-in profile, papers, folders, bank, images, settings, export

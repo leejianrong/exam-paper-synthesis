@@ -38,10 +38,28 @@ is a command on the droplet.
 
 - **Google** stays in *Testing* mode, so only the people you list as test users (up to 100) can
   sign in with Google.
-- **GitHub** has no such list: anyone with a GitHub account who finds the URL can sign in.
-  The sslip.io address is not published anywhere, but it is not secret either.
-- **For a strictly closed trial**, leave the two GitHub lines in `.env` empty at first. The
-  sign-in page then shows Google only. Add GitHub when you open up.
+- **GitHub** has no such list of its own, so the app has one: set `EXAM_ALLOWED_EMAILS` in
+  `.env` to the invited addresses, and `@domain` entries for whole schools:
+
+  ```
+  EXAM_ALLOWED_EMAILS=you@gmail.com, teacher@example.org, @school.edu.sg
+  ```
+
+  Then only someone whose Google or GitHub account has a **verified** email on the list can
+  sign in or create an account, with Google or GitHub. Anyone else goes back to the sign-in
+  page with "This server is open to invited teachers only". Taking an address off the list
+  (then `docker compose up -d app`) ends that person's sessions at once.
+- The rules: an entry is a full address or `@domain` (the app refuses to start otherwise); `@school.edu.sg` covers
+  exactly that domain, not `a.school.edu.sg`; a GitHub account counts by its primary verified
+  address only; and a teacher whose account was first made with a different address (say they
+  signed up with Google as `ann@gmail.com`, then linked GitHub) is checked against **that**
+  address too, so list both; addresses must match exactly (`ann+test@…` is a different
+  address). A `@domain` entry trusts that domain: someone who still has a verified address
+  there still gets in.
+- The list guards accounts and everyone's papers. The question generator's own pages that need
+  no account stay reachable to anyone with the URL; they hold no one's data.
+- At the public launch, empty `EXAM_ALLOWED_EMAILS` and run `docker compose up -d app`. Also
+  publish the Google app (see the end of this guide).
 
 ## GitHub
 
