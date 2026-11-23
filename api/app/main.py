@@ -24,6 +24,7 @@ from .routes_edit import router as edit_router
 from .routes_export import router as export_router
 from .routes_folders import router as folders_router
 from .routes_generate import router
+from .routes_legal import router as legal_router
 from .routes_papers import router as papers_router
 from .routes_render import router as render_router
 from .routes_settings import router as settings_router
@@ -92,6 +93,7 @@ app.include_router(settings_router)
 app.include_router(convert_router)
 app.include_router(papers_router)
 app.include_router(render_router)
+app.include_router(legal_router)
 
 
 @app.get("/health")

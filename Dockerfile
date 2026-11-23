@@ -37,4 +37,5 @@ USER app
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
   CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health').status==200 else 1)"
-CMD ["uv", "run", "--no-sync", "uvicorn", "app.main:app", "--app-dir", "api", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]
+# No per-request access log: the privacy notice promises no log of visits or addresses (EXA-185).
+CMD ["uv", "run", "--no-sync", "uvicorn", "app.main:app", "--app-dir", "api", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*", "--no-access-log"]

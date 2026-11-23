@@ -135,8 +135,6 @@ there too.
 5. Agree to the Google API Services User Data Policy → **Create**.
 6. **Branding** (left menu). For the trial, fill in only what is required, but add these now if
    the policy pages are live:
-   - The privacy and terms pages arrive with EXA-185 (PR #268); leave those two links empty
-     until it is deployed.
    - **Application home page**: `https://HOST`
    - **Application privacy policy link**: `https://HOST/privacy`
    - **Application terms of service link**: `https://HOST/terms`
@@ -239,8 +237,8 @@ When the domain (e.g. `paperbench.dev`) points at the droplet:
    4. Under **Audience**, click **Publish app** so anyone can sign in.
    5. For the app's name and logo to show on the consent screen, Google runs a brand check,
       which usually takes a few days. Basic scopes need no security assessment.
-4. **Contact address**: once the privacy pages are deployed (EXA-185, PR #268), set
-   `EXAM_CONTACT_EMAIL` (e.g. `hello@<domain>`) so they name it. Then remove the sslip.io
+4. **Contact address**: set `EXAM_CONTACT_EMAIL` (e.g. `hello@<domain>`) so the privacy and
+   terms pages name it. Then remove the sslip.io
    redirect URI from the Google client.
 5. **Check**: sign in with both providers from a private window, using an account that was not
    a test user.
