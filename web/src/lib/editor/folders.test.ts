@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { groupByFolder, titleMatches } from './folders'
+import { groupByFolder, setKeyStatus, titleMatches } from './folders'
 
 const doc = (id: string, title: string, folder_id: string | null = null) => ({
   id,
@@ -37,5 +37,51 @@ describe('titleMatches', () => {
     expect(titleMatches('Ratio quiz', '')).toBe(true)
     expect(titleMatches('Ratio quiz', '   ')).toBe(true)
     expect(titleMatches('', 'untitled')).toBe(true)
+  })
+})
+
+describe('setKeyStatus (EXA-168)', () => {
+  type Part = 'booklet_a' | 'booklet_b' | 'paper_2' | null
+  const parts = (...ps: Part[]) => ps.map((p, i) => ({ ...doc(String(i), `P${i}`, 'f'), paper_part: p }))
+
+  it('is ready with one of each part, whatever else is in the folder', () => {
+    expect(setKeyStatus(parts('paper_2', null, 'booklet_b', 'booklet_a'))).toEqual({ ready: true })
+  })
+
+  it('offers nothing in a folder with no part of a set', () => {
+    expect(setKeyStatus(parts(null, null))).toBeNull()
+    expect(setKeyStatus([])).toBeNull()
+  })
+
+  it('names what is missing, and a doubled part before that, in the engine’s words', () => {
+    expect(setKeyStatus(parts('booklet_a'))).toEqual({
+      ready: false,
+      reason: 'This folder has no Booklet B or Paper 2.',
+    })
+    expect(setKeyStatus(parts('booklet_a', 'booklet_b'))).toEqual({ ready: false, reason: 'This folder has no Paper 2.' })
+    expect(setKeyStatus(parts('booklet_a', 'booklet_a', 'paper_2'))).toEqual({
+      ready: false,
+      reason: '“P0” and “P1” both look like Booklet A.',
+    })
+  })
+
+  it('papers sharing a title are counted, not listed twice', () => {
+    const same = parts('booklet_a', 'booklet_a', 'paper_2').map((d) => ({ ...d, title: 'P6 Paper 1 Booklet A' }))
+    expect(setKeyStatus(same)).toEqual({
+      ready: false,
+      reason: 'Two papers titled “P6 Paper 1 Booklet A” both look like Booklet A.',
+    })
+  })
+
+  it('a part named on a cover wins over a title that only looks like it', () => {
+    const fromCover = parts('booklet_a', 'booklet_b', 'paper_2').map((d) => ({ ...d, paper_part_source: 'cover' as const }))
+    const worksheet = { ...doc('w', 'Booklet A practice', 'f'), paper_part: 'booklet_a' as const, paper_part_source: 'title' as const }
+    expect(setKeyStatus([worksheet, ...fromCover])).toEqual({ ready: true })
+    // two covers saying Booklet A are still two: both are named
+    const second = { ...fromCover[0], id: 'x', title: 'P6 Booklet A' }
+    expect(setKeyStatus([worksheet, ...fromCover, second])).toEqual({
+      ready: false,
+      reason: '“P0” and “P6 Booklet A” both look like Booklet A.',
+    })
   })
 })

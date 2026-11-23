@@ -351,6 +351,12 @@ table.tick-table .tick { display: inline-block; vertical-align: middle; }
 .key-scheme { list-style: none; margin: 0.2rem 0 0; padding: 0; font-size: 0.9em; color: var(--ink-soft); }
 .key-mark { font-weight: 700; color: var(--ink); }
 .key-work .diagram { margin: 0.2rem 0; }
+/* EXA-168: an exam set's key. The cover lines head it once; each paper follows under its
+   booklet heading, Paper 1's booklets flowing on and Paper 2 starting a new page. */
+.set-key .set-head .key-meta { margin-bottom: 0.2rem; }
+.set-paper + .set-paper { margin-top: 1.2rem; }
+.set-paper[data-part="paper_2"] { break-before: page; margin-top: 0; }
+.set-paper > .key-paper, .set-paper > .compact-key > .key-paper:first-child { margin-top: 0.4rem; }
 
 /* --- free-form (teacher-written) questions --- */
 .freeform .part-text > :first-child {

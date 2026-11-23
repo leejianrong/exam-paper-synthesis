@@ -45,6 +45,7 @@ from .document import (
     key_options,
     marks_groups,
     number_from,
+    numbered_blocks,
     paper_outline,
     paper_part,
     paper_placement,
@@ -1363,14 +1364,19 @@ _KEY_META = (("School", "school"), ("Level", "level"), ("Subject", "subject"), (
 _GRID_COLUMNS = 10
 
 
-def _key_meta(doc: dict) -> str:
+def _key_meta(*docs: dict) -> str:
     """ "School : … / Level : … / Subject : … / Exam : …" from the cover, as real keys head
-    their first page. A line whose cover field is empty is left out."""
-    attrs = (cover_page(doc) or {}).get("attrs") or {}
+    their first page. A line whose cover field is empty is left out. Given an exam set's
+    papers (EXA-168), each line takes the first cover that fills it."""
+    covers = [(cover_page(d) or {}).get("attrs") or {} for d in docs]
+    values = {
+        key: next((v for a in covers if (v := str(a.get(key) or "").strip())), "")
+        for _, key in _KEY_META
+    }
     rows = [
-        f"<div><dt>{name}</dt><dd>{_esc(value)}</dd></div>"
+        f"<div><dt>{name}</dt><dd>{_esc(values[key])}</dd></div>"
         for name, key in _KEY_META
-        if (value := (attrs.get(key) or "").strip())
+        if values[key]
     ]
     return f'<dl class="key-meta">{"".join(rows)}</dl>' if rows else ""
 
@@ -1590,10 +1596,20 @@ def _key_tables(
 
 
 def _render_compact_key(
-    doc: dict, assets: AssetResolver | None, key: KeyOptions, *, title: str, marks: int
+    doc: dict,
+    assets: AssetResolver | None,
+    key: KeyOptions,
+    *,
+    title: str,
+    marks: int,
+    heading: str | None = None,
 ) -> str:
+    """The school key. ``heading`` (an exam set's booklet heading, EXA-168) replaces the
+    paper's own name, and the set prints the cover lines once at its top instead."""
     total = f'<p class="key-total">Total: {marks} marks</p>' if key.show_marks else ""
-    out = [_key_meta(doc), f'<h2 class="key-paper">{_esc(_key_paper_name(doc, title))}</h2>', total]
+    name = heading or _key_paper_name(doc, title)
+    meta = "" if heading else _key_meta(doc)
+    out = [meta, f'<h2 class="key-paper">{_esc(name)}</h2>', total]
     for info, numbered in _key_groups(doc):
         name = (info or {}).get("title", "").strip()
         if name and not _GENERIC_TITLE.match(name):  # "Section A" does not print (EXA-139)
@@ -1603,6 +1619,43 @@ def _render_compact_key(
         else:
             out.append(_key_tables(numbered, key, assets))
     return f'<div class="compact-key">{"".join(out)}</div>'
+
+
+def _paper_key_body(
+    doc: dict,
+    assets: AssetResolver | None,
+    key: KeyOptions,
+    *,
+    title: str,
+    marks: int,
+    heading: str | None = None,
+) -> str:
+    """A paper's key in its own style: the school key, or its worked solutions. Shared by the
+    paper's key (and the key section of ``full``) and the exam-set key (EXA-168), whose
+    ``heading`` replaces the school key's cover lines and paper name."""
+    if key.layout == "compact":
+        return _render_compact_key(doc, assets, key, title=title, marks=marks, heading=heading)
+    numbered = [(n, b) for n, b in enumerate(numbered_blocks(doc), number_from(doc)) if in_key(b)]
+    # A shared stem prints in the worked key above the first of its questions there (EXA-90),
+    # when the key repeats the question text.
+    stems: dict[int, str] = {}
+    if key.show_question:
+        content = doc["content"]["content"]
+        for at, group in stem_groups(doc).items():
+            first = next((k for k, (n, _) in enumerate(numbered) if n in group), None)
+            if first is not None:
+                stems[first] = _render_group_stem(content[at], group, assets, tag="li")
+    # The key counts up by itself unless a question was left out: then it keeps the paper's numbers.
+    numbers = [n for n, _ in numbered]
+    return _render_numbered_blocks(
+        [b for _, b in numbered],
+        answer_key=True,
+        assets=assets,
+        placement=paper_placement(doc),
+        key=key,
+        numbers=None if numbers == list(range(1, len(numbers) + 1)) else numbers,
+        stems=stems,
+    )
 
 
 def render_document_html(
@@ -1626,35 +1679,10 @@ def render_document_html(
     ]
     marks = _doc_total_marks(blocks)
     key_opts = _key_options(doc)
-    numbered = [(n, b) for n, b in enumerate(blocks, number_from(doc)) if in_key(b)]
-    key_blocks = [b for _, b in numbered]
-    # A shared stem prints in the full key above the first of its questions there (EXA-90),
-    # when the key repeats the question text.
-    key_stems: dict[int, str] = {}
-    if key_opts.show_question:
-        content = doc["content"]["content"]
-        groups = stem_groups(doc)
-        for at, numbers in groups.items():
-            first = next((k for k, (n, _) in enumerate(numbered) if n in numbers), None)
-            if first is not None:
-                key_stems[first] = _render_group_stem(content[at], numbers, assets, tag="li")
-    # The key counts up by itself unless a question was left out: then it keeps the paper's numbers.
-    all_numbers = [n for n, _ in numbered]
-    key_numbers = None if all_numbers == list(range(1, len(all_numbers) + 1)) else all_numbers
     key_body = (
         ""
         if mode == "student"
-        else _render_compact_key(doc, assets, key_opts, title=title, marks=marks)
-        if key_opts.layout == "compact"
-        else _render_numbered_blocks(
-            key_blocks,
-            answer_key=True,
-            assets=assets,
-            placement=paper_placement(doc),
-            key=key_opts,
-            numbers=key_numbers,
-            stems=key_stems,
-        )
+        else _paper_key_body(doc, assets, key_opts, title=title, marks=marks)
     )
 
     if mode == "key" and key_opts.layout == "compact":
@@ -1703,6 +1731,54 @@ def render_document_html(
         # a paper with a marking section prints a tally box on every page it fills with those
         tally=any(s["marking"] for s in paper_outline(doc)),
         foot_tag=_foot_tag(doc),  # every paper is paginated, for its footers (EXA-138)
+    )
+
+
+# ---------------------------------------------------------------------------
+# Exam-set key (EXA-168): one answer key for Booklet A, Booklet B and Paper 2.
+# ---------------------------------------------------------------------------
+
+SET_HEADINGS = {
+    "booklet_a": "Paper 1 Booklet A",
+    "booklet_b": "Paper 1 Booklet B",
+    "paper_2": "Paper 2",
+}
+
+
+def _set_paper_key(title: str, doc: dict, assets: AssetResolver | None) -> str:
+    """One paper's part of a set key: its booklet heading, then its key in its own style and
+    options, numbered as the paper numbers it (Booklet B from 16)."""
+    part = paper_part(doc)
+    heading = SET_HEADINGS.get(part or "") or _key_paper_name(doc, title)
+    marks = _doc_total_marks(numbered_blocks(doc))
+    key = _key_options(doc)
+    body = _paper_key_body(doc, assets, key, title=title, marks=marks, heading=heading)
+    if key.layout != "compact":  # worked solutions: the heading and total the key's title bar has
+        body = (
+            f'<h2 class="key-paper">{_esc(heading)}</h2>'
+            f'<p class="key-total">Total: {marks} marks</p>{body}'
+        )
+    return f'<section class="set-paper" data-part="{_esc(part or "")}">{body}</section>'
+
+
+def render_set_key_html(
+    title: str, papers: list[tuple[str, dict]], *, assets: AssetResolver | None = None
+) -> str:
+    """One answer key for an exam set (EXA-168): ``papers`` is ``(title, document)`` in the
+    order to print (Booklet A, Booklet B, Paper 2). The set's cover lines (school, level,
+    subject, exam) head the first page once; each paper follows under its booklet heading in
+    its own key style. Paper 1's two booklets flow on; Paper 2 starts a new page. The pages
+    are numbered through the whole set (the key's ``@page`` counter)."""
+    if not papers:
+        raise ValueError("an exam-set key needs at least one paper")
+    meta = _key_meta(*(doc for _, doc in papers))
+    head = meta or f'<h1 class="sheet-title">{_esc(title)}</h1>'
+    body = "".join(_set_paper_key(t, doc, assets) for t, doc in papers)
+    return _document(
+        root_class="sheet answer-key set-key",
+        title=f"{title} — Answer Key",
+        header_html="",
+        body_html=f'<div class="set-head">{head}</div>{body}',
     )
 
 

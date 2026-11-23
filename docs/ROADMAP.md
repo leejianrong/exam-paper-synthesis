@@ -54,7 +54,9 @@ EXA-169, new-paper defaults in Settings (school name, level, marks shown, key st
 into every new paper by the server, the default level offered first in the New dialog; S12,
 EXA-170, the sign-in page: the product name "Exam papers" and what it is for, a "Sign in with …"
 button with its mark for each configured provider, sign-in failures in plain words, the dev stub
-marked as development only, and "Exam papers" as the tab title instead of the repo name).
+marked as development only, and "Exam papers" as the tab title instead of the repo name; S10,
+EXA-168, one answer-key PDF for a folder's whole exam set, from the folder's ⋯ menu, with
+booklet headings).
 
 ---
 

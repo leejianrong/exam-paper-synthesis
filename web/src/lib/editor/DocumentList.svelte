@@ -4,22 +4,25 @@
   // that folder as the default home. EXA-166: each paper's actions (Open, Rename, Move, Make a
   // copy, Delete) and each folder's (New paper, Rename, Delete) sit behind a ⋯ menu; deleting
   // asks in a dialog. A search box filters papers by title, folders collapse (remembered per
-  // viewer in localStorage), and edit times read en-SG, relative when recent.
+  // viewer in localStorage), and edit times read en-SG, relative when recent. EXA-168: a folder
+  // holding a complete exam set downloads one answer key for the set from its ⋯ menu.
   import { onMount, tick, untrack } from 'svelte'
   import {
     copyDocument,
     deleteDocument,
     deleteFolder,
+    exportSetKey,
     listDocuments,
     listFolders,
     listPaperTemplates,
     moveDocument,
     renameDocument,
     renameFolder,
+    setKeyUnfilled,
     type Folder,
     type PaperTemplateInfo,
   } from './docsApi'
-  import { groupByFolder, titleMatches } from './folders'
+  import { groupByFolder, setKeyStatus, titleMatches } from './folders'
   import FolderSection from './FolderSection.svelte'
   import PaperRow from './PaperRow.svelte'
   import MoveDialog from './MoveDialog.svelte'
@@ -41,6 +44,10 @@
   let error = $state('')
   /** Try again for the failure in `error`, when the same request may work now (EXA-165). */
   let errorRetry: (() => void) | null = $state(null)
+  let errorRetryLabel: string | undefined = $state(undefined)
+  /** EXA-168: the folders whose set key is being made (each folder's own, so one finishing
+   *  never frees another's). */
+  let setKeyBusy: Set<string> = $state(new Set())
   /** Why the list itself didn't load: it shows in place of the list, with Try again. */
   let listError: unknown = $state(null)
   // Paper templates (P8a) come from the engine, for the wizard.
@@ -67,10 +74,12 @@
   function failed(e: unknown, action: string, retry?: () => void) {
     error = errorText(e, action)
     errorRetry = retry && canRetry(e) ? retry : null
+    errorRetryLabel = undefined
   }
   function clearError() {
     error = ''
     errorRetry = null
+    errorRetryLabel = undefined
   }
   const titleOf = (d: { title: string }): string => d.title || 'Untitled paper'
 
@@ -290,7 +299,36 @@
     }
   }
 
+  /** EXA-168: one PDF answer key for the folder's exam set. Empty placeholders are refused with
+   *  the server's words and a "Download anyway". */
+  async function downloadSetKey(f: Folder, allowPlaceholders = false) {
+    if (setKeyBusy.has(f.id)) return
+    clearError()
+    setKeyBusy = new Set([...setKeyBusy, f.id])
+    announce = `Making the answer key for “${f.name}”…`
+    try {
+      const url = URL.createObjectURL(await exportSetKey(f.id, allowPlaceholders))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${f.name} answer key.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+      announce = `Downloaded the answer key for “${f.name}”.`
+    } catch (e) {
+      announce = ''
+      if (setKeyUnfilled(e)) {
+        error = errorText(e, "The set's answer key wasn't made")
+        errorRetry = () => void downloadSetKey(f, true)
+        errorRetryLabel = 'Download anyway'
+      } else failed(e, "Couldn't download the set's answer key", () => void downloadSetKey(f, allowPlaceholders))
+    } finally {
+      setKeyBusy = new Set([...setKeyBusy].filter((id) => id !== f.id))
+    }
+  }
+
   const grouped = $derived(groupByFolder(folders, docs))
+  /** Each folder's exam-set status, from all its papers (not only those a search shows). */
+  const setKeys = $derived(new Map(grouped.groups.map((g) => [g.folder.id, setKeyStatus(g.docs)])))
   const searching = $derived(query.trim() !== '')
   const shownGroups = $derived(
     searching
@@ -341,7 +379,7 @@
     >
   </div>
 
-  {#if error}<ErrorNote message={error} onRetry={errorRetry} />{/if}
+  {#if error}<ErrorNote message={error} onRetry={errorRetry} retryLabel={errorRetryLabel} />{/if}
 
   {#snippet row(d: DocumentSummary)}
     <PaperRow
@@ -397,6 +435,9 @@
               deletingFolder = g.folder
             }}
             onNew={() => openWizard(document.activeElement as HTMLElement | null, g.folder)}
+            setKey={setKeys.get(g.folder.id) ?? null}
+            setKeyBusy={setKeyBusy.has(g.folder.id)}
+            onSetKey={() => void downloadSetKey(g.folder)}
           >
             <ul class="docs" aria-label={`Papers in “${g.folder.name}”`}>
               {#each g.docs as d (d.id)}{@render row(d)}{/each}

@@ -19,7 +19,7 @@ from jsonschema import Draft202012Validator
 
 from .blueprints.base import validate_params
 from .blueprints.registry import get_solver, load_blueprint
-from .errors import UnknownBlueprint
+from .errors import ExamSetError, UnknownBlueprint
 from .schema import validate_object
 
 # 1.18.0 (EXA-90): + groupStem blocks (a shared stem for the next `count` questions).
@@ -359,17 +359,137 @@ def _part_of(text: object) -> str | None:
     return next((part for part, pat in _PART_PATTERNS if pat.search(text)), None)
 
 
-def paper_part(doc: dict) -> str | None:
-    """Which exam-set paper this is (O3): ``"booklet_a"``, ``"booklet_b"``, ``"paper_2"`` or
-    ``None``. Read from the cover page's ``paper`` field (the templates write "Paper 1
-    (Booklet A)", "Paper 2"), so renaming the paper does not change it; the title is the
-    fallback for a paper without a cover, or whose cover names none of the three."""
+def paper_part_source(doc: dict) -> tuple[str | None, str | None]:
+    """:func:`paper_part` and where it was read: ``"cover"`` (the cover's paper line, which
+    generated and template papers fill in), ``"title"`` (the fallback) or ``None``."""
     try:
         cover = cover_page(doc)
     except (KeyError, TypeError):
         cover = None
     from_cover = _part_of(((cover or {}).get("attrs") or {}).get("paper"))
-    return from_cover or _part_of(doc.get("title"))
+    if from_cover:
+        return from_cover, "cover"
+    from_title = _part_of(doc.get("title"))
+    return (from_title, "title") if from_title else (None, None)
+
+
+def paper_part(doc: dict) -> str | None:
+    """Which exam-set paper this is (O3): ``"booklet_a"``, ``"booklet_b"``, ``"paper_2"`` or
+    ``None``. Read from the cover page's ``paper`` field (the templates write "Paper 1
+    (Booklet A)", "Paper 2"), so renaming the paper does not change it; the title is the
+    fallback for a paper without a cover, or whose cover names none of the three."""
+    return paper_part_source(doc)[0]
+
+
+# The three papers of an exam set in exam order, with the names messages call them by.
+SET_PARTS = ("booklet_a", "booklet_b", "paper_2")
+SET_PART_NAMES = {"booklet_a": "Booklet A", "booklet_b": "Booklet B", "paper_2": "Paper 2"}
+
+
+def _listed(names: list[str], last: str = "or") -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + f" {last} " + names[-1]
+
+
+def _quoted(title: str) -> str:
+    return f"\u201c{title.strip() or 'Untitled paper'}\u201d"
+
+
+_COUNT_WORDS = {2: "Two", 3: "Three", 4: "Four", 5: "Five"}
+
+
+def exam_set_order(papers: list[tuple[str | None, str | None, str]]) -> list[int]:
+    """Which of a folder's papers form its exam set, in exam order (EXA-168): the indices of
+    Booklet A, Booklet B and Paper 2. ``papers`` holds each paper's ``(part, source, title)``
+    (:func:`paper_part_source`). A part named on a cover wins over one only guessed from a
+    title, so a worksheet titled "Booklet A practice" doesn't stand in the way of the set's
+    real Booklet A; a paper that names no part is not in the set. Raises
+    :class:`ExamSetError` when a part is missing, or when two papers are equally good
+    candidates for it (the message names them)."""
+    chosen: dict[str, list[int]] = {}
+    for part in SET_PARTS:
+        candidates = [i for i, (p, _, _) in enumerate(papers) if p == part]
+        on_cover = [i for i in candidates if papers[i][1] == "cover"]
+        chosen[part] = on_cover or candidates
+    doubled = [p for p in SET_PARTS if len(chosen[p]) > 1]
+    if doubled:
+        said = []
+        for part in doubled:
+            titles = [_quoted(papers[i][2]) for i in chosen[part]]
+            verb = "both" if len(titles) == 2 else "all"
+            # one title for all of them: say how many papers carry it, not the title twice
+            who = (
+                f"{_COUNT_WORDS.get(len(titles), str(len(titles)))} papers titled {titles[0]}"
+                if len(set(titles)) == 1
+                else _listed(titles, "and")
+            )
+            said.append(f"{who} {verb} look like {SET_PART_NAMES[part]}.")
+        which = SET_PART_NAMES[doubled[0]] if len(doubled) == 1 else "of each"
+        raise ExamSetError(
+            "ambiguous_set",
+            " ".join(said) + f" Keep one {which} in the folder to make the set's answer key.",
+            doubled,
+        )
+    missing = [p for p in SET_PARTS if not chosen[p]]
+    if missing:
+        raise ExamSetError(
+            "incomplete_set",
+            f"This folder has no {_listed([SET_PART_NAMES[p] for p in missing])}. "
+            "A set's answer key needs Booklet A, Booklet B and Paper 2.",
+            missing,
+        )
+    return [chosen[p][0] for p in SET_PARTS]
+
+
+# How a clash between two covers is said: "Booklet A is Primary 5 but Paper 2 is Primary 6."
+_COVER_CLASH = {
+    "level": "{a} is {va} but {b} is {vb}.",
+    "school": "{a} is from {va} but {b} is from {vb}.",
+    "subject": "{a} is {va} but {b} is {vb}.",
+    "exam": "{a} is for the {va} but {b} is for the {vb}.",
+}
+
+
+_LEVEL = re.compile(r"^(?:p|pr|pri|primary)\.?\s*(\d)$", re.IGNORECASE)
+
+
+def _level_key(level: str) -> str:
+    """A level as compared across a set's covers: P6, Pri 6, Pr. 6 and Primary 6 are one."""
+    m = _LEVEL.match(level.strip())
+    return f"primary {m.group(1)}" if m else level.casefold()
+
+
+def check_exam_set_covers(docs: list[dict]) -> None:
+    """The set's papers (in :data:`SET_PARTS` order) must agree on their covers' level,
+    school, subject and exam, since a set key prints them once (EXA-168). An empty field
+    agrees with anything; case and spacing don't count, and P6 is Primary 6. Raises
+    :class:`ExamSetError` (``mixed_set``) naming each clash."""
+    covers = [(cover_page(d) or {}).get("attrs") or {} for d in docs]
+    said: list[str] = []
+    parts: list[str] = []
+    for field, sentence in _COVER_CLASH.items():
+        filled = [
+            (part, v)
+            for part, attrs in zip(SET_PARTS, covers, strict=False)
+            if (v := " ".join(str(attrs.get(field) or "").split()))
+        ]
+        if not filled:
+            continue
+        first_part, first = filled[0]
+        same = _level_key if field == "level" else str.casefold
+        other = next(((p, v) for p, v in filled if same(v) != same(first)), None)
+        if other:
+            said.append(
+                sentence.format(
+                    a=SET_PART_NAMES[first_part], va=first, b=SET_PART_NAMES[other[0]], vb=other[1]
+                )
+            )
+            parts += [p for p in (first_part, other[0]) if p not in parts]
+    if said:
+        raise ExamSetError(
+            "mixed_set",
+            " ".join(said) + " Make the covers match to print one answer key for the set.",
+            parts,
+        )
 
 
 def total_marks(doc: dict) -> int:
