@@ -94,7 +94,8 @@ that variant's strict sub-schema.
 
 Units on numeric/`quantity` answers come from a **controlled vocabulary** (see the
 `unit` enum in the schema), not free text. Schema **1.3.0** adds the speed units
-`km/h`, `m/s`, and `m/min` (for the Speed ladder).
+`km/h`, `m/s`, and `m/min` (for the Speed ladder); **1.17.0** adds `l/min`, printed `ℓ/min`
+(the rate of flow read off a tank graph, EXA-158).
 
 ## The `geometry_figure` diagram (schema 1.3.0)
 
@@ -179,6 +180,13 @@ It is valid anywhere a `diagram` is (stem, part, MCQ option).
   pie must sum to 100). `show_value: false` draws the sector at its true size and labels it,
   but **never prints its number** — the usual "find the missing percentage" shape. This hides the *text* only: the wedge's angle and the 100% total still determine the value, exactly as on the printed paper, so it is not a secrecy mechanism.
 - A **bar** chart's axis must start at 0 (a truncated or negative axis misleads); a line axis may not. Every number must print exactly (≤ 3 decimals) and be finite.
+- **Numeric time axis (schema 1.17.0, EXA-158 part 2).** A `line` may give `x_axis{title?, min, max,
+  step}` instead of `categories`, with each series as `points[[x, y], ...]` in increasing `x`
+  (not `values`). It draws vertical gridlines at every `x` step and joins the points with
+  straight lines, e.g. the water in a tank over time. Only a line may have a numeric `x` axis.
+- **Fraction pie (1.17.0, EXA-158 part 2).** `value_unit: "fraction"`: each sector's `value` is a whole
+  number of equal parts and prints as `value / total` in lowest terms, stacked under the sector's
+  name (a hidden one prints the name only).
 - Mixing the two shapes (a pie with `series`, a bar with `sectors`) is a schema error.
 - **Consistency is a load-gate check, not schema**: `exam_engine.chart.check_chart_consistency`
   (series align with categories, values lie on the axis, `step` divides the span, a percent

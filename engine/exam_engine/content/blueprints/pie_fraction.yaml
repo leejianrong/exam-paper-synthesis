@@ -1,0 +1,41 @@
+code: pie_fraction
+syllabus:
+  level: P6
+  strand: "Data Analysis"
+  topic: "Statistics (Charts)"
+  subtopic: "Pie chart in fractions: the fraction of the unlabelled sector"
+  skill_codes: ["DATA.PIE.FRACTION"]    # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: easy
+  cognitive_level: routine_procedural
+  difficulty_levers: ["Representation"]
+marks: 1
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, context, den, parts, hidden]
+  properties:
+    name: { type: string }
+    context: { type: string, enum: [money, time] }
+    den: { type: integer, enum: [6, 8, 10, 12] }
+    parts: { type: array, minItems: 3, maxItems: 4, items: { type: integer, minimum: 1 } }
+    hidden: { type: integer, minimum: 0, maximum: 3 }
+# Every parameter_schema property needs a role (W1a).
+param_roles:
+  name: { role: name }
+  context: { role: choice }
+  den: { role: number }
+  parts: { role: number }
+  hidden: { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{expr1}"
+marking_scheme:
+  - { mark: 1, type: A, description: "Takes the labelled fractions from 1; correct fraction in its simplest form." }
+answer:
+  type: fraction
+diagram: chart

@@ -25,6 +25,7 @@ from . import (
     percentage_hard,  # noqa: F401
     percentage_medium,  # noqa: F401
     percentage_remainder,  # noqa: F401
+    pie_chart,  # noqa: F401
     rate,  # noqa: F401
     ratio_difference,  # noqa: F401
     ratio_easy,  # noqa: F401
@@ -39,6 +40,7 @@ from . import (
     statistics_chart,  # noqa: F401
     structured,  # noqa: F401
     tables,  # noqa: F401
+    tank_graph,  # noqa: F401
     volume,  # noqa: F401
     whole_numbers,  # noqa: F401
 )
@@ -67,6 +69,7 @@ __all__ = [
     "percentage_hard",
     "percentage_medium",
     "percentage_remainder",
+    "pie_chart",
     "rate",
     "ratio_difference",
     "ratio_easy",
@@ -81,6 +84,7 @@ __all__ = [
     "statistics_chart",
     "structured",
     "tables",
+    "tank_graph",
     "volume",
     "whole_numbers",
 ]
