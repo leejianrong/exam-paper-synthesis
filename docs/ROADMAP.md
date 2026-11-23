@@ -25,7 +25,7 @@ Ongoing (un-prefixed) epics: **Foundation & CI/CD**, **Product shaping & docs**,
 
 Post-MVP epics on the board (not yet itemised below; the board is the live source):
 **M8** diagram & difficulty polish (E12, done), **Editor: bank + schema v2** (E13, done),
-**Editor: WYSIWYG document editor + SaaS** (E14, deferred stories remain: EXA-90 (.docx export, grouped shared-stem blocks); EXA-33, swap from the bank, done; EXA-90 part 1, save your own question to the bank, in review; EXA-89, tier-2 "Edit numbers…" on 11 blueprints, in review),
+**Editor: WYSIWYG document editor + SaaS** (E14, deferred stories remain: EXA-90 part 3, grouped shared-stem blocks, in review; EXA-33, swap from the bank, done; EXA-90 part 1, save your own question to the bank, done; EXA-90 part 2, export to Word (.docx), in review; EXA-89, tier-2 "Edit numbers…" on 11 blueprints, in review),
 and **Paper format** (E15, P1–P5, P6a–d, P7, P8a, P8b and P8d done (P6d = a page summary in the Preview; live frames on the editing surface not built); P8c first three multi-part blueprints done (generator and swap wiring), then five heuristic ones (supposition, fraction of a remainder, LCM packs, ages, equal number vs amount) so Section B has 8 multi-part questions (EXA-143); starter templates carry the generated paper's cover (level left blank); P8e in progress: the P5 `average` ladder (EXA-117), then `whole_numbers`, `decimals`, `rate` (P5) and `algebra` (P6) (EXA-121), then five 1-mark Booklet A blueprints so Booklet A has no placeholders (EXA-145), then the P6 `circles` ladder (EXA-149), then five 2-mark medium rungs (ratio, percentage, speed, both geometry ladders) so Booklet B's 2-mark slots take medium questions (EXA-154) — see
 [`planning/editor/PAPER-FORMAT.md`](planning/editor/PAPER-FORMAT.md) and [`planning/editor/P8-SHAPING.md`](planning/editor/P8-SHAPING.md)).
 A comparison of generated papers with four real 2025 P6 prelims (O4, EXA-128) is in
@@ -166,6 +166,23 @@ cards built in parallel in treehouse worktrees, landed serially on green CI.
 
 ---
 
+## Hosting: Docker Compose on a DigitalOcean droplet (EXA-E16, in progress)
+
+Replaces the Fly.io + Neon hosting of ADR-0022 (ADR-0024). Owner's choices
+(2026-11-21): a 2 GB SGP1 droplet; Caddy for TLS on `<ip>.sslip.io` until a domain is bought
+(the name must suit subjects beyond PSLE maths); Postgres 17 in a container with nightly
+`pg_dump` to DO Spaces; no Cloudflare yet; Google and GitHub sign-in; start with an empty
+database. The homelab k8s idea stays a possible later move.
+
+- **done** Compose stack: Caddy, app and Postgres 17 (`deploy/`), verified locally (EXA-178)
+- **done** Publish the image to GHCR on every main merge; headless-shell Chromium, 1.82 GB (EXA-179)
+- **done** Nightly `pg_dump` to Spaces and a rehearsed restore: the `backup` service, `deploy/restore.sh`, `docs/deploy/BACKUPS.md`; verified locally against an S3 stand-in (EXA-180)
+- **done** Droplet runbook: firewall, SSH keys, swap, upgrades, log rotation, sign-in apps (`docs/deploy/DROPLET.md`, `SIGN-IN.md`, EXA-181)
+- **done** ADR-0024, LAUNCH.md for the droplet, retire `fly.toml` (EXA-182)
+- **done** Uptime check on `/ready`: written in the runbook, set up by the owner at launch (EXA-183)
+- **in_progress** Invite-only sign-in for the private trial, `EXAM_ALLOWED_EMAILS` (EXA-186)
+- **todo** (owner) Provision the droplet, first deploy and smoke test (EXA-184)
+
 ## Ongoing: Foundation & CI/CD (in progress)
 
 Cross-cutting engineering foundation. Open PRs #8-10.
@@ -193,7 +210,7 @@ Cross-cutting engineering foundation. Open PRs #8-10.
   generated question or placeholder of a paper (built on P8d's swap, not as a V8 slice).
 - **done** Promote a free-form question to the bank (EXA-90 part 1): "Save to your bank…" on a
   teacher's own question; it comes back unchanged from "From my bank" and the bank swap
-  (ADR-0023). Still deferred in EXA-90: .docx export, grouped shared-stem blocks.
+  (ADR-0023). Still deferred in EXA-90: .docx export; grouped shared-stem blocks are part 3 (in review).
 
 ---
 

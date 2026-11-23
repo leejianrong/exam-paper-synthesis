@@ -9,6 +9,8 @@ import type { DocumentRecord, DocumentSummary, PaperDocument } from './doc'
 const BASE: string = import.meta.env.VITE_API ?? 'http://localhost:8000'
 
 export type ExportMode = 'student' | 'key' | 'full'
+/** PDF to print, or an editable Word document of the paper or the key (EXA-90). */
+export type ExportFormat = 'pdf' | 'docx'
 
 const json = { 'content-type': 'application/json' }
 
@@ -69,6 +71,8 @@ export interface UnfilledPlaceholders {
   code: 'unfilled_placeholders'
   message: string
   questions: number[]
+  /** EXA-90: shared stems with no question after them (absent from an older server). */
+  lone_stems?: number
 }
 
 export function unfilledDetail(e: unknown): UnfilledPlaceholders | null {
@@ -79,11 +83,21 @@ export function unfilledDetail(e: unknown): UnfilledPlaceholders | null {
     : null
 }
 
-/** The paper as a PDF. A paper with empty placeholders is refused (`unfilledDetail`) unless
- *  `allowPlaceholders` says to print it anyway. */
-export async function exportDocument(id: string, mode: ExportMode, allowPlaceholders = false): Promise<Blob> {
-  const query = allowPlaceholders ? '?allow_placeholders=true' : ''
-  const res = await apiFetch(`${BASE}/documents/${id}/export/${mode}${query}`, { method: 'POST' })
+/** The paper as a PDF, or as Word (`docx`: the student paper or the key only). A paper with
+ *  empty placeholders is refused (`unfilledDetail`) unless `allowPlaceholders` says to print
+ *  it anyway. */
+export async function exportDocument(
+  id: string,
+  mode: ExportMode,
+  allowPlaceholders = false,
+  format: ExportFormat = 'pdf',
+): Promise<Blob> {
+  const query = new URLSearchParams()
+  if (format === 'docx') query.set('mode', mode)
+  if (allowPlaceholders) query.set('allow_placeholders', 'true')
+  const path = format === 'docx' ? 'docx' : mode
+  const qs = query.toString() ? `?${query}` : ''
+  const res = await apiFetch(`${BASE}/documents/${id}/export/${path}${qs}`, { method: 'POST' })
   if (!res.ok) return fail(res)
   return res.blob()
 }

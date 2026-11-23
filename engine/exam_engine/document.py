@@ -22,6 +22,7 @@ from .blueprints.registry import get_solver, load_blueprint
 from .errors import UnknownBlueprint
 from .schema import validate_object
 
+# 1.18.0 (EXA-90): + groupStem blocks (a shared stem for the next `count` questions).
 # 1.17.0 (EXA-90): + freeformQuestion `bank_id` (the bank question it was saved as).
 # 1.16.0 (EXA-159): + key_options.show_marks and key_options.one_mark_working (school key).
 # 1.15.0 (EXA-140): + coverPage.parent_signature and coverPage.even_pages.
@@ -38,7 +39,7 @@ from .schema import validate_object
 # 1.4.0 (P2): + settings.marks_placement, per-question space_mm / ans_unit.
 # 1.1.0 (W2a): + freeformQuestion; 1.2.0 (W2b): + image, math; 1.3.0 (W5): + question `remark`.
 # Older documents stay valid (every addition is optional).
-DOCUMENT_SCHEMA_VERSION = "1.17.0"
+DOCUMENT_SCHEMA_VERSION = "1.18.0"
 
 MAX_QUESTION_BLOCKS = 200
 MAX_CONTENT_BYTES = 1_500_000
@@ -47,6 +48,7 @@ MAX_IMAGES = 40
 MAX_PARTS = 10
 MAX_SECTIONS = 20
 MAX_BLANK_PAGES = 20
+MAX_GROUP_STEMS = 40
 
 QUESTION_TYPES = ("templatedQuestion", "freeformQuestion")
 
@@ -137,6 +139,61 @@ def freeform_marks(node: dict) -> int:
     if parts:
         return sum(p["attrs"].get("marks") or 0 for p in parts)
     return node["attrs"].get("marks") or 0
+
+
+GROUP_STEM = "groupStem"
+# A shared stem's group never runs past these: a new section, page or stem starts afresh.
+_GROUP_ENDS = frozenset({"section", "blankPage", "coverPage", GROUP_STEM})
+
+
+def stem_members(blocks: list[dict], at: int) -> list[int]:
+    """Indexes of the questions sharing the stem at ``blocks[at]`` (EXA-90): the next ``count``
+    questions after it, rich text between them allowed. A section, blank page or another stem
+    ends the group early, so a stem never reaches into the next part of the paper."""
+    want = blocks[at]["attrs"]["count"]
+    out: list[int] = []
+    for i in range(at + 1, len(blocks)):
+        if len(out) == want or blocks[i]["type"] in _GROUP_ENDS:
+            break
+        if blocks[i]["type"] in QUESTION_TYPES:
+            out.append(i)
+    return out
+
+
+def stem_groups(doc: dict) -> dict[int, list[int]]:
+    """Each stem's block index -> its members' printed question numbers, in order."""
+    blocks = doc["content"]["content"]
+    number_at: dict[int, int] = {}
+    n = number_from(doc)
+    for i, node in enumerate(blocks):
+        if node["type"] in QUESTION_TYPES:
+            number_at[i] = n
+            n += 1
+    return {
+        i: [number_at[m] for m in stem_members(blocks, i)]
+        for i, node in enumerate(blocks)
+        if node["type"] == GROUP_STEM
+    }
+
+
+def lone_stems(doc: dict) -> int:
+    """How many shared stems have no question after them (they print with no lead line): the
+    export warns before printing them, as it does for empty placeholders (EXA-137)."""
+    return sum(1 for numbers in stem_groups(doc).values() if not numbers)
+
+
+def stem_sentence(numbers: list[int]) -> str:
+    """The lead line a stem prints, from its members' numbers (never typed, so it cannot drift):
+    "Use the information below to answer Questions 12 and 13." Empty with no members."""
+    if not numbers:
+        return ""
+    if len(numbers) == 1:
+        which = f"Question {numbers[0]}"
+    elif len(numbers) == 2:
+        which = f"Questions {numbers[0]} and {numbers[1]}"
+    else:
+        which = f"Questions {numbers[0]} to {numbers[-1]}"
+    return f"Use the information below to answer {which}."
 
 
 KEY_STYLES = ("school", "worked")
@@ -407,9 +464,26 @@ def validate_document(doc: object) -> list[str]:
     n_blank = sum(1 for n in blocks if n["type"] == "blankPage")
     if n_blank > MAX_BLANK_PAGES:
         errors.append(f"content/content: {n_blank} blank pages; the limit is {MAX_BLANK_PAGES}")
+    n_stems = sum(1 for n in blocks if n["type"] == GROUP_STEM)
+    if n_stems > MAX_GROUP_STEMS:
+        errors.append(f"content/content: {n_stems} shared stems; the limit is {MAX_GROUP_STEMS}")
     seen: set[str] = set()
     n_questions = 0
     for i, node in enumerate(blocks):
+        if node["type"] == GROUP_STEM:
+            chars = text_length(node["content"])
+            if chars > MAX_BLOCK_TEXT_CHARS:
+                errors.append(
+                    f"content/content/{i}/content: {chars} characters of text; "
+                    f"the limit is {MAX_BLOCK_TEXT_CHARS}"
+                )
+            if node["attrs"]["block_id"] in seen:
+                errors.append(
+                    f"content/content/{i}/attrs/block_id: duplicate block id "
+                    f"{node['attrs']['block_id']!r}"
+                )
+            seen.add(node["attrs"]["block_id"])
+            continue
         if node["type"] not in QUESTION_TYPES:
             continue
         n_questions += 1

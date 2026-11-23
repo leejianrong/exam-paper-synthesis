@@ -7,8 +7,9 @@ defence-in-depth layer. Per-account export limits (the money-costly resource) li
 database ledger (``usage.py``) and are unaffected.
 
 The client address is the TCP peer unless ``EXAM_CLIENT_IP_HEADER`` names a header the platform
-overwrites (``Fly-Client-IP`` on Fly, ``CF-Connecting-IP`` behind Cloudflare). Never set it where a
-client can reach the app directly: the header would then be attacker-controlled.
+overwrites (``CF-Connecting-IP`` behind Cloudflare; unset behind Caddy, where uvicorn's proxy
+headers already give the client address). Never set it where a client can reach the app directly:
+the header would then be attacker-controlled.
 """
 
 from __future__ import annotations

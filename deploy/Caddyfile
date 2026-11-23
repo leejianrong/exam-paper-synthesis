@@ -1,0 +1,6 @@
+# One site: SITE_ADDRESS from .env (e.g. 203.0.113.10.sslip.io, later the real domain).
+# Caddy gets and renews the Let's Encrypt certificate itself and redirects http → https.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	reverse_proxy app:8080
+}

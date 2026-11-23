@@ -296,6 +296,11 @@ exactly as before. A paper saved with the compact key before 1.16.0 keeps its M/
 1-mark working but prints in the new school layout (header from the cover, padded grid, one
 row per multi-part question, no section titles).
 
+A shared stem (document schema 1.18.0, EXA-90) is a `groupStem` block in the *document*, not a
+field of a question: text and figures before the next `count` questions, with a lead line derived
+from their numbers. The questions it covers are ordinary canonical objects (or free-form blocks);
+nothing in the canonical schema changes. See `docs/planning/editor/SHARED-STEM-SHAPING.md`.
+
 ---
 
 ## Example 1 — generated, multi-part, with a bar-model aid

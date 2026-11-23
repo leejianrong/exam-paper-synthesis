@@ -21,6 +21,91 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   place it in a 2-mark short-answer or structured slot, never as multiple choice; the editor
   shows it as it prints. A changed tick is refused like any changed answer; a changed statement only
   takes the verified claim away, like other changed wording (EXA-157).
+
+- **Invite-only sign-in for the private trial (EXA-186).** `EXAM_ALLOWED_EMAILS` (addresses and
+  `@domain` entries) closes sign-in to everyone else, with Google or GitHub: only a verified
+  email on the list may sign in, nobody else gets an account, and taking an address off the
+  list ends its sessions at once. The sign-in page says "This server is open to invited
+  teachers only"; the Microsoft button is hidden while the list is set (Microsoft never verifies
+  an email), and in production an entry without an `@` stops the server from starting. Empty =
+  open to all (`api/app/allowlist.py`; `docs/deploy/SIGN-IN.md`).
+
+- **Droplet runbook and launch checklist (EXA-181, EXA-182, EXA-183).**
+  `docs/deploy/DROPLET.md` sets up the production server step by step, each with a check: the
+  SGP1 droplet, a cloud firewall (22/80/443 only; Docker goes around `ufw`), a `deploy` user
+  with root and password logins off, 2 GB swap, automatic security updates with reboots at
+  03:30 SGT, Docker from its own repository with log rotation, the Google and GitHub sign-in
+  apps, the first deploy, uptime and resource alerts on `/ready`, and the day-to-day commands
+  (deploy, roll back, logs, hostname change). `docs/deploy/SIGN-IN.md` walks through the Google
+  and GitHub sign-in apps click by click: what only the owner can do in each console, Google's
+  Testing mode and test users for the private trial on sslip.io, the checks, the common errors,
+  local-development apps, and the move to a real domain. ADR-0024 records the hosting decision and
+  supersedes ADR-0022's Fly.io + Neon; `docs/LAUNCH.md` is rewritten for the droplet; `fly.toml`
+  is removed.
+
+- **The production image is published to GHCR (EXA-179).** A new `Image` workflow builds the
+  Dockerfile on every pull request and prints Paper 2's student paper and key with the image's
+  own browser (`deploy/image_smoke.py`), so a missing system library fails in CI, not on a
+  teacher's first export. On main it pushes `ghcr.io/leejianrong/exam-paper-synthesis:latest`
+  and `:sha-<commit>` from a separate job (pull requests keep a read-only token; main runs are
+  never cancelled, so every merge's tag exists to roll back to). The image installs only
+  Chromium's headless shell: 1.82 GB instead of 2.68 GB, with the same printed pages (all 21
+  pages of the test papers render identically). uv in the image is pinned (0.13.9) instead of
+  `latest`. The package is public, so the droplet pulls it without a login.
+
+- **Nightly database backups to DigitalOcean Spaces (EXA-180).** A `backup` service in
+  `deploy/compose.yaml` (`deploy/backup/`: Alpine with the Postgres 17 client and rclone 1.71,
+  128 MB) runs `pg_dump -Fc` every day at 03:00 Singapore time (`BACKUP_TIME`) and uploads it
+  as `exam-<UTC timestamp>.dump` to the bucket in `SPACES_BUCKET`. A dump is uploaded only when
+  every byte of it reads back (`pg_restore -f /dev/null`) and the database has tables; any
+  failed step exits non-zero and logs `backup FAILED`. Every night, whether or not the dump
+  worked, the job deletes every object in the backup folder older than 14 days (safety dumps
+  too), as the privacy notice promises; a 14-day Spaces lifecycle rule is the backstop and
+  bucket versioning stays off. Back up now with `docker compose exec backup exam-backup now`.
+  `deploy/restore.sh` restores the newest or a named dump: it asks first, stops the app and the
+  backup job, uploads a `pre-restore-…` safety dump, loads the dump into a scratch database and
+  swaps it in only once it has loaded, then starts both again. `docs/deploy/BACKUPS.md` covers
+  setup, daily checks and the restore drill. Bucket keys reach the container only as
+  environment variables.
+
+- **Production stack for a droplet (EXA-178).** `deploy/compose.yaml` runs the app image
+  behind Caddy (automatic Let's Encrypt TLS, http → https, compression) with Postgres 17 on a
+  named volume. Only Caddy publishes ports. Memory is budgeted for a 2 GB droplet (app 1.2 GB
+  with a 512 MB `/dev/shm` for Chromium, Postgres 384 MB tuned for 25 connections, Caddy
+  128 MB). `deploy/.env.example` lists every value the production gate needs; the sign-in
+  limits see the visitor's address through Caddy's `X-Forwarded-For`. `.dockerignore` keeps
+  `.env` files out of the image. The production image builds again: Playwright's bundled node
+  needs `libatomic1`, which the slim base image lacks (the build had been failing unnoticed,
+  since no CI job builds the image yet; EXA-179 adds one).
+
+- **Export to Word (EXA-90).** The Export menu has **Student paper (Word)** and **Answer key
+  (Word)**: an editable .docx to change in Word. It keeps the paper's structure: the cover (its
+  fields and the examiner's table as Word tables), section headers with their marks sentence
+  and instructions, numbered questions with [n] at the right, lettered parts with their own
+  marks, shared stems with their lead line (kept with their first question; repeated in the
+  worked key when it shows the questions), MCQ options one to a line, data tables as real tables, working space and the
+  `Ans:` line with its unit, page breaks (the cover, blank pages, each structured question),
+  and the key: the school key as tables with an answer grid for Booklet A, or the worked key.
+  Figures are the engine's own, rasterised by the PDF export's Chromium at their print size;
+  uploaded images are embedded as they are. Inline maths becomes a Word equation (a small
+  LaTeX reader covering what the papers use; anything else stays as the LaTeX typed). The
+  marking strip, tally boxes and page footers are left out: Word paginates the document
+  itself, but a question's text and figure are kept with its working space. Characters Word
+  cannot hold (a pasted vertical tab) are dropped, and a picture Word cannot read prints
+  "[image unavailable]". A Word export counts against the export allowance like a PDF. API:
+  `POST /documents/{id}/export/docx?mode=student|key` (`api/app/docx_export.py`,
+  `docx_math.py`; new api dependency `python-docx`, MIT).
+
+- **Shared stems (EXA-90).** Insert ▸ **Shared stem** puts a block of text, figures or equations
+  above questions that all use it, and the paper prints "Use the information below to answer
+  Questions 12 and 13." from their numbers. Each question keeps its own number, marks, working
+  space and Ans: line (in Booklet A each can be its own multiple choice). The stem's − and +
+  let a question go or take the next one in; moving a question at the group's edge steps it out
+  or in. The stem stays on the page of its first question, and the worked-solutions key repeats
+  it when it shows the question text. Regenerate unlocked keeps the questions under a stem, and
+  a stem with no questions after it asks before the PDF prints. Document schema 1.18.0 (`groupStem`); older papers are
+  unchanged. See `docs/planning/editor/SHARED-STEM-SHAPING.md`.
+
 - **Save your own question to your bank (EXA-90).** A question you wrote has **Save to your
   bank…** in its ⋯ menu. A small dialog asks its topic (the app's topic list), level (starting at
   the paper's) and difficulty; a single-part question's marks start at the block's, a multi-part
@@ -393,6 +478,11 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **Dependency audit covers the project (EXA-176).** The CI job ran `uvx pip-audit` with no
+  arguments, which audited pip-audit's own environment. It now audits a `uv export` of
+  `uv.lock` (engine, api, cli and the dev group). That flagged anyio, certifi and
+  opentelemetry-api, now bumped to fixed releases (anyio 4.14.2, certifi 2026.10.23,
+  opentelemetry-api 1.45.2). The web side was already audited (`npm audit`, high and above).
 - **A generated question's wording and figures are checked too (EXA-157).** Changing a generated
   question's text, a part, a table cell, its figure (a bar of a chart, an angle label), its worked
   steps or its marking scheme kept the "Engine-verified" claim, since only the answer, marks and
