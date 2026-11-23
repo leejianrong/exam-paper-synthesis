@@ -28,18 +28,17 @@ There are 50 blueprints: 14 topic ladders × 3 rungs, each single-part with fixe
 (4, 5, 5 marks) for Paper 2 Section B; P8e batch 2 (EXA-121) the P5 `whole_numbers`,
 `decimals` and `rate` ladders and the P6 `algebra` ladder (1/2/3 marks each); P8e batch 3
 (EXA-145) five P5 1-mark blueprints for Booklet A; P8e batch 4 (EXA-149) the P6 `circles`
-ladder (1/2/3 marks) (below).
+ladder (1/2/3 marks); P8e batch 5 (EXA-117) three P5 multi-part questions (below).
 
 | Paper part | Real composition | P6 paper today | P5 paper today |
 |---|---|---|---|
 | P1 Booklet A | 15 MCQ, 20 marks (10 × 1, 5 × 2) | 15 / 15 (was 13 before batch 3, 0 before P8b) | 15 / 15 (was 12 before batch 3) |
 | P1 Booklet B | 15 short answer, 25 marks (5 × 1, 10 × 2) | 15 / 15, 25 / 25 (was 12 / 15) | 13 / 15, 21 / 25 (was 9 / 15) |
 | P2 Section A | 5 × 2 marks | 5 / 5 | 5 / 5 |
-| P2 Section B | ~12 multi-part, 45 marks | 45 / 45: 9 multi-part + 3 stand-ins (was 3 + 9) | 30 / 45: 11 stand-ins (eight 3-mark, three 2-mark) + 3 placeholders (was 15 / 45) |
+| P2 Section B | ~12 multi-part, 45 marks | 45 / 45: 10 multi-part + 2 stand-ins (was 3 + 9) | 45 / 45: 3 multi-part + 12 stand-ins (EXA-117; was 41 / 45 with a 4-mark placeholder, 15 / 45 before P8e) |
 
-So a P6 teacher gets a complete paper set, and a P5 teacher complete Booklet A. The remaining
-gaps are P5 2-mark content (Booklet B) and P5 multi-part / 3-mark content for Paper 2
-Section B.
+(Rows as first written; the later batches below update them.) Since EXA-117 every template
+fills at both levels: no generated paper has a placeholder.
 
 ## Shape
 
@@ -54,8 +53,8 @@ served by the API, so there is one source of truth.
 like `generate()`. The same inputs give the same paper. The API supplies the seed, which is where
 entropy enters, as with `/generate`.
 - **Candidates.** The blueprints of the paper's level and below (a P6 paper may use P5 topics,
-  a P5 paper only P5 ones) whose marks match the slot and whose kind fits. `short` and
-  `structured` slots take constructed-response blueprints; `mcq` slots need P8b.
+  a P5 paper only P5 ones; multi-part ones only of the paper's own level, EXA-117) whose
+  marks match the slot and whose kind fits. `short` and `structured` slots take constructed-response blueprints; `mcq` slots need P8b.
 - **Fill.** A small seeded constraint search. No blueprint is used twice in the paper. Topics are
   spread by preferring the least-used topic, with ties broken by the seed. Each slot's question is
   generated with a seed derived from the paper seed and the slot index.
@@ -500,3 +499,40 @@ in generation (the engine stays deterministic).
   excuse a stand-in whose better-rung blueprint's topic had two questions when it was picked;
   `_check_rules` in `tests/test_invariants_paper_swap.py` asserts at most two questions a topic,
   with a P5 and P6 Paper 2 full-regenerate sweep.
+
+## P8e batch 5 as built: P5 multi-part (EXA-117, 2026-11-20)
+
+- **Why.** Every multi-part blueprint was P6, so a P5 Paper 2 Section B was all single-part
+  stand-ins and, with the two-a-topic cap, always one 4-mark placeholder short (41 / 45 on
+  every seed). It was the last gap in one-click generation.
+- **Blueprints** (P5, `solvers/p5_structured.py`, not on any ladder, each 4 = 2 + 2 marks, on
+  topics a P5 Section B barely used, so the cap doesn't bite):
+  - `tap_tank_structured` (Volume): an empty cuboid tank (drawn) and a tap at r ℓ a minute:
+    how long the tank takes to fill; the water level after t minutes.
+  - `savings_structured` (Money; dollars and cents): two savers, the one who saves less starts
+    with more: one saver's money after w weeks; after how many weeks they have the same amount.
+  - `garden_path_structured` (Geometry (Area & Perimeter)): a path of even width round a
+    rectangular garden: the path's area; the cost of a fence along its outer edge.
+- **Level rule** (`paper.candidates`). A paper still takes blueprints of its level and below,
+  but multi-part ones only of its own level, so these never reach a P6 Section B (it already
+  has 10 P6 multi-part questions, about what real papers have; with the P5 ones it took 11 and
+  left no stand-ins). Single-part P5 stand-ins in P6 papers are as before. Swaps and
+  "regenerate unlocked" use the same pool.
+- **Effect** (300 seeds a paper on its own): P5 Paper 2 Section B = 3 multi-part + 12
+  stand-ins, 0 placeholders (was 16 stand-ins + 1 placeholder); P6 Paper 2 unchanged (10
+  multi-part + 2 stand-ins).
+- **P8 is complete for filling**: every template × level (Booklet A, Booklet B, Paper 2 at P5
+  and P6) fills with no placeholder on every seed checked. What is left is quality, not
+  coverage: more P5 multi-part variety (Section B is still mostly stand-ins at P5) and the rung
+  fit of P5 stand-ins.
+- **Multiple choice.** Multi-part blueprints never fill an `mcq` slot (`paper._fits`), so they
+  have no `distractors` hook.
+- **Tests.** `tests/test_invariants_p5_structured.py` re-derives every part from the printed
+  stem (pouring the tap minute by minute and stacking 1 cm layers; adding each week's savings
+  in turn until the two amounts meet; counting the path's 1 m squares and walking the fence
+  metre by metre), over Hypothesis params and 80 sampler seeds. `tests/test_multipart_blueprints.py`
+  covers them too. Anchors updated: `test_what_todays_content_fills` (P5 Paper 2 20 questions,
+  no placeholder); the paper tests' multi-part lists are per level (own level only); tests
+  that needed a generated P5 placeholder now make one by replacing a question.
+- **Goldens** `tests/golden/{tap_tank,savings,garden_path}_structured.jsonl`, 3 each, picked
+  from seeds; a person checks them.

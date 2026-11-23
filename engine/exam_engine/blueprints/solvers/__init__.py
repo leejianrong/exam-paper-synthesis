@@ -21,6 +21,7 @@ from . import (
     heuristics,  # noqa: F401
     measurement,  # noqa: F401
     number_sense,  # noqa: F401
+    p5_structured,  # noqa: F401
     percentage_easy,  # noqa: F401
     percentage_hard,  # noqa: F401
     percentage_medium,  # noqa: F401
@@ -65,6 +66,7 @@ __all__ = [
     "heuristics",
     "measurement",
     "number_sense",
+    "p5_structured",
     "percentage_easy",
     "percentage_hard",
     "percentage_medium",

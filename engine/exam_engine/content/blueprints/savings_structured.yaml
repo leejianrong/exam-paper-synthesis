@@ -1,0 +1,75 @@
+code: savings_structured
+syllabus:
+  level: P5
+  strand: "Measurement"
+  topic: "Money"
+  subtopic: "Structured: weekly savings in dollars and cents, then when two savers have the same amount"
+  skill_codes: ["DEC.MONEY.SAVINGS"]    # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Hidden structure", "Multiple concepts"]
+marks: 4                                # the question total; each part's marks are below
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [names, save, start, weeks]
+  properties:
+    names:
+      type: array
+      items: { type: string }
+      minItems: 2
+      maxItems: 2
+    save:                               # cents saved a week; the second saves more
+      type: array
+      items: { type: integer, minimum: 100, maximum: 1000 }
+      minItems: 2
+      maxItems: 2
+    start:                              # cents at first; the first has more
+      type: array
+      items: { type: integer, minimum: 200, maximum: 15000 }
+      minItems: 2
+      maxItems: 2
+    weeks: { type: integer, minimum: 3, maximum: 10 }
+# Every parameter_schema property needs a role (W1a).
+param_roles:
+  names: { role: name }
+  save:  { role: number }
+  start: { role: number }
+  weeks: { role: number }
+# P8c multi-part: shared stem here, each part's text/marks/scheme/steps/answer under `parts`.
+# Money strings come from the solver (whole dollars print as $42, as PSLE writes them).
+story_templates:
+  - stem: >
+      {names[0]} has {start_a_text} and saves {save_a_text} every week. {names[1]} has
+      {start_b_text} and saves {save_b_text} every week.
+parts:
+  - label: a
+    marks: 2
+    text: "How much money will {names[0]} have after {weeks} weeks?"
+    solution_template:
+      steps:
+        - text: "{names[0]} saves {weeks} × {save_a_money} = {saved_a_money} in {weeks} weeks."
+          expr: "{weeks}*{save_a_plain}"
+        - text: "{names[0]} will have {start_a_money} + {saved_a_money} = {after_money}."
+          expr: "{start_a_plain}+{saved_a_plain}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Multiplies the weekly savings by the number of weeks." }
+      - { mark: 1, type: A, description: "Adds the money at first: correct amount, $ with 2 decimal places." }
+    answer: { type: decimal, unit: "$" }
+  - label: b
+    marks: 2
+    text: >
+      After how many weeks will {names[0]} and {names[1]} have the same amount of money?
+    solution_template:
+      steps:
+        - text: "At first, {names[0]} has {start_a_money} − {start_b_money} = {diff_start_money} more than {names[1]}."
+          expr: "{start_a_plain}-{start_b_plain}"
+        - text: "Every week, {names[1]} saves {save_b_money} − {save_a_money} = {diff_week_money} more than {names[0]}."
+          expr: "{save_b_plain}-{save_a_plain}"
+        - text: "Number of weeks = {diff_start_money} ÷ {diff_week_money} = {meet}."
+          expr: "{diff_start_plain}/{diff_week_plain}"
+    marking_scheme:
+      - { mark: 1, type: M, description: "Divides the difference at first by the difference saved each week." }
+      - { mark: 1, type: A, description: "Correct number of weeks." }
+    answer: { type: integer }

@@ -10,6 +10,15 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Added
 
+- **P5 multi-part questions (EXA-117).** Three 4-mark Paper 2 Section B questions a P5 paper
+  can use (every multi-part question before was P6): `tap_tank_structured` (Volume: how long a
+  tap takes to fill an empty tank, then the water level after some minutes), `savings_structured`
+  (Money: one saver's money after some weeks, then when two savers have the same amount) and
+  `garden_path_structured` (Area & Perimeter: the area of a path round a garden, then the cost
+  of fencing its outer edge), each 2 + 2 marks. A generated P5 Paper 2 now has no placeholder
+  (it always left one 4-mark gap), so every paper template fills at P5 and P6. A paper takes
+  multi-part questions of its own level only, so a P6 Paper 2 is unchanged.
+
 - **Tank line graphs and pie charts in fractions or percentages (EXA-158, part 2).** Five new
   P6 Statistics (Charts) blueprints, on no ladder: `pie_fraction` (1 mark: the fraction of the
   unlabelled sector), `pie_percent_more` (2 marks: how much more was spent on one sector than
