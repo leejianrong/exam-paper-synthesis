@@ -1,0 +1,3 @@
+{"params": {"vessel": "tank", "step": 10, "times": [0, 3, 4, 6], "volumes": [0, 30, 60, 80], "ask": "rate", "a": 0, "b": 1}, "expected": {"answer": {"type": "integer", "value": 10, "unit": "l/min"}, "total_marks": 2}}
+{"params": {"vessel": "container", "step": 20, "times": [0, 2, 6, 9], "volumes": [0, 80, 80, 140], "ask": "between", "a": 1, "b": 3}, "expected": {"answer": {"type": "integer", "value": 60, "unit": "l"}, "total_marks": 2}}
+{"params": {"vessel": "tank", "step": 20, "times": [0, 3, 5, 7], "volumes": [40, 100, 100, 160], "ask": "between", "a": 0, "b": 2}, "expected": {"answer": {"type": "integer", "value": 60, "unit": "l"}, "total_marks": 2}}

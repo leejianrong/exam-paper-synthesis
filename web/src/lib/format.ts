@@ -5,6 +5,7 @@ import type { Answer } from "./types";
 export const PRINTED_UNIT: Record<string, string> = {
   l: "ℓ",
   ml: "mℓ",
+  "l/min": "ℓ/min",
   "cm^2": "cm²",
   "m^2": "m²",
   "cm^3": "cm³",
@@ -40,6 +41,8 @@ export function fmtAnswer(a: Answer | undefined): string {
       return (a.values ?? []).join(", ");
     case "text":
       return a.text ?? "";
+    case "tick_table":
+      return (a.rows ?? []).map((r) => `${r.statement} ${r.tick}`).join("; ");
     case "choice": {
       const hit = (a.options ?? []).find((o) => o.label === a.correct);
       return hit?.text ? `${a.correct}. ${hit.text}` : `${a.correct ?? ""}`;

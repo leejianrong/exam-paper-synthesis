@@ -8,6 +8,16 @@ import { API } from './ports.js'
  * own), lock one, and "Regenerate unlocked" keeps the locked question while the sections stay
  * at their marks targets. Needs the API with EXAM_DEV_AUTH (playwright.config.js).
  */
+/** A question's text, once it has loaded. Most questions show an editable body (`.qbody`); a
+ *  multi-part or tick-table question shows the server's printed fragment in a shadow root,
+ *  which arrives a moment later, so wait until it has text. */
+async function stemText(block) {
+  const body = block.locator('.qbody, [data-testid="fragment"]').first()
+  const read = () => body.evaluate((el) => (el.shadowRoot ?? el).textContent ?? '')
+  await expect.poll(async () => (await read()).trim()).not.toBe('')
+  return read()
+}
+
 test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   await page.goto('/')
   await generateSinglePaper(page, 'Paper 2', 'P6')
@@ -17,9 +27,9 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
 
   const blocks = page.getByTestId('question-block')
-  // 17 questions: Section B has 10 multi-part and 2 stand-ins (EXA-143, EXA-148, EXA-150, EXA-154)
-  await expect(blocks.nth(16)).toBeVisible()
-  expect(await blocks.count()).toBe(17)
+  // 16 questions: Section B is 11 multi-part questions (EXA-143, EXA-148, EXA-150, EXA-154, EXA-158)
+  await expect(blocks.nth(15)).toBeVisible()
+  expect(await blocks.count()).toBe(16)
 
   // Lock question 1.
   const first = blocks.nth(0)
@@ -36,8 +46,7 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   // the block's form controls (working-space and unit menus) laid out line by line. Always
   // read it with textContent(), never toHaveText(): toHaveText also reads the KaTeX shadow
   // roots, so a stem with maths ("$x") would read "$xxxx" there and never match.
-  const stemOf = (block) => block.locator('.qbody')
-  const textOf = (block) => stemOf(block).textContent()
+  const textOf = stemText
   const lockedStem = await textOf(first)
 
   // Question 2: "Replace with my own question" leaves a 2-mark placeholder; the section stays
@@ -76,16 +85,16 @@ test('swap, lock and regenerate a generated P6 Paper 2', async ({ page }) => {
   expect(lockedBefore).toHaveLength(1)
   // EXA-160: in the side panel, confirmed in a dialog that names what happens.
   await page.getByRole('tab', { name: 'Paper', exact: true }).click()
-  await page.getByRole('button', { name: /^Regenerate 16 unlocked/ }).click()
+  await page.getByRole('button', { name: /^Regenerate 15 unlocked/ }).click()
   const confirm = page.getByRole('alertdialog', { name: 'Regenerate unlocked questions?' })
-  await expect(confirm).toContainText('Replaces 16 unlocked questions. 1 locked question stays.')
+  await expect(confirm).toContainText('Replaces 15 unlocked questions. 1 locked question stays.')
   await confirm.getByRole('button', { name: 'Regenerate', exact: true }).click()
-  await expect(page.getByText(/Regenerated 1[67] questions; kept 1/)).toBeVisible()
+  await expect(page.getByText(/Regenerated 15 questions; kept 1/)).toBeVisible()
   await expect(page.getByTestId('placeholders-left')).toHaveCount(0)
   await expect.poll(() => textOf(blocks.nth(0))).toBe(lockedStem)
   await expect(sectionA).toHaveText('Questions 1–5 · 10 / 10 marks')
   await expect(page.locator('.section-block').nth(1).locator('.section-summary')).toHaveText(
-    /Questions 6–1[78] · 45 \/ 45 marks/,
+    /Questions 6–16 · 45 \/ 45 marks/,
   )
 
   // What the server stored is what the editor shows (the lock survives a reload).
@@ -101,18 +110,18 @@ test('typing on a selected question does nothing; Shift+Enter starts a paragraph
   await page.goto('/')
   await generateSinglePaper(page, 'Paper 2', 'P6')
   const blocks = page.getByTestId('question-block')
-  await expect(blocks.nth(16)).toBeVisible()
+  await expect(blocks.nth(15)).toBeVisible()
   const third = blocks.nth(2)
   await questionMenu(third, 'Another topic')
   await expect(page.getByText(/Swapped in a/)).toBeVisible()
   // the swap leaves the swapped question selected, with the editor focused
   await expect(page.locator('.ProseMirror-selectednode')).toHaveCount(1)
-  const stem = await third.locator('.qbody').textContent()
+  const stem = await stemText(third)
   const paras = page.locator('.surface .ProseMirror > p').filter({ hasText: /\S/ })
   await page.keyboard.type('a7 ')
   await page.keyboard.insertText('typed')
-  expect(await blocks.count()).toBe(17)
-  expect(await third.locator('.qbody').textContent()).toBe(stem)
+  expect(await blocks.count()).toBe(16)
+  expect(await stemText(third)).toBe(stem)
   await expect(page.locator('.ProseMirror-selectednode')).toHaveCount(1)
   await expect(paras).toHaveCount(0)
   // the pill says how to write below it
@@ -121,7 +130,7 @@ test('typing on a selected question does nothing; Shift+Enter starts a paragraph
   await page.keyboard.press('Shift+Enter')
   await page.keyboard.type('After it')
   await expect(paras).toHaveText(['After it'])
-  expect(await blocks.count()).toBe(17)
+  expect(await blocks.count()).toBe(16)
 })
 
 test('swap a question for one from your bank (EXA-33)', async ({ page }) => {
@@ -141,7 +150,7 @@ test('swap a question for one from your bank (EXA-33)', async ({ page }) => {
   await expect(page).toHaveURL(/#\/docs\/[0-9a-f-]+$/)
   const id = page.url().split('/docs/')[1]
   const blocks = page.getByTestId('question-block')
-  await expect(blocks.nth(16)).toBeVisible()
+  await expect(blocks.nth(15)).toBeVisible()
   const sectionA = page.locator('.section-block').nth(0).locator('.section-summary')
 
   await questionMenu(blocks.nth(1), 'Swap from your bank…')

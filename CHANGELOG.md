@@ -24,6 +24,34 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   anyway**. The API is `POST /folders/{id}/key` (PDF, one export from the allowance) and
   `GET /folders/{id}/key/preview` (HTML).
 
+- **Tank line graphs and pie charts in fractions or percentages (EXA-158, part 2).** Five new
+  P6 Statistics (Charts) blueprints, on no ladder: `pie_fraction` (1 mark: the fraction of the
+  unlabelled sector), `pie_percent_more` (2 marks: how much more was spent on one sector than
+  another, from a percentage pie and the total), `pie_fraction_amount` (3 marks: one sector's
+  amount gives the whole, then the unlabelled sector's share), `tank_graph` (2 marks: the water
+  that flowed in between two times, or the rate in ℓ/min, read off a line graph of the volume
+  in a tank) and the two-part `tank_graph_structured` for Paper 2 (the rate, then how many
+  minutes until the tank of a given capacity is full; the graph prints after the shared
+  stem, before (a), via a new blueprint option `figure_in_stem`). The `chart` figure (canonical schema
+  1.17.0) gains a numeric time axis with vertical gridlines, each line given as its corners,
+  and a fraction pie that prints each sector as a stacked fraction; the unit `l/min` prints as
+  ℓ/min. The invariant tests read every answer back off the drawn SVG: the graph's corners from
+  the gridlines and tick labels, the pie's shares from its arcs. The paper generator places all but `pie_fraction_amount`
+  (3 marks): Paper 2 Section A takes 2-mark questions and Section B already has the tank
+  question for the topic, so it is for adding by hand for now.
+
+- **True / False / Not possible to tell tables (EXA-158).** A question can now ask the pupil to
+  tick one box per statement, as real P5–P6 papers do: a new `tick_table` answer (canonical
+  schema 1.16.0). The student paper prints the statements in a ruled table with an empty box
+  under True, False and Not possible to tell; the full key and the school key print the same
+  table with the ticks. A new P5 Average blueprint, `average_statements` (2 marks), gives three
+  statements about containers whose average is known ("At least one of the jars P, Q and R
+  contains 25 sweets or more"); "Not possible to tell" is ticked only when the facts allow it
+  either way, and the key's working shows two fillings that disagree. The paper generator can
+  place it in a 2-mark short-answer or structured slot, never as multiple choice; the editor
+  shows it as it prints. A changed tick is refused like any changed answer; a changed statement only
+  takes the verified claim away, like other changed wording (EXA-157).
+
 - **Invite-only sign-in for the private trial (EXA-186).** `EXAM_ALLOWED_EMAILS` (addresses and
   `@domain` entries) closes sign-in to everyone else, with Google or GitHub: only a verified
   email on the list may sign in, nobody else gets an account, and taking an address off the

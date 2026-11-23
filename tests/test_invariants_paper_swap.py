@@ -19,7 +19,7 @@ import pytest
 import yaml
 from exam_engine.blueprints.registry import content_dir
 from exam_engine.document import paper_outline, validate_document
-from exam_engine.paper import LEVELS, generate_paper, paper_templates
+from exam_engine.paper import LEVELS, TOPIC_CAP, generate_paper, paper_templates
 from exam_engine.paper_swap import (
     SwapNotPossible,
     paper_level,
@@ -141,9 +141,11 @@ def _could_fill(code: str, node, kind: str, level: str) -> bool:
 
 def _possible_other_topic(doc, idx, level) -> bool:
     """Is there an unused, level-allowed blueprint with the slot's marks from another topic,
-    no easier for the slot than the question it would replace (EXA-146)?"""
+    no easier for the slot than the question it would replace (EXA-146), whose topic the rest
+    of the paper has fewer than two questions of (EXA-154)?"""
     node = _blocks(doc)[idx]
     used = {_code(n) for i, n in enumerate(_blocks(doc)) if i != idx and _code(n)}
+    counts = Counter(META[c]["topic"] for c in used)
     allowed = LEVELS[: LEVELS.index(level) + 1]
     topic = META[_code(node)]["topic"] if _code(node) else None
     floor = _shortfall(_code(node), _marks(node)) if _code(node) else 2
@@ -152,6 +154,7 @@ def _possible_other_topic(doc, idx, level) -> bool:
         and m["level"] in allowed
         and m["marks"] == _marks(node)
         and m["topic"] != topic
+        and counts[m["topic"]] < TOPIC_CAP
         and _shortfall(code, _marks(node)) <= floor
         for code, m in META.items()
     )
@@ -353,7 +356,7 @@ def test_regenerating_a_paper_2_keeps_two_questions_a_topic_at_most(level):
 def test_regenerate_with_everything_unlocked_gives_a_new_paper():
     doc, _ = generate_paper("p2", "P6", 4)
     new, report = regenerate_unlocked(doc, "P6", 99)
-    assert report["kept"] == 0 and report["replaced"] == 17  # 5 short, 10 multi-part, 2 stand-ins
+    assert report["kept"] == 0 and report["replaced"] == 16  # 5 short, 11 multi-part
     assert json.dumps(new) != json.dumps(doc)
     _check_rules(new, "P6", "p2 regenerate")
     # P8c: like the generator, Section B takes every multi-part blueprint again
@@ -606,11 +609,15 @@ def _hand_add(doc: dict, code: str, block_id: str) -> None:
 
 def _use_up_two_mark_mediums(doc: dict) -> None:
     """Hand-add every P5 single-part 2-mark medium the paper does not use, so a swap can only
-    find easy ones (P5 has eleven such blueprints for ten Booklet B slots since EXA-144)."""
+    find easy ones (P5 has twelve such blueprints for ten Booklet B slots since EXA-158). One
+    from a topic the paper already has two questions of is left out: no swap can take it
+    anyway (EXA-154), and adding it would put that topic over the cap."""
     used = {_code(n) for n in _blocks(doc) if _is_q(n)}
+    topics = Counter(META[c]["topic"] for c in used)
     for code, m in sorted(META.items()):
         if (
             code not in used
+            and topics[m["topic"]] < TOPIC_CAP
             and m["level"] == "P5"
             and m["marks"] == 2
             and m["parts"] == 1
@@ -622,9 +629,9 @@ def _use_up_two_mark_mediums(doc: dict) -> None:
 
 def test_a_swap_never_trades_a_question_for_an_easier_rung():
     """EXA-146: a P5 Booklet B fills its ten 2-mark slots with medium blueprints (EXA-154,
-    147, 148). With every other 2-mark medium taken (here by hand: grid_area, EXA-144, is an
-    eleventh), "another topic" on a medium question would only find easy ones, so it is
-    refused; "like" on a medium question keeps its rung."""
+    147, 148). With every other 2-mark medium taken (here by hand: grid_area, EXA-144, and
+    average_statements, EXA-158, are spare), "another topic" on a medium question would only
+    find easy ones, so it is refused; "like" on a medium question keeps its rung."""
     doc, _ = generate_paper("p1_booklet_b", "P5", 3)
     two = [n for n in _blocks(doc) if _is_q(n) and _marks(n) == 2]
     medium = [n for n in two if META[_code(n)]["rung"] != "easy"]

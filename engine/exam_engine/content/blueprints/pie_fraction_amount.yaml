@@ -1,0 +1,51 @@
+code: pie_fraction_amount
+syllabus:
+  level: P6
+  strand: "Data Analysis"
+  topic: "Statistics (Charts)"
+  subtopic: "Pie chart in fractions: from one sector's amount to the unlabelled sector's"
+  skill_codes: ["DATA.PIE.FRACTION.AMOUNT"]   # PROVISIONAL — remap to MOE outcomes (Q-M1)
+cognitive:
+  difficulty: hard
+  cognitive_level: complex_familiar
+  difficulty_levers: ["Reasoning depth", "Multiple concepts"]
+marks: 3
+parameter_schema:                       # ADR-0014: sampled params validate against this
+  type: object
+  additionalProperties: false
+  required: [name, context, den, parts, hidden, known, unit]
+  properties:
+    name: { type: string }
+    context: { type: string, enum: [money, time] }
+    den: { type: integer, enum: [6, 8, 10, 12] }
+    parts: { type: array, minItems: 3, maxItems: 4, items: { type: integer, minimum: 1 } }
+    hidden: { type: integer, minimum: 0, maximum: 3 }
+    known: { type: integer, minimum: 0, maximum: 3 }
+    unit: { type: integer, minimum: 1, maximum: 50 }
+param_roles:
+  name: { role: name }
+  context: { role: choice }
+  den: { role: number }
+  parts: { role: number }
+  hidden: { role: number }
+  known: { role: number }
+  unit: { role: number }
+story_templates:
+  - stem: null
+    text: "{question_text}"
+solution_template:
+  steps:
+    - text: "{step1}"
+      expr: "{expr1}"
+    - text: "{step2}"
+      expr: "{expr2}"
+    - text: "{step3}"
+      expr: "{expr3}"
+marking_scheme:
+  - { mark: 1, type: M, description: "Finds the fraction of the unlabelled sector (1 minus the others)." }
+  - { mark: 1, type: M, description: "Finds the whole from the given sector's amount." }
+  - { mark: 1, type: A, description: "Correct amount for the unlabelled sector, with its unit." }
+answer:
+  type: integer
+  unit: "$"                             # or "min" in the time context (the solver sets it)
+diagram: chart

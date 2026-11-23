@@ -290,6 +290,27 @@ body {
   display: inline-block;
   min-width: 3em;
 }
+/* EXA-158: True / False / Not possible to tell — one box per column, ticked in the key.
+   `table.` outranks the school key's own `.key-table th/td` rules around it. */
+table.tick-table {
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  width: 100%;
+  break-inside: avoid;
+}
+table.tick-table th,
+table.tick-table td {
+  border: 1px solid var(--ink);
+  padding: 0.35em 0.6em;
+  width: auto;
+  white-space: normal;
+  vertical-align: middle;
+}
+table.tick-table th { font-weight: 600; text-align: center; }
+table.tick-table th:not(:first-child),
+table.tick-table td.tick-box { width: 5.5em; text-align: center; }
+table.tick-table td.tick-statement { text-align: left; }
+table.tick-table .tick { display: inline-block; vertical-align: middle; }
 
 /* W1b: documents — rich text between questions, page breaks, answer-key section */
 .doc-body p { margin: 0 0 0.7rem; }

@@ -29,6 +29,18 @@ export function marksBeside(placement: SectionPlacement, hasLine = true): boolea
   return placement === "question" || placement === "both" || (placement === "answer" && !hasLine);
 }
 
+/** Answers given on the question itself (engine `_NO_LINE`): an option, a drawing or ticks in a
+ * table, so no Ans: line and no working space. */
+export function onQuestion(answerType: string | undefined): boolean {
+  return ["choice", "construction", "tick_table"].includes(answerType ?? "");
+}
+
+/** Whether a question asks for ticks in a True / False / Not possible to tell table (EXA-158),
+ * which only the engine's print renderer draws. */
+export function hasTickTable(q: { question: { parts: Array<{ answer?: { type: string } }> } }): boolean {
+  return q.question.parts.some((p) => p.answer?.type === "tick_table");
+}
+
 /** Whether [n] prints after the Ans: line (engine `_answer_line`). */
 export function marksOnLine(placement: SectionPlacement): boolean {
   return placement === "answer" || placement === "both";
@@ -125,6 +137,7 @@ export const UNIT_CHOICES: Array<{ value: string; label: string }> = [
   { value: "km/h", label: "km/h" },
   { value: "m/s", label: "m/s" },
   { value: "m/min", label: "m/min" },
+  { value: "l/min", label: "ℓ/min" },
   { value: "marbles", label: "marbles" },
   { value: "items", label: "items" },
   { value: "people", label: "people" },

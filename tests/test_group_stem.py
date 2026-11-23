@@ -277,8 +277,9 @@ def test_regenerate_keeps_the_questions_under_a_stem():
     assert blocks[first + 1]["type"] == "templatedQuestion"
     blocks.insert(first, stem_block("A shared table.", count=2))
     kept = [blocks[first + 1], blocks[first + 2]]
+    questions = sum(1 for n in blocks if n["type"] == "templatedQuestion")  # depends on the content
     new, report = regenerate_unlocked(doc, "P6", 99)
     after = new["content"]["content"]
     assert [after[first + 1], after[first + 2]] == kept
-    assert report["kept"] == 2 and report["replaced"] == 15
+    assert report["kept"] == 2 and report["replaced"] == questions - 2
     assert validate_document(new) == []

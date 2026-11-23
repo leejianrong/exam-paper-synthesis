@@ -19,11 +19,12 @@ from .net import check_net_consistency
 from .number_line import check_number_line_consistency
 from .schema import validate_diagram, validate_object
 from .solid import check_solid_consistency
+from .tick_table import check_tick_table_consistency
 
 if TYPE_CHECKING:  # avoid an import cycle at runtime
     from .blueprints.base import BlueprintSpec
 
-SCHEMA_VERSION = "1.15.0"
+SCHEMA_VERSION = "1.17.0"
 
 
 class CanonicalValidationError(Exception):
@@ -56,14 +57,20 @@ _ORDER_HINT = (
 )
 
 
+_ANSWER_CHECKS = {
+    "expression": check_expression_consistency,
+    "tick_table": check_tick_table_consistency,
+}
+
+
 def _answer_errors(obj: dict) -> list[str]:
-    """Semantic gate for ``expression`` answers (schema 1.11.0)."""
+    """Semantic gate for ``expression`` (schema 1.11.0) and ``tick_table`` (1.16.0) answers."""
     return [
-        f"question.parts[{i}].answer: expression inconsistent: {name}"
+        f"question.parts[{i}].answer: {atype} inconsistent: {name}"
         + (_ORDER_HINT if name == "terms_in_canonical_order" else "")
         for i, part in enumerate(obj["question"]["parts"])
-        if (part.get("answer") or {}).get("type") == "expression"
-        for name, ok in check_expression_consistency(part["answer"]).items()
+        if (atype := (part.get("answer") or {}).get("type")) in _ANSWER_CHECKS
+        for name, ok in _ANSWER_CHECKS[atype](part["answer"]).items()
         if not ok
     ]
 
@@ -200,7 +207,8 @@ def assemble(
     template = spec.story_templates[seed % len(spec.story_templates)]
     stem: str | None
     if spec.parts:
-        stem, parts = _multipart(spec, ctx, template, solution, diagram)
+        in_stem = spec.figure_in_stem and diagram is not None
+        stem, parts = _multipart(spec, ctx, template, solution, None if in_stem else diagram)
     else:
         stem = template.get("stem")
         marks_total = sum(m["mark"] for m in spec.marking_scheme)
@@ -221,6 +229,8 @@ def assemble(
         ]
 
     question: dict = {"stem": stem}
+    if spec.parts and spec.figure_in_stem and diagram is not None:
+        question["diagram"] = diagram  # the shared figure, before (a)
     if table is not None:  # a data table printed before the parts (EXA-148)
         question["table"] = table
     obj = {

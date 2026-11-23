@@ -69,3 +69,12 @@ existing `raster`/`text` escape hatches for anything in items 8+.
   paper is the trigger to revisit this ranking, per that document's own
   observation that two additional papers already corrected the first paper's
   reading three times.
+
+## Follow-up (EXA-158, schema 1.16.0)
+
+The deferred tick-matrix item is now built, as a separate answer type rather than a cell kind of
+`question.table`, as this ADR expected: `answer.type: "tick_table"` holds the statements, the
+fixed columns (True / False / Not possible to tell) and one `tick` per row. The statements print
+with empty boxes on the student paper and with the ticks in the key; a load-gate check keeps
+every tick in a column and the statements distinct. The first blueprint is `average_statements`
+(P5 Average). See `docs/SCHEMA.md`.

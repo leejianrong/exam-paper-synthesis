@@ -156,7 +156,7 @@ def _places(v: object) -> int:
 # 52.5°); a plain count ("", items, people, ...) keeps whole-number distractors.
 _MEASURES = frozenset(
     {"cm", "m", "km", "mm", "cm^2", "m^2", "cm^3", "m^3", "ml", "l", "g", "kg", "s", "min", "h"}
-    | {"km/h", "m/s", "m/min", "degrees", "%"}
+    | {"km/h", "m/s", "m/min", "l/min", "degrees", "%"}
 )
 
 
