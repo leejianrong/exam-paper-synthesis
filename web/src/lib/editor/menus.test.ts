@@ -90,6 +90,7 @@ describe('the menu row (EXA-163)', () => {
     expect(labels(await openMenu('Insert'))).toEqual([
       'Question…',
       'Section',
+      'Shared stem',
       'Cover page',
       'Blank or rough-work page',
       'Page break',
@@ -197,11 +198,11 @@ describe('the menu row (EXA-163)', () => {
 
   it('Paper > Cover page… shows the side panel when it was hidden', async () => {
     localStorage.setItem('exam.editor.sidePanel', 'hidden')
-    serve([{ type: 'coverPage', attrs: { school: 'Pandan Primary' } }, { type: 'paragraph' }])
+    serve([{ type: 'coverPage', attrs: { school: 'Example Primary' } }, { type: 'paragraph' }])
     await open()
     expect(screen.queryByRole('complementary', { name: 'Side panel' })).toBeNull()
     await fireEvent.click(within(await openMenu('Paper')).getByRole('menuitem', { name: 'Cover page…' }))
-    await waitFor(() => expect(document.activeElement).toHaveValue('Pandan Primary'))
+    await waitFor(() => expect(document.activeElement).toHaveValue('Example Primary'))
     expect(screen.getByRole('tab', { name: 'Cover page' })).toHaveAttribute('aria-selected', 'true')
   })
 })
@@ -369,7 +370,9 @@ describe('global shortcuts', () => {
     const sheet = screen.getByRole('dialog', { name: 'Keyboard shortcuts' })
     expect(within(sheet).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Paper', 'Questions', 'Text'])
     expect(sheet).toHaveTextContent(/Find a command\s*Ctrl\+K/)
-    expect(sheet).toHaveTextContent(/Make harder\s*\]/)
+    // alternative keys read as alternatives, not as one chord
+    expect(sheet).toHaveTextContent(/Make easier\s*\[ or -/)
+    expect(sheet).toHaveTextContent(/Make harder\s*\] or =/)
     await key({ key: 'Escape' }, document.activeElement!)
     expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).toBeNull()
     expect(document.activeElement).toBe(page)

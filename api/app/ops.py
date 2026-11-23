@@ -13,7 +13,7 @@ strict :func:`exam_engine.canonical.load` gate ever sees the object.
 
 from __future__ import annotations
 
-from exam_engine import edits
+from exam_engine import edits, numbers
 
 # UI-only keys the API attaches to responses; never part of the canonical schema.
 _UI_HINT_KEYS = ("available_ops",)
@@ -22,9 +22,13 @@ _UI_HINT_KEYS = ("available_ops",)
 def with_available_ops(obj: dict) -> dict:
     """Return a shallow copy of ``obj`` with the sorted ``available_ops`` UI hint.
 
-    A sorted list (not a set) is JSON-friendly and stable across requests.
+    A sorted list (not a set) is JSON-friendly and stable across requests. It also names
+    ``set-numbers`` when that form edit applies (EXA-89), so the editor knows to offer it.
     """
-    return {**obj, "available_ops": sorted(edits.available_ops(obj))}
+    ops = edits.available_ops(obj)
+    if edits.applicable(numbers.OP, obj):
+        ops = ops | {numbers.OP}
+    return {**obj, "available_ops": sorted(ops)}
 
 
 def strip_ui_hints(obj: dict) -> dict:

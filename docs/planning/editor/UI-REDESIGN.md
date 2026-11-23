@@ -1,7 +1,7 @@
 # Editor and app UI redesign: research and proposal
 
 Cards: **EXA-159** (answer key clutter), **EXA-160** (editor top bars), **EXA-161** (per-question buttons), plus an app-wide pass the owner asked for.
-Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14), S7 (EXA-165, section 15), S6 (EXA-164, section 16) and S10 (EXA-168, section 18).
+Status: approved by the owner on 2026-11-19 (section 10). Built: S2 (EXA-159, section 11), S1 (EXA-160), S3 (EXA-161), S5 (EXA-163, section 12), S8 (EXA-166, section 13), S4 (EXA-162, section 14), S7 (EXA-165, section 15), S6 (EXA-164, section 16), S9 (EXA-167, section 17), S12 (EXA-170, section 19), S11 (EXA-169, section 20) and S10 (EXA-168, section 21).
 
 Research build: worktree off `origin/main` at `f54b92c`, API on :8100 (dev auth, throwaway stores), Vite on :5273. Papers generated with `POST /documents/generate` (P6, seed 11) and through the New dialog (an exam set in a folder).
 
@@ -176,7 +176,7 @@ Options, kept short and placed **in the key view itself** (see 4.3), not in the 
 - **Show:** Marking scheme (M1, A1) ☐ · Marks per question ☐ · Working for 1-mark questions ☐
 - (Worked solutions only) Repeat the question ☑
 
-Later slice (built as S10, section 18): **Exam-set key.** From a folder that holds a complete exam set (the list already detects a complete set), export one key covering Booklet A, Booklet B and Paper 2 with booklet headings, the way schools issue it.
+Later slice (built as S10, section 21): **Exam-set key.** From a folder that holds a complete exam set (the list already detects a complete set), export one key covering Booklet A, Booklet B and Paper 2 with booklet headings, the way schools issue it.
 
 Schema impact: `settings.key_options.layout` already exists (`full` | `compact`). The default flips to `compact` for new and generated papers. Papers that already have a saved setting keep it. `show_scheme` defaults to false for new papers. A new optional `show_marks` and `one_mark_working` came in document schema 1.16.0. No change to verification.
 
@@ -453,11 +453,42 @@ Step 2 sources: the popular-editor patterns in section 2 come from product knowl
 | Group | Keys |
 |---|---|
 | Paper | Ctrl+K command palette · Ctrl+Enter add a question · Ctrl+Alt+K answer key / back to the paper · Ctrl+P preview pages · Ctrl+\\ side panel · Ctrl+/ shortcut sheet |
-| Questions (a selected question) | R another like this · L lock · [ easier · ] harder · Alt+↑/↓ move · Del delete (with undo) · Shift+F10 or the Menu key its menu |
+| Questions (a selected question) | R another like this · L lock · [ or - easier · ] or = harder · Alt+↑/↓ move · Del delete (with undo) · Shift+F10 or the Menu key its menu |
 | Text | Ctrl+B/I/U · Ctrl+M equation · Shift+Enter line break · Ctrl+Z undo · Ctrl+Y redo |
 
 Ctrl+Enter and Ctrl+M never fire from a form field (the title, a marks box, a dialog). With a
 dialog open no global shortcut runs, though Ctrl+P is still kept from printing the screen.
+
+**[ and ] by character (EXA-172).** The bracket keys are read by the character the layout
+types (`e.key`), not as unmodified keys: on German, French, Spanish or Swiss keyboards they
+take AltGr (Windows reports it as Ctrl+Alt with `getModifierState('AltGraph')`, Linux as
+AltGraph alone), on a German Mac ⌥5 / ⌥6, on a French Mac ⌥⇧. A key press counts as typing
+when it has no Cmd, no Ctrl unless AltGraph is set, and no Alt unless on a Mac or with AltGraph
+(`typesCharacter` in `web/src/lib/keys.ts`, shared with the block selection guard below), so
+Ctrl+[, Cmd+[, Ctrl+Alt+[ without AltGraph and Alt+[ off a Mac stay chords and pass through.
+`-` and `=` do the same as `[` and `]` for layouts with no brackets (Russian, Ukrainian); the
+menus keep showing `[` and `]`, the shortcut sheet lists both ("[ or -"). The keypad's `-` and `=` type
+numbers and are not shortcuts, and no block key fires while an input method composes or opens
+(`Process`, keyCode 229). None of them fire in text. R and
+L are unchanged: no common layout needs a modifier for a letter, and on Cyrillic or Greek
+layouts those keys type other letters, so R and L do not work there (they are not read by
+physical key).
+
+**Other keys on a selected block (EXA-171).** On a selected question a key that is not a
+shortcut types nothing: since R, L, [ and ] (and - and =) are commands there, the other letters, digits and
+space do nothing either, so typing a word never half-types it with the question locked on the
+way. The first such key in a selection shows "Press Enter to write below" in the pill, which
+fades after a few seconds. Enter or Shift+Enter starts a paragraph after any selected top-level
+block, questions included. On a selected cover, section, blank page or figure, which have no
+letter shortcuts, a typed key also starts a paragraph after the block (EXA-129). On a block
+selected inside a question (a part, a figure) typing, Shift+Enter and pasted text do nothing,
+and Enter does nothing on a part. A pasted picture alone goes to the image upload, which
+inserts it as a figure next to the selection, never over the block, and Ctrl/Cmd+Enter only
+adds a question. The exception is composition: an IME or a mobile keyboard that
+composes words (Gboard) cannot be stopped, so once it starts composing the caret moves into a
+new paragraph after the block and the text lands there, on a question too; a dead key alone
+moves nothing. The rule lives in the block selection guard,
+`web/src/lib/editor/blockSelection.ts`.
 
 
 ---
@@ -679,7 +710,170 @@ dialog open no global shortcut runs, though Ctrl+P is still kept from printing t
 
 ---
 
-## 18. S10 as built (EXA-168)
+## 17. S9 as built (EXA-167)
+
+- **One app header.** `AppHeader.svelte`, rendered by `App.svelte` above every route but the
+  editor (the list, `#/bank`, Settings, Classic and the Classic-off page). Left to right: the
+  product mark and name "Exam papers" (the mockup's; the name hides below 600 px), a
+  `<nav aria-label="Main">` with Papers, Question bank and, only while *Show the Classic
+  generator* is on, Classic, then the `AccountMenu` avatar (Settings, and outside the dev stub
+  Download my data, Sign out, Delete my account). The tab for the current route has
+  `aria-current="page"` (green underline); Settings is not a tab, so nothing is current there.
+  52 px high, one row, no horizontal scroll at 390 px. The tabs scroll sideways inside the
+  header (`overflow-x: auto`) when they don't fit, so the page never does (checked at 320 px
+  with the Classic tab on).
+- **Removed as superseded:** the list's masthead (the `exam-paper-synthesis` wordmark, its
+  "Settings" and "Classic generator" links and its own `AccountMenu`), Settings' "← Your
+  papers" link, the Classic-off page's "Back to your papers", and the Classic page's glyph and
+  wordmark. Settings' note now points at the Classic tab.
+- **The editor** keeps its own header (EditorBar) with the ← "Back to papers" link and the same
+  `AccountMenu`; it returns to Papers (section 7.1's "back to the folder" is not built: the
+  list shows every folder, open unless the teacher collapsed it).
+- **Question bank page** (`BankPage.svelte`, `#/bank`). `GET /bank` once; filtering is in the
+  browser (`bank.ts`: `filterOptions`, `filterBank`, `isFiltered`), so no API change. Filters:
+  a search (every word must appear in the question text, topic or id, ignoring case and
+  accents, the papers list's `titleMatches`), Topic, Level, Difficulty, Source (Imported /
+  Generated) and Review (Reviewed / Not reviewed; "not reviewed" is an imported question only,
+  since a generated one is proven by the engine). The options are the values the bank holds. A
+  count ("3 of 12 questions") and Clear filters sit under them. Each question is a card: topic ·
+  level · difficulty, a status chip (Reviewed in green, Unreviewed neutral with an amber dot,
+  per 7.2 not red; Generated for generated ones), the source's origin and year, the question
+  drawn by the engine (`FragmentView`), and for imported questions the existing
+  `ReviewControl` (confirmation tick before Mark as reviewed, one click to withdraw). A review
+  says "Marked as reviewed." / "Review withdrawn." in the status line; when it takes the question
+  out of the filtered list, focus goes to the next card (the previous one at the end, the count
+  line when none is left). Cards draw
+  20 at a time ("Show more (N left)", which moves focus to the first new card), since each is a
+  server render.
+- **Import.** The one primary button, **Import questions from a file**, opens `BankImport` in a
+  `Dialog` of that name: files or pasted JSON, *Replace existing questions with the same id*,
+  per-item results (Imported / Replaced / Already in your bank / Not imported with the reasons).
+  A finished import reloads the list behind the dialog. "N questions imported." is said in a
+  status line inside the dialog (outside an `aria-modal` dialog a screen reader may not read it)
+  and again on the page once it closes, adding "N are hidden by your filters" when the filters
+  hide what arrived. "Back to bank" closes. Loads carry a ticket: an older answer to
+  overlapping reloads is dropped. Its lead line is plain now ("Choose question files (.json), or paste
+  what's in one…") in the picker too.
+- **States.** Loading: three skeleton cards (`.skel`) in a `role="status"` with hidden "Loading
+  your question bank…". Error: `ErrorNote` "Couldn't load your question bank. …" with Try again
+  when `canRetry`. Empty: a dashed panel, "Your bank is empty.", and what importing gives you;
+  the filters are hidden. No match: "No questions match these filters." A failed reload after
+  an import keeps the list and says so in the status line.
+- **The picker's "From my bank" tab** is unchanged (its own topic and Reviewed-only filters,
+  Import…, Use this).
+- **Not in S9:** restyling the Classic page itself (its black Generate button and uppercase
+  labels, issue 10's "different visual language"); deleting a question from the bank (no
+  endpoint); using a bank question in a paper from the bank page (the picker does that); a
+  skip link. The bank list is not virtualised: past a few hundred questions the client-side
+  filter is still instant but only 20 cards draw at a time.
+
+## 19. S12 as built (EXA-170)
+
+- **The sign-in page** (`LoginPage.svelte`) is one white card on the desk: the product mark
+  (the app header's green square with a tick, larger), the name **Exam papers** as the page's
+  h1, and one line, "Singapore P5–P6 maths papers with answer keys you can trust." The old
+  visible "Sign in" heading and "Sign in to write, keep and print your papers." are gone (the
+  page said "Sign in" twice); a visually hidden h2 "Sign in" heads the buttons.
+- **Provider buttons.** One per provider the server is configured for (`GET /auth/providers`,
+  unchanged), in each provider's own wording: "Sign in with Google", "Sign in with Microsoft",
+  "Sign in with GitHub". Each carries its mark as inline SVG in the provider's brand colours
+  (`ProviderMark.svelte`; no outside request, so the CSP is untouched). All three use a light
+  button: white, dark text, mark at the left, 44 px high, with Google's light-button border
+  `#747775` (a new token, `--rule-strong`). That is Google's spec exactly; Microsoft's light
+  button asks for `#8C8C8C`, so ours is a shade darker; GitHub sets no button style. They stay links to `/auth/{provider}/login`. A provider with no mark gets the
+  same button without one.
+- **Errors in the EXA-165 voice.** `errors.ts` `signInErrorText(code)` words the codes the API
+  sends back in `#/login?error=…`: `denied` "Sign-in was cancelled. Choose an account to sign
+  in with.", `state` "That sign-in took too long or was started in another tab. Sign in again.",
+  `provider` "The sign-in service didn't accept the request. Try again in a moment.",
+  `rate_limited` "Too many sign-in attempts. Try again in a few minutes.", `not_configured`
+  "That way of signing in isn't available on this server.", anything else "Sign-in didn't work.
+  Try again." Shown in the shared `ErrorNote`. When the providers can't be loaded the page says
+  "Couldn't load the ways to sign in." with the plain reason from `errorText` and Try again
+  when `canRetry`. `loadSession` now tells an unanswered `/auth/me` (no connection, or a 5xx
+  while the server restarts: `{status: 'anon', unreachable: true}`) from a real 401, so Try
+  again asks `/auth/me` first in that case and a teacher whose cookie is still good goes
+  straight back to their papers; only a real "nobody" reloads the providers. After a
+  successful Try again, focus goes to the first provider button (or the hidden "Sign in"
+  heading when there is none). No "please", no apology. While loading, a skeleton button.
+- **The dev stub** (`EXAM_DEV_AUTH=1`, reported as `dev` by `/auth/providers`) is a dashed
+  grey panel under the buttons, headed "Development only", naming the variable and saying never
+  to turn it on in production, with a secondary button "Continue without signing in" (it asks
+  `/auth/me` again, which the stub answers). It reads "Continuing…" and is disabled while it
+  waits; if the answer is still "nobody", an `ErrorNote` says "Couldn't continue." and why. With the stub on and no provider configured the
+  panel is all there is; "Sign-in isn't set up on this server yet." shows only when neither
+  exists.
+- **Branding.** One product name, "Exam papers", as in the app header: the SPA's `<title>`
+  (was "Exam Paper Synthesis"), a new meta description (the same one line), a new favicon
+  (`web/public/favicon.svg`, the green tick mark; there was none), and the landing page
+  `site/index.html` (title, wordmark, its home link's label, the closing paragraph and the
+  footer, whose repo URL text is now "Source on GitHub"; the GitHub links still point at the
+  repo). PDFs already take the paper's own title as their metadata title. Not renamed: the
+  repo, the packages, the OpenAPI title ("Exam Paper Synthesis API", developer-facing), the Fly
+  app and its `exam-paper-synthesis.fly.dev` host, and the OAuth apps' consent-screen names
+  (set in each provider's console, outside the repo).
+- **Quality.** Tab order: the provider buttons top to bottom, then the dev button. Focus shows
+  the app's 2 px `--verify` ring. At 390 px the card fills the width from the top with 16 px
+  gutters and nothing scrolls sideways (e2e checks it). The only motion is the hover
+  transition and the skeleton sheen, both off under `prefers-reduced-motion` (app.css).
+- **Tests.** vitest (`LoginPage.test.ts`): name and line, configured providers only with their
+  labels and marks, the no-provider note, the unreachable server and Try again, an error code's
+  words, the dev panel only when `dev` (and its button signs in), and every code's wording.
+  e2e (`tests/e2e/sign-in.spec.js`): the e2e API runs the dev stub, so the spec answers
+  `/auth/me` with 401 to reach the page; it checks the tab title, the h1, an error code's
+  words, the dev panel letting a developer in, and with two stand-in providers the buttons,
+  their keyboard order and no sideways scroll at 390 px.
+- **Not in S12:** Google's guidance asks for Roboto on its button; the app keeps its one
+  typeface (Inter, EXA-94). A signed-out-by-expiry note ("You're signed out…") on this page.
+
+---
+
+## 20. S11 as built (EXA-169)
+
+- **Settings keys.** `school_name` (text, empty by default, trimmed, at most 120 characters and
+  one line: the cover's own `school` limit; no control characters, line or paragraph
+  separators, or bidi embeddings, overrides and isolates, while the marks U+200E, U+200F and
+  U+061C that pasted Hebrew and Arabic names carry are allowed), `default_level` (`""`, `P5`, `P6`; empty by
+  default) and `marks_placement` (`answer`, `question`, `both`; `answer` by default, what an
+  absent paper setting already meant). Checked by `settings.check_patch` (422 with the reason);
+  a stored value that is no longer allowed reads as the default. Same contract on SQLite and
+  Postgres.
+- **Settings page.** A **New papers** group (`role="group"`, headed "New papers"): School name
+  (saved when the field is left, or on Enter), Level (Not set / P5 / P6), Marks shown (the
+  shared `MarksShown.svelte`, so the labels are `layout.MARKS_SHOWN`'s; it gained an `id`
+  prop; the help repeats the paper panel's caveat that multiple-choice and short-answer sections
+  show marks in the section header) and the existing Answer key style. Each field's description says it is for
+  papers made from now on. The Classic switch moves under its own "Classic generator" heading.
+- **Prefill, server-side.** `routes_documents._with_defaults` reads the account's settings once
+  and hands plain values to the engine: `docs.with_key_style` as before, then
+  `paper.with_paper_defaults(doc, school, marks_placement)`, which writes the school into an
+  empty cover `school` field and `settings.marks_placement` when it differs from what the paper
+  prints already (so the defaults change nothing in a new paper's JSON). The level goes in where
+  the paper is made: `paper.template_document(code, level)` states it on a starter's cover, and
+  `POST /documents/generate` takes `level` as optional now, using the request's, else the
+  account's, else P6. Covered: `POST /documents` (blank: marks and key only, as it has no cover;
+  starter template: all), `POST /documents/generate` (single paper, and each paper of an exam
+  set, which the New dialog makes as three such calls). The engine reads no settings.
+- **Saving.** Saves run one at a time in the order they were made (a promise chain), and no
+  control is disabled meanwhile, so a click that lands while the school name saves on blur is
+  kept and saved after it. The school field follows the stored value except while it has focus
+  or unsaved text: a failed save keeps what was typed, a save (also by Try again) shows what was
+  stored, and a late load (a failed first load retried) fills it. A failed save is kept per
+  setting: saving another setting doesn't clear its alert (the status line may still say what
+  did save). A newer edit of the same setting supersedes it at once: a new save of it, or
+  putting the field back to the stored value (which also clears a refused, non-retryable one).
+  A per-setting edit count means a failure is recorded only for that setting's latest edit, and
+  Try again re-sends every unsaved change in the order it was made.
+- **New dialog.** `NewWizard` takes `defaultLevel` (the list passes the settings store's): that
+  level's "Generate at" card takes focus and carries a "Your default" chip (its accessible
+  description), and a new exam set's folder is named "P5 exam set" after it. The dialog still
+  sends the level the teacher clicks, which beats the default.
+- **Not changed:** saved papers (nothing rewrites them); the blank paper still has no cover;
+  the editor's own controls.
+
+---
+
+## 21. S10 as built (EXA-168)
 
 - **Where.** A folder's ⋯ menu on Your papers has **Download the set’s answer key** when the folder
   holds any paper of an exam set. With one Booklet A, one Booklet B and one Paper 2 it downloads

@@ -49,6 +49,15 @@ class PercentageEasySolver:
         whole = 20 * rng.randint(_WHOLE_UNITS_MIN, _WHOLE_UNITS_MAX)
         return {"name": name, "percent": percent, "whole": whole}
 
+    def number_problem(self, params: dict) -> str | None:
+        """Why a teacher's numbers don't give whole dollars (EXA-89), else ``None``."""
+        percent, whole = params["percent"], params["whole"]
+        if percent * whole % 100:
+            return (
+                f"The answer must be a whole number of dollars, but {percent}% of ${whole} is not."
+            )
+        return None
+
     def solve(self, params: dict) -> dict:
         percent = params["percent"]
         whole = params["whole"]

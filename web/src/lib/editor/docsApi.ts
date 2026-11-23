@@ -3,11 +3,14 @@
 
 import { ApiError, fail } from '../errors'
 import { apiFetch } from '../http'
+import type { BankItem } from '../api'
 import type { DocumentRecord, DocumentSummary, PaperDocument } from './doc'
 
 const BASE: string = import.meta.env.VITE_API ?? 'http://localhost:8000'
 
 export type ExportMode = 'student' | 'key' | 'full'
+/** PDF to print, or an editable Word document of the paper or the key (EXA-90). */
+export type ExportFormat = 'pdf' | 'docx'
 
 const json = { 'content-type': 'application/json' }
 
@@ -68,6 +71,8 @@ export interface UnfilledPlaceholders {
   code: 'unfilled_placeholders'
   message: string
   questions: number[]
+  /** EXA-90: shared stems with no question after them (absent from an older server). */
+  lone_stems?: number
 }
 
 export function unfilledDetail(e: unknown): UnfilledPlaceholders | null {
@@ -78,11 +83,21 @@ export function unfilledDetail(e: unknown): UnfilledPlaceholders | null {
     : null
 }
 
-/** The paper as a PDF. A paper with empty placeholders is refused (`unfilledDetail`) unless
- *  `allowPlaceholders` says to print it anyway. */
-export async function exportDocument(id: string, mode: ExportMode, allowPlaceholders = false): Promise<Blob> {
-  const query = allowPlaceholders ? '?allow_placeholders=true' : ''
-  const res = await apiFetch(`${BASE}/documents/${id}/export/${mode}${query}`, { method: 'POST' })
+/** The paper as a PDF, or as Word (`docx`: the student paper or the key only). A paper with
+ *  empty placeholders is refused (`unfilledDetail`) unless `allowPlaceholders` says to print
+ *  it anyway. */
+export async function exportDocument(
+  id: string,
+  mode: ExportMode,
+  allowPlaceholders = false,
+  format: ExportFormat = 'pdf',
+): Promise<Blob> {
+  const query = new URLSearchParams()
+  if (format === 'docx') query.set('mode', mode)
+  if (allowPlaceholders) query.set('allow_placeholders', 'true')
+  const path = format === 'docx' ? 'docx' : mode
+  const qs = query.toString() ? `?${query}` : ''
+  const res = await apiFetch(`${BASE}/documents/${id}/export/${path}${qs}`, { method: 'POST' })
   if (!res.ok) return fail(res)
   return res.blob()
 }
@@ -163,8 +178,9 @@ export async function generatePaper(
   return (await res.json()) as DocumentRecord & { report: PaperReport }
 }
 
-/** P8d: how to replace one question of a paper. */
-export type SwapMode = 'like' | 'topic' | 'own'
+/** P8d: how to replace one question of a paper; `bank` (EXA-33) puts a question from the
+ *  owner's bank there, picked from `bankSwapOptions`. */
+export type SwapMode = 'like' | 'topic' | 'own' | 'bank'
 
 /** What a swap did (engine `paper_swap.swap_question`'s report). */
 export interface SwapReport {
@@ -174,6 +190,9 @@ export interface SwapReport {
   placeholder: boolean
   blueprint?: string
   topic?: string
+  bank_id?: string
+  /** A generated question from the bank is locked, so regenerating keeps it (EXA-33). */
+  locked?: boolean
 }
 
 /** What "regenerate unlocked" did (engine `paper_swap.regenerate_unlocked`'s report). */
@@ -189,14 +208,22 @@ export async function swapQuestion(
   blockId: string,
   mode: SwapMode,
   baseVersion: number,
+  bankId?: string,
 ): Promise<DocumentRecord & { report: SwapReport }> {
   const res = await apiFetch(`${BASE}/documents/${id}/swap`, {
     method: 'POST',
     headers: json,
-    body: JSON.stringify({ block_id: blockId, mode, base_version: baseVersion }),
+    body: JSON.stringify({ block_id: blockId, mode, base_version: baseVersion, ...(bankId ? { bank_id: bankId } : {}) }),
   })
   if (!res.ok) return fail(res)
   return (await res.json()) as DocumentRecord & { report: SwapReport }
+}
+
+/** EXA-33: the owner's bank questions that could take this question's place, best first. */
+export async function bankSwapOptions(id: string, blockId: string): Promise<BankItem[]> {
+  const res = await apiFetch(`${BASE}/documents/${id}/swap/bank?block_id=${encodeURIComponent(blockId)}`)
+  if (!res.ok) return fail(res)
+  return ((await res.json()) as { items: BankItem[] }).items
 }
 
 /** Refill every unlocked generated question and empty placeholder (locked ones stay). */

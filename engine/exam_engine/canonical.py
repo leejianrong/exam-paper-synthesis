@@ -23,7 +23,7 @@ from .solid import check_solid_consistency
 if TYPE_CHECKING:  # avoid an import cycle at runtime
     from .blueprints.base import BlueprintSpec
 
-SCHEMA_VERSION = "1.14.0"
+SCHEMA_VERSION = "1.15.0"
 
 
 class CanonicalValidationError(Exception):
@@ -36,10 +36,18 @@ class CanonicalValidationError(Exception):
 
 def load(obj: dict) -> dict:
     """Validate on entry; reject invalid objects (R6.1/R6.2). Returns the object."""
-    errors = validate_object(obj) or _diagram_errors(obj) + _answer_errors(obj)
+    errors = validate_object(obj) or _diagram_errors(obj) + _answer_errors(obj) + _own_errors(obj)
     if errors:
         raise CanonicalValidationError(errors)
     return obj
+
+
+def _own_errors(obj: dict) -> list[str]:
+    """A teacher's own question (schema 1.15.0, EXA-90): its block must be a valid one, and
+    ``own-`` ids belong to such questions only (so saving one can never replace an import)."""
+    from .own_question import check  # runtime import: own_question builds on this module
+
+    return check(obj)
 
 
 _ORDER_HINT = (
@@ -118,9 +126,10 @@ def to_json(obj: dict, *, indent: int | None = None) -> str:
 
 def _scheme(scheme: list[dict], ctx: dict) -> list[dict]:
     """The marking scheme, a description with ``{name}`` filled from ``ctx`` (EXA-154: a line
-    can name what this question asks for); one without braces is left exactly as written."""
+    can name what this question asks for); one without braces is left exactly as written. A
+    copy, so editing a question never edits the cached blueprint."""
     return [
-        {**m, "description": _fill(m["description"], ctx)} if "{" in m["description"] else m
+        {**m, "description": _fill(m["description"], ctx)} if "{" in m["description"] else {**m}
         for m in scheme
     ]
 

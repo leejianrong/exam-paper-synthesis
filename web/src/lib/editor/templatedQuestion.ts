@@ -19,6 +19,7 @@ import { layoutOf, type BlockLayout } from './layout'
 import { trackPlacement } from './sections'
 import type { SectionPlacement } from './doc'
 import { NOWHERE, trackPlace, type BlockPlace } from './blockPlace'
+import { groupStep, setStemCount } from './groupStem'
 
 export interface TemplatedQuestionOptions {
   /** Open the "add question" picker to insert after the block at `pos`. */
@@ -108,16 +109,18 @@ export const TemplatedQuestion = Node.create<TemplatedQuestionOptions>({
             // An edit's reply: it may arrive after the block was moved or deleted.
             // A swap or "Regenerate unlocked" keeps the block_id, so also check the block still
             // holds the question the edit started from (EXA-161 re-review).
-            replace: (q: Question, from: string) =>
+            // `patch`: other attrs set in the same step, so one Undo reverts both (EXA-89 locks)
+            replace: (q: Question, from: string, patch: Record<string, unknown> = {}) =>
               withBlock(({ pos, node: live }) => {
                 if ((live.attrs.question as Question | null)?.id !== from) {
                   options.onNotice('That question changed before the edit arrived, so the edit was dropped.')
                   return
                 }
                 editor.view.dispatch(
-                  editor.state.tr.setNodeMarkup(pos, undefined, { ...live.attrs, question: q }),
+                  editor.state.tr.setNodeMarkup(pos, undefined, { ...live.attrs, ...patch, question: q }),
                 )
               }, true),
+            notice: (message: string) => options.onNotice(message),
             setLayout: (patch: Partial<BlockLayout>) => setAttrs(patch),
             remove: () =>
               withBlock(({ pos, node: live }) => {
@@ -268,6 +271,12 @@ export function moveBlock(
   const $pos = doc.resolve(pos)
   const index = $pos.index()
   const parent = $pos.parent
+  // At the edge of a shared stem's group the question steps in or out of it first (EXA-90).
+  const step = $pos.depth === 0 ? groupStep(doc, index, dir) : null
+  if (step) {
+    const stepTr = setStemCount(editor.state, step.pos, step.count)
+    if (stepTr) return editor.view.dispatch(stepTr)
+  }
   const target = index + dir
   if (target < 0 || target >= parent.childCount) return
   const node = parent.child(index)

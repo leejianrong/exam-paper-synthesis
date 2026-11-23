@@ -23,6 +23,171 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   Booklet B is Primary 6."). Empty generator placeholders are named, with **Download
   anyway**. The API is `POST /folders/{id}/key` (PDF, one export from the allowance) and
   `GET /folders/{id}/key/preview` (HTML).
+
+- **Invite-only sign-in for the private trial (EXA-186).** `EXAM_ALLOWED_EMAILS` (addresses and
+  `@domain` entries) closes sign-in to everyone else, with Google or GitHub: only a verified
+  email on the list may sign in, nobody else gets an account, and taking an address off the
+  list ends its sessions at once. The sign-in page says "This server is open to invited
+  teachers only"; the Microsoft button is hidden while the list is set (Microsoft never verifies
+  an email), and in production an entry without an `@` stops the server from starting. Empty =
+  open to all (`api/app/allowlist.py`; `docs/deploy/SIGN-IN.md`).
+- **Privacy notice and terms (EXA-185).** `/privacy` and `/terms` are plain pages anyone can
+  read signed out (Google's consent screen links to them). The privacy notice covers what is
+  kept and for how long (the sign-in profile, papers, folders, bank, images, settings, export
+  times for 24 hours, the 30-day session and the two 10-minute sign-in cookies, error logs only),
+  the Google user data and the Limited Use statement, that nothing is sold or used for adverts or
+  training, where it lives (DigitalOcean in Singapore, backups deleted after 14 days; Google and
+  GitHub largely in the US), how to download, correct or delete it, and the data protection
+  officer. The terms cover fair use, the export allowance, no warranty and Singapore law. The
+  image no longer writes a per-request access log (uvicorn `--no-access-log`), so the notice
+  can promise no log of visits or addresses. The contact address comes from `EXAM_CONTACT_EMAIL`.
+  The sign-in screen links both; the account menu has *Privacy and terms*
+  (`api/app/routes_legal.py`).
+
+- **Droplet runbook and launch checklist (EXA-181, EXA-182, EXA-183).**
+  `docs/deploy/DROPLET.md` sets up the production server step by step, each with a check: the
+  SGP1 droplet, a cloud firewall (22/80/443 only; Docker goes around `ufw`), a `deploy` user
+  with root and password logins off, 2 GB swap, automatic security updates with reboots at
+  03:30 SGT, Docker from its own repository with log rotation, the Google and GitHub sign-in
+  apps, the first deploy, uptime and resource alerts on `/ready`, and the day-to-day commands
+  (deploy, roll back, logs, hostname change). `docs/deploy/SIGN-IN.md` walks through the Google
+  and GitHub sign-in apps click by click: what only the owner can do in each console, Google's
+  Testing mode and test users for the private trial on sslip.io, the checks, the common errors,
+  local-development apps, and the move to a real domain. ADR-0024 records the hosting decision and
+  supersedes ADR-0022's Fly.io + Neon; `docs/LAUNCH.md` is rewritten for the droplet; `fly.toml`
+  is removed.
+
+- **The production image is published to GHCR (EXA-179).** A new `Image` workflow builds the
+  Dockerfile on every pull request and prints Paper 2's student paper and key with the image's
+  own browser (`deploy/image_smoke.py`), so a missing system library fails in CI, not on a
+  teacher's first export. On main it pushes `ghcr.io/leejianrong/exam-paper-synthesis:latest`
+  and `:sha-<commit>` from a separate job (pull requests keep a read-only token; main runs are
+  never cancelled, so every merge's tag exists to roll back to). The image installs only
+  Chromium's headless shell: 1.82 GB instead of 2.68 GB, with the same printed pages (all 21
+  pages of the test papers render identically). uv in the image is pinned (0.13.9) instead of
+  `latest`. The package is public, so the droplet pulls it without a login.
+
+- **Nightly database backups to DigitalOcean Spaces (EXA-180).** A `backup` service in
+  `deploy/compose.yaml` (`deploy/backup/`: Alpine with the Postgres 17 client and rclone 1.71,
+  128 MB) runs `pg_dump -Fc` every day at 03:00 Singapore time (`BACKUP_TIME`) and uploads it
+  as `exam-<UTC timestamp>.dump` to the bucket in `SPACES_BUCKET`. A dump is uploaded only when
+  every byte of it reads back (`pg_restore -f /dev/null`) and the database has tables; any
+  failed step exits non-zero and logs `backup FAILED`. Every night, whether or not the dump
+  worked, the job deletes every object in the backup folder older than 14 days (safety dumps
+  too), as the privacy notice promises; a 14-day Spaces lifecycle rule is the backstop and
+  bucket versioning stays off. Back up now with `docker compose exec backup exam-backup now`.
+  `deploy/restore.sh` restores the newest or a named dump: it asks first, stops the app and the
+  backup job, uploads a `pre-restore-…` safety dump, loads the dump into a scratch database and
+  swaps it in only once it has loaded, then starts both again. `docs/deploy/BACKUPS.md` covers
+  setup, daily checks and the restore drill. Bucket keys reach the container only as
+  environment variables.
+
+- **Production stack for a droplet (EXA-178).** `deploy/compose.yaml` runs the app image
+  behind Caddy (automatic Let's Encrypt TLS, http → https, compression) with Postgres 17 on a
+  named volume. Only Caddy publishes ports. Memory is budgeted for a 2 GB droplet (app 1.2 GB
+  with a 512 MB `/dev/shm` for Chromium, Postgres 384 MB tuned for 25 connections, Caddy
+  128 MB). `deploy/.env.example` lists every value the production gate needs; the sign-in
+  limits see the visitor's address through Caddy's `X-Forwarded-For`. `.dockerignore` keeps
+  `.env` files out of the image. The production image builds again: Playwright's bundled node
+  needs `libatomic1`, which the slim base image lacks (the build had been failing unnoticed,
+  since no CI job builds the image yet; EXA-179 adds one).
+
+- **Export to Word (EXA-90).** The Export menu has **Student paper (Word)** and **Answer key
+  (Word)**: an editable .docx to change in Word. It keeps the paper's structure: the cover (its
+  fields and the examiner's table as Word tables), section headers with their marks sentence
+  and instructions, numbered questions with [n] at the right, lettered parts with their own
+  marks, shared stems with their lead line (kept with their first question; repeated in the
+  worked key when it shows the questions), MCQ options one to a line, data tables as real tables, working space and the
+  `Ans:` line with its unit, page breaks (the cover, blank pages, each structured question),
+  and the key: the school key as tables with an answer grid for Booklet A, or the worked key.
+  Figures are the engine's own, rasterised by the PDF export's Chromium at their print size;
+  uploaded images are embedded as they are. Inline maths becomes a Word equation (a small
+  LaTeX reader covering what the papers use; anything else stays as the LaTeX typed). The
+  marking strip, tally boxes and page footers are left out: Word paginates the document
+  itself, but a question's text and figure are kept with its working space. Characters Word
+  cannot hold (a pasted vertical tab) are dropped, and a picture Word cannot read prints
+  "[image unavailable]". A Word export counts against the export allowance like a PDF. API:
+  `POST /documents/{id}/export/docx?mode=student|key` (`api/app/docx_export.py`,
+  `docx_math.py`; new api dependency `python-docx`, MIT).
+
+- **Shared stems (EXA-90).** Insert ▸ **Shared stem** puts a block of text, figures or equations
+  above questions that all use it, and the paper prints "Use the information below to answer
+  Questions 12 and 13." from their numbers. Each question keeps its own number, marks, working
+  space and Ans: line (in Booklet A each can be its own multiple choice). The stem's − and +
+  let a question go or take the next one in; moving a question at the group's edge steps it out
+  or in. The stem stays on the page of its first question, and the worked-solutions key repeats
+  it when it shows the question text. Regenerate unlocked keeps the questions under a stem, and
+  a stem with no questions after it asks before the PDF prints. Document schema 1.18.0 (`groupStem`); older papers are
+  unchanged. See `docs/planning/editor/SHARED-STEM-SHAPING.md`.
+
+- **Save your own question to your bank (EXA-90).** A question you wrote has **Save to your
+  bank…** in its ⋯ menu. A small dialog asks its topic (the app's topic list), level (starting at
+  the paper's) and difficulty; a single-part question's marks start at the block's, a multi-part
+  question's are its parts'. The bank keeps the question exactly as written (parts, pictures,
+  maths, Ans: units and answers), so **From my bank** and **Swap from your bank…** put it back
+  into any of your papers unchanged, to edit like any question of yours. Saving the same question
+  again says it is already in your bank and offers to replace that copy. It arrives unreviewed,
+  like an import, and is never marked verified. Canonical schema **1.15.0** (`freeform` block,
+  `provenance.created_by: "teacher"`), document schema **1.17.0** (`bank_id` on a free-form
+  question), `POST /bank/own`, `GET /bank/topics`, ADR-0023.
+- **Edit numbers (EXA-89, tier-2 edits).** A generated question's ⋯ menu has **Edit numbers…**
+  for eleven blueprints (Ratio easy/medium, Percentage easy/medium/hard, Speed easy/medium/hard,
+  Fractions medium/hard, Average easy): change the amount shared, the ratio terms, a
+  percentage, a speed or the listed scores, and the engine solves the question again, so the
+  answer, the working, the bar model and the key stay engine-proven. Names and items are kept.
+  Numbers that don't make a question of that kind are refused with the reason inline ("The
+  amount must be a multiple of 12: $301 can't be shared in the ratio 9 : 3 in whole dollars.").
+  The edited question is locked (and a notice says so), so **Regenerate unlocked** or a swap
+  doesn't throw your numbers away; one Undo reverts both. Engine: number roles marked `edit: free` (with a label) in the
+  blueprint YAML, the solver's `number_problem` hook, `exam_engine/numbers.py` and the
+  `set-numbers` edit op; API: `POST /edit/set-numbers`, the free numbers listed by
+  `GET /blueprints/{code}/params`; CLI: `mathgen edit set-numbers --set total=140`. Not offered on
+  a multiple-choice copy, a multi-part question or a decimals view.
+
+- **Swap from your bank (EXA-33, R6.4).** A generated question, or an empty placeholder, has
+  **Swap from your bank…** in its ⋯ menu. It lists the questions in your own bank that fit
+  that place: the same marks and kind of answer (multiple choice in Booklet A, a single
+  written-answer question in a short-answer section), no higher level than the paper, and not
+  already in the paper, with the question's topic first and reviewed questions before
+  unreviewed ones. Each shows its topic, marks, review status and the question as it prints;
+  a longer list can be searched. Picking one puts it in that place as a bank question, exactly
+  as inserting it from the bank would, keeping the position's working space, key setting and
+  slot, so the section's marks stay on target. A generated question picked this way is locked,
+  so **Regenerate unlocked** keeps it. The paper is saved before the list is worked out, so a
+  question you have just inserted is not offered again. Locked questions can't be swapped. When nothing
+  fits, the dialog says so. Only your own bank is ever offered (`GET
+  /documents/{id}/swap/bank`, `POST /documents/{id}/swap` with `mode: "bank"`).
+- **Defaults for new papers (EXA-169, UI redesign S11).** Settings has a **New papers** group:
+  the school name, the level (Not set, P5 or P6), **Marks shown** (the editor's own control and
+  labels) and the answer key style. Each paper made from then on starts with them: the school
+  name and level on the cover, the marks placement in the paper's settings, the key style as
+  before. The server writes them, so the blank paper, an empty starter, a generated paper and
+  every paper of an exam set all get them, from any client. The New dialog offers your level
+  first (focused and marked "Your default") and names a new exam set's folder after it; the
+  other level is still one click away, and a level asked for explicitly wins. Left empty,
+  nothing changes; papers you already have are never touched.
+- **Sign-in page and one product name (EXA-170, UI redesign S12).** The sign-in page shows the
+  product name, **Exam papers**, and what it is for ("Singapore P5–P6 maths papers with answer
+  keys you can trust"), then one button per configured provider in that provider's wording and
+  with its mark: "Sign in with Google", "Sign in with Microsoft", "Sign in with GitHub". A failed
+  or cancelled sign-in is explained in plain words, and a server that can't be reached offers
+  Try again. With the local development stub on, a dashed "Development only" panel offers
+  "Continue without signing in". The browser tab, the landing page and a new favicon use the
+  same name as the app header instead of "Exam Paper Synthesis".
+- **One app header and a Question bank page (EXA-167, UI redesign S9).** Your papers, the
+  question bank, Settings and the Classic generator now share one header: the product name,
+  **Papers** and **Question bank** (and **Classic** while *Show the Classic generator* is on),
+  and the avatar menu with Settings, Download my data, Sign out and Delete my account. The
+  current place is marked for screen readers (`aria-current`) and the header fits a phone. The
+  page's own ad-hoc links ("Settings" and "Classic generator" on the list, "← Your papers" on
+  Settings, "Back to your papers" on the Classic-off page) and the Classic page's own wordmark
+  are gone. The editor keeps its own header with its back arrow. The question bank
+  (`#/bank`) lists every question you imported, drawn as it prints, with a search and filters
+  for topic, level, difficulty, imported or generated, and reviewed or not; each imported
+  question carries its review mark (still confirmed, ADR-0019), and **Import questions from a
+  file** opens the existing import (duplicates reported unless *Replace* is ticked) in a
+  dialog. Long banks draw 20 at a time. The add-question picker's "From my bank" tab is
+  unchanged.
 - **Plain errors, a not-found page and loading skeletons (EXA-165, UI redesign S7).** Opening a
   paper that doesn't exist (or was deleted) shows a page that says so, with **Back to Your
   papers**, instead of an empty editor claiming "Saved" (the server answers "not found" for
@@ -245,6 +410,21 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Changed
 
+- **Landing page roadmap brought up to date (EXA-174).** The roadmap on the landing page
+  (`site/index.html`) listed only V1–V3 as shipped. It now shows what has shipped (the MVP
+  slices V1–V7, the paper editor, bank and accounts W1–W4, the T-series figures and answer types,
+  the paper format and one-click papers P1–P8d, the editor and app redesign), what is in progress
+  (the exam-set answer key, more topics in P8e) and what is planned later. The hero chip, the note
+  under the geometry showcase and the closing paragraph no longer call shipped work "planned"
+  or "being built", and the hero no longer says "No accounts". The sample question's bar model
+  moved into its answer key (bar models are worked solutions, EXA-132), and the feature cards
+  describe one-click papers, keep / swap / lock and the bank's review mark instead of the
+  Classic page's batch and review gate.
+
+- **Test fixtures use a made-up school name (EXA-173).** Tests and the cover's School
+  field hint no longer use a name that could read as a real school: fixtures say "Example
+  Primary School" and the field's hint reads "Your school’s name".
+
 - **An exam set spreads its topics over the whole set (EXA-153).** The "+ New" wizard's exam
   set used to choose topics paper by paper, so a topic could have 6 questions in a P6 set. Each
   paper is now told the topics of the papers made before it and fills a topic past 3 questions
@@ -311,6 +491,72 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
   white space; the key's panels are light grey with a black rule. The editor shows the same.
 
 ### Fixed
+
+- **Dependency audit covers the project (EXA-176).** The CI job ran `uvx pip-audit` with no
+  arguments, which audited pip-audit's own environment. It now audits a `uv export` of
+  `uv.lock` (engine, api, cli and the dev group). That flagged anyio, certifi and
+  opentelemetry-api, now bumped to fixed releases (anyio 4.14.2, certifi 2026.10.23,
+  opentelemetry-api 1.45.2). The web side was already audited (`npm audit`, high and above).
+- **A generated question's wording and figures are checked too (EXA-157).** Changing a generated
+  question's text, a part, a table cell, its figure (a bar of a chart, an angle label), its worked
+  steps or its marking scheme kept the "Engine-verified" claim, since only the answer, marks and
+  the figures of cube, net and grid questions were re-derived. The server now rebuilds the
+  question from its numbers and names, the same way generation and renaming do, and compares
+  (spacing, the ℓ / l spelling and the bar model's grouped / sliced view aside; a hidden aid
+  figure is fine). A multiple-choice option may be reworded, but one that reads as the answer
+  or has its value in another form ("$344.00" beside "$344", 4/6 or 0.75 beside 2/3 or 3/4) is
+  caught, as is a marking scheme that calls another option correct. A question that differs is
+  saved and opened as **Not verified**, and the Question tab says what differs; the paper
+  itself is never refused, so a paper saved before a blueprint's wording changed still opens,
+  saves and prints. Renaming people or items still verifies. **For contributors:** changing a
+  blueprint's wording, worked steps or marking scheme, or how a solver draws its figure (any
+  change to the figure spec, even a label's position), marks that question "Not verified" in
+  papers saved earlier ("question text", "worked steps", "figure", ...) until the teacher swaps
+  it; say so in the change's CHANGELOG entry.
+- **A school name put back during a save is kept (EXA-175).** On Settings, typing a new school
+  name, leaving the field, then setting it back to the stored name before the first save
+  returned lost the change: the page compared it with the stored name (still the old one), sent
+  nothing, and the new name was saved. While a school name is on its way the page now compares
+  with the name being sent (also by Try again), so going back is saved after it. The level,
+  Marks shown and answer key style always save each choice, so they were not affected.
+- **[ and ] work on keyboards that need AltGr or ⌥ for them (EXA-172).** On a German, French,
+  Spanish or Swiss keyboard on Windows or Linux, [ and ] are AltGr+8 / AltGr+9 or similar, and
+  on a German Mac ⌥5 / ⌥6; Make easier ([) and Make harder (]) on a selected question never
+  fired there, and since EXA-171 the key did nothing at all. The two keys are now matched by
+  the character they type, whatever the layout needs for it (AltGr, which Windows reports as
+  Ctrl+Alt; ⌥ on a Mac; Shift). A real chord is still not one of them: Ctrl+[, Cmd+[, Ctrl+Alt+[
+  without AltGr and Alt+[ off a Mac pass through as before, and any other AltGr character on a
+  selected question is still dropped. For layouts with no brackets at all (Russian, Ukrainian),
+  the minus key (-) also makes the question easier and = harder (not the keypad's, which
+  types numbers); the shortcut sheet lists both as "[ or -" and "] or =". Inside a question's text these keys type as usual.
+- **A key on a selected block never replaces it (EXA-171).** With a question selected as a
+  block (by the arrow keys, or after a swap), a key that is not one of its shortcuts could take
+  the question's place, and Shift+Enter put a line break in place of any selected block. Now:
+  - A typed letter, digit or space on a selected question does nothing: there single keys are
+    commands (R, L, [, ]), so the other letters do nothing too rather than turning half a word
+    into text. The question's pill says once per selection "Press Enter to write below", then
+    fades.
+  - On a selected cover, section, blank page or figure a typed key starts a paragraph after
+    the block, as before.
+  - Enter and Shift+Enter on any selected top-level block, questions included, start a
+    paragraph after it. On a block selected below the top level (a part of a question, a
+    figure in its text) typing, Shift+Enter and pasted text do nothing; Enter there is
+    unchanged (nothing happens on a part).
+  - This holds however the text arrives: a key press (handled on keydown, ahead of the
+    editor's input rules and hard break), or `beforeinput` from dictation or a keyboard that
+    does not compose (on iOS the text is dropped on a question; Enter is left to ProseMirror's
+    own replay, so it adds one paragraph, not two).
+  - The exception is composition. An input method (IME) or a mobile keyboard that composes
+    words (Android's Gboard) cannot be stopped, so once composition starts the caret moves
+    into a new paragraph after the block and the composed text lands there, also on a
+    question. A dead key alone moves nothing; only the composition it starts does.
+  - Ctrl/Cmd+Enter with a block selected adds a question and changes nothing else (the
+    editor's Mod-Enter hard break no longer reaches the block); inside a question it is the
+    question's own.
+  - Unchanged: text selections, keys in a control inside a block (a select's type-ahead), the
+    block shortcuts, Alt+Enter on a section or cover, Del, a drop, a paste on a selected
+    top-level block (it lands after the block), and a pasted picture alone, which the image
+    upload inserts as a figure next to the selection, never over the block.
 
 - **Web dependencies (Dependabot #207, re-applied on main).** Minor and patch bumps: TipTap
   3.34, Svelte 5.58, eslint-plugin-svelte, svelte-eslint-parser, globals, tslib, @tsconfig/svelte and raised floors

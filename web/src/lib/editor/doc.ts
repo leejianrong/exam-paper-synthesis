@@ -5,7 +5,7 @@ import type { Question } from '../types'
 import { assetUrl } from './assets'
 import type { PaperSettings } from './layout'
 
-export const DOCUMENT_SCHEMA_VERSION = '1.16.0'
+export const DOCUMENT_SCHEMA_VERSION = '1.18.0'
 
 export interface DocNode {
   type: string
@@ -176,6 +176,8 @@ export function cleanNode(node: DocNode): DocNode {
     if (attrs.slot === null || attrs.slot === undefined) delete attrs.slot
     // Unlocked unless set (P8d): only a lock is stored.
     if (attrs.locked !== true) delete attrs.locked
+    // EXA-90: only an own question saved to (or inserted from) the bank names its bank copy.
+    if (!attrs.bank_id) delete attrs.bank_id
     out = { ...out, attrs }
   }
   if (out.type === 'section' && out.attrs) {
@@ -207,6 +209,12 @@ export function cleanNode(node: DocNode): DocNode {
     for (const k of ['examiner_table', 'parent_signature', 'even_pages'])
       if (typeof a[k] === 'boolean') attrs[k] = a[k]
     out = { ...out, attrs }
+  }
+  if (out.type === 'groupStem') {
+    // EXA-90: a shared stem stores only its id and how many questions follow it.
+    const a = out.attrs ?? {}
+    const count = Number(a.count)
+    out = { ...out, attrs: { block_id: a.block_id, count: Number.isInteger(count) && count >= 1 ? count : 2 } }
   }
   if (out.type === 'blankPage') {
     const a = out.attrs ?? {}
@@ -252,6 +260,13 @@ export function freeformNode(): DocNode {
     attrs: { block_id: newBlockId(), marks: null, answer: EMPTY_ANSWER },
     content: [{ type: 'paragraph' }],
   }
+}
+
+/** A teacher's own bank question (EXA-90) as a block for this paper: the saved block as it was
+ *  written, under a new block id, remembering its bank copy (saving it again updates that). */
+export function ownBankNode(question: { id: string; freeform?: Record<string, unknown> | null }): DocNode {
+  const block = structuredClone(question.freeform) as unknown as DocNode
+  return { ...block, attrs: { ...block.attrs, block_id: newBlockId(), bank_id: question.id } }
 }
 
 const esc = (t: string): string =>
@@ -310,7 +325,7 @@ export function buildDocument(
 ): PaperDocument {
   const seen = new Set<string>()
   const blocks = (content.content ?? []).map(cleanNode).map((node) => {
-    if (node.type !== 'templatedQuestion' && node.type !== 'freeformQuestion') return node
+    if (!['templatedQuestion', 'freeformQuestion', 'groupStem'].includes(node.type)) return node
     let id = String(node.attrs?.block_id ?? '')
     if (!id || seen.has(id)) id = newBlockId()
     seen.add(id)

@@ -127,14 +127,14 @@ describe('the selected section or cover (blockSettings)', () => {
   beforeEach(() => {
     editor = new Editor({
       extensions: [StarterKit, Section, CoverPage],
-      content: { type: 'doc', content: [coverNode({ school: 'Pandan' }), sectionNode('A'), para('x'), sectionNode('B')] },
+      content: { type: 'doc', content: [coverNode({ school: 'Example Primary' }), sectionNode('A'), para('x'), sectionNode('B')] },
     })
   })
   afterEach(() => editor.destroy())
 
   it('names the cover, or the section by its place, and nothing else', () => {
     editor.commands.setNodeSelection(0)
-    expect(selectedSettingsBlock(editor.state)).toMatchObject({ kind: 'cover', attrs: { school: 'Pandan' } })
+    expect(selectedSettingsBlock(editor.state)).toMatchObject({ kind: 'cover', attrs: { school: 'Example Primary' } })
     const b = settingsBlockPos(editor.state.doc, { kind: 'section', index: 1, attrs: {} })!
     editor.commands.setNodeSelection(b)
     expect(selectedSettingsBlock(editor.state)).toMatchObject({ kind: 'section', index: 1, attrs: { title: 'B' } })
@@ -214,9 +214,9 @@ describe('SidePanel: Paper / Question / Section / Cover', () => {
     await view.rerender({ context: section({ title: '' }) })
     expect(screen.getByRole('tab', { name: 'Section 2' })).toBeInTheDocument()
     // then the cover, then back to a question
-    await view.rerender({ context: { kind: 'cover', attrs: { school: 'Pandan' } } })
+    await view.rerender({ context: { kind: 'cover', attrs: { school: 'Example Primary' } } })
     expect(screen.getByRole('tab', { name: 'Cover page' })).toHaveAttribute('aria-selected', 'true')
-    expect(within(screen.getByRole('tabpanel', { name: 'Cover page' })).getByLabelText('School')).toHaveValue('Pandan')
+    expect(within(screen.getByRole('tabpanel', { name: 'Cover page' })).getByLabelText('School')).toHaveValue('Example Primary')
     await view.rerender({ context: null, selectedId: 'ff_1' })
     expect(screen.getByRole('tab', { name: 'Question 1' })).toHaveAttribute('aria-selected', 'true')
   })
@@ -260,7 +260,7 @@ describe('SidePanel: Paper / Question / Section / Cover', () => {
       events: { blockattrs: (e: CustomEvent) => seen.push(e.detail) },
     })
     const panel = screen.getByRole('tabpanel', { name: 'Cover page' })
-    for (const [label, value] of [['School', 'Pandan'], ['Exam', 'Prelim'], ['Level', 'Primary 6'], ['Subject', 'Maths'], ['Paper', 'Paper 1'], ['Date', '']]) {
+    for (const [label, value] of [['School', 'Example Primary'], ['Exam', 'Prelim'], ['Level', 'Primary 6'], ['Subject', 'Maths'], ['Paper', 'Paper 1'], ['Date', '']]) {
       await fireEvent.input(within(panel).getByLabelText(label), { target: { value } })
     }
     await fireEvent.input(within(panel).getByLabelText('Instructions'), { target: { value: 'Answer all.' } })
@@ -270,7 +270,7 @@ describe('SidePanel: Paper / Question / Section / Cover', () => {
     expect(within(panel).getByLabelText('Pad to an even number of pages')).toBeChecked()
     await fireEvent.click(within(panel).getByLabelText("Parent's signature line"))
     expect(seen).toEqual([
-      { school: 'Pandan' },
+      { school: 'Example Primary' },
       { exam: 'Prelim' },
       { level: 'Primary 6' },
       { subject: 'Maths' },
@@ -324,7 +324,7 @@ describe('SidePanel: Paper / Question / Section / Cover', () => {
 describe('in the editor', () => {
   const fetchMock = vi.fn()
   const content = [
-    coverNode({ school: 'Pandan Primary', exam: 'Prelim' }),
+    coverNode({ school: 'Example Primary', exam: 'Prelim' }),
     sectionNode('Section A', { marks_target: 2 }),
     freeformDocNode({ id: 'ff_1', marks: 2 }),
   ]
@@ -431,7 +431,7 @@ describe('in the editor', () => {
     localStorage.setItem('exam.editor.sidePanel', 'hidden')
     await open()
     expect(screen.queryByRole('complementary', { name: 'Side panel' })).toBeNull()
-    expect(document.querySelector('.cover-block')).toHaveTextContent('Pandan Primary')
+    expect(document.querySelector('.cover-block')).toHaveTextContent('Example Primary')
     await fireEvent.click(screen.getByRole('button', { name: 'Edit cover page' }))
     const panel = await screen.findByRole('tabpanel', { name: 'Cover page' })
     await waitFor(() => expect(within(panel).getByLabelText('School')).toHaveFocus())

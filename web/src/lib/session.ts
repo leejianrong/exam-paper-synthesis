@@ -21,19 +21,28 @@ export interface SessionUser {
   dev: boolean
 }
 
-export type SessionState = { status: 'loading' } | { status: 'anon' } | { status: 'user'; user: SessionUser }
+/** `anon` with `unreachable`: `/auth/me` got no answer (offline, or the server restarting), so
+ *  the teacher may well still have a valid session: asking again may sign them straight back in. */
+export type SessionState =
+  | { status: 'loading' }
+  | { status: 'anon'; unreachable?: boolean }
+  | { status: 'user'; user: SessionUser }
 
 export const session = writable<SessionState>({ status: 'loading' })
 
-export async function loadSession(): Promise<void> {
+/** Ask the API who is signed in; resolves to the new state. */
+export async function loadSession(): Promise<SessionState> {
+  let next: SessionState
   try {
     const res = await fetch(`${BASE}/auth/me`, { credentials: 'include' })
-    if (res.ok) session.set({ status: 'user', user: (await res.json()) as SessionUser })
-    else session.set({ status: 'anon' })
+    if (res.ok) next = { status: 'user', user: (await res.json()) as SessionUser }
+    // a 5xx is the server (or its proxy) failing, not an answer about the cookie
+    else next = res.status >= 500 ? { status: 'anon', unreachable: true } : { status: 'anon' }
   } catch {
-    // API unreachable: show the app's own errors rather than a login page that cannot work.
-    session.set({ status: 'anon' })
+    next = { status: 'anon', unreachable: true }
   }
+  session.set(next)
+  return next
 }
 
 /** The API said 401: whoever we thought was signed in is not (expired or signed out). */
@@ -58,6 +67,11 @@ export async function loadProviders(): Promise<{ providers: ProviderInfo[]; dev:
   const res = await send(`${BASE}/auth/providers`)
   if (!res.ok) return fail(res)
   return (await res.json()) as { providers: ProviderInfo[]; dev: boolean }
+}
+
+/** The privacy notice or terms (EXA-185): server pages on the API's origin, readable signed out. */
+export function policyUrl(page: 'privacy' | 'terms'): string {
+  return `${BASE}/${page}`
 }
 
 export function loginUrl(provider: string): string {

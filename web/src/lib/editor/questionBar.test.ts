@@ -8,6 +8,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/svelte'
 import { TemplatedQuestion, moveBlock, questionNode } from './templatedQuestion'
 import { FreeformQuestion, QuestionDocument } from './freeformQuestion'
 import { BlockShortcuts, isBlockKeyTarget } from './shortcuts'
+import { BlockSelectionGuard } from './blockSelection'
 import { makeQuestion } from './fixtures'
 import { ImageBlock, MathNode } from './media'
 import { chooseFromMenu, menuLabels, openMenu, selectBlock } from './blockTesting'
@@ -34,7 +35,7 @@ const own = (id: string, text: string) => ({
   content: [para(text)],
 })
 
-function make(content: object[]) {
+function make(content: object[], { guard = false } = {}) {
   const onSwap = vi.fn(async () => {})
   const onDeleted = vi.fn()
   const onNotice = vi.fn()
@@ -47,6 +48,7 @@ function make(content: object[]) {
       StarterKit.configure({ document: false, trailingNode: false }),
       CoverPage,
       BlockShortcuts,
+      ...(guard ? [BlockSelectionGuard] : []),
       TemplatedQuestion.configure({ onSwap, onDeleted, onNotice }),
       FreeformQuestion.configure({ onSwap, onDeleted }),
     ],
@@ -97,7 +99,7 @@ describe('at rest and selected', () => {
     expect(pill.getByLabelText('Marks')).toHaveValue(1)
     expect(pill.getByRole('button', { name: 'Part' })).toBeInTheDocument()
     expect(pill.queryByRole('button', { name: 'Lock' })).toBeNull() // not the generator's
-    expect(await menuLabels(mine)).toEqual(['Add a part', 'Edit answer…', 'Leave out of answer key', 'Move down', 'Add question below', 'Delete'])
+    expect(await menuLabels(mine)).toEqual(['Add a part', 'Edit answer…', 'Save to your bank…', 'Leave out of answer key', 'Move down', 'Add question below', 'Delete'])
 
     const slot = document.querySelectorAll<HTMLElement>('.ffblock')[1]
     expect(slot).toHaveClass('placeholder-slot')
@@ -247,6 +249,156 @@ describe('block shortcuts', () => {
   })
 })
 
+describe('a key typed on a selected question (EXA-171)', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('types nothing, and the pill says once per selection how to write below it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const { editor: e } = make([gq('a', 'First.'), gq('b', 'Second.')], { guard: true })
+    await tick()
+    const before = e.getJSON()
+    const host = qblock('First.')
+    const hint = () => within(host).queryByRole('status')
+    e.commands.setNodeSelection(0)
+    e.view.focus()
+    await waitFor(() => expect(host.querySelector('.qpill')).not.toBeNull())
+    // the live region is there, empty, from the moment the pill shows, so the text that
+    // appears in it is announced
+    const region = hint()
+    expect(region).not.toBeNull()
+    expect(region?.textContent).toBe('')
+    await fireEvent.keyDown(e.view.dom, { key: 'a' })
+    await waitFor(() => expect(hint()).toHaveTextContent('Press Enter to write below'))
+    expect(hint()).toBe(region)
+    expect(e.getJSON()).toEqual(before)
+    // it goes after a few seconds, and does not come back for this selection
+    vi.advanceTimersByTime(4000)
+    await waitFor(() => expect(hint()?.textContent).toBe(''))
+    await fireEvent.keyDown(e.view.dom, { key: 's' })
+    await tick()
+    expect(hint()?.textContent).toBe('')
+    // a new selection may show it again; a block shortcut never does
+    e.commands.setNodeSelection(e.state.doc.child(0).nodeSize)
+    await tick()
+    e.commands.setNodeSelection(0)
+    await fireEvent.keyDown(e.view.dom, { key: 'l' })
+    await waitFor(() => expect(attrsOf(e, 'a').locked).toBe(true))
+    expect(hint()?.textContent).toBe('')
+    await fireEvent.keyDown(e.view.dom, { key: '7' })
+    await waitFor(() => expect(hint()).toHaveTextContent('Press Enter to write below'))
+    expect((e.getJSON().content ?? []).map((n) => n.type)).toEqual(['templatedQuestion', 'templatedQuestion'])
+  })
+})
+
+describe('[ and ] on layouts that need AltGr or ⌥ (EXA-172)', () => {
+  const altGr = { ctrlKey: true, altKey: true, modifierAltGraph: true } as KeyboardEventInit
+  function selected() {
+    const child = makeQuestion({ id: 'a:v2' }, 'Changed text.')
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ question: child }) })
+    vi.stubGlobal('fetch', fetchMock)
+    const made = make([gq('a', 'First.'), gq('b', 'Second.')], { guard: true })
+    made.editor.commands.setNodeSelection(0)
+    made.editor.view.focus()
+    const press = (key: string, init: KeyboardEventInit = {}) => {
+      const ev = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init })
+      made.editor.view.dom.dispatchEvent(ev)
+      return ev
+    }
+    return { ...made, fetchMock, press }
+  }
+  const edits = (f: ReturnType<typeof vi.fn>) => f.mock.calls.map((c) => String(c[0]).split('/').pop())
+
+  it('AltGr+[ on a German Windows keyboard makes the selected question easier', async () => {
+    const { fetchMock, press } = selected()
+    await tick()
+    expect(press('[', altGr).defaultPrevented).toBe(true)
+    await waitFor(() => expect(edits(fetchMock)).toEqual(['make-easier']))
+  })
+
+  it('AltGr+] makes it harder', async () => {
+    const { fetchMock, press } = selected()
+    await tick()
+    expect(press(']', altGr).defaultPrevented).toBe(true)
+    await waitFor(() => expect(edits(fetchMock)).toEqual(['make-harder']))
+  })
+
+  it('⌥[ on a German Mac makes it easier', async () => {
+    const platform = vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel')
+    try {
+      const { fetchMock, press } = selected()
+      await tick()
+      expect(press('[', { altKey: true }).defaultPrevented).toBe(true)
+      await waitFor(() => expect(edits(fetchMock)).toEqual(['make-easier']))
+    } finally {
+      platform.mockRestore()
+    }
+  })
+
+  it('Ctrl+[ and Cmd+[ are not the shortcut, and pass through untouched', async () => {
+    const { editor: e, fetchMock, press } = selected()
+    await tick()
+    const before = e.getJSON()
+    expect(press('[', { ctrlKey: true }).defaultPrevented).toBe(false)
+    expect(press(']', { metaKey: true }).defaultPrevented).toBe(false)
+    await tick()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(e.getJSON()).toEqual(before)
+    // …while the same key with AltGr is
+    expect(press('[', altGr).defaultPrevented).toBe(true)
+    await waitFor(() => expect(edits(fetchMock)).toEqual(['make-easier']))
+  })
+
+  it('the keypad - types nothing and sends no edit; the main-row - makes it easier', async () => {
+    const { editor: e, fetchMock, press } = selected()
+    await tick()
+    const before = e.getJSON()
+    expect(press('-', { code: 'NumpadSubtract' }).defaultPrevented).toBe(true) // dropped by the guard
+    await tick()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(e.getJSON()).toEqual(before)
+    press('-', { code: 'Minus' })
+    await waitFor(() => expect(edits(fetchMock)).toEqual(['make-easier']))
+  })
+
+  it('another AltGr character on a selected question is still dropped, with the hint', async () => {
+    const { editor: e, fetchMock, press } = selected()
+    await tick()
+    const before = e.getJSON()
+    expect(press('@', { ...altGr, code: 'KeyQ' }).defaultPrevented).toBe(true) // German AltGr+Q
+    expect(press('{', { ...altGr, code: 'Digit7' }).defaultPrevented).toBe(true)
+    await waitFor(() => expect(within(qblock('First.')).getByRole('status')).toHaveTextContent('Press Enter to write below'))
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(e.getJSON()).toEqual(before)
+    // only [ and ] (and - =) of the AltGr characters are shortcuts
+    press(']', altGr)
+    await waitFor(() => expect(edits(fetchMock)).toEqual(['make-harder']))
+  })
+
+  it('with the caret in text an AltGr [ is left to the editor to type', async () => {
+    const child = makeQuestion({ id: 'a:v2' }, 'Changed text.')
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ question: child }) })
+    vi.stubGlobal('fetch', fetchMock)
+    const { editor: e, onSwap } = make([own('o1', 'Words.'), gq('a', 'First.')], { guard: true })
+    await tick()
+    e.commands.setTextSelection(3)
+    e.view.focus()
+    const press = () => {
+      const ev = new KeyboardEvent('keydown', { key: '[', bubbles: true, cancelable: true, ...altGr })
+      e.view.dom.dispatchEvent(ev)
+      return ev
+    }
+    expect(press().defaultPrevented).toBe(false)
+    await tick()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(onSwap).not.toHaveBeenCalled()
+    expect(e.state.selection.from).toBe(3)
+    // the generated question after it, selected, takes the same key
+    e.commands.setNodeSelection(e.state.doc.child(0).nodeSize)
+    expect(press().defaultPrevented).toBe(true)
+    await waitFor(() => expect(edits(fetchMock)).toEqual(['make-easier']))
+  })
+})
+
 /** A fetch that answers only when told to (a slow /edit). */
 function slowFetch() {
   let answer: (q: unknown) => void = () => {}
@@ -264,7 +416,7 @@ const questionId = (e: Editor, id: string) => (attrsOf(e, id).question as { id: 
 describe('a reply that arrives late (review)', () => {
   it('Make harder, then the question is deleted: the reply touches nothing else', async () => {
     const { answer } = slowFetch()
-    const { editor: e, onNotice } = make([coverNode({ school: 'Pandan' }), gq('a', 'First.'), gq('b', 'Second.')])
+    const { editor: e, onNotice } = make([coverNode({ school: 'Example Primary' }), gq('a', 'First.'), gq('b', 'Second.')])
     await tick()
     const before = JSON.stringify(e.getJSON().content?.slice(0, 2))
     qblock('Second.').focus()
@@ -455,5 +607,17 @@ describe('keys on other controls inside a block are theirs (review)', () => {
     expect(isBlockKeyTarget($('#p'), host)).toBe(true)
     for (const sel of ['[role=slider]', '#x', 'a', '#o', 'select']) expect(isBlockKeyTarget($(sel), host)).toBe(false)
     expect(isBlockKeyTarget(document.createElement('button'), host)).toBe(false) // not in the block
+  })
+})
+
+describe('Swap from your bank… (EXA-33)', () => {
+  it('asks the page for a bank swap of a generated question and of an empty placeholder', async () => {
+    const { onSwap } = make([gq('a', 'First.'), placeholder('p')])
+    await tick()
+    await chooseFromMenu(qblock('First.'), /Swap from your bank/)
+    expect(onSwap).toHaveBeenCalledWith('a', 'bank')
+    const slot = document.querySelector('[data-block-id="p"]') as HTMLElement
+    await chooseFromMenu(slot, /Swap from your bank/)
+    await waitFor(() => expect(onSwap).toHaveBeenCalledWith('p', 'bank'))
   })
 })

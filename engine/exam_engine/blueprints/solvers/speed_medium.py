@@ -63,6 +63,28 @@ class SpeedMediumSolver:
         d2 = s2 * t2
         return {"name": name, "d1": d1, "t1": t1, "d2": d2, "t2": t2}
 
+    def number_problem(self, params: dict) -> str | None:
+        """Why a teacher's numbers don't make a fair average-speed question (EXA-89)."""
+        d1, t1, d2, t2 = params["d1"], params["t1"], params["d2"], params["t2"]
+        # Equal times or equal speeds make the average the mean of the two speeds, so the
+        # question would no longer catch that slip (the rung is built with both distinct).
+        if t1 == t2:
+            return (
+                "The two times must be different, or the answer would just be the mean of "
+                "the two speeds."
+            )
+        if d1 * t2 == d2 * t1:
+            return (
+                "The two parts of the journey must be at different speeds, or the answer "
+                "would just be that speed."
+            )
+        if (d1 + d2) % (t1 + t2):
+            return (
+                f"The total distance ({d1 + d2} km) must divide exactly by the total time "
+                f"({t1 + t2} h), so the average speed is a whole number."
+            )
+        return None
+
     def solve(self, params: dict) -> dict:
         d1, t1 = params["d1"], params["t1"]
         d2, t2 = params["d2"], params["t2"]

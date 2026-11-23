@@ -18,7 +18,6 @@
   <p>It's hidden by default. Turn it on here or in <a href="#/settings">Settings</a>.</p>
   <p class="actions">
     <button on:click={turnOn}>Turn on the Classic generator</button>
-    <a href="#/">Back to your papers</a>
   </p>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 </main>

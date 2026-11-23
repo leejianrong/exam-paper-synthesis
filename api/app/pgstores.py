@@ -198,7 +198,7 @@ class PgSettingsStore:
     def update(self, owner_id: str, patch: dict) -> dict:
         from .settings import check_patch, merged
 
-        check_patch(patch)
+        patch = check_patch(patch)
         with self.db.connection() as conn:
             data = merged(self._stored(conn, owner_id)) | patch
             conn.execute(

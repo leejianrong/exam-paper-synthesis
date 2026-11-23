@@ -196,7 +196,7 @@ Only top-level rows with a satisfaction judgement are shown; R0 is the core goal
 | R6.1 | One versioned canonical schema | Must-have | ✅ |
 | R6.2 | Reject invalid with path-pointed errors | Must-have | ✅ |
 | R6.3 | Sourced questions load through same schema | Must-have | ✅ |
-| R6.4 | Pull alternative from internal bank on swap | Nice-to-have | ❌ |
+| R6.4 | Pull alternative from internal bank on swap | Nice-to-have | ✅ (later, EXA-33) |
 | R6.5 | Provenance recorded | Must-have | ✅ |
 | R7.1 | Blueprint = YAML + Python solver | Must-have | ✅ |
 | R7.2 | Declared parameter schema, validated | Must-have | ✅ |

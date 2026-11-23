@@ -16,6 +16,16 @@ describe('describeBlock', () => {
     expect(f.status).toEqual({ text: 'Not verified', tone: 'warn' })
   })
 
+  it('says what differs from the engine (EXA-157)', () => {
+    const q = makeQuestion({
+      validation: { status: 'unverified', checks: { wording_differs: 'question text, option (2)' } },
+    })
+    const f = describeBlock(templatedNodes([q])[0], 1)
+    expect(f.status.tone).toBe('warn')
+    expect(f.status.text).toContain('Not verified')
+    expect(f.status.text).toContain('question text, option (2)')
+  })
+
   it('a bank question says whether you have reviewed it, and is never "engine-verified"', () => {
     const unreviewed = describeBlock(templatedNodes([makeBankQuestion()])[0], 1)
     expect(unreviewed.status.tone).toBe('warn')

@@ -7,6 +7,7 @@ import {
   newBlockId,
   normalizeAnswer,
   numberedNodes,
+  ownBankNode,
   questionsOf,
   totalMarks,
   type DocJSON,
@@ -43,7 +44,7 @@ describe('document helpers', () => {
     const ids = out.content.content.filter((n) => n.type === 'templatedQuestion').map((n) => n.attrs?.block_id)
     expect(new Set(ids).size).toBe(3)
     expect(ids[0]).toBe('b_same')
-    expect(out.schema_version).toBe('1.16.0')
+    expect(out.schema_version).toBe('1.18.0')
     expect(out.title).toBe('T')
   })
 })
@@ -85,7 +86,7 @@ describe('free-form helpers (W2a)', () => {
     })
     const ids = out.content.content.map((n) => n.attrs?.block_id)
     expect(new Set(ids).size).toBe(2)
-    expect(out.schema_version).toBe('1.16.0')
+    expect(out.schema_version).toBe('1.18.0')
   })
 
   it('a new free-form node is empty, unmarked and has a valid id', () => {
@@ -167,5 +168,22 @@ describe('cleanNode (editor-only attributes never reach the server)', () => {
       content: [{ type: 'orderedList', attrs: { start: 1, type: null }, content: [li] }],
     })
     expect(out.content[0].attrs).toBeUndefined()
+  })
+})
+
+describe('own questions from the bank (EXA-90)', () => {
+  it('inserts the saved block under a new id that remembers its bank copy', () => {
+    const saved = freeformDocNode({ id: 'ff_old', marks: 2, body: 'Saved earlier.', answer: '42' })
+    const node = ownBankNode({ id: 'own-ff_old', freeform: saved })
+    expect(node.attrs?.block_id).not.toBe('ff_old')
+    expect(node.attrs).toMatchObject({ bank_id: 'own-ff_old', marks: 2, answer: saved.attrs.answer })
+    expect(node.content).toEqual(saved.content)
+    expect(saved.attrs.block_id).toBe('ff_old') // the bank's copy is not touched
+  })
+
+  it('cleanNode keeps a bank id and drops an unset one', () => {
+    const base = freeformDocNode({ id: 'ff_b' }) as DocNode
+    expect(cleanNode({ ...base, attrs: { ...base.attrs, bank_id: 'own-x' } }).attrs?.bank_id).toBe('own-x')
+    expect(cleanNode({ ...base, attrs: { ...base.attrs, bank_id: null } }).attrs).not.toHaveProperty('bank_id')
   })
 })

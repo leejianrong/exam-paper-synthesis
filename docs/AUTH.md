@@ -6,12 +6,13 @@ Social sign-in only (ADR-0022): **Google, Microsoft, GitHub**. No passwords are 
 
 | Variable | Meaning |
 |---|---|
-| `EXAM_OAUTH_{GOOGLE,MICROSOFT,GITHUB}_CLIENT_ID` / `_CLIENT_SECRET` | Both set ⇒ that provider is offered on the login page. |
+| `EXAM_OAUTH_{GOOGLE,MICROSOFT,GITHUB}_CLIENT_ID` / `_CLIENT_SECRET` | Both set ⇒ that provider is offered on the login page, as a "Sign in with Google / Microsoft / GitHub" button with the provider's mark (EXA-170). A failed sign-in returns to `#/login?error=<code>` (`denied`, `state`, `provider`, `rate_limited`, `not_configured`), which the page words in `web/src/lib/errors.ts` `signInErrorText`. |
 | `EXAM_PUBLIC_URL` | The API's external base URL (default `http://localhost:8000`). Redirect URIs are built from it; `https://…` also turns on `Secure` cookies. |
 | `EXAM_WEB_URL` | The web app's URL (default `http://localhost:5173`). The only place the API ever redirects to, and the default CORS origin. |
 | `EXAM_CORS_ORIGINS` | Optional comma-separated override of the allowed web origins. |
 | `EXAM_AUTH_PATH` | SQLite accounts DB (default `~/.exam_engine/accounts.sqlite3`; Postgres arrives in W3b). |
-| `EXAM_DEV_AUTH=1` | Local development stub: no sign-in, owner = `X-Dev-Owner` (default `local`). A valid session still wins. **Never set in production** — without it, anonymous requests are 401. |
+| `EXAM_ALLOWED_EMAILS` | Optional invite list (EXA-186): comma-separated addresses and `@domain` entries, case-insensitive. Set ⇒ only an identity whose provider verifies an email on the list (so never Microsoft, which does not assert verification) may sign in or keep a session (a refused sign-in returns `error=invite_only` before any account is made or linked; a session of an address taken off the list is a 401 from then on). Unset or empty ⇒ open to everyone. |
+| `EXAM_DEV_AUTH=1` | Local development stub: no sign-in, owner = `X-Dev-Owner` (default `local`). A valid session still wins. **Never set in production** — without it, anonymous requests are 401. If the login page is ever reached with it on, it shows a dashed "Development only" panel with "Continue without signing in" (EXA-170). |
 
 ## Register with each provider
 
@@ -46,7 +47,7 @@ Over the limit ⇒ **429** with `Retry-After` and a plain message. Previews, con
 
 ## Database (W3b)
 
-`EXAM_DATABASE_URL` (a Postgres/Neon connection string, `sslmode=require`) switches **every** store — documents, assets, bank, accounts/sessions, export ledger — to Postgres; unset, they use the SQLite files above. Tables are created on first boot (idempotent, guarded by an advisory lock). Use Neon's pooled endpoint if you like: prepared statements are off, so pgbouncer transaction mode is fine. `EXAM_DB_POOL_MAX` (default 5) sizes the per-process pool.
+`EXAM_DATABASE_URL` (a Postgres connection string; in production the Compose stack builds it from `POSTGRES_PASSWORD`) switches **every** store — documents, assets, bank, accounts/sessions, export ledger — to Postgres; unset, they use the SQLite files above. Tables are created on first boot (idempotent, guarded by an advisory lock). Prepared statements are off, so a pgbouncer pooler in transaction mode would also work. `EXAM_DB_POOL_MAX` (default 5) sizes the per-process pool.
 
 Tests: `EXAM_TEST_DATABASE_URL` enables the Postgres contract tests (each in its own throwaway schema); add `EXAM_TEST_BACKEND=postgres` to run the whole API suite on Postgres. CI does both. Locally: `docker run -d -p 55432:5432 -e POSTGRES_PASSWORD=pw -e POSTGRES_DB=exam postgres:16-alpine`.
 
@@ -65,7 +66,7 @@ Every API response carries a CSP (`api/app/csp.py`; `/docs` is exempt and only e
 | `EXAM_AUTH_LIMIT_PER_MINUTE` | 300 | every `/auth/*` request; over it → `429` + `Retry-After` |
 | `EXAM_AUTH_ATTEMPTS_PER_MINUTE` | 30 | `login` + `callback` (each callback makes two provider calls); over it → redirect to the login page with `error=rate_limited` (+ `Retry-After`) |
 | `EXAM_AUTH_FAILURES_PER_15_MIN` | 20 | failed sign-ins (forged/missing `state`, provider rejection); then that address cannot start or finish a sign-in for the rest of the window. Cancelling at the provider does not count |
-| `EXAM_CLIENT_IP_HEADER` | unset | header the platform overwrites with the real client address (`Fly-Client-IP` is set in `fly.toml`; `CF-Connecting-IP` behind Cloudflare). Unset → the TCP peer. **Never set it where clients can reach the app directly** |
+| `EXAM_CLIENT_IP_HEADER` | unset | header the platform overwrites with the real client address (`CF-Connecting-IP` behind Cloudflare; unset on the droplet, where Caddy's `X-Forwarded-For` reaches uvicorn's proxy headers). Unset → the TCP peer. **Never set it where clients can reach the app directly** |
 
 `0` disables a limit. The defaults are loose on purpose: a school shares one address, and a class of teachers signing in at 8 am must not lock each other out.
 

@@ -52,6 +52,22 @@ class FractionsMediumSolver:
         whole = d1 * d2 * k  # divisible by d1; remainder then divisible by d2
         return {"name": name, "whole": whole, "n1": n1, "d1": d1, "n2": n2, "d2": d2}
 
+    def number_problem(self, params: dict) -> str | None:
+        """Why a teacher's numbers don't give whole dollars (EXA-89), else ``None``."""
+        for n, d in ((params["n1"], params["d1"]), (params["n2"], params["d2"])):
+            if not 0 < n < d:
+                return f"The fraction {n}/{d} must be less than 1 (top smaller than bottom)."
+        whole, n1, d1, n2, d2 = (params[k] for k in ("whole", "n1", "d1", "n2", "d2"))
+        if whole * (d1 - n1) % d1:
+            return f"Spending {n1}/{d1} of ${whole} must leave a whole number of dollars."
+        remainder = whole * (d1 - n1) // d1
+        if remainder * n2 % d2:
+            return (
+                f"The food must cost a whole number of dollars, but "
+                f"{n2}/{d2} of ${remainder} is not."
+            )
+        return None
+
     def solve(self, params: dict) -> dict:
         whole = params["whole"]
         n1, d1 = params["n1"], params["d1"]

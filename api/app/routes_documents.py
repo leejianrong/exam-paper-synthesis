@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import random
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from exam_engine import document as docs
 from exam_engine import paper, paper_swap
+from exam_engine.errors import BankObjectNotFound
 from exam_engine.render import render_document_html
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
@@ -22,6 +24,7 @@ from fastapi.responses import HTMLResponse, Response
 from . import export
 from .assets import AssetNotFound, AssetStore, get_asset_store
 from .auth import current_owner
+from .bankstore import open_owner_bank
 from .docstore import (
     DocumentNotFound,
     DocumentStore,
@@ -29,6 +32,7 @@ from .docstore import (
     VersionConflict,
     get_store,
 )
+from .docx_export import build_docx
 from .models import (
     CreateDocumentRequest,
     GeneratePaperRequest,
@@ -39,6 +43,7 @@ from .models import (
 )
 from .ops import strip_document_hints, with_document_hints
 from .quota import check_export_quota, export_slot, refund_export
+from .routes_bank import bank_item
 from .settings import SettingsStore, get_settings_store
 
 router = APIRouter(prefix="/documents")
@@ -76,11 +81,13 @@ def _store_new(
 
 
 def _valid_or_422(document: object) -> dict:
+    """The document as stored: valid, and a generated question whose printed content is not the
+    engine's marked unverified rather than refused (EXA-157)."""
     errors = docs.validate_document(document)
     if errors:
         raise HTTPException(status_code=422, detail=errors)
     assert isinstance(document, dict)
-    return document
+    return docs.flag_wording(document)
 
 
 def _owned_assets_or_422(document: dict, owner: str, assets: AssetStore) -> None:
@@ -105,9 +112,13 @@ def _resolver(assets: AssetStore, owner: str):
     return resolve
 
 
-def _key_style(settings: SettingsStore, owner: str) -> str:
-    """The answer key a new paper starts with: the account's choice (EXA-159)."""
-    return str(settings.get(owner)["answer_key_style"])
+def _with_defaults(document: dict, prefs: dict) -> dict:
+    """A new paper with the account's new-paper defaults (EXA-159, EXA-169): the key style,
+    the cover's school name and where marks print. The engine is handed plain values."""
+    document = docs.with_key_style(document, str(prefs["answer_key_style"]))
+    return paper.with_paper_defaults(
+        document, str(prefs["school_name"]), str(prefs["marks_placement"])
+    )
 
 
 @router.post("", status_code=201)
@@ -117,16 +128,17 @@ def create_document(
     store: Store,
     settings: Settings,
 ) -> dict:
+    prefs = settings.get(owner)
     if req.template:
         try:
-            document = paper.template_document(req.template)
+            document = paper.template_document(req.template, prefs["default_level"] or None)
         except paper.UnknownPaperTemplate:
             raise HTTPException(status_code=404, detail="unknown paper template") from None
         if req.title:
             document["title"] = req.title
     else:
         document = docs.empty_document(req.title or "Untitled paper")
-    document = docs.with_key_style(document, _key_style(settings, owner))
+    document = _with_defaults(document, prefs)
     return _store_new(store, owner, _valid_or_422(document), 0, req.folder_id)
 
 
@@ -141,11 +153,14 @@ def generate_paper(
     is pure; the seed — the only entropy — is chosen here, as for POST /generate) and stores
     it as a new document. The response is the document record plus the fill ``report``."""
     seed = req.seed if req.seed is not None else random.randrange(1, _SEED_CEIL)
+    prefs = settings.get(owner)
+    # the level asked for, else the account's default (EXA-169), else P6 as before
+    level = req.level or str(prefs["default_level"]) or "P6"
     try:
-        document, report = paper.generate_paper(req.template, req.level, seed, req.set_topics)
+        document, report = paper.generate_paper(req.template, level, seed, req.set_topics)
     except paper.UnknownPaperTemplate:
         raise HTTPException(status_code=404, detail="unknown paper template") from None
-    document = docs.with_key_style(document, _key_style(settings, owner))
+    document = _with_defaults(document, prefs)
     stamp = datetime.now(UTC).isoformat()
     for node in document["content"]["content"]:
         if node["type"] == "templatedQuestion":
@@ -200,16 +215,55 @@ def swap_question(doc_id: str, req: SwapQuestionRequest, owner: Owner, store: St
     """P8d: another question like this one, one from another topic, or a placeholder to
     write, keeping the slot's marks and the paper's rules (engine ``paper_swap``)."""
     seed = req.seed if req.seed is not None else random.randrange(1, _SEED_CEIL)
+    if req.mode == "bank":
+        if not req.bank_id:
+            raise HTTPException(status_code=422, detail="bank_id is needed to swap from the bank")
+        with closing(open_owner_bank(owner)) as bank:
+            try:
+                chosen = bank.get(req.bank_id)
+            except BankObjectNotFound:
+                raise HTTPException(
+                    status_code=404, detail="no such question in your bank"
+                ) from None
 
     def change(document: dict) -> tuple[dict, dict]:
-        try:
+        with _swap_errors():
+            if req.mode == "bank":
+                return paper_swap.swap_from_bank(document, req.block_id, chosen, req.level)
             return paper_swap.swap_question(document, req.block_id, req.mode, seed, req.level)
-        except paper_swap.BlockNotFound:
-            raise HTTPException(status_code=404, detail="question not found") from None
-        except paper_swap.SwapNotPossible as e:
-            raise HTTPException(status_code=422, detail=str(e)) from None
 
     return _rework(owner, doc_id, store, req.base_version, change)
+
+
+@contextmanager
+def _swap_errors() -> Iterator[None]:
+    try:
+        yield
+    except paper_swap.BlockNotFound:
+        raise HTTPException(status_code=404, detail="question not found") from None
+    except paper_swap.SwapNotPossible as e:
+        raise HTTPException(status_code=422, detail=str(e)) from None
+
+
+@router.get("/{doc_id}/swap/bank")
+def bank_swap_options(
+    doc_id: str,
+    block_id: str,
+    owner: Owner,
+    store: Store,
+    level: Literal["P5", "P6"] | None = None,
+) -> dict:
+    """EXA-33: the owner's bank questions that could take this question's place (same marks
+    and kind, not already in the paper), the question's topic first."""
+    try:
+        rec = store.get(owner, doc_id)
+    except DocumentNotFound:
+        raise _not_found() from None
+    with closing(open_owner_bank(owner)) as bank:
+        objects = bank.search()
+    with _swap_errors():
+        fit = paper_swap.bank_options(rec["document"], block_id, objects, level)
+    return {"items": [bank_item(o) for o in fit]}
 
 
 @router.post("/{doc_id}/regenerate")
@@ -234,9 +288,11 @@ def list_documents(owner: Owner, store: Store) -> dict:
 @router.get("/{doc_id}")
 def get_document(doc_id: str, owner: Owner, store: Store) -> dict:
     try:
-        return with_document_hints(store.get(owner, doc_id))
+        rec = store.get(owner, doc_id)
     except DocumentNotFound:
         raise _not_found() from None
+    # a paper saved before a blueprint's wording changed opens with that question unverified
+    return with_document_hints({**rec, "document": docs.flag_wording(rec["document"])})
 
 
 @router.put("/{doc_id}")
@@ -286,20 +342,47 @@ def delete_document(doc_id: str, owner: Owner, store: Store) -> Response:
     return Response(status_code=204)
 
 
-def _unfilled_conflict(numbers: list[int]) -> HTTPException:
+def _unfilled_conflict(numbers: list[int], lone_stems: int = 0) -> HTTPException:
     many = len(numbers) > 1
     listed = ", ".join(map(str, numbers))
+    said = []
+    if numbers:
+        said.append(
+            f"Question{'s' if many else ''} {listed} {'are' if many else 'is'} still empty. "
+            f"Write or fill {'them' if many else 'it'} first, or print anyway."
+        )
+    if lone_stems:  # EXA-90: a shared stem with no question after it
+        said.append(
+            f"{lone_stems} shared stem{'s have' if lone_stems > 1 else ' has'} no questions "
+            "after it. Add them, or print anyway."
+        )
     return HTTPException(
         status_code=409,
         detail={
             "code": "unfilled_placeholders",
-            "message": (
-                f"Question{'s' if many else ''} {listed} {'are' if many else 'is'} still empty. "
-                f"Write or fill {'them' if many else 'it'} first, or print anyway."
-            ),
+            "message": " ".join(said),
             "questions": numbers,
+            "lone_stems": lone_stems,
         },
     )
+
+
+def _printable(
+    store: DocumentStore, owner: str, doc_id: str, mode: Mode, allow_placeholders: bool
+) -> tuple[str, dict]:
+    """The title and document to print, after the checks every preview and export shares."""
+    try:
+        rec = store.get(owner, doc_id)
+    except DocumentNotFound:
+        raise _not_found() from None
+    document = rec["document"]
+    unfilled = docs.unfilled_placeholder_numbers(document)
+    lone = docs.lone_stems(document)
+    if (unfilled or lone) and not allow_placeholders:
+        raise _unfilled_conflict(unfilled, lone)
+    if mode == "key" and not docs.numbered_blocks(document):
+        raise HTTPException(status_code=422, detail="no questions to put in an answer key")
+    return rec["title"], document
 
 
 def _html_for(
@@ -310,19 +393,8 @@ def _html_for(
     mode: Mode,
     allow_placeholders: bool = True,
 ) -> tuple[str, str]:
-    try:
-        rec = store.get(owner, doc_id)
-    except DocumentNotFound:
-        raise _not_found() from None
-    document = rec["document"]
-    unfilled = docs.unfilled_placeholder_numbers(document)
-    if unfilled and not allow_placeholders:
-        raise _unfilled_conflict(unfilled)
-    if mode == "key" and not docs.numbered_blocks(document):
-        raise HTTPException(status_code=422, detail="no questions to put in an answer key")
-    return rec["title"], render_document_html(
-        rec["title"], document, mode=mode, assets=_resolver(assets, owner)
-    )
+    title, document = _printable(store, owner, doc_id, mode, allow_placeholders)
+    return title, render_document_html(title, document, mode=mode, assets=_resolver(assets, owner))
 
 
 @router.get("/{doc_id}/preview/{mode}")
@@ -335,6 +407,43 @@ def preview_document(
 ) -> HTMLResponse:
     _, html = _html_for(store, assets, owner, doc_id, mode)
     return HTMLResponse(content=html)
+
+
+_DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+# Declared before /export/{mode}, which would otherwise take "docx" for a mode.
+@router.post("/{doc_id}/export/docx")
+def export_docx(
+    doc_id: str,
+    owner: Owner,
+    store: Store,
+    assets: Assets,
+    mode: Literal["student", "key"] = "student",
+    allow_placeholders: bool = False,
+) -> Response:
+    """The paper or its key as an editable Word document (EXA-90). Same checks and the same
+    export allowance as a PDF; the figures are rasterised by the same headless Chromium."""
+    title, document = _printable(store, owner, doc_id, mode, allow_placeholders)
+    ticket = check_export_quota(owner)
+    try:
+        with export_slot():
+            data = build_docx(
+                title,
+                document,
+                mode=mode,
+                rasterise=lambda svgs: export.html_to_png_many(svgs),
+                assets=_resolver(assets, owner),
+            )
+    except BaseException:
+        refund_export(ticket)
+        raise
+    filename = f"{_slug(title)}-{_MODE_SUFFIX[mode]}.docx"
+    return Response(
+        content=data,
+        media_type=_DOCX_TYPE,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/{doc_id}/export/{mode}")

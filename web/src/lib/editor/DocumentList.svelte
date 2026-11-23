@@ -30,10 +30,9 @@
   import ConfirmDialog from '../ConfirmDialog.svelte'
   import Icon from '../Icon.svelte'
   import type { DocumentRecord, DocumentSummary } from './doc'
-  import AccountMenu from './AccountMenu.svelte'
-  import { settings } from '../settings'
   import ErrorNote from '../ErrorNote.svelte'
   import { canRetry, createFailedText, errorText } from '../errors'
+  import { settings } from '../settings'
 
   const COLLAPSED_KEY = 'exam.papers.collapsed'
 
@@ -353,14 +352,6 @@
 </script>
 
 <main>
-  <div class="masthead">
-    <span class="wordmark">exam-paper-synthesis</span>
-    <nav class="links" aria-label="More">
-      {#if $settings?.classic_generator}<a class="classic" href="#/classic">Classic generator</a>{/if}
-      <a class="classic" href="#/settings">Settings</a>
-    </nav>
-    <AccountMenu />
-  </div>
   <div class="head">
     <h1 bind:this={heading} tabindex="-1">Your papers</h1>
     {#if docs.length > 0 || query}
@@ -479,6 +470,7 @@
     {folders}
     {templates}
     {levels}
+    defaultLevel={$settings?.default_level ?? ''}
     contextFolder={wizardFolder}
     onClose={closeWizard}
     onFolderCreated={onWizardFolder}
@@ -529,27 +521,6 @@
     max-width: 760px;
     margin: 0 auto;
     padding: var(--s8) var(--s4) 4.5rem;
-  }
-  .masthead {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: var(--s6);
-  }
-  .wordmark {
-    font-family: var(--mono);
-    font-size: 13.5px;
-    font-weight: 600;
-  }
-  .links {
-    display: flex;
-    gap: var(--s4);
-    margin-left: auto;
-    margin-right: var(--s4);
-  }
-  .classic {
-    font-size: 12.5px;
-    color: var(--ink-faint);
   }
   .head {
     display: flex;

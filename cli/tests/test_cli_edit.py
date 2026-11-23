@@ -89,3 +89,28 @@ def test_set_cosmetic_refuses_a_numeric_param(capsys, tmp_path):
     assert rc == 2
     assert captured.out == ""
     assert "changes the maths" in captured.err
+
+
+def test_set_numbers_resolves_with_new_numbers(capsys, tmp_path):
+    parent = _generate(capsys, "ratio_easy", 3)
+    src = tmp_path / "parent.json"
+    src.write_text(json.dumps(parent))
+
+    rc = main(["edit", "set-numbers", str(src), "--set", "ratio=3,4", "--set", "total=140"])
+    assert rc == 0
+    child = json.loads(capsys.readouterr().out)
+    canonical.load(child)
+    assert child["parameters"]["ratio"] == [3, 4] and child["parameters"]["total"] == 140
+    assert child["question"]["parts"][0]["answer"]["value"] == 80
+    assert child["parameters"]["names"] == parent["parameters"]["names"]
+
+
+def test_set_numbers_refusal_says_why(capsys, tmp_path):
+    parent = _generate(capsys, "ratio_easy", 3)
+    src = tmp_path / "parent.json"
+    src.write_text(json.dumps(parent))
+
+    rc = main(["edit", "set-numbers", str(src), "--set", "ratio=3,4", "--set", "total=141"])
+    captured = capsys.readouterr()
+    assert rc == 2 and captured.out == ""
+    assert "multiple of 7" in captured.err

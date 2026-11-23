@@ -99,6 +99,12 @@ describe('paper ops helpers (P8d)', () => {
       'Swapped in a 2-mark Volume question.',
     )
     expect(swapNotice({ block_id: 'b', mode: 'own', marks: 4, placeholder: true })).toMatch(/write your own 4-mark/)
+    expect(swapNotice({ block_id: 'b', mode: 'bank', marks: 2, placeholder: false, topic: 'Ratio', bank_id: 's1' })).toBe(
+      'Swapped in a 2-mark Ratio question from your bank.',
+    )
+    expect(swapNotice({ block_id: 'b', mode: 'bank', marks: 2, placeholder: false, topic: 'Circles', bank_id: 'g', locked: true })).toBe(
+      'Swapped in a 2-mark Circles question from your bank. It is locked, so Regenerate keeps it.',
+    )
     expect(regenerateNotice({ replaced: 1, kept: 2, placeholders: 3 })).toBe(
       'Regenerated 1 question; kept 2 locked or written by you; 3 left as placeholders.',
     )
@@ -125,7 +131,7 @@ describe('swap and lock in the editor (P8d)', () => {
     expect(calls).toEqual([{ url: expect.stringMatching(/\/documents\/d1\/swap$/), body: { block_id: 'gq1', mode: 'like', base_version: 4 } }])
     expect(screen.getByText(/Swapped in a 3-mark Ratio question/)).toBeInTheDocument()
     // the server saved it: nothing is pending
-    expect(screen.getByRole('status')).toHaveTextContent('Saved')
+    expect(document.querySelector('.saved[role="status"]')).toHaveTextContent('Saved')
   })
 
   it('a locked question cannot be swapped, and the lock is a toggle', async () => {

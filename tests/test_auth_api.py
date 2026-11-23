@@ -286,3 +286,118 @@ def test_cors_allows_the_web_origin_with_credentials_only():
         headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "GET"},
     )
     assert "access-control-allow-origin" not in evil.headers
+
+
+# --- EXA-186: invite-only sign-in ------------------------------------------------------------
+
+
+def test_invite_only_lets_a_listed_verified_email_in(monkeypatch):
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", " Ann@Example.com , someone@else.org")
+    client = make_client(GOOGLE_OK)
+    done = sign_in(client, "google")
+    assert done.headers["location"] == f"{WEB}/#/"
+    assert client.get("/auth/me").status_code == 200
+
+
+def test_invite_only_accepts_a_whole_domain(monkeypatch):
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "@example.com")
+    client = make_client(GITHUB_OK)
+    assert sign_in(client, "github").headers["location"] == f"{WEB}/#/"
+
+
+def test_invite_only_refuses_others_before_any_account_is_made(monkeypatch):
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "bob@example.com, @school.edu.sg")
+    from app.accounts import get_account_store
+
+    store, logins = get_account_store(), []
+
+    class Watched:
+        def __getattr__(self, name):
+            return getattr(store, name)
+
+        def login(self, profile):
+            logins.append(profile)
+            return store.login(profile)
+
+    client = make_client(GOOGLE_OK)
+    app.dependency_overrides[get_account_store] = Watched
+    done = sign_in(client, "google")
+    assert done.headers["location"] == f"{WEB}/#/login?error=invite_only"
+    assert not any(c.startswith("exam_session=") for c in done.headers.get_list("set-cookie"))
+    assert logins == []
+
+
+def test_invite_only_refuses_an_unverified_email_even_when_listed(monkeypatch):
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "ann@example.com")
+    unverified = {
+        **GOOGLE_OK,
+        "openidconnect.googleapis.com": (
+            200,
+            {"sub": "g-101", "email": "ann@example.com", "email_verified": False, "name": "Ann"},
+        ),
+    }
+    done = sign_in(make_client(unverified), "google")
+    assert done.headers["location"] == f"{WEB}/#/login?error=invite_only"
+
+
+def test_a_session_stops_working_when_its_address_leaves_the_list(monkeypatch):
+    client = make_client(GOOGLE_OK)
+    sign_in(client, "google")
+    assert client.get("/documents").status_code == 200
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "bob@example.com")
+    assert client.get("/auth/me").status_code == 401
+    assert client.get("/documents").status_code == 401
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "")
+    assert client.get("/documents").status_code == 200
+
+
+def test_invite_only_hides_microsoft_which_never_verifies(monkeypatch):
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "ann@example.com")
+    names = [p["name"] for p in make_client({}).get("/auth/providers").json()["providers"]]
+    assert "microsoft" not in names and {"google", "github"} <= set(names)
+    done = sign_in(make_client(MICROSOFT_OK), "microsoft")
+    assert done.headers["location"] == f"{WEB}/#/login?error=invite_only"
+
+
+def test_a_domain_entry_does_not_cover_subdomains_or_secondary_addresses(monkeypatch):
+    sub = {
+        **GOOGLE_OK,
+        "openidconnect.googleapis.com": (
+            200,
+            {"sub": "g-7", "email": "ann@a.school.edu.sg", "email_verified": True, "name": "A"},
+        ),
+    }
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "@school.edu.sg")
+    assert sign_in(make_client(sub), "google").headers["location"].endswith("error=invite_only")
+    # GitHub: only the primary verified address counts, not another verified one on the account.
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "other@example.com")
+    assert (
+        sign_in(make_client(GITHUB_OK), "github").headers["location"].endswith("error=invite_only")
+    )
+
+
+def test_a_listed_provider_email_on_an_account_stored_under_another_is_refused(monkeypatch):
+    # The account is made as ann@example.com; later its GitHub identity reports a listed address.
+    sign_in(make_client(GOOGLE_OK), "google")
+    sign_in(make_client(GITHUB_OK), "github")  # links to the same account (verified match)
+    moved = {
+        **GITHUB_OK,
+        "api.github.com/user/emails": (
+            200,
+            [{"email": "ann@school.edu.sg", "primary": True, "verified": True}],
+        ),
+    }
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "ann@school.edu.sg")
+    done = sign_in(make_client(moved), "github")
+    assert done.headers["location"] == f"{WEB}/#/login?error=invite_only"
+    assert not any(c.startswith("exam_session=") for c in done.headers.get_list("set-cookie"))
+
+
+def test_production_refuses_an_invite_entry_without_an_at(monkeypatch):
+    from app.config import production_problems
+
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "ann@example.com, school.edu.sg, @, bob@")
+    problem = next(p for p in production_problems() if "EXAM_ALLOWED_EMAILS" in p)
+    assert "school.edu.sg" in problem and "bob@" in problem and "ann@example.com" not in problem
+    monkeypatch.setenv("EXAM_ALLOWED_EMAILS", "ann@example.com, @school.edu.sg")
+    assert not any("EXAM_ALLOWED_EMAILS" in p for p in production_problems())

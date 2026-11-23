@@ -34,6 +34,7 @@ from typing import NamedTuple
 
 from . import diagram, expression
 from .document import (
+    GROUP_STEM,
     MARKS_PLACEMENTS,
     QUESTION_TYPES,
     block_marks,
@@ -48,6 +49,8 @@ from .document import (
     paper_outline,
     paper_part,
     paper_placement,
+    stem_groups,
+    stem_sentence,
 )
 from .units import printed_unit
 
@@ -753,6 +756,17 @@ def _render_rich_block(node: dict, assets: AssetResolver | None = None) -> str:
     raise ValueError(f"not a rich-text node: {kind!r}")  # pragma: no cover - schema-gated
 
 
+def _render_group_stem(
+    node: dict, numbers: list[int], assets: AssetResolver | None, tag: str = "div"
+) -> str:
+    """A shared stem (EXA-90): the lead line derived from its questions' numbers, then the
+    authored text and figures. It is not numbered and keeps with the question after it."""
+    lead = stem_sentence(numbers)
+    head = f'<p class="group-lead">{lead}</p>' if lead else ""
+    body = "".join(_render_rich_block(c, assets) for c in node["content"])
+    return f'<{tag} class="group-stem">{head}<div class="group-body">{body}</div></{tag}>'
+
+
 def _render_freeform_item(
     node: dict,
     *,
@@ -888,14 +902,18 @@ def _render_numbered_blocks(
     placement: str = "answer",
     key: KeyOptions | None = None,
     numbers: list[int] | None = None,
+    stems: dict[int, str] | None = None,
 ) -> str:
     """The ``<ol class="questions">`` body for document question blocks (both kinds).
 
     ``numbers`` gives each block's number on the paper; the answer key passes it so a question
-    left out of the key does not renumber the ones after it.
+    left out of the key does not renumber the ones after it. ``stems`` maps a block's index to
+    the shared stem printed before it (EXA-90).
     """
     out: list[str] = ['<ol class="questions">']
     for i, node in enumerate(blocks):
+        if stems and i in stems:
+            out.append(stems[i])
         if node["type"] == "freeformQuestion":
             item = _render_freeform_item(
                 node,
@@ -1050,9 +1068,17 @@ def _render_document_body(
     content = doc["content"]["content"]
     kinds = ("freeformQuestion", "templatedQuestion")
     last_q = max((i for i, n in enumerate(content) if n["type"] in kinds), default=-1)
+    groups = stem_groups(doc)
     first_in_section = True
     for i, node in enumerate(content):
-        if node["type"] == "coverPage":
+        if node["type"] == GROUP_STEM:
+            stem = _render_group_stem(node, groups[i], assets)
+            if own_page and not first_in_section:
+                # a structured question starts a page: its stem goes to the top of that page
+                stem = stem.replace('class="group-stem"', 'class="group-stem own-page"', 1)
+                first_in_section = True  # so the question after the stem does not break again
+            out.append(_in_margin(stem, marking))
+        elif node["type"] == "coverPage":
             out.append(_render_cover(node["attrs"], doc, title=title, marks=marks))
         elif node["type"] == "blankPage":
             out.append(_render_blank_page(node["attrs"]))
@@ -1113,7 +1139,7 @@ def _end_text(doc: dict) -> str:
 
 
 def _foot_tag(doc: dict) -> str:
-    """The small left-hand footer tag, e.g. "Pandan Primary · 2025 Preliminary Examination ·
+    """The small left-hand footer tag, e.g. "Example Primary · 2025 Preliminary Examination ·
     Paper 2" — only when the cover names the school or the exam (EXA-138)."""
     cover = cover_page(doc)
     attrs = (cover or {}).get("attrs") or {}
@@ -1571,6 +1597,15 @@ def _paper_key_body(
     if key.layout == "compact":
         return _render_compact_key(doc, assets, key, title=title, marks=marks, heading=heading)
     numbered = [(n, b) for n, b in enumerate(numbered_blocks(doc), number_from(doc)) if in_key(b)]
+    # A shared stem prints in the worked key above the first of its questions there (EXA-90),
+    # when the key repeats the question text.
+    stems: dict[int, str] = {}
+    if key.show_question:
+        content = doc["content"]["content"]
+        for at, group in stem_groups(doc).items():
+            first = next((k for k, (n, _) in enumerate(numbered) if n in group), None)
+            if first is not None:
+                stems[first] = _render_group_stem(content[at], group, assets, tag="li")
     # The key counts up by itself unless a question was left out: then it keeps the paper's numbers.
     numbers = [n for n, _ in numbered]
     return _render_numbered_blocks(
@@ -1580,6 +1615,7 @@ def _paper_key_body(
         placement=paper_placement(doc),
         key=key,
         numbers=None if numbers == list(range(1, len(numbers) + 1)) else numbers,
+        stems=stems,
     )
 
 
