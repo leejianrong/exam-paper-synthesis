@@ -15,7 +15,7 @@
 </script>
 
 <header class="apphead">
-  <span class="brand"><span class="mark" aria-hidden="true"><Icon name="check" size={12} /></span><span class="name">Exam papers</span></span>
+  <span class="brand"><span class="mark" aria-hidden="true"><Icon name="check" size={12} /></span><span class="name">Examsmith</span></span>
   <nav aria-label="Main">
     {#each tabs as t (t.name)}
       <a href={t.href} aria-current={$route.name === t.name ? 'page' : undefined}>{t.label}</a>

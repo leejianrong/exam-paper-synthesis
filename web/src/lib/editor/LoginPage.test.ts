@@ -25,7 +25,7 @@ describe('LoginPage', () => {
   it('names the product and says what it is for', async () => {
     providers([])
     render(LoginPage)
-    expect(screen.getByRole('heading', { level: 1, name: 'Exam papers' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Examsmith' })).toBeInTheDocument()
     expect(screen.getByText(/maths papers with answer keys/)).toBeInTheDocument()
   })
 

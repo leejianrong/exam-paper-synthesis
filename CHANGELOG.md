@@ -8,6 +8,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
+### Changed
+
+- **The product is called Examsmith** (domain `examsmith.app`). The app header, the sign-in
+  page, the tab title, the landing page and the privacy and terms pages say Examsmith instead of
+  "Exam papers"; the sign-in guide names the Google and GitHub apps the same.
+
 ### Added
 
 - **A 1 GB droplet to start, created with doctl (EXA-184).** `deploy/provision.sh` makes the

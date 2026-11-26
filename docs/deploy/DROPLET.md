@@ -6,8 +6,8 @@ itself is `deploy/compose.yaml` (Caddy → app → Postgres 17); backups and the
 [ADR-0024](../adr/0024-droplet-compose-hosting.md).
 
 Every step ends with a **Check**. Commands run on the droplet as the `deploy` user unless the
-step says otherwise. `HOST` below is the hostname users reach: `<droplet-ip>.sslip.io` until a
-domain is bought, then the domain.
+step says otherwise. `HOST` below is the hostname users reach: `examsmith.app`
+(on a droplet without a domain, `<droplet-ip>.sslip.io`).
 
 ## 1. Create the droplet (doctl)
 
@@ -201,7 +201,7 @@ Then run the smoke test in [LAUNCH.md](../LAUNCH.md).
 From your laptop, with `HOST` and your email address filled in:
 
 ```bash
-HOST=<droplet-ip>.sslip.io; EMAIL=you@example.com
+HOST=examsmith.app; EMAIL=you@example.com
 # Uptime check on /ready from all four locations, with downtime and certificate alerts.
 check=$(doctl monitoring uptime create exam-ready --target "https://$HOST/ready" --type https \
   --regions us_east,us_west,eu_west,se_asia --format ID --no-header)

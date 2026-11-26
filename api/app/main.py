@@ -37,7 +37,7 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="Exam Paper Synthesis API",
+    title="Examsmith API",
     version="0.1.0",
     lifespan=_lifespan,
     # The interactive docs are for development; production does not advertise its surface.
