@@ -201,7 +201,7 @@ Then run the smoke test in [LAUNCH.md](../LAUNCH.md).
 From your laptop, with `HOST` and your email address filled in:
 
 ```bash
-HOST=<droplet-ip>.sslip.io; EMAIL=you@example.com
+HOST=examsmith.app; EMAIL=you@example.com
 # Uptime check on /ready from all four locations, with downtime and certificate alerts.
 check=$(doctl monitoring uptime create exam-ready --target "https://$HOST/ready" --type https \
   --regions us_east,us_west,eu_west,se_asia --format ID --no-header)

@@ -3,8 +3,8 @@
 The app has no passwords: teachers sign in with Google or GitHub. Each provider needs an
 **OAuth app** that you register by hand in its console. It gives you a **client ID** and a
 **client secret**, which go into `deploy/.env` on the droplet. This guide walks through both, for
-the private trial on `<droplet-ip>.sslip.io` first and for the public launch on a real domain
-later.
+the private trial and for the public launch. The production domain is `examsmith.app`; the
+sslip.io notes apply only to a droplet without a domain.
 
 Steps marked **(you)** happen in a browser console and only you can do them. Everything else
 is a command on the droplet.
@@ -220,7 +220,7 @@ locally. To test real sign-in locally, register **separate** apps:
 
 Never put production secrets on a laptop, and never commit any `.env`.
 
-## Going public on a real domain later
+## Moving to a domain, and going public
 
 When the domain (`examsmith.app`, bought 2026-11-24) points at the droplet:
 
