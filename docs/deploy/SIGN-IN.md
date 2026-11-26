@@ -71,7 +71,7 @@ is a command on the droplet.
    - Pick **OAuth Apps**, not **GitHub Apps**: they are different things, and the app supports
      OAuth Apps only.
 2. Fill in:
-   - **Application name**: `Exam papers` (teachers see it on GitHub's consent page).
+   - **Application name**: `Examsmith` (teachers see it on GitHub's consent page).
    - **Homepage URL**: `https://HOST`
    - **Application description**: optional, e.g. "Make maths exam papers with answer keys".
    - **Authorization callback URL**: `https://HOST/auth/github/callback`
@@ -108,7 +108,7 @@ cd /opt/exam/deploy && docker compose up -d app
 - `curl -s https://HOST/auth/providers` lists `{"name":"github","label":"GitHub"}`.
 - In a private browser window, open `https://HOST`, click **Sign in with GitHub**, approve, and
   you land in the app signed in.
-- GitHub → Settings → **Applications** → **Authorized OAuth Apps** now lists Exam papers. That
+- GitHub → Settings → **Applications** → **Authorized OAuth Apps** now lists Examsmith. That
   is also where a teacher can revoke it.
 
 ## Google
@@ -121,13 +121,13 @@ there too.
 
 1. Go to <https://console.cloud.google.com/> and sign in with the Google account that will own
    the app. Use an account you will keep: it owns the sign-in for every teacher.
-2. Project picker (top bar) → **New project** → name `Exam papers` → **Create**. No billing
+2. Project picker (top bar) → **New project** → name `Examsmith` → **Create**. No billing
    account is needed for sign-in. Make sure the new project is selected in the top bar.
 
 ### 2. Set up the consent screen (you)
 
 1. Menu → **Google Auth Platform** (or search for "Google Auth Platform") → **Get started**.
-2. **App information**: app name `Exam papers`; user support email (your address; teachers see
+2. **App information**: app name `Examsmith`; user support email (your address; teachers see
    it).
 3. **Audience**: **External** (teachers use their own Google or school accounts, not your
    organisation's).
@@ -152,7 +152,7 @@ there too.
 ### 3. Create the client (you)
 
 1. **Clients** (left menu) → **Create client**.
-2. **Application type**: **Web application**. Name: `Exam papers (production)`.
+2. **Application type**: **Web application**. Name: `Examsmith (production)`.
 3. **Authorised JavaScript origins**: leave empty. The sign-in runs on the server, not in the
    browser.
 4. **Authorised redirect URIs** → **Add URI**: `https://HOST/auth/google/callback`. Google
@@ -222,7 +222,7 @@ Never put production secrets on a laptop, and never commit any `.env`.
 
 ## Going public on a real domain later
 
-When the domain (e.g. `paperbench.dev`) points at the droplet:
+When the domain (`examsmith.app`, bought 2026-11-24) points at the droplet:
 
 1. **Droplet**: set `SITE_ADDRESS`, `EXAM_PUBLIC_URL` and `EXAM_WEB_URL` to the domain in
    `.env`, then `docker compose up -d`. Caddy gets the new certificate by itself.

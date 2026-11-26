@@ -28,8 +28,9 @@ is the checklist below it. Hosting: one DigitalOcean droplet running Docker Comp
 
 ## Before the first user (you)
 
-1. **Domain (optional at first)**: until one is bought, HOST is `<droplet-ip>.sslip.io`. Buying
-   one before going public avoids changing the URL later and makes Google sign-in simpler.
+1. **Domain**: `examsmith.app` (bought 2026-11-24; DNS at Cloudflare, DNS only, an A record to
+   the droplet). Without a domain, HOST is `<droplet-ip>.sslip.io`, but Google sign-in is
+   simpler on a domain you own.
 2. **Droplet**: `deploy/provision.sh` with doctl, steps 1–6 of [DROPLET.md](deploy/DROPLET.md)
    (droplet, cloud firewall, then on first boot the deploy user, swap, automatic updates, Docker
    with log rotation).

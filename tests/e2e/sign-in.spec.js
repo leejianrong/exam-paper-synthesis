@@ -18,8 +18,8 @@ test.beforeEach(async ({ page }) => {
 
 test('names the product, says why a sign-in failed, and lets a developer in', async ({ page }) => {
   await page.goto('/#/login?error=state')
-  await expect(page).toHaveTitle('Exam papers')
-  await expect(page.getByRole('heading', { level: 1, name: 'Exam papers' })).toBeVisible()
+  await expect(page).toHaveTitle('Examsmith')
+  await expect(page.getByRole('heading', { level: 1, name: 'Examsmith' })).toBeVisible()
   await expect(page.getByRole('alert')).toHaveText('That sign-in took too long or was started in another tab. Sign in again.')
   await expect(page.getByText('Development only')).toBeVisible()
 

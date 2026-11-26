@@ -17,7 +17,7 @@ from fastapi.responses import HTMLResponse
 
 router = APIRouter()
 
-APP_NAME = "Exam papers"
+APP_NAME = "Examsmith"
 UPDATED = "21 November 2026"
 
 

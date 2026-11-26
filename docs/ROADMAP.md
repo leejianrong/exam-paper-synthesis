@@ -180,6 +180,7 @@ database. The homelab k8s idea stays a possible later move.
 - **done** Publish the image to GHCR on every main merge; headless-shell Chromium, 1.82 GB (EXA-179)
 - **done** Nightly `pg_dump` to Spaces and a rehearsed restore: the `backup` service, `deploy/restore.sh`, `docs/deploy/BACKUPS.md`; verified locally against an S3 stand-in (EXA-180)
 - **done** Droplet runbook: firewall, SSH keys, swap, upgrades, log rotation, sign-in apps (`docs/deploy/DROPLET.md`, `SIGN-IN.md`, EXA-181)
+- **done** Name the product Examsmith and buy `examsmith.app`; the app, landing page and legal pages use the name
 - **done** Start on a 1 GB droplet (one PDF render at a time, memory limits raised from `.env` after a resize), created with doctl: `deploy/provision.sh` + `deploy/cloud-init.yaml` (EXA-184)
 - **done** ADR-0024, LAUNCH.md for the droplet, retire `fly.toml` (EXA-182)
 - **done** Uptime check on `/ready`: written in the runbook, set up by the owner at launch (EXA-183)

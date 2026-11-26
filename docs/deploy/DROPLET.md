@@ -6,8 +6,8 @@ itself is `deploy/compose.yaml` (Caddy → app → Postgres 17); backups and the
 [ADR-0024](../adr/0024-droplet-compose-hosting.md).
 
 Every step ends with a **Check**. Commands run on the droplet as the `deploy` user unless the
-step says otherwise. `HOST` below is the hostname users reach: `<droplet-ip>.sslip.io` until a
-domain is bought, then the domain.
+step says otherwise. `HOST` below is the hostname users reach: `examsmith.app`
+(on a droplet without a domain, `<droplet-ip>.sslip.io`).
 
 ## 1. Create the droplet (doctl)
 
