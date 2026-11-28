@@ -49,6 +49,7 @@ from exam_engine.render import (
     _GENERIC_TITLE,
     _GRID_COLUMNS,
     _KEY_META,
+    _NO_LINE,
     AssetResolver,
     KeyOptions,
     Layout,
@@ -334,6 +335,8 @@ class _Writer:
                 if multipart:
                     p.add_run(f"({part['label']})")
                 self.marks(p, part.get("marks"))
+                if part["answer"]["type"] == "tick_table":
+                    self.tick_table(part["answer"], reveal=True)
                 self.solution(part, q_diagram, key)
             return
         if q.get("stem"):
@@ -349,7 +352,7 @@ class _Writer:
             if multipart and part.get("label"):
                 p.add_run(f"({part['label']}) ")
             self.text(p, part["text"])
-            has_line = answer.get("type") not in ("choice", "construction")
+            has_line = answer.get("type") not in _NO_LINE
             if _marks_beside(layout, answer_key, has_line):
                 self.marks(p, part.get("marks"))
             spec = part.get("diagram")
@@ -359,6 +362,8 @@ class _Writer:
                 self.figure(diagram.render_svg(spec))
             if answer.get("type") == "choice":
                 self.options(answer, reveal=answer_key)
+            elif answer.get("type") == "tick_table":
+                self.tick_table(answer, reveal=answer_key)
             if key is not None:
                 self.solution(part, q_diagram, key)
             elif has_line and layout is not None:
@@ -377,6 +382,32 @@ class _Writer:
                 self.text(p, opt["text"], bold=correct)
             if opt.get("diagram"):
                 self.figures.append((p.add_run(), diagram.render_svg(opt["diagram"])))
+
+    def tick_table(self, answer: dict, *, reveal: bool) -> None:
+        """EXA-158 statements with a box per column: empty on the paper, ticked in the key."""
+        columns = answer["columns"]
+        box = int(Mm(24))
+        # the page's width, or a key table cell's less its padding
+        cell = getattr(self.target, "width", None)
+        room = int(cell) - int(Mm(4)) if cell else int(_TEXT_WIDTH)
+        t = self.table(
+            len(answer["rows"]) + 1,
+            len(columns) + 1,
+            [room - box * len(columns)] + [box] * len(columns),
+        )
+        for c, head in enumerate(["Statement", *columns]):
+            p = t.cell(0, c).paragraphs[0]
+            p.add_run(head).bold = True
+            if c:
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        for r, row in enumerate(answer["rows"], 1):
+            self.text(t.cell(r, 0).paragraphs[0], row["statement"])
+            for c, column in enumerate(columns, 1):
+                p = t.cell(r, c).paragraphs[0]
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                if reveal and row["tick"] == column:
+                    p.add_run("\u2713").bold = True
+        self.para()
 
     def data_table(self, table: dict, parts: list[dict], answer_key: bool) -> None:
         if table.get("caption"):
@@ -403,7 +434,7 @@ class _Writer:
         if answer["type"] == "construction":
             given = part.get("diagram") or q_diagram
             self.figure(diagram.render_svg(answer["diagram"], given=given))
-        else:
+        elif answer["type"] != "tick_table":  # the ticked table, printed with the part, is it
             p = self.para()
             p.add_run("Answer: ").bold = True
             self.text(p, _fmt_answer(answer), escaped=True, bold=True)
@@ -767,7 +798,12 @@ class _Writer:
                     p.add_run(f"({label}) ").bold = True
                 self.text(p, step["text"])
             answer = part["answer"]
-            if answer["type"] == "construction":
+            if answer["type"] == "tick_table":
+                # the ticked table is the answer: no "Ans:" line, the marks right under it
+                self.tick_table(answer, reveal=True)
+                if key.show_marks and part.get("marks"):
+                    self.para().add_run(f"[{part['marks']}]")
+            elif answer["type"] == "construction":
                 if label or (key.show_marks and part.get("marks")):
                     self.key_ans("", label, part.get("marks"), key)
                 self.figure(

@@ -552,6 +552,11 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Fixed
 
+- **Word export prints tick tables (EXA-177).** A True / False / Not possible to tell question
+  exported to Word had no statements table and an "Ans:" line instead, so it could not be
+  answered. The student paper now has the table with empty boxes and no "Ans:" line; both
+  answer keys, and the key that leaves out the questions, tick the boxes, as the PDF does.
+
 - **Dependency audit covers the project (EXA-176).** The CI job ran `uvx pip-audit` with no
   arguments, which audited pip-audit's own environment. It now audits a `uv export` of
   `uv.lock` (engine, api, cli and the dev group). That flagged anyio, certifi and
