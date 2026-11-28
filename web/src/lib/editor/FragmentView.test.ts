@@ -33,9 +33,12 @@ describe('FragmentView', () => {
     expect(calls).toEqual([{ mode: 'key', number: 3 }])
     // Isolated from the app: nothing leaked into the light DOM.
     expect(screen.queryByText('Pick (A) or (B)')).not.toBeInTheDocument()
-    // jsdom has no adopted stylesheets, so the stylesheet falls back to a <style> element.
+    // an adopted stylesheet where the DOM has them (jsdom since 31), else a <style> element
     const root = screen.getByTestId('fragment').shadowRoot!
-    expect(root.querySelector('style')?.textContent).toContain('.question{color:red}')
+    const css =
+      root.adoptedStyleSheets?.flatMap((s) => Array.from(s.cssRules, (r) => r.cssText)).join('') ||
+      root.querySelector('style')?.textContent
+    expect(css?.replace(/[\s;]/g, '')).toContain('.question{color:red}')
   })
 
   it('shows an error and no html when the render fails', async () => {
