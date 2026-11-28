@@ -387,10 +387,13 @@ class _Writer:
         """EXA-158 statements with a box per column: empty on the paper, ticked in the key."""
         columns = answer["columns"]
         box = int(Mm(24))
+        # the page's width, or a key table cell's less its padding
+        cell = getattr(self.target, "width", None)
+        room = int(cell) - int(Mm(4)) if cell else int(_TEXT_WIDTH)
         t = self.table(
             len(answer["rows"]) + 1,
             len(columns) + 1,
-            [int(_TEXT_WIDTH) - box * len(columns)] + [box] * len(columns),
+            [room - box * len(columns)] + [box] * len(columns),
         )
         for c, head in enumerate(["Statement", *columns]):
             p = t.cell(0, c).paragraphs[0]
