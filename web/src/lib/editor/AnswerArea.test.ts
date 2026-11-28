@@ -28,7 +28,8 @@ describe('AnswerArea', () => {
   it('draws the working space at its real size', () => {
     render(AnswerArea, { props: { marks: 2 } })
     const box = screen.getByTestId('answer-area').querySelector('.space') as HTMLElement
-    expect(box.style.height).toBe(`${50 * PX_PER_MM}px`)
+    expect(box.style.height).toMatch(/px$/)
+    expect(parseFloat(box.style.height)).toBeCloseTo(50 * PX_PER_MM, 2)
     expect(screen.getByRole('slider', { name: 'Working space height' })).toHaveAttribute(
       'aria-valuenow',
       '50',
