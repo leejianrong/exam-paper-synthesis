@@ -431,7 +431,7 @@ def test_a_tick_table_prints_empty_boxes_on_the_paper_and_no_answer_line(raster)
     assert _tick_tables(data) == [_expected(reveal=False)]
     text = _all_text(data)
     assert "✓" not in text and "Ans:" not in text
-    assert tick_table_summary(TICKS) not in text
+    assert tick_table_summary(TICKS) not in _whole_text(data)
     for mark in TICKS["question"]["parts"][0]["marking_scheme"]:
         assert mark["description"] not in text
 
@@ -448,9 +448,25 @@ def test_the_key_ticks_the_table_and_prints_no_summary_line(raster, key_options)
     data = _export(_create(_tick_paper(**key_options)), "key").content
     assert _tick_tables(data) == [_expected(reveal=True)]
     text = _all_text(data)
-    assert tick_table_summary(TICKS) not in text  # the ticked table is the answer
+    assert tick_table_summary(TICKS) not in _whole_text(data)  # the ticked table is the answer
     if key_options.get("show_marks"):
         assert "[2]" in text
+
+
+def _whole_text(data: bytes) -> str:
+    """Each paragraph's text whole, in the body and in every table cell, nested ones too."""
+    word = Document(io.BytesIO(data))
+    texts = [p.text for p in word.paragraphs]
+
+    def walk(tables) -> None:
+        for t in tables:
+            for row in t.rows:
+                for c in row.cells:
+                    texts.extend(p.text for p in c.paragraphs)
+                    walk(c.tables)
+
+    walk(word.tables)
+    return "\n".join(texts)
 
 
 def tick_table_summary(obj: dict) -> str:
