@@ -387,3 +387,71 @@ def test_a_shared_stem_in_the_key(raster):
     text = _all_text(_export(_create(doc), "key").content)
     assert text.index("Stem-text") < text.index("Second.")
     assert "How many does he give away?" not in text
+
+
+# -- EXA-177 tick tables --------------------------------------------------------------------
+
+TICKS = generate("average_statements", 1)
+
+
+def _tick_tables(data: bytes) -> list[list[list[str]]]:
+    """Every tick table in the file, nested ones (the school key's cells) included."""
+    found: list[list[list[str]]] = []
+
+    def walk(tables) -> None:
+        for t in tables:
+            rows = [[c.text for c in row.cells] for row in t.rows]
+            if rows and rows[0][0] == "Statement":
+                found.append(rows)
+            for row in t.rows:
+                for c in row.cells:
+                    walk(c.tables)
+
+    walk(Document(io.BytesIO(data)).tables)
+    return found
+
+
+def _tick_paper(**key_options) -> dict:
+    doc = make_doc(question_block(TICKS), title="Docx paper")
+    doc["settings"] = {"key_options": key_options}
+    return doc
+
+
+def _expected(reveal: bool) -> list[list[str]]:
+    answer = TICKS["question"]["parts"][0]["answer"]
+    head = ["Statement", *answer["columns"]]
+    return [head] + [
+        [r["statement"]] + ["✓" if reveal and r["tick"] == c else "" for c in answer["columns"]]
+        for r in answer["rows"]
+    ]
+
+
+def test_a_tick_table_prints_empty_boxes_on_the_paper_and_no_answer_line(raster):
+    data = _export(_create(_tick_paper()), "student").content
+    assert _tick_tables(data) == [_expected(reveal=False)]
+    text = _all_text(data)
+    assert "✓" not in text and "Ans:" not in text
+    assert tick_table_summary(TICKS) not in text
+    for mark in TICKS["question"]["parts"][0]["marking_scheme"]:
+        assert mark["description"] not in text
+
+
+@pytest.mark.parametrize(
+    "key_options",
+    [
+        {"layout": "full"},
+        {"layout": "full", "show_question": False},
+        {"layout": "compact", "show_marks": True},
+    ],
+)
+def test_the_key_ticks_the_table_and_prints_no_summary_line(raster, key_options):
+    data = _export(_create(_tick_paper(**key_options)), "key").content
+    assert _tick_tables(data) == [_expected(reveal=True)]
+    text = _all_text(data)
+    assert tick_table_summary(TICKS) not in text  # the ticked table is the answer
+    if key_options.get("show_marks"):
+        assert "[2]" in text
+
+
+def tick_table_summary(obj: dict) -> str:
+    return ", ".join(r["tick"] for r in obj["question"]["parts"][0]["answer"]["rows"])
