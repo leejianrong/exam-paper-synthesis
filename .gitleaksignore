@@ -1,0 +1,6 @@
+# False positives, by gitleaks fingerprint (commit:file:rule:line). Each one checked by hand.
+# tests/test_api_set_key.py line 220: the set-key URL path followed by the dev-stub owner
+# header (the test user alice), not a credential.
+d20dcab138e96777c94cea4286c27e613c9b92cc:tests/test_api_set_key.py:generic-api-key:220
+# An earlier draft of this file quoted the line above in its comment.
+a9c51c1af76ca069a25991f4edcf2332023f088a:.gitleaksignore:generic-api-key:2

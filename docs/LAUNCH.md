@@ -12,7 +12,7 @@ is the checklist below it. Hosting: one DigitalOcean droplet running Docker Comp
   cookies, no CORS). The `Image` workflow builds it on every pull request, prints a paper with
   it, and on main pushes `ghcr.io/leejianrong/exam-paper-synthesis:latest` and `:sha-<commit>`.
 - **The stack** (`deploy/compose.yaml`): Caddy (automatic TLS, the only published ports) → the
-  app (`shm_size` 512 MB for Chromium, a memory limit, a health check) → Postgres 17 on a
+  app (`shm_size` 256 MB for Chromium, a memory limit, a health check) → Postgres 17 on a
   volume; a nightly backup to DigitalOcean Spaces. `deploy/.env.example` lists every value.
 - **Refuses to boot unsafe** (`EXAM_ENV=production`, set in the image): dev identity stub on,
   no `EXAM_DATABASE_URL`, non-https public/web URL, or no sign-in provider ⇒ startup error that
@@ -20,7 +20,7 @@ is the checklist below it. Hosting: one DigitalOcean droplet running Docker Comp
 - **Security headers** on every response (`nosniff`, `X-Frame-Options: SAMEORIGIN`, referrer and
   permissions policies, HSTS on https). Session cookie: HttpOnly, SameSite=Lax, Secure on https.
 - **Export protection**: per-account allowance (30/day, 5/minute; `docs/AUTH.md`), a
-  concurrency cap (`EXAM_EXPORT_CONCURRENCY`, default 2; 503 when busy), a per-operation
+  concurrency cap (`EXAM_EXPORT_CONCURRENCY`, 1 in the Compose stack for a 1 GB droplet; 503 when busy), a per-operation
   browser timeout (`EXAM_EXPORT_TIMEOUT_MS`, default 30 s), refund on a failed render.
 - **Isolation**: every document/asset/bank/session row is owner-scoped; a foreign id is a 404;
   tests run on both SQLite and Postgres.
@@ -28,10 +28,12 @@ is the checklist below it. Hosting: one DigitalOcean droplet running Docker Comp
 
 ## Before the first user (you)
 
-1. **Domain (optional at first)**: until one is bought, HOST is `<droplet-ip>.sslip.io`. Buying
-   one before going public avoids changing the URL later and makes Google sign-in simpler.
-2. **Droplet**: steps 1–6 of [DROPLET.md](deploy/DROPLET.md) (droplet, cloud firewall, deploy
-   user, swap, automatic updates, Docker with log rotation).
+1. **Domain**: `examsmith.app` (bought 2026-11-24; DNS at Cloudflare, DNS only, an A record to
+   the droplet). Without a domain, HOST is `<droplet-ip>.sslip.io`, but Google sign-in is
+   simpler on a domain you own.
+2. **Droplet**: `deploy/provision.sh` with doctl, steps 1–6 of [DROPLET.md](deploy/DROPLET.md)
+   (droplet, cloud firewall, then on first boot the deploy user, swap, automatic updates, Docker
+   with log rotation).
 3. **Spaces bucket and keys** for backups ([BACKUPS.md](deploy/BACKUPS.md)).
 4. **Policy pages** (EXA-185): `/privacy` and `/terms` live, with the contact address you chose.
    Google's consent screen links to them. What they must say: what is stored (email, name,

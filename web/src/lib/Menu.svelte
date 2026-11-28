@@ -11,6 +11,8 @@
     disabled?: boolean
     /** Why it is disabled, or what it does: the row's tooltip and description. */
     hint?: string
+    /** A short line printed under the label, e.g. why the row is disabled (EXA-168). */
+    note?: string
     danger?: boolean
     separator?: boolean
     /** An on/off row (e.g. "Show side panel"): a menuitemcheckbox with a tick when on. */
@@ -242,7 +244,10 @@
           >
             {#if item.checked !== undefined}<span class="tick">{#if item.checked}<Icon name="check" />{/if}</span
               >{:else if item.icon}<Icon name={item.icon} />{/if}
-            <span class="label">{item.label}</span>
+            {#if item.note}<span class="two"><span class="label">{item.label}</span><span class="note"
+                  >{item.note}</span
+                ></span
+              >{:else}<span class="label">{item.label}</span>{/if}
             {#if item.shortcut}<span class="k" aria-hidden="true">{keyLabel(item.shortcut, mac)}</span>{/if}
           </button>
         {/each}
@@ -323,6 +328,16 @@
     display: inline-flex;
     width: 16px;
     flex: none;
+  }
+  .two {
+    display: flex;
+    flex-direction: column;
+  }
+  .note {
+    max-width: 16rem;
+    white-space: normal;
+    font-size: 12px;
+    color: var(--ink-soft);
   }
   .k {
     margin-left: auto;

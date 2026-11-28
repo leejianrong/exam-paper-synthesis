@@ -161,7 +161,7 @@ final swap fails, the old database is renamed back. To undo a restore, restore t
 ## The restore drill
 
 Rehearse the worst case, a lost droplet, before launch and then every three months. Do it on a
-**throwaway droplet** (any size with 2 GB, created for the drill and destroyed after), so the
+**throwaway droplet** (the smallest size will do, created for the drill and destroyed after), so the
 live site is never touched. Write the date and the result at the end of this page.
 
 On the live droplet, note what the restore should bring back:

@@ -13,7 +13,11 @@ const deleteFolder = vi.fn()
 const moveDocument = vi.fn()
 const renameDocument = vi.fn()
 const copyDocument = vi.fn()
+const exportSetKey = vi.fn()
 vi.mock('./docsApi', () => ({
+  exportSetKey: (...a: unknown[]) => exportSetKey(...a),
+  setKeyUnfilled: (e: unknown) =>
+    e instanceof ApiError && e.status === 409 && (e.detail as { code?: string } | null)?.code === 'unfilled_placeholders',
   listFolders: (...a: unknown[]) => listFolders(...a),
   createFolder: (...a: unknown[]) => createFolder(...a),
   renameFolder: (...a: unknown[]) => renameFolder(...a),
@@ -82,6 +86,7 @@ beforeEach(() => {
     moveDocument,
     renameDocument,
     copyDocument,
+    exportSetKey,
   ])
     m.mockReset()
   listPaperTemplates.mockResolvedValue(TEMPLATES)
@@ -648,5 +653,133 @@ describe('DocumentList folders (O2, EXA-166)', () => {
     expect(screen.getByRole('link', { name: /P6 Paper 1 Booklet A/ })).toBeInTheDocument()
     expect(deleteDocument).not.toHaveBeenCalled()
     expect(screen.getByRole('status')).toHaveTextContent('Folder “Prelims 2026” deleted. Its papers are in Unfiled.')
+  })
+})
+
+describe('DocumentList: the set’s answer key (EXA-168)', () => {
+  const part = (id: string, title: string, paper_part: string | null, folder_id = 'f1') => ({
+    ...summary(id, title, folder_id),
+    paper_part,
+  })
+  const SET = [
+    part('a', 'P6 Paper 1 Booklet A', 'booklet_a'),
+    part('b', 'P6 Paper 1 Booklet B', 'booklet_b'),
+    part('c', 'P6 Paper 2', 'paper_2'),
+  ]
+  const KEY = /Download the set’s answer key/
+
+  async function folderMenu(name = 'Prelims 2026') {
+    await fireEvent.click(await screen.findByRole('button', { name: `Actions for folder “${name}”` }))
+    return screen.findByRole('menu', { name })
+  }
+
+  let clicked: string[]
+  beforeEach(() => {
+    clicked = []
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:key', revokeObjectURL: () => {} }))
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      clicked.push(this.download)
+    })
+  })
+  afterEach(() => vi.restoreAllMocks())
+
+  it('downloads one PDF for a complete set from the folder’s ⋯ menu', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
+    listDocuments.mockResolvedValue(SET)
+    exportSetKey.mockResolvedValue(new Blob(['%PDF']))
+    render(DocumentList)
+    const menu = await folderMenu()
+    const item = within(menu).getByRole('menuitem', { name: KEY })
+    expect(item).not.toHaveAttribute('aria-disabled')
+    await fireEvent.click(item)
+    await waitFor(() => expect(exportSetKey).toHaveBeenCalledWith('f1', false))
+    await waitFor(() => expect(clicked).toEqual(['Prelims 2026 answer key.pdf']))
+    expect(screen.getByRole('status')).toHaveTextContent('Downloaded the answer key for “Prelims 2026”.')
+  })
+
+  it('is disabled with the reason while the set is incomplete, and absent without a set', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026'), folder('f2', 'Drills')])
+    listDocuments.mockResolvedValue([...SET.slice(0, 2), part('d', 'Fractions drill', null, 'f2')])
+    render(DocumentList)
+    const menu = await folderMenu()
+    const item = within(menu).getByRole('menuitem', { name: KEY })
+    expect(item).toHaveAttribute('aria-disabled', 'true')
+    expect(item).toHaveTextContent('This folder has no Paper 2.')
+    await fireEvent.click(item)
+    expect(exportSetKey).not.toHaveBeenCalled()
+    await fireEvent.keyDown(menu, { key: 'Escape' })
+    const drills = await folderMenu('Drills')
+    expect(within(drills).queryByRole('menuitem', { name: KEY })).toBeNull()
+  })
+
+  it('two folders at once: one finishing leaves the other busy', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026'), folder('f2', 'Mid-year')])
+    listDocuments.mockResolvedValue([...SET, ...SET.map((d) => ({ ...d, id: `${d.id}2`, folder_id: 'f2' }))])
+    const pending: Record<string, (b: Blob) => void> = {}
+    exportSetKey.mockImplementation((id: string) => new Promise<Blob>((done) => (pending[id] = done)))
+    render(DocumentList)
+    await fireEvent.click(within(await folderMenu()).getByRole('menuitem', { name: KEY }))
+    await fireEvent.click(within(await folderMenu('Mid-year')).getByRole('menuitem', { name: KEY }))
+    await waitFor(() => expect(Object.keys(pending)).toEqual(['f1', 'f2']))
+    pending.f1(new Blob(['%PDF']))
+    await waitFor(() => expect(clicked).toEqual(['Prelims 2026 answer key.pdf']))
+    const busy = within(await folderMenu('Mid-year')).getByRole('menuitem', { name: /Making the set’s answer key/ })
+    expect(busy).toHaveAttribute('aria-disabled', 'true')
+    await fireEvent.keyDown(screen.getByRole('menu', { name: 'Mid-year' }), { key: 'Escape' })
+    const free = within(await folderMenu()).getByRole('menuitem', { name: KEY })
+    expect(free).not.toHaveAttribute('aria-disabled')
+    await fireEvent.keyDown(screen.getByRole('menu', { name: 'Prelims 2026' }), { key: 'Escape' })
+    pending.f2(new Blob(['%PDF']))
+    await waitFor(() => expect(clicked).toEqual(['Prelims 2026 answer key.pdf', 'Mid-year answer key.pdf']))
+  })
+
+  it('a search doesn’t hide the set: the status counts every paper in the folder', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
+    listDocuments.mockResolvedValue(SET)
+    render(DocumentList)
+    await fireEvent.input(await screen.findByRole('searchbox'), { target: { value: 'Paper 2' } })
+    const menu = await folderMenu()
+    expect(within(menu).getByRole('menuitem', { name: KEY })).not.toHaveAttribute('aria-disabled')
+  })
+
+  it('says why it failed in plain words, with Try again when that may work', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
+    listDocuments.mockResolvedValue(SET)
+    exportSetKey.mockRejectedValueOnce(new ApiError(503, 'export is busy'))
+    exportSetKey.mockResolvedValueOnce(new Blob(['%PDF']))
+    render(DocumentList)
+    await fireEvent.click(within(await folderMenu()).getByRole('menuitem', { name: KEY }))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("Couldn't download the set's answer key. The server is busy. Try again in a moment.")
+    await fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(clicked).toEqual(['Prelims 2026 answer key.pdf']))
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('empty placeholders: the server’s words and Download anyway', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
+    listDocuments.mockResolvedValue(SET)
+    const message = 'Paper 2 question 3 is still empty. Write or fill it first, or download the key anyway.'
+    exportSetKey.mockRejectedValueOnce(new ApiError(409, { code: 'unfilled_placeholders', message, papers: [] }))
+    exportSetKey.mockResolvedValueOnce(new Blob(['%PDF']))
+    render(DocumentList)
+    await fireEvent.click(within(await folderMenu()).getByRole('menuitem', { name: KEY }))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(`The set's answer key wasn't made. ${message}`)
+    await fireEvent.click(within(alert).getByRole('button', { name: 'Download anyway' }))
+    await waitFor(() => expect(exportSetKey).toHaveBeenLastCalledWith('f1', true))
+    await waitFor(() => expect(clicked).toHaveLength(1))
+  })
+
+  it('an incomplete set the server found says so (the list was out of date)', async () => {
+    listFolders.mockResolvedValue([folder('f1', 'Prelims 2026')])
+    listDocuments.mockResolvedValue(SET)
+    const message = "This folder has no Booklet B. A set's answer key needs Booklet A, Booklet B and Paper 2."
+    exportSetKey.mockRejectedValue(new ApiError(409, { code: 'incomplete_set', message, parts: ['booklet_b'] }))
+    render(DocumentList)
+    await fireEvent.click(within(await folderMenu()).getByRole('menuitem', { name: KEY }))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(`Couldn't download the set's answer key. ${message}`)
+    expect(within(alert).queryByRole('button')).toBeNull()
   })
 })

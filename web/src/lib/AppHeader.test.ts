@@ -20,7 +20,7 @@ const go = async (hash: string) => {
 describe('AppHeader (EXA-167)', () => {
   it('names the product and links Papers and the Question bank', () => {
     render(AppHeader)
-    expect(screen.getByRole('banner')).toHaveTextContent('Exam papers')
+    expect(screen.getByRole('banner')).toHaveTextContent('Examsmith')
     expect(tabs()).toEqual(['Papers', 'Question bank'])
     expect(within(nav()).getByRole('link', { name: 'Papers' })).toHaveAttribute('href', '#/')
     expect(within(nav()).getByRole('link', { name: 'Question bank' })).toHaveAttribute('href', '#/bank')

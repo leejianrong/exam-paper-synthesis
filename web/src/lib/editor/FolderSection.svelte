@@ -2,11 +2,13 @@
   // O2, reworked for EXA-166: one folder on "Your papers". Its name is a disclosure button that
   // collapses the folder (the list remembers which); a ⋯ menu holds New paper in folder, Rename
   // (inline: Enter saves, Escape backs out) and Delete (the list confirms it). While the list is
-  // searched the name is plain text and the folder stays open.
+  // searched the name is plain text and the folder stays open. EXA-168: a folder that holds an
+  // exam set offers "Download the set's answer key" (disabled, with the reason, while the set is
+  // incomplete or holds a paper twice).
   import { tick, type Snippet } from 'svelte'
   import Icon from '../Icon.svelte'
   import Menu, { type MenuItem } from '../Menu.svelte'
-  import type { FolderGroup } from './folders'
+  import type { FolderGroup, SetKeyStatus } from './folders'
 
   let {
     group,
@@ -16,6 +18,9 @@
     onRename,
     onDelete,
     onNew,
+    setKey = null,
+    setKeyBusy = false,
+    onSetKey,
     children,
   }: {
     group: FolderGroup
@@ -27,6 +32,11 @@
     onDelete: () => void
     /** O3: open the + New wizard with this folder as the home for what it makes. */
     onNew: () => void
+    /** EXA-168: the folder's exam set, null when it holds none (no set key in the menu). */
+    setKey?: SetKeyStatus | null
+    /** The set key is being made: the item waits. */
+    setKeyBusy?: boolean
+    onSetKey?: () => void
     children: Snippet
   } = $props()
 
@@ -67,9 +77,24 @@
     if (ok) await endRename()
   }
 
+  const keyItem: MenuItem[] = $derived(
+    setKey
+      ? [
+          {
+            label: setKeyBusy ? 'Making the set’s answer key…' : 'Download the set’s answer key',
+            icon: 'download',
+            disabled: !setKey.ready || setKeyBusy,
+            hint: setKey.ready ? 'One PDF: Booklet A, Booklet B and Paper 2 under their headings' : undefined,
+            note: setKey.ready ? undefined : setKey.reason,
+            onSelect: () => onSetKey?.(),
+          },
+        ]
+      : [],
+  )
   const items: MenuItem[] = $derived([
     { label: 'New paper in folder…', icon: 'plus', onSelect: onNew },
-    { label: 'Rename folder', icon: 'pen', onSelect: () => void startRename() },
+    ...keyItem,
+    { label: 'Rename folder', icon: 'pen', separator: keyItem.length > 0, onSelect: () => void startRename() },
     { label: 'Delete folder…', icon: 'trash', danger: true, separator: true, onSelect: onDelete },
   ])
   const open = $derived(!collapsible || !collapsed)

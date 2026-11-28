@@ -1,5 +1,6 @@
-"""The landing page and the SPA shell (EXA-170): the product name is "Exam papers", never the
-repo name, and every link into this repo on GitHub points at a file that exists."""
+"""The landing page and the SPA shell (EXA-170): the product name is "Examsmith" ("Exam papers"
+until 2026-11-26), never the repo name, and every link into this repo on GitHub points at a file
+that exists."""
 
 import re
 from pathlib import Path
@@ -16,7 +17,7 @@ def test_repo_links_on_the_landing_page_point_at_files_that_exist():
         assert (ROOT / path).is_file(), path
 
 
-def test_the_product_name_is_exam_papers_not_the_repo_name():
+def test_the_product_name_is_examsmith_not_the_repo_name():
     for page in (SITE, SPA):
         assert "Exam Paper Synthesis" not in page
-        assert re.search(r"<title>Exam papers\b", page)
+        assert re.search(r"<title>Examsmith\b", page)

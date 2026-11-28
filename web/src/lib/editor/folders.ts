@@ -63,3 +63,45 @@ export function titleMatches(title: string, query: string): boolean {
     .filter(Boolean)
     .every((w) => t.includes(w))
 }
+
+/** EXA-168: can this folder's papers print one answer key for the whole set? */
+export type SetKeyStatus = { ready: true } | { ready: false; reason: string }
+
+const COUNT_WORDS: Record<number, string> = { 2: 'Two', 3: 'Three', 4: 'Four', 5: 'Five' }
+
+const listed = (names: string[], last = 'or'): string =>
+  names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} ${last} ${names[names.length - 1]}`
+
+/**
+ * Whether a folder holds one complete exam set: one Booklet A, one Booklet B and one Paper 2, by
+ * the server's `paper_part`. A part named on a cover (`paper_part_source: 'cover'`) wins over one
+ * only guessed from a title, so a worksheet titled "Booklet A practice" doesn't block the set;
+ * papers that name no part don't matter. Null when the folder holds no part of a set, so its
+ * menu doesn't offer a set key at all. The same rule and words as the engine's
+ * `document.exam_set_order`, which the server applies again (it also checks that the covers
+ * agree, which the list can't see).
+ */
+export function setKeyStatus(docs: DocumentSummary[]): SetKeyStatus | null {
+  const chosen = (k: PaperPart): DocumentSummary[] => {
+    const candidates = docs.filter((d) => d.paper_part === k)
+    const onCover = candidates.filter((d) => d.paper_part_source === 'cover')
+    return onCover.length ? onCover : candidates
+  }
+  if (PARTS.every((p) => chosen(p.key).length === 0)) return null
+  const doubled = PARTS.filter((p) => chosen(p.key).length > 1)
+  if (doubled.length) {
+    const said = doubled.map((p) => {
+      const titles = chosen(p.key).map((d) => `“${d.title.trim() || 'Untitled paper'}”`)
+      // one title for all of them: say how many papers carry it, not the title twice
+      const who =
+        new Set(titles).size === 1
+          ? `${COUNT_WORDS[titles.length] ?? titles.length} papers titled ${titles[0]}`
+          : listed(titles, 'and')
+      return `${who} ${titles.length === 2 ? 'both' : 'all'} look like ${p.label}.`
+    })
+    return { ready: false, reason: said.join(' ') }
+  }
+  const missing = PARTS.filter((p) => chosen(p.key).length === 0).map((p) => p.label)
+  if (missing.length) return { ready: false, reason: `This folder has no ${listed(missing)}.` }
+  return { ready: true }
+}

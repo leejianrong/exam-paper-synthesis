@@ -54,7 +54,9 @@ EXA-169, new-paper defaults in Settings (school name, level, marks shown, key st
 into every new paper by the server, the default level offered first in the New dialog; S12,
 EXA-170, the sign-in page: the product name "Exam papers" and what it is for, a "Sign in with …"
 button with its mark for each configured provider, sign-in failures in plain words, the dev stub
-marked as development only, and "Exam papers" as the tab title instead of the repo name).
+marked as development only, and "Exam papers" as the tab title instead of the repo name; S10,
+EXA-168, one answer-key PDF for a folder's whole exam set, from the folder's ⋯ menu, with
+booklet headings).
 
 ---
 
@@ -169,7 +171,7 @@ cards built in parallel in treehouse worktrees, landed serially on green CI.
 ## Hosting: Docker Compose on a DigitalOcean droplet (EXA-E16, in progress)
 
 Replaces the Fly.io + Neon hosting of ADR-0022 (ADR-0024). Owner's choices
-(2026-11-21): a 2 GB SGP1 droplet; Caddy for TLS on `<ip>.sslip.io` until a domain is bought
+(2026-11-21): a 2 GB SGP1 droplet (1 GB to start, 2026-11-23); Caddy for TLS on `<ip>.sslip.io` until a domain is bought
 (the name must suit subjects beyond PSLE maths); Postgres 17 in a container with nightly
 `pg_dump` to DO Spaces; no Cloudflare yet; Google and GitHub sign-in; start with an empty
 database. The homelab k8s idea stays a possible later move.
@@ -178,6 +180,8 @@ database. The homelab k8s idea stays a possible later move.
 - **done** Publish the image to GHCR on every main merge; headless-shell Chromium, 1.82 GB (EXA-179)
 - **done** Nightly `pg_dump` to Spaces and a rehearsed restore: the `backup` service, `deploy/restore.sh`, `docs/deploy/BACKUPS.md`; verified locally against an S3 stand-in (EXA-180)
 - **done** Droplet runbook: firewall, SSH keys, swap, upgrades, log rotation, sign-in apps (`docs/deploy/DROPLET.md`, `SIGN-IN.md`, EXA-181)
+- **done** Name the product Examsmith and buy `examsmith.app`; the app, landing page and legal pages use the name
+- **done** Start on a 1 GB droplet (one PDF render at a time, memory limits raised from `.env` after a resize), created with doctl: `deploy/provision.sh` + `deploy/cloud-init.yaml` (EXA-184)
 - **done** ADR-0024, LAUNCH.md for the droplet, retire `fly.toml` (EXA-182)
 - **done** Uptime check on `/ready`: written in the runbook, set up by the owner at launch (EXA-183)
 - **done** Invite-only sign-in for the private trial, `EXAM_ALLOWED_EMAILS` (EXA-186)

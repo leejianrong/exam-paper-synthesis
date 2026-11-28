@@ -8,7 +8,36 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
+### Changed
+
+- **The product is called Examsmith** (domain `examsmith.app`). The app header, the sign-in
+  page, the tab title, the landing page and the privacy and terms pages say Examsmith instead of
+  "Exam papers"; the sign-in guide names the Google and GitHub apps the same.
+
 ### Added
+
+- **A 1 GB droplet to start, created with doctl (EXA-184).** `deploy/provision.sh` makes the
+  production droplet (Basic 1 GB, Singapore, Ubuntu 24.04) and its cloud firewall with `doctl`,
+  and `deploy/cloud-init.yaml` prepares it on first boot: the deploy user and SSH hardening,
+  2 GB swap, automatic security updates, Docker with log rotation and a checkout of the repo.
+  The Compose stack now fits 1 GB: one PDF render at a time (`EXAM_EXPORT_CONCURRENCY=1`; one
+  render peaks at ~370 MB), app 768 MB, Postgres 256 MB. The limits come from `.env`, and
+  `docs/deploy/DROPLET.md` says how to resize to 2 GB and raise them; the monitoring alerts can
+  be made with doctl too.
+
+- **One answer key for a whole exam set (EXA-168, UI redesign S10).** A folder that holds an exam
+  set (one Booklet A, one Booklet B and one Paper 2) has **Download the set’s answer key** in its
+  ⋯ menu on Your papers: one PDF with the school, level, subject and exam from the covers at the
+  top once, then each paper under its heading ("Paper 1 Booklet A", "Paper 1 Booklet B",
+  "Paper 2") in its own key style and options, numbered as the paper numbers it (Booklet B from
+  16). Paper 1's booklets flow on; Paper 2 starts a new page; the page numbers run through the
+  set. While the set is incomplete or holds a paper twice the item is greyed out and says why
+  ("This folder has no Booklet B."). A paper named on its cover beats one whose title only looks
+  like the part, and two equally likely papers are named. The three covers must agree on level,
+  school, subject and exam, or the download says where they differ ("Booklet A is Primary 5 but
+  Booklet B is Primary 6."). Empty generator placeholders are named, with **Download
+  anyway**. The API is `POST /folders/{id}/key` (PDF, one export from the allowance) and
+  `GET /folders/{id}/key/preview` (HTML).
 
 - **P5 multi-part questions (EXA-117).** Three 4-mark Paper 2 Section B questions a P5 paper
   can use (every multi-part question before was P6): `tap_tank_structured` (Volume: how long a

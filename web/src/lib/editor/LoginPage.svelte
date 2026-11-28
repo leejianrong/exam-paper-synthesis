@@ -65,7 +65,7 @@
   <div class="card">
     <header>
       <span class="mark" aria-hidden="true"><Icon name="check" size={18} /></span>
-      <h1>Exam papers</h1>
+      <h1>Examsmith</h1>
       <p class="lead">Singapore P5–P6 maths papers with answer keys you can trust.</p>
     </header>
 
