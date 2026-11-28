@@ -22,3 +22,26 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
     disconnect() {}
   }
 }
+
+// Since jsdom 31 an iframe whose srcdoc is set after it joined the page fires no load event
+// (a browser fires one for each srcdoc it shows), so the answer key view never sees its frame
+// draw. Fire it as a browser would, after the current task.
+if (typeof HTMLIFrameElement !== 'undefined') {
+  const srcdoc = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'srcdoc')
+  const setAttribute = HTMLIFrameElement.prototype.setAttribute
+  const loadLater = (frame: HTMLIFrameElement) =>
+    setTimeout(() => frame.isConnected && frame.dispatchEvent(new Event('load')))
+  if (srcdoc?.set) {
+    Object.defineProperty(HTMLIFrameElement.prototype, 'srcdoc', {
+      ...srcdoc,
+      set(this: HTMLIFrameElement, value: string) {
+        srcdoc.set!.call(this, value)
+        loadLater(this)
+      },
+    })
+  }
+  HTMLIFrameElement.prototype.setAttribute = function (name: string, value: string) {
+    setAttribute.call(this, name, value)
+    if (name.toLowerCase() === 'srcdoc') loadLater(this)
+  }
+}
