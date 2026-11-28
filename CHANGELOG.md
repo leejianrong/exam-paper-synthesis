@@ -10,6 +10,10 @@ Summary of work since 0.1.0 (see `docs/ROADMAP.md` and git history for detail).
 
 ### Changed
 
+- **jsdom 31 for the web unit tests (Dependabot #270).** jsdom 31 rounds CSS pixel values,
+  supports adopted stylesheets, and fires no `load` event for an iframe's `srcdoc`. The tests
+  now allow the first two, and `web/src/setupTests.ts` fires `load` after `srcdoc` is set, as a
+  browser does, so the answer key view's tests see their frame draw. No app code changed.
 - **The product is called Examsmith** (domain `examsmith.app`). The app header, the sign-in
   page, the tab title, the landing page and the privacy and terms pages say Examsmith instead of
   "Exam papers"; the sign-in guide names the Google and GitHub apps the same.
