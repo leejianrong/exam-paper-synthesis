@@ -40,6 +40,16 @@ if (typeof HTMLIFrameElement !== 'undefined') {
       },
     })
   }
+  // jsdom's own load, for the blank document it puts in the frame, would be a second one:
+  // swallow it so each srcdoc frame sees exactly one load, as in a browser
+  document.addEventListener(
+    'load',
+    (e) => {
+      if (e.isTrusted && e.target instanceof HTMLIFrameElement && e.target.hasAttribute('srcdoc'))
+        e.stopImmediatePropagation()
+    },
+    true,
+  )
   HTMLIFrameElement.prototype.setAttribute = function (name: string, value: string) {
     setAttribute.call(this, name, value)
     if (name.toLowerCase() === 'srcdoc') loadLater(this)

@@ -224,6 +224,7 @@ describe('the answer key view keeps up with the paper (review of #242)', () => {
     await fireEvent.click(d.querySelectorAll('li')[1])
     expect(answer).toHaveBeenCalledWith('b3')
     expect(answer).not.toHaveBeenCalledWith('b2')
+    expect(answer).toHaveBeenCalledTimes(1) // one load, so the click is listened for once
   })
 
   it('a scroll waits for the new key while one is due, and goes straight to the row when the key is current', async () => {
